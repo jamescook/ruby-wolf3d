@@ -2,9 +2,6 @@
 
 Wolfenstein 3D, built with [ruby-gba](https://github.com/jamescook/ruby-gba).
 
-This is a game that *depends on* the framework, not an example inside it. It requires
-`ruby_gba` as a gem, the way anyone building their own game on the framework would.
-
 ## You need your own copy of the game
 
 None of Wolfenstein's data is freely licensed, so none of it is in this repository. You supply
