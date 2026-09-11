@@ -11,14 +11,15 @@ This is a real game, and it is also **the framework's gap-finder**. Porting a ga
 keeps meeting things the framework cannot yet do, and each of those is worth more than the
 workaround. So when this game hits a wall:
 
-- **The framework bead is the valuable output.** File it in ruby-gba's tracker, prefix `gba-`.
+- **The framework-side finding is the valuable output**, more than whatever this game ships to
+  get past it. Record it against the framework, not here.
 - **Do not work around a gap here if the framework could close it.** A clever hack in this
   repository hides the very thing the port exists to find.
 - **Never reach past the framework's public surface** — not into `RubyGBA::IR`, not into a
   backend, not into its test directory. Feeling the constraint is the point; a game that can
   cheat its way past one stops reporting it.
-- **A gap worth closing is worth a bead even when you route around it today.** Say which you
-  did, and why.
+- **A gap worth closing is worth recording even when you route around it today.** Say which
+  you did, and why.
 
 ## The game's own data is never in this repository
 
@@ -37,49 +38,6 @@ the framework for everything, and the framework must never learn this game's nam
 reconstructing any rule from memory — how much a pickup heals, what a guard does when it hears
 you, how the tally screen scores. Memory is confident and wrong about this game.
 
-## Task tracking with beads (`bd`)
-
-Graph-based, agent-friendly tracker living with the project. This tracker's prefix is
-**`ruby-wolf3d-`**. Epics and children both have **flat ids** (e.g. `ruby-wolf3d-xhu`) linked
-by `parent-child` dependencies — we did *not* use hierarchical `--parent` ids.
-
-The framework has a tracker of its own, prefix `gba-`, in the ruby-gba checkout. A bead about
-the FRAMEWORK goes there — see "What this is FOR" above. Run `bd` from the directory whose
-tracker you mean; it finds the one beside it.
-
-Commands you'll use most:
-
-```bash
-bd ready --exclude-type epic      # the actionable queue (epics are just containers)
-bd ready --json                   # structured — preferred when parsing
-bd show ruby-wolf3d-xhu           # details; epics list their children + % complete
-bd create "Title" -t task -p 1    # types: bug|feature|task|epic|chore|decision; -p 0(high)..4
-bd update ruby-wolf3d-0pn --claim # claim (assign + in_progress), then start the work
-bd update ruby-wolf3d-0pn --acceptance '…' # set/replace AC after creation (no --acceptance-file; single-quote inline, no backticks/$)
-bd dep add <blocked> <blocker>    # <blocked> depends on <blocker>  (arg order is the #1 gotcha)
-bd dep tree ruby-wolf3d-xhu       # visualize; run `bd dep cycles` after bulk wiring
-bd close ruby-wolf3d-0pn --reason "..."   # close when done
-```
-
-Notes learned in practice:
-
-- Dependencies gate `bd ready` — a bead shows ready only once every bead it depends on
-  is closed. Wire them as you plan; that's what makes `bd ready` mean "actually
-  startable."
-- When you claim a child, also claim its parent epic (`bd update <epic> --claim`) so the
-  epic stops appearing in `bd ready`. Only close an epic once all its children are closed.
-- Create **one issue per command** — don't chain many `bd create`s in one shell line;
-  failures need to stay visible and recoverable.
-- **Shell-safety (learned the hard way):** never pass `--reason`/`--description` text
-  containing backticks, `$(...)`, or other shell metacharacters as an inline argument —
-  the shell will execute it (this once dumped a live secret into the db). Write such text
-  to a file and pass `--reason-file` / `--body-file` instead.
-- Claiming a bead means starting it — proceed straight into the work. Only pause for real
-  ambiguity (unclear requirements, a design call with no obvious answer) or a blocker.
-- Never use `bd decision` - it will effectively be lost. decisions should instead be code, or code
-  comments above relevant code.
-
-
 ## Shell commands — one operation per call
 
 Run **one logical command per Bash call.** Do not chain distinct operations with `&&`, `;`,
@@ -88,15 +46,14 @@ or newlines in a single invocation, and do not bundle a file-writing heredoc
 
 Why this is non-negotiable here: the operator reads each command before allowing it, and the
 permission allow/denylist matches on recognizable prefixes (`git commit`, `rake test:parallel`,
-`bd close`). A blob like `cat > msg <<EOF … EOF; git add .; git commit -F msg; git show` is
+`rake build`). A blob like `cat > msg <<EOF … EOF; git add .; git commit -F msg; git show` is
 unreadable, can't be allowlisted, and can't be denied granularly.
 
 - `git add`, then `git commit`, then `git show` are **three separate Bash calls**, not one.
   Need several commands at once? Issue several Bash calls (they can run in parallel) — each
   stays individually matchable.
-- Write files — commit messages, scripts, bead bodies — with the **Write/Edit tools**, never
-  `cat >`/heredocs. Then a single command reads the file (`git commit -F <file>`,
-  `bd close --reason-file <file>`).
+- Write files — commit messages, scripts, long bodies of text — with the **Write/Edit tools**,
+  never `cat >`/heredocs. Then a single command reads the file (`git commit -F <file>`).
 - No `python3 -c '…'` / `ruby -e '…'` logic one-liners. Put logic in a file so it's
   inspectable and re-runnable.
 - Prefer one clear command over a clever pipeline, even for read-only inspection.
@@ -258,20 +215,19 @@ are commented with what needs what).
   why. The reader knows Ruby. They do not know GAMEMAPS, Carmack compression, or what a
   pushwall is. That teaching is the point.
 - Say what the code IS, not what it used to be. No migration narrative, no "for now".
-- Do not mention beads in code comments. beads is internal to this machine (for now).
-- **No measured decimals in a comment.** A scanline figure (`0.01928`, `0.0032`) or an
-  accuracy ratio (`reads 1.12`) is specific to one emulator build and one moment, so it is
-  stale as soon as anybody re-measures. Write what survives instead: **instruction counts and
-  relationships**, which come from the emitted code, not from a timing run — "one instruction,
-  not six", "clamping is twice wrapping", "a little over at an even column and a little under
-  at an odd one". Those explain the code AND stay true. A measured number belongs in a commit
-  message or a bead, which are dated by construction.
+- Do not name the issue tracker, or an issue id, in a code comment.
+- **No measured decimals in a comment.** A timing figure is specific to one emulator build and
+  one moment, so it is stale as soon as anybody re-measures. Write what survives instead:
+  counts and relationships. A measured number belongs somewhere dated by construction — a
+  commit message, or the issue it came from.
 
 ### Writing commit messages
 
 - Commit messages are for humans and should read as if a human wrote them.
 - Be concise.
-- Do not mention beads in git commit messages comments. beads is internal to this machine (for now).
+- Do not name the issue tracker, or an issue id, in a commit message. The `commit-msg` hook in
+  `.githooks/` rejects one as a backstop; don't lean on it instead of just not writing it.
+- Do not add a `Co-Authored-By` trailer. Do not say how many tests were added.
 - Avoid AI "fluff" that sounds pleased with itself - be direct and get to the point.
 
 ### Writing text the player reads — use the `simple-english` skill
@@ -301,5 +257,5 @@ game follows:
   emitted once. That is a size difference, not only a speed one, and it is the thing about
   the framework you cannot work out by reading your own program.
 
-## Finishing a bead
-- Commit changes to git, but keep the message for humans. Do not add the 'Co-authored ...' trailer. Do not mention how many tests were added.
+## Finishing a piece of work
+- Commit it, and keep the message for humans — see "Writing commit messages" above.
