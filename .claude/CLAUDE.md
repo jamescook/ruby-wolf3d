@@ -104,16 +104,22 @@ unreadable, can't be allowlisted, and can't be denied granularly.
 
 ## The framework, and working on both at once
 
-`ruby_gba` comes from git (see the `Gemfile`). To edit the framework and this game together,
-point bundler at a checkout beside this one:
+`ruby-gba` and `ruby-gba-emulator` both come from git (see the `Gemfile`). To edit the
+framework and this game together, point bundler at a checkout beside this one:
 
 ```bash
 bundle config --local local.ruby-gba ../ruby-gba
+bundle config --local local.ruby-gba-emulator ../ruby-gba
 ```
 
-which resolves against your working tree with no edit to the Gemfile. Undo it with
-`bundle config --delete local.ruby-gba`. It is also the only way to test against framework
-work that is not pushed yet.
+which resolves against your working tree with no edit to the Gemfile — both gems live in that
+one repository, so both overrides name the same directory. Undo them with
+`bundle config --delete local.ruby-gba` (and the same for the emulator). It is also the only
+way to test against framework work that is not pushed yet.
+
+**A git gem does not move on its own.** `bundle install` keeps whatever revision the lock
+names; to pick up new framework commits, `bundle update ruby-gba ruby-gba-emulator` — both
+together, since they come from the same repository and must not end up on different revisions.
 
 **The verb reference lives in the framework**, at `.claude/rules/dsl-reference.md` in the
 ruby-gba checkout. Read it there rather than copying it here: it is large, it changes with
@@ -122,13 +128,17 @@ every verb, and a copy would be wrong within a week.
 ## Emulator & integration tests
 
 Integration tests run the built cartridge in an emulator, reached through the framework's one
-seam, `RubyGBA::Verifier`. Behind that is **gemba-core** — a headless libmgba probe living in
-the ruby-gba checkout, with a C extension that must be built.
+seam, `RubyGBA::Verifier`. Behind that is **ruby-gba-emulator** — a headless libmgba probe,
+and a gem of its own rather than part of ruby-gba, because building a cartridge is pure Ruby
+and running one is not.
 
-It is **required, not optional**: if it can't build or load, the emulator-backed tests **fail
-loudly** rather than skipping. Building it needs a C compiler and a system libmgba
-(`brew install mgba` / `apt install libmgba-dev`), and it is built by rake in the framework's
-own checkout, not here.
+**Nothing here builds it.** It is a Gemfile line, and bundler builds its C extension on
+install, per Ruby ABI — so changing Ruby version gets a rebuild rather than a library compiled
+for another Ruby. It needs a C compiler and a system libmgba (`brew install mgba` /
+`apt install libmgba-dev`).
+
+It is **required, not optional**: if it cannot load, the emulator-backed tests **fail loudly**
+rather than skipping.
 
 ## Running Tests
 
