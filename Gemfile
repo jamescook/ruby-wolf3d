@@ -15,18 +15,31 @@ source "https://rubygems.org"
 #
 # which is why `branch:` is named: bundler only accepts a local override for a branch it can
 # check you are on. Undo it with `bundle config --delete local.ruby-gba`.
-gem "ruby-gba", github: "jamescook/ruby-gba", branch: "main"
-
-# THE EMULATOR, which is a gem of its own and not a dependency of ruby-gba — building a
-# cartridge is pure Ruby, and only running one needs a C compiler and libmgba. This suite runs
-# the built cartridge on a real console, so it needs it.
+# ONE BLOCK FOR BOTH GEMS, because both live in that one repository.
 #
-# `glob:` is how bundler finds a gemspec that is not at the root of a repository; the emulator
-# lives in a subdirectory of ruby-gba's. Bundler builds its C extension on install, per Ruby
-# ABI — which is what makes changing Ruby version a rebuild rather than a library that will not
-# load. It needs libmgba: brew install mgba, or apt install libmgba-dev.
-gem "ruby-gba-emulator", github: "jamescook/ruby-gba", branch: "main",
-                         glob: "ruby-gba-emulator/ruby-gba-emulator.gemspec"
+# The obvious way to write this is two `gem` lines each naming the same github: — and it is
+# wrong. Bundler counts `glob:` as part of a git source's identity, so two lines with different
+# globs are TWO sources; but the directory it clones into is named from the URL alone. Two
+# sources, one directory, and on a cold cache they race and the clone dies:
+#
+#   fatal: cannot copy '.../templates/info/exclude' to '.../info/exclude': File exists
+#   fatal: shallow file has changed since we read it
+#
+# A `git ... do ... end` block is one source holding both gems: one clone, one revision, and
+# they can never end up on different commits of the same repository. The glob has to match both
+# gemspecs — the framework's at the root, the emulator's a directory down.
+#
+# THE EMULATOR is a gem of its own and not a dependency of ruby-gba: building a cartridge is
+# pure Ruby, and only running one needs a C compiler and libmgba. This suite runs the built
+# cartridge on a real console, so it needs it. Bundler builds its C extension on install, per
+# Ruby ABI — which is what makes changing Ruby version a rebuild rather than a library that
+# will not load. It needs libmgba: brew install mgba, or apt install libmgba-dev.
+git "https://github.com/jamescook/ruby-gba.git",
+    branch: "main",
+    glob: "{,ruby-gba-emulator/}*.gemspec" do
+  gem "ruby-gba"
+  gem "ruby-gba-emulator"
+end
 
 gem "minitest", "~> 6.0"
 gem "rake", "~> 13.0"

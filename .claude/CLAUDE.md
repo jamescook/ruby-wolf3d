@@ -108,18 +108,21 @@ unreadable, can't be allowlisted, and can't be denied granularly.
 framework and this game together, point bundler at a checkout beside this one:
 
 ```bash
-bundle config --local local.ruby-gba ../ruby-gba
-bundle config --local local.ruby-gba-emulator ../ruby-gba
+bundle config set --local local.ruby-gba ../ruby-gba
 ```
 
-which resolves against your working tree with no edit to the Gemfile — both gems live in that
-one repository, so both overrides name the same directory. Undo them with
-`bundle config --delete local.ruby-gba` (and the same for the emulator). It is also the only
-way to test against framework work that is not pushed yet.
+**One override covers both gems**, because the Gemfile declares them as one git source — the
+emulator resolves to `ruby-gba-emulator/` inside that same checkout. Undo it with
+`bundle config --delete local.ruby-gba`. It is also the only way to test against framework work
+that is not pushed yet.
+
+One catch while the override is on: an overridden gem behaves like a `path:` source, and
+bundler does not build extensions for those. If the emulator will not load, run
+`rake compile_emulator` in the framework checkout — its error message says so too.
 
 **A git gem does not move on its own.** `bundle install` keeps whatever revision the lock
-names; to pick up new framework commits, `bundle update ruby-gba ruby-gba-emulator` — both
-together, since they come from the same repository and must not end up on different revisions.
+names; to pick up new framework commits, `bundle update ruby-gba`. That moves the whole source,
+so both gems come along and can never end up on different revisions.
 
 **The verb reference lives in the framework**, at `.claude/rules/dsl-reference.md` in the
 ruby-gba checkout. Read it there rather than copying it here: it is large, it changes with
