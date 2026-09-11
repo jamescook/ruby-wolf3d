@@ -2,14 +2,17 @@
 
 # Wolfenstein 3D, built with ruby-gba. Needs a copy of the game you own — see README.md.
 
-begin
-  require "ruby_gba"
-rescue LoadError
-  # Not installed as a gem. This game sits inside the ruby-gba tree, so fall back to the copy
-  # beside it — the public entry point only, never the internals.
-  $LOAD_PATH.unshift File.expand_path("../../../lib", __dir__)
-  require "ruby_gba"
-end
+# PUT THE BUNDLE ON THE LOAD PATH OURSELVES, so that plain `rake` and plain `ruby wolf3d.rb`
+# work and nobody has to remember `bundle exec`. This is an application rather than a library
+# — nothing else will ever require it from inside its own bundle — and every way into it goes
+# through this file, so saying it once here covers the build script, the Rakefile and a test
+# file run on its own. It also sets RUBYOPT, which is what carries the bundle into the
+# processes the parallel test runner spawns.
+require "bundler/setup"
+
+# The framework, as any other game built on it would have it: a gem, resolved by the Gemfile
+# beside this file. The public entry point only, never its internals.
+require "ruby_gba"
 
 require_relative "wolf3d/codec/rlew"
 require_relative "wolf3d/codec/carmack"
@@ -129,7 +132,7 @@ module Wolf3D
   # cartridge boots on the first floor it holds, so the only way to read what a LATER floor
   # costs is to build one that begins there:
   #
-  #   WOLF3D_FROM=1 WOLF3D_FLOORS=1 ruby ../../bin/ruby-gba profile wolf3d.rb
+  #   WOLF3D_FROM=1 WOLF3D_FLOORS=1 bundle exec ruby-gba profile wolf3d.rb
   #
   # Floors differ enormously in what stands on them — the second floor of the first episode
   # carries three times the guards and three times the scenery of the first — so "what does a

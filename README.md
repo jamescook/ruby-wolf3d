@@ -1,9 +1,9 @@
 # Wolfenstein 3D
 
-Wolfenstein 3D, built with [ruby-gba](../../README.md).
+Wolfenstein 3D, built with [ruby-gba](https://github.com/jamescook/ruby-gba).
 
-This is a game that *depends on* the framework, not another example inside it. It requires
-`ruby_gba` the way anyone outside this repository would.
+This is a game that *depends on* the framework, not an example inside it. It requires
+`ruby_gba` as a gem, the way anyone building their own game on the framework would.
 
 ## You need your own copy of the game
 
@@ -22,26 +22,22 @@ output is ignored by git.
 ## Build it
 
 ```sh
-cd games/wolf3d
+bundle install      # once
 rake build          # or: ruby wolf3d.rb — writes wolf3d.gba beside this README
 ```
 
 ## Test it
 
 ```sh
-cd games/wolf3d
 rake test:parallel                  # the suite, across processes
 rake test TEST=test/test_maps.rb    # one file
 ```
 
 The framework's own suite does not run this one and knows nothing about it. That is
-deliberate in both directions: most of what this checks needs game data nobody can
+deliberate in both directions: much of what this checks needs game data nobody can
 redistribute, so it would fail on every machine but yours — and a library should not have to
 know the names of the games built on it. Tests that need the data skip and say so; the rest
 always run.
-
-It lives in this repository only because ruby-gba is pre-1.0 and the two move together. A
-separate repository would mean a version bump for every experiment.
 
 ## What works so far
 
@@ -108,7 +104,7 @@ first N, because a cartridge boots on the first floor it holds and the only way 
 *later* floor costs is to build one that starts there:
 
 ```sh
-WOLF3D_FROM=1 WOLF3D_FLOORS=1 ruby ../../bin/ruby-gba explain wolf3d.rb
+WOLF3D_FROM=1 WOLF3D_FLOORS=1 bundle exec ruby-gba profile wolf3d.rb
 ```
 
 Floors differ enormously in what stands on them — the second floor of episode one carries three

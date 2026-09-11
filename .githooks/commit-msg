@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Keep git history human and free of machine bookkeeping.
+#
+# Three checks, in order of how much damage they do:
+#
+#   1. A Co-Authored-By or Claude-Session trailer, which discloses AI authorship into
+#      permanent, public commit metadata. The second is not an exception to the first.
+#   2. A bead/tracker id (ruby-wolf3d-a3f). Beads is internal to the workflow; a reader of
+#      the log has no access to the tracker, so the id is noise and it leaks the internal
+#      process into permanent history. Say what the change does instead.
+#
+# This repository sets core.hooksPath to .githooks, which REPLACES the global hook in
+# ~/.git-hooks rather than running alongside it — so the trailer checks are repeated here
+# rather than inherited. Keep them.
+#
+# Bypass a genuine false positive with:  git commit --no-verify
+#
+# errexit is on, so a hook that breaks REFUSES the commit rather than waving it through — which
+# is the right way round for a guard. The cost is that grep's "found nothing" exit of 1 has to
+# be handled, and with pipefail that reaches the assignment below: a clean message would kill
+# the hook and be rejected with no output at all. Hence the `|| true` there. The greps used as
+# `if` conditions need no such care; errexit exempts those by definition.
+set -euo pipefail
+
+msg_file="$1"
+
+if grep -qi '^co-authored-by:' "$msg_file"; then
+  echo "commit-msg: this message has a Co-Authored-By trailer." >&2
+  echo "Remove it and commit again." >&2
+  exit 1
+fi
+
+if grep -qi '^claude-session:' "$msg_file"; then
+  echo "commit-msg: this message has a Claude-Session trailer." >&2
+  echo "Remove it and commit again." >&2
+  exit 1
+fi
+
+# The real message, minus git's comment/scissor lines. `|| true` for the same reason as below:
+# a message that is nothing BUT comments leaves grep with nothing to print and an exit of 1.
+body=$(grep -vE '^[[:space:]]*#' "$msg_file" || true)
+
+ids=$(printf '%s\n' "$body" | grep -Eo 'ruby-wolf3d-[a-z0-9]+' | sort -u | tr '\n' ' ' || true)
+
+if [ -n "$ids" ]; then
+  echo "commit-msg: this message names a bead id: ${ids}" >&2
+  echo "Keep tracker ids out of git history — say what the change does, not which bead it is for." >&2
+  echo "(Genuine false positive? re-run with: git commit --no-verify)" >&2
+  exit 1
+fi
+
+exit 0

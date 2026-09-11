@@ -1,5 +1,21 @@
 *.gba
 *.sav
+.DS_Store
+
+# Per-file test timings, rewritten by every `rake test:parallel` to balance the next one.
+# Local by nature: it changes on every run, so committing it would mean a conflicting diff
+# on every merge, and all a fresh clone loses is one unbalanced run before it builds its own.
+.test_timings.json
+
+# Not committed — a fresh resolve each time, since the framework is pulled from git.
+Gemfile.lock
+
+# `bundle config --local local.ruby-gba ../ruby-gba` lands here, and it is an absolute path on
+# whichever machine ran it. The Gemfile says how to set it; where yours lives is your business.
+.bundle/
+
+# Personal Claude Code settings (permissions, local overrides) — not shared config.
+.claude/settings.local.json
 
 # No copy of Wolfenstein's data is ever committed — not what you drop in, not what we convert
 # out of it. The readers are committed; what they read is not.
