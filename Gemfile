@@ -43,3 +43,9 @@ end
 
 gem "minitest", "~> 6.0"
 gem "rake", "~> 13.0"
+
+# For `rake build:profile` alone, which samples a build of this game. It is this game's own
+# tool and not the framework's: what it measures is the time between typing the command and
+# holding a cartridge, which is Ruby running on your machine. How the finished cartridge spends
+# its frames is a different question with a different instrument (rom.profile).
+gem "stackprof", "~> 0.2"

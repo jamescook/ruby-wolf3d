@@ -41,4 +41,14 @@ task :build do
   ruby "wolf3d.rb"
 end
 
+namespace :build do
+  # NOT the game's frames. This samples the BUILD — Ruby, on this machine, turning your copy of
+  # Wolfenstein into a cartridge. Where the finished cartridge spends its 228 scanlines a frame
+  # is a different question, and the framework's own rom.profile answers that one.
+  desc "Where the BUILD's time goes: sample a full build, for speedscope.org"
+  task :profile do
+    ruby "tools/profile_build.rb"
+  end
+end
+
 task default: :test

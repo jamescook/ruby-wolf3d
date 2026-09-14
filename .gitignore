@@ -10,6 +10,10 @@
 # Not committed — a fresh resolve each time, since the framework is pulled from git.
 Gemfile.lock
 
+# What `rake build:profile` leaves: a sampler dump and the JSON speedscope.org reads. A
+# reading is of one machine on one day, so it is yours and not the repository's.
+tmp/
+
 # `bundle config --local local.ruby-gba ../ruby-gba` lands here, and it is an absolute path on
 # whichever machine ran it. The Gemfile says how to set it; where yours lives is your business.
 .bundle/

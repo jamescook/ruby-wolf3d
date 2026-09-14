@@ -23,6 +23,23 @@ bundle install      # once
 rake build          # or: ruby wolf3d.rb — writes wolf3d.gba beside this README
 ```
 
+## Where the build's time goes
+
+```sh
+rake build:profile   # samples a full build; writes tmp/build-<when>.json
+```
+
+Drop that JSON on [speedscope.org](https://speedscope.org), or open it locally with
+`npx speedscope tmp/build-<when>.json`. The run prints the heaviest routines too, so a reading
+says something without a browser.
+
+This measures the BUILD — Ruby, on your machine, turning your copy of the game into a
+cartridge. Where the finished cartridge spends its frames is a different question with a
+different instrument: `rom.profile`, which the framework provides.
+
+The run says how long reading your copy of the game and declaring the cartridge took, before
+the sampling starts, so a reading always shows how much of the time it is not looking at.
+
 ## Test it
 
 ```sh
