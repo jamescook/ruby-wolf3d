@@ -313,7 +313,7 @@ class TestBosses < Minitest::Test
                                     (guards.pictures + scenery.pictures +
                                      Wolf3D::Pickups.pictures(guards)).uniq.sort)
 
-    RubyGBA.game("BOSSES", code: "ZBOS", maker: "01") do
+    RubyGBA.game("BOSSES") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery, startable: true)

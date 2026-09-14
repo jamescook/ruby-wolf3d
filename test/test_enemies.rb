@@ -276,7 +276,7 @@ class TestEnemies < Minitest::Test
   def test_the_console_draws_a_dog_the_interpreter_draws
     program = a_drawn_floor_of(:dog, at: 10)
     interp = Reference.new.run(program, frames: 3)
-    rom = ROM.assemble(GBA.new.lower(program), title: "DOGS", code: "ZDOG", maker: "01")
+    rom = ROM.assemble(GBA.new.lower(program), title: "DOGS")
     gba = RubyGBA::Verifier.new(rom, frames: 8)
 
     refute_empty dog_columns(interp), "the interpreter draws him, so there is something to match"
@@ -459,7 +459,7 @@ class TestEnemies < Minitest::Test
                                     (guards.pictures + scenery.pictures +
                                      Wolf3D::Pickups.pictures(guards)).uniq.sort)
 
-    RubyGBA.game("ENEMIES", code: "ZENM", maker: "01") do
+    RubyGBA.game("ENEMIES") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery, startable: true)

@@ -27,7 +27,7 @@ class TestWolf3DOnHardware < Minitest::Test
   # The holding screen, on the console, in a cartridge of its own — so it is tested whether or
   # not a copy of the game is here for the real one to draw instead.
   def test_the_holding_screen_blinks_on_the_console
-    rom = RubyGBA.build("TITLE", code: "ATTL", maker: "01", out: StringIO.new, err: StringIO.new) do
+    rom = RubyGBA.build("TITLE", out: StringIO.new, err: StringIO.new) do
       screen :bitmap
       screen_title = Wolf3D::Title.new(self)
       game_loop { screen_title.update }
@@ -57,7 +57,7 @@ class TestMapViewOnHardware < Minitest::Test
   # A cartridge that draws only what these tests are about.
   def views_rom(level)
     palette = Wolf3D.palette
-    RubyGBA.build("VIEWS", code: "AVWS", maker: "01", out: StringIO.new, err: StringIO.new) do
+    RubyGBA.build("VIEWS", out: StringIO.new, err: StringIO.new) do
       screen :bitmap
       map = Wolf3D::MapView.new(self, level).declare
       colours = Wolf3D::PaletteView.new(self, palette).declare

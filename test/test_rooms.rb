@@ -73,7 +73,7 @@ class TestRooms < Minitest::Test
     things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
                                     (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("ROOMS", code: "ZROO", maker: "01") do
+    RubyGBA.game("ROOMS") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, scenery: scenery,
                     pushwalls: pushwalls, guards: guards, things: things)

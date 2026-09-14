@@ -71,11 +71,11 @@ require_relative "wolf3d/menus"
 require_relative "wolf3d/title"
 
 module Wolf3D
+  # The name people see, and the only thing this cartridge says about itself. The four-character
+  # CODE beside it in the header is the framework's to work out: an emulator reads that code to
+  # decide which cartridge it has and what save hardware to give it, so one written by hand lands
+  # on a real cartridge — as the one written here did, which was the 2002 release's own.
   TITLE = "WOLF3D"
-  # A made-up game code. The real one belongs to the 2002 release, and using it would make
-  # emulators and flashcarts treat this cartridge as that one.
-  CODE = "AWLF"
-  MAKER = "01"
 
   # This game's own directory, which is where wolf3d.yml is looked for.
   def self.home = File.expand_path("..", __dir__)
@@ -235,7 +235,7 @@ module Wolf3D
     data
   end
 
-  GAME = RubyGBA.game(TITLE, code: CODE, maker: MAKER) do
+  GAME = RubyGBA.game(TITLE) do
     # Drawn on the tear-free screen, and it has to be. A first-person view repaints every
     # pixel every frame, and this one costs more than a frame holds — so on a screen the
     # display reads while the game is still drawing it, the player watches the picture

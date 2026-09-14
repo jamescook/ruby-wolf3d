@@ -78,7 +78,7 @@ class TestKeepingTime < Minitest::Test
     things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game, guards.pictures)
 
     paced(pacing) do
-      RubyGBA.game("TIME", code: "ZTIM", maker: "01") do
+      RubyGBA.game("TIME") do
         screen :bitmap, tear_free: true
         view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                        pushwalls: pushwalls, guards: guards, things: things)

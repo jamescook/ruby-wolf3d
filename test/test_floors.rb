@@ -59,7 +59,7 @@ class TestFloors < Minitest::Test
   def program(floors, drawing: false)
     atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, floors.map(&:level),
                                   doors: floors.map(&:doors), lifts: floors.map(&:lifts))
-    RubyGBA.game("FLOORS", code: "ZFLR", maker: "01") do
+    RubyGBA.game("FLOORS") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, floors: floors, atlas: atlas)
       game_loop { drawing ? view.update : view.play }

@@ -35,7 +35,7 @@ class TestDoors < Minitest::Test
     doors = @doors
     pushwalls = @pushwalls
 
-    RubyGBA.game("DOORS", code: "ZDRS", maker: "01") do
+    RubyGBA.game("DOORS") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
       game_loop { view.play }
@@ -228,7 +228,7 @@ class TestDoors < Minitest::Test
     pushwalls = Wolf3D::Pushwalls.new(level)
     atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, level, doors: doors)
 
-    RubyGBA.game("DOORS", code: "ZDRS", maker: "01") do
+    RubyGBA.game("DOORS") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
       game_loop { view.update }
@@ -265,7 +265,7 @@ class TestDoors < Minitest::Test
     opening = ->(f) { keys::KEY_UP | ((f / 6).even? ? keys::KEY_A : 0) }
 
     backend = GBA.new
-    rom = ROM.assemble(backend.lower(corridor_program(corridor)), title: "DOORS", code: "ZDRS", maker: "01")
+    rom = ROM.assemble(backend.lower(corridor_program(corridor)), title: "DOORS")
     vars = backend.var_addresses
     stopped = RubyGBA::Verifier.new(rom, frames: CONSOLE_FRAMES, keys: walking, vars: vars)
     through = RubyGBA::Verifier.new(rom, frames: CONSOLE_FRAMES, keys: opening, vars: vars)

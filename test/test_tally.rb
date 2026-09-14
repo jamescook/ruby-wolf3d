@@ -72,7 +72,7 @@ class TestTally < Minitest::Test
                                     (guards.pictures + scenery.pictures +
                                      Pickups.pictures(guards)).uniq.sort)
     seen = nil
-    program = RubyGBA.game("TALLY", code: "ZTAL", maker: "01") do
+    program = RubyGBA.game("TALLY") do
       screen :bitmap, tear_free: true
       seen = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery)

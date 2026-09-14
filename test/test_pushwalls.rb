@@ -33,7 +33,7 @@ class TestPushwalls < Minitest::Test
     doors = @doors
     pushwalls = @pushwalls
 
-    RubyGBA.game("PUSH", code: "ZPSH", maker: "01") do
+    RubyGBA.game("PUSH") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas,
                                      doors: doors, pushwalls: pushwalls)
@@ -137,7 +137,7 @@ class TestPushwalls < Minitest::Test
     pushwalls = Wolf3D::Pushwalls.new(level)
     atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, level, doors: doors)
 
-    RubyGBA.game("PUSH", code: "ZPSH", maker: "01") do
+    RubyGBA.game("PUSH") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas,
                                      doors: doors, pushwalls: pushwalls)

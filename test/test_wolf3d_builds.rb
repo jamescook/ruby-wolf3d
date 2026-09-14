@@ -88,7 +88,7 @@ class TestTitleScreen < Minitest::Test
   include Wolf3DTest
 
   def program
-    RubyGBA.game("TITLE", code: "ATTL", maker: "01") do
+    RubyGBA.game("TITLE") do
       screen :bitmap
       screen_title = Wolf3D::Title.new(self)
       game_loop { screen_title.update }

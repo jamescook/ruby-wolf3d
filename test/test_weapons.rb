@@ -194,7 +194,7 @@ class TestWeapons < Minitest::Test
   def test_the_console_draws_the_gun_the_interpreter_draws
     built = program(drawing: true)
     backend = GBA.new
-    rom = ROM.assemble(backend.lower(built), title: "WEAPON", code: "ZWPN", maker: "01")
+    rom = ROM.assemble(backend.lower(built), title: "WEAPON")
 
     interp = Reference.new.run(built, frames: 3)
     gba = RubyGBA::Verifier.new(rom, frames: 8)
@@ -333,7 +333,7 @@ class TestWeapons < Minitest::Test
                                      Pickups.pictures(guards)).uniq.sort)
     guns = atlas
 
-    RubyGBA.game("WEAPON", code: "ZWPN", maker: "01") do
+    RubyGBA.game("WEAPON") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: walls, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery, gun_art: guns)

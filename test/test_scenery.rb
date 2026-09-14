@@ -103,7 +103,7 @@ class TestScenery < Minitest::Test
   def test_walking_into_a_piece_of_scenery_does_not_paint_over_the_bar
     underfoot = arena(things: { [9, 8] => PUDDLE })
     program = view_of(underfoot)
-    rom = ROM.assemble(GBA.new.lower(program), title: "SCENERY", code: "ASCN", maker: "01")
+    rom = ROM.assemble(GBA.new.lower(program), title: "SCENERY")
     walked = Reference.new.hold(:up).run(program, frames: 20)
     gba = RubyGBA::Verifier.new(rom, frames: 26, keys: RubyGBA::Constants::KEY_UP)
     inks = Scenery.new(underfoot).pictures.map { |p| palette[Release::SPRITE_INK + p] }
@@ -284,7 +284,7 @@ class TestScenery < Minitest::Test
   def test_the_console_draws_a_guard_behind_a_lamp_the_way_the_interpreter_does
     program = view_of(arena(things: { [10, 8] => CEILING_LIGHT }, guards: [[13, 8, :east]]))
     interp = Reference.new.run(program, frames: 3)
-    rom = ROM.assemble(GBA.new.lower(program), title: "LAMP", code: "ZLMP", maker: "01")
+    rom = ROM.assemble(GBA.new.lower(program), title: "LAMP")
     gba = RubyGBA::Verifier.new(rom, frames: 12)
 
     refute_empty guard_columns(interp), "the interpreter draws him through the gap, so there is a match to make"
@@ -337,7 +337,7 @@ class TestScenery < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("SCENERY", code: "ASCN", maker: "01") do
+    RubyGBA.game("SCENERY") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,

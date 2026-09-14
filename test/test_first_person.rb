@@ -29,7 +29,7 @@ class TestFirstPerson < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, @level, doors: doors)
     level = @level
 
-    RubyGBA.game("VIEW", code: "AVUE", maker: "01") do
+    RubyGBA.game("VIEW") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
       game_loop { view.update }
@@ -86,7 +86,7 @@ class TestFirstPerson < Minitest::Test
     program = view_program
 
     interp = Reference.new.run(program, frames: 3)
-    rom = ROM.assemble(GBA.new.lower(program), title: "VIEW", code: "AVUE", maker: "01")
+    rom = ROM.assemble(GBA.new.lower(program), title: "VIEW")
     gba = RubyGBA::Verifier.new(rom, frames: 6)
 
     differ = (0...240).to_a.product((0...160).to_a).reject do |x, y|

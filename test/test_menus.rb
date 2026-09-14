@@ -367,7 +367,7 @@ class TestMenus < Minitest::Test
   # are the interpreter's business and it has already said.
   def test_the_menu_opens_on_the_console
     backend = GBA.new
-    rom = ROM.assemble(backend.lower(self.class.program), title: "MENU", code: "AMNU", maker: "01")
+    rom = ROM.assemble(backend.lower(self.class.program), title: "MENU")
     gba = RubyGBA::Verifier.new(rom, frames: 6, vars: backend.var_addresses,
                                      keys: ->(frame) { frame >= 3 ? RubyGBA::Constants::KEY_A : 0 })
 
@@ -521,7 +521,7 @@ class TestMenus < Minitest::Test
       things = Wolf3D::ThingAtlas.new(vswap, palette,
                                       floors.flat_map { |f| f.guards.pictures + f.scenery.pictures }
                                             .uniq.sort)
-      RubyGBA.game("MENU", code: "AMNU", maker: "01") do
+      RubyGBA.game("MENU") do
         screen :bitmap, tear_free: true
         sound_on = var :sound_on, 1
         view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,

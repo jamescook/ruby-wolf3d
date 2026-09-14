@@ -31,7 +31,7 @@ class TestLives < Minitest::Test
   # counter, because what it really does belongs to the view and is tested against the real
   # thing further down — all this one needs of it is that it is asked for.
   def counting_program
-    RubyGBA.game("LIVES", code: "ZLIV", maker: "01") do
+    RubyGBA.game("LIVES") do
       screen :bitmap, tear_free: true
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
       px = var :px, 8.5
@@ -133,7 +133,7 @@ class TestLives < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("FLOOR", code: "ZFLR", maker: "01") do
+    RubyGBA.game("FLOOR") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,
@@ -322,7 +322,7 @@ class TestLives < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("RING", code: "ZRNG", maker: "01") do
+    RubyGBA.game("RING") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,

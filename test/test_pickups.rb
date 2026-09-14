@@ -177,7 +177,7 @@ class TestPickups < Minitest::Test
   def test_the_console_carries_what_the_interpreter_carries
     program = view_of(arena(ahead: [CLIP, CROSS, CROWN]), drawing: true)
     backend = GBA.new
-    rom = ROM.assemble(backend.lower(program), title: "PICKUP", code: "ZPCK", maker: "01")
+    rom = ROM.assemble(backend.lower(program), title: "PICKUP")
 
     # THE CONSOLE IS GIVEN MORE FRAMES, and that is not slack: this game's world moves once per
     # PASS of the game loop, and the cartridge takes two or three frames over a pass where the
@@ -245,7 +245,7 @@ class TestPickups < Minitest::Test
                                     (guards.pictures + scenery.pictures +
                                      Pickups.pictures(guards)).uniq.sort)
 
-    RubyGBA.game("PICKUP", code: "ZPCK", maker: "01") do
+    RubyGBA.game("PICKUP") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery)

@@ -150,7 +150,7 @@ class TestSounds < Minitest::Test
     vswap = Wolf3D::Vswap.new(release.files["VSWAP"])
     program = view_of(arena(guards: [[11, 8, :west]]), chunks: vswap, drawing: true)
     backend = GBA.new
-    rom = ROM.assemble(backend.lower(program), title: "SOUND", code: "ZSND", maker: "01")
+    rom = ROM.assemble(backend.lower(program), title: "SOUND")
 
     firing = ->(frame) { frame.between?(8, 9) ? RubyGBA::Constants::KEY_B : 0 }
     console = RubyGBA::Verifier.new(rom, frames: 40, keys: firing)
@@ -190,7 +190,7 @@ class TestSounds < Minitest::Test
                                     (guards.pictures + scenery.pictures +
                                      Wolf3D::Pickups.pictures(guards)).uniq.sort)
 
-    RubyGBA.game("SOUND", code: "ZSND", maker: "01") do
+    RubyGBA.game("SOUND") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery, vswap: chunks)

@@ -470,7 +470,7 @@ class TestGuards < Minitest::Test
   def test_the_console_draws_the_guard_the_interpreter_draws
     program = view_of(arena(guards: [[13, 8, :east]]))
     interp = Reference.new.run(program, frames: 3)
-    rom = ROM.assemble(GBA.new.lower(program), title: "GUARDS", code: "ZGRD", maker: "01")
+    rom = ROM.assemble(GBA.new.lower(program), title: "GUARDS")
     gba = RubyGBA::Verifier.new(rom, frames: 8)
 
     refute_empty guard_columns(interp), "the interpreter draws him, so there is something to match"
@@ -516,7 +516,7 @@ class TestGuards < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, guards.pictures)
 
-    RubyGBA.game("GUARDS", code: "AGRD", maker: "01") do
+    RubyGBA.game("GUARDS") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things)

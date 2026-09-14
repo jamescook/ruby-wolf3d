@@ -54,7 +54,7 @@ class TestElevator < Minitest::Test
     lifts = Wolf3D::Elevator.new(level)
     atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, level, doors: doors, lifts: lifts)
 
-    RubyGBA.game("LIFT", code: "ZLFT", maker: "01") do
+    RubyGBA.game("LIFT") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, lifts: lifts)

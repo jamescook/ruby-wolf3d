@@ -26,7 +26,7 @@ class TestDying < Minitest::Test
   # A killer standing +away+ cells north of a player who is facing east, so the turn has a
   # quarter of a circle to cover and a side to pick.
   def dying_program(kill_x: 8.5, kill_y: 4.5, tear_free: true)
-    RubyGBA.game("DYING", code: "ZDIE", maker: "01") do
+    RubyGBA.game("DYING") do
       screen :bitmap, tear_free: tear_free
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
       px = var :px, 8.5
@@ -167,7 +167,7 @@ class TestDying < Minitest::Test
   def test_a_frame_of_it_fits_in_a_frame
     Dir.mktmpdir do |dir|
       path = File.join(dir, "dying.gba")
-      ROM.assemble(GBA.new.lower(dying_program), title: "DYING", code: "ZDIE", maker: "01")
+      ROM.assemble(GBA.new.lower(dying_program), title: "DYING")
          .write(path)
       probe = RubyGBA::Emulator.probe(path)
       probe.step(Dying::MOST_TURNS + Dying::SETTLE + 6) # ...past the turn and into the dots
@@ -189,7 +189,7 @@ class TestDying < Minitest::Test
   # difference: it models one framebuffer, so it reads the view fully red either way.
   def test_the_console_fills_the_whole_view_too
     program = dying_program
-    rom = ROM.assemble(GBA.new.lower(program), title: "DYING", code: "ZDIE", maker: "01")
+    rom = ROM.assemble(GBA.new.lower(program), title: "DYING")
     gba = RubyGBA::Verifier.new(rom, frames: FRAMES + 8)
     got = redness(->(x, y) { gba.pixel_gba(x, y) })
 

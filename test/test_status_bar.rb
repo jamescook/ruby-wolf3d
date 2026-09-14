@@ -166,7 +166,7 @@ class TestStatusBar < Minitest::Test
   # consecutive frames of the cartridge, well after the change, must show the same bar.
   def test_the_console_shows_the_changed_bar_on_both_pages
     program = view_of(arena(guards: [[13, 8, :east]]))
-    rom = ROM.assemble(GBA.new.lower(program), title: "BAR", code: "ABAR", maker: "01")
+    rom = ROM.assemble(GBA.new.lower(program), title: "BAR")
     fire = ->(frame) { frame.between?(8, 9) ? RubyGBA::Constants::KEY_B : 0 }
 
     bars = [40, 41].map do |frames|
@@ -265,7 +265,7 @@ class TestStatusBar < Minitest::Test
   # the interpreter reads it straight off a fake screen. They have to land on the same gun.
   def test_the_console_draws_the_same_gun_the_interpreter_does
     rom = ROM.assemble(GBA.new.lower(view_of(arena, art: art)),
-                       title: "BARGUN", code: "ABRG", maker: "01")
+                       title: "BARGUN")
     # Far enough in that the cartridge has painted both pages. Read at four the screen is still
     # black, which would say nothing about which gun.
     gba = RubyGBA::Verifier.new(rom, frames: 10)
@@ -442,7 +442,7 @@ class TestStatusBar < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("BAR", code: "ABAR", maker: "01") do
+    RubyGBA.game("BAR") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,

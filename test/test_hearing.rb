@@ -140,7 +140,7 @@ class TestHearing < Minitest::Test
   def test_the_console_makes_the_same_noise_the_interpreter_makes
     program = game(arena(guards: [[*LISTENER, :east]]), drawing: true)
     backend = GBA.new
-    rom = ROM.assemble(backend.lower(program), title: "NOISE", code: "ZNOI", maker: "01")
+    rom = ROM.assemble(backend.lower(program), title: "NOISE")
 
     passes = shot_lands_on
     oracle = Reference.new.input_each_frame { |f| tapping(f) }
@@ -279,7 +279,7 @@ class TestHearing < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, guards.pictures)
 
-    RubyGBA.game("NOISE", code: "ZNOI", maker: "01") do
+    RubyGBA.game("NOISE") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors,
                     pushwalls: pushwalls, guards: guards, things: things)
