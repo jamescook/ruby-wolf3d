@@ -1515,10 +1515,8 @@ module Wolf3D
     #
     # A LEVER ALREADY PULLED IGNORES YOU, so leaning on the button does not restart the count.
     def pull_the_lever
-      @across.set!(@sin[@view + QUARTER])
-      @across.abs!
-      @along.set!(@sin[@view])
-      @along.abs!
+      @across.set!(@sin[@view + QUARTER].abs)
+      @along.set!(@sin[@view].abs)
       ((@across > @along) & (@pulled < 0)).then do
         @pulled.set! @ahead
         @lift_wait.set! lift_wait_frames
@@ -1590,10 +1588,8 @@ module Wolf3D
       @slot.set!(@foot - PUSH)
       # Only from its own cell, and only once. A wall already on the move ignores you.
       ((@ahead == @push_home[@push_first + @slot]) & (@push_step[@slot] == 0)).then do
-        @across.set!(@sin[@view + QUARTER])
-        @across.abs!
-        @along.set!(@sin[@view])
-        @along.abs!
+        @across.set!(@sin[@view + QUARTER].abs)
+        @along.set!(@sin[@view].abs)
         (@across > @along).then do
           (@sin[@view + QUARTER] > 0.0).then { @push_step[@slot] = 1 }
                                        .else { @push_step[@slot] = -1 }

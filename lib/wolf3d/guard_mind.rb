@@ -293,10 +293,8 @@ module Wolf3D
     # feet is worse than a guard across the room, and why backing away from one works.
     def bite_the_player(guard)
       @dx.set!(@player[:x] - guard.x)
-      @dx.abs!
       @dy.set!(@player[:y] - guard.y)
-      @dy.abs!
-      ((@dx <= Guards::BITE_REACH) & (@dy <= Guards::BITE_REACH)).then do
+      ((@dx.abs <= Guards::BITE_REACH) & (@dy.abs <= Guards::BITE_REACH)).then do
         (@b.rand(0..CHANCES - 1) < Guards::BITE_CHANCE).then do
           @wound.set!(@b.rand(0..CHANCES - 1) / Guards::BITE_SHIFT)
           take_it_out_of_the_player(guard)
@@ -541,10 +539,11 @@ module Wolf3D
     # divided at all: the step IS the direction. That is the near case, which is the one a guard
     # about to shoot you is in.
     def aim_along_the_line(fromx, fromy)
-      @absx.set! @dx
-      @absx.abs!
-      @absy.set! @dy
-      @absy.abs!
+      # HOW FAR EACH IS FROM NOUGHT, KEPT in a variable rather than asked for where it is read:
+      # a bare `abs` is a new number and works it out afresh at every mention, and these two are
+      # read five times between them.
+      @absx.set! @dx.abs
+      @absy.set! @dy.abs
 
       @stepx.set! @dx
       @stepy.set! @dy
@@ -631,10 +630,8 @@ module Wolf3D
     # test and is why a dog catches you round a corner it could not see you through.
     def near_enough_to_jump(guard)
       @dx.set!(@player[:x] - guard.x)
-      @dx.abs!
       @dy.set!(@player[:y] - guard.y)
-      @dy.abs!
-      ((@dx <= @jump_from) & (@dy <= @jump_from)).then { start_attacking(guard) }
+      ((@dx.abs <= @jump_from) & (@dy.abs <= @jump_from)).then { start_attacking(guard) }
     end
 
     def take_a_shot(guard)
@@ -672,17 +669,13 @@ module Wolf3D
     def choose_a_chase_way(guard)
       @dx.set!(@player[:x] - guard.x)
       @dy.set!(@player[:y] - guard.y)
-      @absx.set! @dx
-      @absx.abs!
-      @absy.set! @dy
-      @absy.abs!
 
       @way.set! 4                                  # west
       (@dx > 0.0).then { @way.set! 0 }             # east
       @try.set! 2                                  # north
       (@dy > 0.0).then { @try.set! 6 }             # south
       # The longer way is tried first, so swap them when the up-and-down one is longer.
-      (@absy > @absx).then do
+      (@dy.abs > @dx.abs).then do
         @cellx.set! @way
         @way.set! @try
         @try.set! @cellx
@@ -802,10 +795,8 @@ module Wolf3D
       @fwd.add!(@dy * @player[:sin])
       @sideways.set!(@dy * @player[:cos])
       @sideways.sub!(@dx * @player[:sin])
-      @absx.set! @sideways
-      @absx.abs!
 
-      ((@fwd > 0.0) & (@fwd < @nearest) & (@absx < (@fwd * AIM))).then do
+      ((@fwd > 0.0) & (@fwd < @nearest) & (@sideways.abs < (@fwd * AIM))).then do
         # Only now is a line worth walking, and it is walked from him toward you — the same
         # line either way.
         @dx.set!(@player[:x] - x)
