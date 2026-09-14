@@ -44,7 +44,7 @@ class TestLives < Minitest::Test
       dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin })
       lives = Lives.new(build: self, score: score, dying: dying)
       func(:start_the_floor) do
-        restarts.add 1
+        restarts.add! 1
         dying.start_again
       end
 
@@ -141,7 +141,7 @@ class TestLives < Minitest::Test
       passes = var :passes, 0
       game_loop do
         drawn ? view.update : view.play
-        passes.add 1
+        passes.add! 1
         # The floor is asked for by name, which is the same thing a spent life asks for. Driving
         # it this way rather than by standing in front of a guard until he finishes you off is
         # what keeps these quick: a real death is several hundred frames away.

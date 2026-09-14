@@ -96,7 +96,7 @@ module Wolf3D
       when_sound_is_on do
         next screams.first.play if screams.length == 1
 
-        @which.set(@b.rand(0...screams.length))
+        @which.set!(@b.rand(0...screams.length))
         screams.each_with_index { |clip, n| (@which == n).then { clip.play } }
       end
     end

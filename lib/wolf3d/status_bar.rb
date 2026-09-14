@@ -220,12 +220,12 @@ module Wolf3D
     # the copy is taken here rather than in the painting — so one change is noticed one time,
     # however many paints it then takes to reach the whole screen.
     def notice_a_change
-      @changed.set 0
+      @changed.set! 0
       @remembered.each do |name, last|
         value = @shows.fetch(name)
         (value != last).then do
-          @changed.set 1
-          last.set value
+          @changed.set! 1
+          last.set! value
         end
       end
       (@changed == 1).then { @bar.changed }
@@ -341,7 +341,7 @@ module Wolf3D
         # column is even — a variable it cannot see into is refused rather than drawn in the
         # wrong place. Twice anything is even, so this is the way to say it, and it is the way
         # the refusal itself suggests.
-        @rule_half.set(x / 2)
+        @rule_half.set!(x / 2)
         @b.call :_bar_rule
       end
     end
@@ -379,10 +379,10 @@ module Wolf3D
         place = 10**(field.digits - 1 - i)
         digit = place == 1 ? value % 10 : (value / place) % 10
         if place == 1
-          slot.set(digit + 1)
+          slot.set!(digit + 1)
         else
-          slot.set BarArt::BLANK
-          (value >= place).then { slot.set(digit + 1) }
+          slot.set! BarArt::BLANK
+          (value >= place).then { slot.set!(digit + 1) }
         end
         draw_from_strip(:_bar_numeral, slot, left + (i * wide), @top + FIGURE_ROW)
       end
@@ -399,9 +399,9 @@ module Wolf3D
     # and the bar's painting routine measured 57K. Emitted once per strip and called instead, it
     # is forty. The cost at run time is the same walk either way.
     def draw_from_strip(routine, slot, x, top)
-      @col_slot.set slot
-      @col_x.set x
-      @col_y.set top
+      @col_slot.set! slot
+      @col_x.set! x
+      @col_y.set! top
       @b.call routine
     end
 
@@ -478,14 +478,14 @@ module Wolf3D
     def draw_the_face(field)
       return unless @art
 
-      @face.set(((@shows.fetch(:health) * BANDS) / (FirstPerson::START_HEALTH + 1)))
-      @face.set(BANDS - 1 - @face)
-      @face.clamp 0, BANDS - 1
+      @face.set!(((@shows.fetch(:health) * BANDS) / (FirstPerson::START_HEALTH + 1)))
+      @face.set!(BANDS - 1 - @face)
+      @face.clamp! 0, BANDS - 1
       # The three looks of a band sit together in the row, so a band is three pictures along —
       # and counted in groups of eight columns rather than in whole faces, which is how the walk
       # reads them: a face is `@art.face_width / FACE_GROUP` groups.
       groups = @art.face_width / FACE_GROUP
-      @looks.set(@face * LOOKS * groups)
+      @looks.set!(@face * LOOKS * groups)
       top = @top + ((HEIGHT - @art.face_height) / 2)
       groups.times { |g| draw_from_strip(:_bar_face, @looks + g, at(field) + (g * FACE_GROUP), top) }
     end
@@ -506,7 +506,7 @@ module Wolf3D
       return unless @art
 
       groups = @art.weapon_width / WEAPON_GROUP
-      @gun.set(@shows.fetch(:weapon) * groups)
+      @gun.set!(@shows.fetch(:weapon) * groups)
       top = @top + ((HEIGHT - @art.weapon_height) / 2)
       groups.times do |g|
         draw_from_strip(:_bar_weapon, @gun + g, at(field) + (g * WEAPON_GROUP), top)
@@ -524,8 +524,8 @@ module Wolf3D
 
       METALS.each_key.with_index do |name, n|
         slot = @b.var :"_bar_key_#{name}", 0
-        slot.set BarArt::BLANK
-        carrying(keys, name).then { slot.set @art.key_slot(name) }
+        slot.set! BarArt::BLANK
+        carrying(keys, name).then { slot.set! @art.key_slot(name) }
         draw_from_strip(:_bar_key, slot, at(field), top + (n * @art.key_height))
       end
     end

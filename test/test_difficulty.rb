@@ -150,10 +150,10 @@ class TestDifficulty < Minitest::Test
       passes = b.var :passes, 0
       b.game_loop do
         view.play
-        passes.add 1
+        passes.add! 1
         Guards::SETTINGS.each_with_index do |_, n|
           (passes == (n + 1) * APART).then do
-            view.difficulty.set n
+            view.difficulty.set! n
             b.call :start_the_floor
           end
         end
@@ -165,7 +165,7 @@ class TestDifficulty < Minitest::Test
   # facing away, which is the shape the other tests use to get shot at quickly.
   def health_lost_at(how)
     program = view_of(arena(guards: [[11, 8, :west]])) do |b, view|
-      view.difficulty.set Guards.number_of(how)
+      view.difficulty.set! Guards.number_of(how)
       b.game_loop { view.play }
     end
     FP::START_HEALTH - Reference.new.run(program, frames: 400)[:health]

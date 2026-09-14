@@ -19,8 +19,8 @@ module Wolf3D
       @build.draw_text "WOLFENSTEIN 3D", 66, 56, :white
       @build.draw_text "RUBY-GBA", 90, 72, :gray
 
-      @blink.add 1
-      (@blink >= BLINK_OFF).then { @blink.set 0 }
+      @blink.add! 1
+      (@blink >= BLINK_OFF).then { @blink.set! 0 }
       (@blink < BLINK_ON).then { @build.draw_text banner, 78, 104, @data ? :green : :red }
     end
 

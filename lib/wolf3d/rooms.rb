@@ -90,8 +90,8 @@ module Wolf3D
     def refresh
       where_the_player_stands
       ((@here != @was_here) | (@changed == 1)).then do
-        @was_here.set @here
-        @changed.set 0
+        @was_here.set! @here
+        @changed.set! 0
         @b.call(:which_rooms_are_open)
       end
     end
@@ -103,8 +103,8 @@ module Wolf3D
     # through. The room they were last really in is the right answer there — a doorway they are
     # standing in is open by definition, so the room on the other side of it is open too.
     def where_the_player_stands
-      @stood.set(@room_of[@map_base + (@player[:y].to_i * @width) + @player[:x].to_i])
-      (@stood > NOWHERE).then { @here.set @stood }
+      @stood.set!(@room_of[@map_base + (@player[:y].to_i * @width) + @player[:x].to_i])
+      (@stood > NOWHERE).then { @here.set! @stood }
     end
 
     # A DOOR MOVED, so the walk has to be done again. Said by the doors rather than worked out
@@ -115,15 +115,15 @@ module Wolf3D
     # slide and this recomputes on each of them where two would do, which is twenty frames in a
     # doorway's lifetime against a test that would have to hold the old side of the post as well.
     # Being early is also the safe way to be wrong.
-    def a_door_moved = @changed.set(1)
+    def a_door_moved = @changed.set!(1)
 
     # ...and so does starting a floor, which changes the map every part of this reads through.
-    def floor_started = @changed.set(1)
+    def floor_started = @changed.set!(1)
 
     # Is the room at this cell open to the player's? +x+ and +y+ are where something stands, as
     # the game keeps them.
     def open_to_the_player?(x, y)
-      @room.set(@room_of[@map_base + (y.to_i * @width) + x.to_i])
+      @room.set!(@room_of[@map_base + (y.to_i * @width) + x.to_i])
       open?(@room)
     end
 
@@ -257,15 +257,15 @@ module Wolf3D
       # SET BEFORE THE LOOP because a loop that stops early is asked whether to stop BEFORE its
       # first pass as well as after it. Left at what the last frame finished on — nought, always,
       # since that is what ends it — the walk would never run at all.
-      @spread.set 1
+      @spread.set! 1
       b.repeat(@count, stop_when: @spread == 0, estimate: { usually: 1 }) do
-        @spread.set 0
+        @spread.set! 0
         # THE ROOMS THAT ARE ALWAYS JOINED, if this cartridge has any — see always_joined.
         @always.each { |near, far| join(near, far) }
         b.repeat(@door_count, estimate: how_many_doors) do |door|
           (@open[door] > AJAR).then do
-            @near.set(@side_a[@door_first + door])
-            @far.set(@side_b[@door_first + door])
+            @near.set!(@side_a[@door_first + door])
+            @far.set!(@side_b[@door_first + door])
             join(@near, @far)
           end
         end
@@ -275,8 +275,8 @@ module Wolf3D
     # Two rooms are one room from here on. Both ways round, because the walk over the doors meets
     # them in whatever order the level lists them.
     def join(near, far)
-      ((@open_room[near] == 1) & (@open_room[far] == 0)).then { @open_room[far] = 1; @spread.set 1 }
-      ((@open_room[far] == 1) & (@open_room[near] == 0)).then { @open_room[near] = 1; @spread.set 1 }
+      ((@open_room[near] == 1) & (@open_room[far] == 0)).then { @open_room[far] = 1; @spread.set! 1 }
+      ((@open_room[far] == 1) & (@open_room[near] == 0)).then { @open_room[near] = 1; @spread.set! 1 }
     end
 
     # For the estimate only — the walk is over however many doors THIS floor has, which is a

@@ -47,7 +47,7 @@ module Wolf3D
     # out. Once only, so that standing on the tile does not keep re-winning it.
     def won
       (@won == 0).then do
-        @won.set 1
+        @won.set! 1
         @words.changed
         # ...and the game has ended, which is the fact the menus and the restart both read.
         @lives.ended_by_winning
@@ -56,7 +56,7 @@ module Wolf3D
 
     # A NEW GAME PUTS THIS BACK. Called wherever one begins, alongside Lives#start_again.
     def start_again
-      @won.set 0
+      @won.set! 0
       @words.cancel
     end
 

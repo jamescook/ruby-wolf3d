@@ -55,9 +55,9 @@ module Wolf3D
     # It does not put the FLOOR back, and that is deliberate: which floor a game begins on is
     # what the episode you picked decides, and this cannot know it.
     def start_again
-      @left.set START
-      @score.set 0
-      @ended&.set 0
+      @left.set! START
+      @score.set! 0
+      @ended&.set! 0
     end
 
     # A GAME CAN ALSO END BY BEING WON, and when it does the flag this keeps is the one that has
@@ -67,15 +67,15 @@ module Wolf3D
     #
     # It does NOT queue the words above — a won episode has its own, and they are drawn over the
     # last picture of the game rather than over the red a death leaves. See {Victory}.
-    def ended_by_winning = @ended&.set(1)
+    def ended_by_winning = @ended&.set!(1)
 
     # ANOTHER GO, which is what the one-up lying on the floor hands you. The original stops at
     # nine, and so does this: the bar keeps one figure for it.
     MOST = 9
 
     def give_one
-      @left.add 1
-      @left.clamp 0, MOST
+      @left.add! 1
+      @left.clamp! 0, MOST
     end
 
     # ONE PASS OF THE GAME LOOP, and it does nothing at all until the death has finished telling
@@ -108,7 +108,7 @@ module Wolf3D
     def count_a_death
       (@ended == 0).then do
         @dying.finished.then do
-          @left.sub 1
+          @left.sub! 1
           (@left > 0).then { @b.call(:start_the_floor) }.else { end_the_game }
         end
       end.else { start_another_game }
@@ -117,7 +117,7 @@ module Wolf3D
     end
 
     def end_the_game
-      @ended.set 1
+      @ended.set! 1
       @words.changed
     end
 

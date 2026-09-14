@@ -279,7 +279,7 @@ module Wolf3D
       travel = (wide - ACROSS) / 2
       @b.scene(name) do
         show(art, wide: wide, tall: tall, travel: travel, over: holding)
-        @waited.add 1
+        @waited.add! 1
         (@waited >= holding).then { go_to after }
         # A PRESS ALWAYS WINS, and it wins whichever way round these two are asked: moving on
         # puts the clock back to nothing, so the screen that arrives is the one the press
@@ -305,10 +305,10 @@ module Wolf3D
       @b.clear_screen colour(0) unless [wide, tall] == [ACROSS, DOWN]
       return @b.blit(:"menu_#{art}", even((ACROSS - wide) / 2), down) unless travel.positive?
 
-      @pan.set(@waited / pan_step(travel, over))
+      @pan.set!(@waited / pan_step(travel, over))
       # Out and back: past the far end it walks home again.
-      (@pan > travel).then { @pan.set((travel * 2) - @pan) }
-      @pan.clamp 0, travel
+      (@pan > travel).then { @pan.set!((travel * 2) - @pan) }
+      @pan.clamp! 0, travel
       @b.blit :"menu_#{art}", -(@pan * 2), down
     end
 
@@ -337,7 +337,7 @@ module Wolf3D
         picked = the_rows(:main, at, y) do |m|
           m.item(NEW_GAME, showing: @in_game) { new_game_or_end_it }
           m.item(LOAD_GAME, enabled: false)
-          m.item(SOUND, showing: @sound_on) { @sound_on.set 1 - @sound_on }
+          m.item(SOUND, showing: @sound_on) { @sound_on.set! 1 - @sound_on }
           m.item(BACK, showing: @in_game) { leave_the_menu }
         end
         the_gun(at, y, picked)
@@ -348,7 +348,7 @@ module Wolf3D
     # ONE ROW, TWO MEANINGS, which is the row the pause menu turns over. Outside a game it
     # starts one; inside a game it ends the one you are in and leaves you at the title.
     def new_game_or_end_it
-      (@in_game == 1).then { @in_game.set 0; leaving_for TITLE }
+      (@in_game == 1).then { @in_game.set! 0; leaving_for TITLE }
                      .else { leaving_for(offers_episodes? ? EPISODES : DIFFICULTY) }
     end
 
@@ -377,7 +377,7 @@ module Wolf3D
             # picked, so it has nothing to do either.
             next m.item(name, enabled: false) if slot.nil?
 
-            m.item(name) { @start_floor.set slot; leaving_for DIFFICULTY }
+            m.item(name) { @start_floor.set! slot; leaving_for DIFFICULTY }
           end
         end
         the_gun(at, y, picked)
@@ -395,7 +395,7 @@ module Wolf3D
         @b.draw_text HOW_TOUGH, :center, HEADING_Y, colour(TEXT), font: HEADING
         picked = the_rows(:difficulty, at, y) do |m|
           DIFFICULTIES.each do |(setting, words, _)|
-            m.item(words) { @difficulty.set Guards.number_of(setting); start_the_game }
+            m.item(words) { @difficulty.set! Guards.number_of(setting); start_the_game }
           end
         end
         the_portrait(y, picked)
@@ -437,7 +437,7 @@ module Wolf3D
     # UNLESS THE GAME IS OVER, and then START means the other thing it has always meant here:
     # begin another game where you fell. The two never overlap, so one button does both.
     def pausing
-      pause = -> { @b.pressed(:start).then { @in_game.set 1; go_to MENU } }
+      pause = -> { @b.pressed(:start).then { @in_game.set! 1; go_to MENU } }
       over = @view.over
       over ? (over == 0).then { pause.call } : pause.call
     end
@@ -446,7 +446,7 @@ module Wolf3D
     # screen fades away to leave you in it.
     def start_the_game
       @view.begin_a_new_game(@start_floor)
-      @in_game.set 1
+      @in_game.set! 1
       leaving_for PLAYING
     end
 
@@ -498,8 +498,8 @@ module Wolf3D
     def the_gun(at, y, picked)
       tall = @art.height(:menu_gun)
       row = (picked * ROW_STEP) + y + ((ROW_STEP - tall) / 2)
-      @blink.add 1
-      (@blink >= BLINK_ON + BLINK_OFF).then { @blink.set 0 }
+      @blink.add! 1
+      (@blink >= BLINK_ON + BLINK_OFF).then { @blink.set! 0 }
       (@blink < BLINK_ON).then { @b.blit :menu_menu_gun, at.gun_x, row }
                          .else { @b.blit :menu_menu_gun_firing, at.gun_x, row }
     end
@@ -508,8 +508,8 @@ module Wolf3D
 
     # STRAIGHT TO ANOTHER SCREEN, with the clock on the new one started from nothing.
     def go_to(screen)
-      @screen.set screen
-      @waited.set 0
+      @screen.set! screen
+      @waited.set! 0
     end
 
     # ...and the other way, which is what picking a row does: the screen fades away first and
@@ -517,7 +517,7 @@ module Wolf3D
     # ignored, which is what the guard is for — the original simply stops reading the pad.
     def leaving_for(screen)
       (@going_to == NOWHERE).then do
-        @going_to.set screen
+        @going_to.set! screen
         @b.call :_menu_fade_out
       end
     end
@@ -532,7 +532,7 @@ module Wolf3D
       (@going_to != NOWHERE).then do
         (@b.fade_level == 100).then do
           go_to @going_to
-          @going_to.set NOWHERE
+          @going_to.set! NOWHERE
           @b.call :_menu_fade_in
         end
       end

@@ -44,7 +44,7 @@ class TestDying < Minitest::Test
         (settling < 2).then do
           clear_screen GROUND
           dma_fill_rect 0, FP::VIEW_H, FP::ACROSS, Wolf3D::StatusBar::HEIGHT, BAR
-          settling.add 1
+          settling.add! 1
         end.else do
           dying.struck_by(killer)
         end

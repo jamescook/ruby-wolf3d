@@ -114,25 +114,25 @@ module Wolf3D
     # They start at 1 rather than 0 because nought is the one number a step like theirs can never
     # leave — see #scatter.
     def start_again
-      @state.set ALIVE
-      @was.set 0
-      @turned.set 0
-      @held.set 0
-      @lead.set 1
-      @lag.set 1
-      @lead_done.set 0
-      @lag_done.set 0
+      @state.set! ALIVE
+      @was.set! 0
+      @turned.set! 0
+      @held.set! 0
+      @lead.set! 1
+      @lag.set! 1
+      @lead_done.set! 0
+      @lag_done.set! 0
     end
 
     # A shot has landed and taken the last of the health. Remember where it came from — the turn
     # is the whole reason a death needs to know.
     def struck_by(guard)
       (@state == ALIVE).then do
-        @kill_x.set guard.x
-        @kill_y.set guard.y
-        @state.set TURNING
-        @turned.set 0
-        @was.set 0
+        @kill_x.set! guard.x
+        @kill_y.set! guard.y
+        @state.set! TURNING
+        @turned.set! 0
+        @was.set! 0
       end
     end
 
@@ -145,18 +145,18 @@ module Wolf3D
     # When the sign is not the one it was last frame, the turn has crossed him and is done.
     def turn
       (@state == TURNING).then do
-        @cos.set(@eye[:sin][@eye[:angle] + FirstPerson::QUARTER])
-        @sin.set(@eye[:sin][@eye[:angle]])
-        @to_x.set(@kill_x - @eye[:x])
-        @to_y.set(@kill_y - @eye[:y])
-        @side.set((@cos * @to_y) - (@sin * @to_x))
+        @cos.set!(@eye[:sin][@eye[:angle] + FirstPerson::QUARTER])
+        @sin.set!(@eye[:sin][@eye[:angle]])
+        @to_x.set!(@kill_x - @eye[:x])
+        @to_y.set!(@kill_y - @eye[:y])
+        @side.set!((@cos * @to_y) - (@sin * @to_x))
 
-        @now.set(-1)
-        (@side > 0.0).then { @now.set 1 }
+        @now.set!(-1)
+        (@side > 0.0).then { @now.set! 1 }
         # The first frame has nothing to compare against, so it only takes a bearing.
-        (@was == 0).then { @was.set @now }
+        (@was == 0).then { @was.set! @now }
         (@now == @was).then { swing }.else { settle }
-        @turned.add 1
+        @turned.add! 1
         (@turned >= MOST_TURNS).then { settle }
       end
     end
@@ -173,14 +173,14 @@ module Wolf3D
     private
 
     def swing
-      (@now == 1).then { @eye[:angle].add STEP_ANGLE }.else { @eye[:angle].sub STEP_ANGLE }
+      (@now == 1).then { @eye[:angle].add! STEP_ANGLE }.else { @eye[:angle].sub! STEP_ANGLE }
     end
 
     # He is in front of us. Draw the settled view a couple more times so both pages agree, then
     # stop drawing it at all.
     def settle
-      @held.add 1
-      (@held >= SETTLE).then { @state.set FIZZLING }
+      @held.add! 1
+      (@held >= SETTLE).then { @state.set! FIZZLING }
     end
 
     def declare
@@ -230,14 +230,14 @@ module Wolf3D
     def scatter_the_next_dots
       (@lead_done < MODULUS - 1).then do
         scatter(@lead)
-        @lead_done.add PER_FRAME
+        @lead_done.add! PER_FRAME
       end
       # ...and last frame's dots again, onto the page that missed them.
       (@lead_done > PER_FRAME).then do
         scatter(@lag)
-        @lag_done.add PER_FRAME
+        @lag_done.add! PER_FRAME
       end
-      (@lag_done >= MODULUS - 1).then { @state.set GONE }
+      (@lag_done >= MODULUS - 1).then { @state.set! GONE }
     end
 
     # HOW THE SIX OVERSHOOTS ARE KEPT OUT OF THE STATUS BAR. The prime is a few above the number
@@ -249,8 +249,8 @@ module Wolf3D
     def scatter(walker)
       @b.inside(0, 0, ACROSS, DOWN) do
         @b.repeat(PER_FRAME) do
-          walker.set((walker * STEP) % MODULUS)
-          @spot.set(walker - 1)
+          walker.set!((walker * STEP) % MODULUS)
+          @spot.set!(walker - 1)
           @b.draw_rect_at @spot % ACROSS, @spot / ACROSS, 1, 1, Palette.game[INK]
         end
       end

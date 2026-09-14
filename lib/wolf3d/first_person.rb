@@ -258,7 +258,7 @@ module Wolf3D
     # WHICH FLOOR IS SET FIRST, because everything the floor's own start does reads through
     # it: which slice of the map, which doors, which guards, and where you stand.
     def begin_a_new_game(slot)
-      @floor.set slot
+      @floor.set! slot
       @lives.start_again
       @victory&.start_again
       @b.call :start_the_floor
@@ -341,8 +341,8 @@ module Wolf3D
       if @standing
         # Which way the eye points, worked out once a move: the shot needs it and so does
         # everything the view draws standing in the room.
-        @vcos.set(@sin[@view + QUARTER])
-        @vsin.set(@sin[@view])
+        @vcos.set!(@sin[@view + QUARTER])
+        @vsin.set!(@sin[@view])
       end
       # WHICH ROOMS ARE OPEN TO THE PLAYER, worked out before anybody thinks and once for all of
       # them — the answer is the same for every guard on the floor, and it is what most of them
@@ -393,7 +393,7 @@ module Wolf3D
     # worst weapon a player can be holding rather than the one they start with. The heaviest frame
     # is unchanged either way: a frame that does fire pays for the walk whole.
     def fire
-      (@noise > 0).then { @noise.sub 1 }
+      (@noise > 0).then { @noise.sub! 1 }
       @weapons.update
       return unless @mind
 
@@ -785,16 +785,16 @@ module Wolf3D
     # spacing, so the loop carries it along and adds the spacing at the end of a pass, rather than
     # multiplying the column number out and taking half the view off it every time.
     def where_the_eye_stands
-      @eyex.set @px.to_i
-      @eyey.set @py.to_i
-      @fracx.set(@px - @eyex.to_f)
-      @fracy.set(@py - @eyey.to_f)
-      @backx.set(1.0 - @fracx)
-      @backy.set(1.0 - @fracy)
+      @eyex.set! @px.to_i
+      @eyey.set! @py.to_i
+      @fracx.set!(@px - @eyex.to_f)
+      @fracy.set!(@py - @eyey.to_f)
+      @backx.set!(1.0 - @fracx)
+      @backy.set!(1.0 - @fracy)
       # The first ray points at the left edge of the view, half the fan round from where the
       # player is looking.
-      @ang.set @view
-      @ang.sub((COLUMNS - 1) * SPREAD / 2)
+      @ang.set! @view
+      @ang.sub!((COLUMNS - 1) * SPREAD / 2)
     end
 
     # THE GUN GOES WHEN YOU DO, which is the original's own behaviour: dying puts the weapon
@@ -1169,19 +1169,19 @@ module Wolf3D
       # AGAIN as well: shutting every door writes each one straight back to nought rather than
       # sliding it, so the doors never say they moved and nothing else here would notice.
       @rooms&.floor_started
-      @health.set START_HEALTH
-      @ammo.set @start_ammo
-      @keys.set 0
+      @health.set! START_HEALTH
+      @ammo.set! @start_ammo
+      @keys.set! 0
       @weapons.start_again
       # ...and none of the floor has been found yet, which is what makes these a share of it.
-      @kills.set 0
-      @secrets.set 0
-      @treasures.set 0
+      @kills.set! 0
+      @secrets.set! 0
+      @treasures.set! 0
       # The lever comes back up and the lift forgets it was ever called.
       if lifts?
-        @pulled.set(-1)
-        @lift_secret.set 0
-        @lift_wait.set 0
+        @pulled.set!(-1)
+        @lift_secret.set! 0
+        @lift_wait.set! 0
       end
       shut_every_door
       put_the_secret_walls_back
@@ -1201,19 +1201,19 @@ module Wolf3D
     def go_to_this_floor
       @floors.each_with_index do |floor, n|
         settle = lambda do
-          @map_base.set @floors.map_base(n)
-          @door_first.set @floors.first_of(:doors, n)
-          @door_count.set @floors.count_of(:doors, n)
-          @push_first.set @floors.first_of(:pushwalls, n)
-          @push_count.set @floors.count_of(:pushwalls, n)
-          @guard_count.set @floors.count_of(:guards, n)
-          @guard_first.set @floors.first_of(:guards, n)
-          @piece_first.set @floors.first_of(:pieces, n)
-          @piece_count.set @floors.count_of(:pieces, n)
-          @secret_car.set(floor.lifts&.secret_cars&.first || -1)
-          @px.set(floor.level.start.x + 0.5)
-          @py.set(floor.level.start.y + 0.5)
-          @view.set facing_angle(floor.level.start.facing)
+          @map_base.set! @floors.map_base(n)
+          @door_first.set! @floors.first_of(:doors, n)
+          @door_count.set! @floors.count_of(:doors, n)
+          @push_first.set! @floors.first_of(:pushwalls, n)
+          @push_count.set! @floors.count_of(:pushwalls, n)
+          @guard_count.set! @floors.count_of(:guards, n)
+          @guard_first.set! @floors.first_of(:guards, n)
+          @piece_first.set! @floors.first_of(:pieces, n)
+          @piece_count.set! @floors.count_of(:pieces, n)
+          @secret_car.set!(floor.lifts&.secret_cars&.first || -1)
+          @px.set!(floor.level.start.x + 0.5)
+          @py.set!(floor.level.start.y + 0.5)
+          @view.set! facing_angle(floor.level.start.facing)
         end
         @floors.count == 1 ? settle.call : (@floor == n).then { settle.call }
       end
@@ -1259,9 +1259,9 @@ module Wolf3D
       # WHICH PASS EACH ONE THINKS ON is counted over the guards who really STAND UP, not over
       # the slots walked — otherwise an easier game, which spawns from scattered slots, could
       # land most of its floor on the same pass and pay for it twice over on that one.
-      @stood.set 0
+      @stood.set! 0
       @b.repeat(@guard_count, estimate: how_many(:guards)) do |n|
-        @slot.set(@guard_first + n)
+        @slot.set!(@guard_first + n)
         (@difficulty >= @guard_home_from[@slot]).then do
           @guard.spawn x: @guard_home_x[@slot], y: @guard_home_y[@slot],
                        dir: @guard_home_dir[@slot],
@@ -1269,7 +1269,7 @@ module Wolf3D
                        hp: @hit_points[@guard_home_tough[@slot] + @difficulty],
                        wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
                        ambush: @guard_home_ambush[@slot], turn: @stood % 2
-          @stood.add 1
+          @stood.add! 1
         end
       end
     end
@@ -1329,13 +1329,13 @@ module Wolf3D
 
     def walk
       b = @b
-      b.held(:left).then { @view.sub TURN_SPEED }
-      b.held(:right).then { @view.add TURN_SPEED }
+      b.held(:left).then { @view.sub! TURN_SPEED }
+      b.held(:right).then { @view.add! TURN_SPEED }
 
-      @stepx.set(@sin[@view + QUARTER] * WALK)
-      @stepy.set(@sin[@view] * WALK)
-      b.held(:down).then { @stepx.flip }
-      b.held(:down).then { @stepy.flip }
+      @stepx.set!(@sin[@view + QUARTER] * WALK)
+      @stepy.set!(@sin[@view] * WALK)
+      b.held(:down).then { @stepx.flip! }
+      b.held(:down).then { @stepy.flip! }
 
       (b.held(:up) | b.held(:down)).then { take_the_step }
       step_sideways
@@ -1351,13 +1351,13 @@ module Wolf3D
     # still lands. A sideways step goes through exactly this, or strafing into a wall would put
     # you through it.
     def take_the_step
-      @nx.set @px
-      @nx.add @stepx
-      free?(@nx.to_i, @py.to_i).then { @px.set @nx }
+      @nx.set! @px
+      @nx.add! @stepx
+      free?(@nx.to_i, @py.to_i).then { @px.set! @nx }
 
-      @ny.set @py
-      @ny.add @stepy
-      free?(@px.to_i, @ny.to_i).then { @py.set @ny }
+      @ny.set! @py
+      @ny.add! @stepy
+      free?(@px.to_i, @ny.to_i).then { @py.set! @ny }
     end
 
     # STEPPING SIDEWAYS, which the shoulder buttons do.
@@ -1384,10 +1384,10 @@ module Wolf3D
     def step_sideways
       b = @b
       (b.held(:l) | b.held(:r)).then do
-        @stepx.set(@sin[@view] * WALK)
-        @stepy.set(@sin[@view + QUARTER] * WALK)
-        b.held(:l).then { @stepy.flip }
-        b.held(:r).then { @stepx.flip }
+        @stepx.set!(@sin[@view] * WALK)
+        @stepy.set!(@sin[@view + QUARTER] * WALK)
+        b.held(:l).then { @stepy.flip! }
+        b.held(:r).then { @stepx.flip! }
         take_the_step
       end
     end
@@ -1401,7 +1401,7 @@ module Wolf3D
     def reached_the_way_out
       return unless @victory
 
-      @here.set((@py.to_i * @level.width) + @px.to_i)
+      @here.set!((@py.to_i * @level.width) + @px.to_i)
       ((@here >= @exit_first[@floor]) & (@here <= @exit_last[@floor])).then { @victory.won }
     end
 
@@ -1412,10 +1412,10 @@ module Wolf3D
     # "and" would work out BOTH sides, and the second one reaches into the list of doors by a
     # number that is only a door number when the first side is true.
     def free?(x, y)
-      @spot.set((y * @level.width) + x)
-      @foot.set(@world[@map_base + @spot])
-      @can.set 0
-      (@foot == 0).then { @can.set 1 }
+      @spot.set!((y * @level.width) + x)
+      @foot.set!(@world[@map_base + @spot])
+      @can.set! 0
+      (@foot == 0).then { @can.set! 1 }
       # A lever is a wall and stays one however hard you walk at it, so everything below is
       # skipped for one — and skipped rather than added to, so a lever's number can never be read
       # as a door's or a push wall's. Only on a floor that has a lift; see the walk.
@@ -1425,7 +1425,7 @@ module Wolf3D
         what_a_foot_finds
       end
       # ...and a barrel in the way stops you on open floor, which nothing else here does.
-      (@blocked[@map_base + @spot] == 1).then { @can.set 0 } if @blocked
+      (@blocked[@map_base + @spot] == 1).then { @can.set! 0 } if @blocked
       @can == 1
     end
 
@@ -1434,14 +1434,14 @@ module Wolf3D
     def what_a_foot_finds
       (@foot >= PUSH).then do
         # A cell a push wall could reach is floor unless the wall is standing in it now.
-        @slot.set(@foot - PUSH)
-        @pcell.set(@push_home[@push_first + @slot])
-        @pcell.add(@push_gone[@slot] * @push_step[@slot])
-        (@pcell != @spot).then { @can.set 1 }
+        @slot.set!(@foot - PUSH)
+        @pcell.set!(@push_home[@push_first + @slot])
+        @pcell.add!(@push_gone[@slot] * @push_step[@slot])
+        (@pcell != @spot).then { @can.set! 1 }
       end.else do
         (@foot >= DOOR).then do
-          @slot.set(@foot - DOOR)
-          (@open[@slot] > DOOR_WALKABLE).then { @can.set 1 }
+          @slot.set!(@foot - DOOR)
+          (@open[@slot] > DOOR_WALKABLE).then { @can.set! 1 }
         end
       end
     end
@@ -1455,12 +1455,12 @@ module Wolf3D
     def open_a_door
       b = @b
       b.pressed(:a).then do
-        @nx.set @px
-        @nx.add(@sin[@view + QUARTER] * DOOR_REACH)
-        @ny.set @py
-        @ny.add(@sin[@view] * DOOR_REACH)
-        @ahead.set((@ny.to_i * @level.width) + @nx.to_i)
-        @foot.set(@world[@map_base + @ahead])
+        @nx.set! @px
+        @nx.add!(@sin[@view + QUARTER] * DOOR_REACH)
+        @ny.set! @py
+        @ny.add!(@sin[@view] * DOOR_REACH)
+        @ahead.set!((@ny.to_i * @level.width) + @nx.to_i)
+        @foot.set!(@world[@map_base + @ahead])
 
         if lifts?
           (@foot >= LIFT).then { pull_the_lever }.else { use_what_moves }
@@ -1475,16 +1475,16 @@ module Wolf3D
       (@foot >= PUSH).then { shove_a_wall }
           .else do
             (@foot >= DOOR).then do
-              @slot.set(@foot - DOOR)
+              @slot.set!(@foot - DOOR)
               # A locked door wants its key. Without it, nothing happens at all.
               #
               # Nested rather than joined with "or", because joining works out BOTH sides —
               # and the second side divides by which key is wanted, which is nought for a door
               # that wants none.
-              @want.set(@door_lock[@door_first + @slot])
-              @can.set 0
-              (@want == 0).then { @can.set 1 }
-              (@want > 0).then { ((@keys / @want) % 2 == 1).then { @can.set 1 } }
+              @want.set!(@door_lock[@door_first + @slot])
+              @can.set! 0
+              (@want == 0).then { @can.set! 1 }
+              (@want > 0).then { ((@keys / @want) % 2 == 1).then { @can.set! 1 } }
               (@can == 1).then do
                 # ...and it is heard only when it was SHUT. Pressing at a door already open tops
                 # its count back up, which is not a door opening and does not sound like one.
@@ -1515,13 +1515,13 @@ module Wolf3D
     #
     # A LEVER ALREADY PULLED IGNORES YOU, so leaning on the button does not restart the count.
     def pull_the_lever
-      @across.set(@sin[@view + QUARTER])
-      @across.abs
-      @along.set(@sin[@view])
-      @along.abs
+      @across.set!(@sin[@view + QUARTER])
+      @across.abs!
+      @along.set!(@sin[@view])
+      @along.abs!
       ((@across > @along) & (@pulled < 0)).then do
-        @pulled.set @ahead
-        @lift_wait.set lift_wait_frames
+        @pulled.set! @ahead
+        @lift_wait.set! lift_wait_frames
         # WHERE THE LIFT GOES is decided by the cell the player is standing on, not by the lever
         # — which is the original's own test, and is why nothing here has to model a car. A floor
         # has one such cell or none, so this is a comparison against a number settled at build
@@ -1530,8 +1530,8 @@ module Wolf3D
         # floor was settled when the floor started (see #go_to_this_floor), so there is no arm
         # per floor here and no table to read.
         if @floors.any? { |floor| floor.lifts && !floor.lifts.secret_cars.empty? }
-          @here.set((@py.to_i * @level.width) + @px.to_i)
-          (@here == @secret_car).then { @lift_secret.set 1 }
+          @here.set!((@py.to_i * @level.width) + @px.to_i)
+          (@here == @secret_car).then { @lift_secret.set! 1 }
         end
         @sounds.level_done
       end
@@ -1540,7 +1540,7 @@ module Wolf3D
     # The floor ends when that count runs out.
     def run_the_lift
       (@lift_wait > 0).then do
-        @lift_wait.sub 1
+        @lift_wait.sub! 1
         (@lift_wait == 0).then { go_to_the_next_floor }
       end
     end
@@ -1569,9 +1569,9 @@ module Wolf3D
 
     def go_to_the_next_floor
       if @floors.count > SECRET_FLOOR
-        (@floor == SECRET_FLOOR).then { @floor.set BACK_FROM_SECRET }
+        (@floor == SECRET_FLOOR).then { @floor.set! BACK_FROM_SECRET }
           .else do
-            (@lift_secret == 1).then { @floor.set SECRET_FLOOR }.else { on_to_the_next_floor }
+            (@lift_secret == 1).then { @floor.set! SECRET_FLOOR }.else { on_to_the_next_floor }
           end
       elsif @floors.count > 1
         on_to_the_next_floor
@@ -1580,20 +1580,20 @@ module Wolf3D
     end
 
     def on_to_the_next_floor
-      @floor.add 1
-      (@floor > @floors.count - 1).then { @floor.set 0 }
+      @floor.add! 1
+      (@floor > @floors.count - 1).then { @floor.set! 0 }
     end
 
     # Lean on a secret wall and it goes. Which way it goes is which way you are pushing, taken
     # to the nearer of the two axes — you cannot shove a wall diagonally.
     def shove_a_wall
-      @slot.set(@foot - PUSH)
+      @slot.set!(@foot - PUSH)
       # Only from its own cell, and only once. A wall already on the move ignores you.
       ((@ahead == @push_home[@push_first + @slot]) & (@push_step[@slot] == 0)).then do
-        @across.set(@sin[@view + QUARTER])
-        @across.abs
-        @along.set(@sin[@view])
-        @along.abs
+        @across.set!(@sin[@view + QUARTER])
+        @across.abs!
+        @along.set!(@sin[@view])
+        @along.abs!
         (@across > @along).then do
           (@sin[@view + QUARTER] > 0.0).then { @push_step[@slot] = 1 }
                                        .else { @push_step[@slot] = -1 }
@@ -1604,7 +1604,7 @@ module Wolf3D
         @push_wait[@slot] = Pushwalls::FRAMES_PER_CELL
         # Found, and counted once: this arm only runs for a wall standing in its own cell that
         # is not already moving, so leaning on the same wall again cannot count it twice.
-        @secrets.add 1
+        @secrets.add! 1
         @sounds.secret_wall
       end
     end
@@ -1615,11 +1615,11 @@ module Wolf3D
       return if no_floor_has?(:pushwalls)
 
       @b.repeat(@push_count, estimate: how_many(:pushwalls)) do |wall|
-        @wait.set(@push_wait[wall])
+        @wait.set!(@push_wait[wall])
         (@wait > 0).then do
           @push_wait[wall] = @wait - 1
           (@wait == 1).then do
-            @gone.set(@push_gone[wall] + 1)
+            @gone.set!(@push_gone[wall] + 1)
             @push_gone[wall] = @gone
             (@gone < Pushwalls::DISTANCE).then { @push_wait[wall] = Pushwalls::FRAMES_PER_CELL }
           end
@@ -1636,19 +1636,19 @@ module Wolf3D
       return if no_floor_has?(:doors)
 
       b = @b
-      @here.set(@world[@map_base + (@py.to_i * @level.width) + @px.to_i])
+      @here.set!(@world[@map_base + (@py.to_i * @level.width) + @px.to_i])
       b.repeat(@door_count, estimate: how_many(:doors)) do |door|
         (@here == DOOR + door).then { @linger[door] = DOOR_LINGER }
-        @wait.set(@linger[door])
-        @swing.set(@open[door])
+        @wait.set!(@linger[door])
+        @swing.set!(@open[door])
         (@wait > 0).then do
           @linger[door] = @wait - 1
           # The last frame of standing open: after this one it starts to swing shut, which is
           # the moment to hear it. Tested here rather than on the way down so it sounds once.
           (@wait == 1).then { @sounds.door_shuts }
-          @swing.approach DOOR_WIDE, DOOR_STEP
+          @swing.approach! DOOR_WIDE, DOOR_STEP
         end.else do
-          @swing.approach 0.0, DOOR_STEP
+          @swing.approach! 0.0, DOOR_STEP
         end
         # A DOOR THAT MOVED CHANGES WHICH ROOMS ARE OPEN, and this is where that is cheapest to
         # notice: the old openness is still in hand and the new one is beside it, so it is one
@@ -1675,35 +1675,35 @@ module Wolf3D
       # Which way the ray points, and how far along it from one grid line to the next — one
       # answer for the lines running one way, one for the lines running the other. The angle was
       # left pointing here by the ray before this one; see #where_the_eye_stands.
-      @dx.set(@sin[@ang + QUARTER])
-      @dy.set(@sin[@ang])
-      @deltax.set(@reach[@ang + QUARTER])
-      @deltay.set(@reach[@ang])
+      @dx.set!(@sin[@ang + QUARTER])
+      @dy.set!(@sin[@ang])
+      @deltax.set!(@reach[@ang + QUARTER])
+      @deltay.set!(@reach[@ang])
 
-      @mapx.set @eyex
-      @mapy.set @eyey
+      @mapx.set! @eyex
+      @mapy.set! @eyey
       # Nothing else is cleared here. The walk always takes at least one step, and every step
       # says which side of a cell it crossed, so `side` is written before anything reads it — and
       # `wall` is read only to work out a picture for a strip that a ray which met nothing does
       # not draw.
-      @hit.set 0
+      @hit.set! 0
 
       # How far to the FIRST line of each kind, which depends on which way the ray leans:
       # leaning back it is what has already been crossed of this cell, leaning forward it is
       # what is left of it. Both distances belong to the player rather than to this ray.
       (@dx < 0).then do
-        @stepmx.set(-1)
-        @sidex.set(@fracx * @deltax)
+        @stepmx.set!(-1)
+        @sidex.set!(@fracx * @deltax)
       end.else do
-        @stepmx.set(1)
-        @sidex.set(@backx * @deltax)
+        @stepmx.set!(1)
+        @sidex.set!(@backx * @deltax)
       end
       (@dy < 0).then do
-        @stepmy.set(-1)
-        @sidey.set(@fracy * @deltay)
+        @stepmy.set!(-1)
+        @sidey.set!(@fracy * @deltay)
       end.else do
-        @stepmy.set(1)
-        @sidey.set(@backy * @deltay)
+        @stepmy.set!(1)
+        @sidey.set!(@backy * @deltay)
       end
 
       # Take whichever line is nearer, every time. That is all there is to it — and it stops
@@ -1716,15 +1716,15 @@ module Wolf3D
       # and free, and this is what a frame really pays.
       b.repeat(CROSSINGS, stop_when: @hit == 1, estimate: { usually: USUAL_CROSSINGS }) do
         (@sidex < @sidey).then do
-          @sidex.add @deltax
-          @mapx.add @stepmx
-          @side.set 0
+          @sidex.add! @deltax
+          @mapx.add! @stepmx
+          @side.set! 0
         end.else do
-          @sidey.add @deltay
-          @mapy.add @stepmy
-          @side.set 1
+          @sidey.add! @deltay
+          @mapy.add! @stepmy
+          @side.set! 1
         end
-        @cell.set(@world[@map_base + (@mapy * width) + @mapx])
+        @cell.set!(@world[@map_base + (@mapy * width) + @mapx])
         (@cell > 0).then do
           # Something is here. Only now is it worth asking WHICH kind, because the ray has
           # stopped either way — every step before this one paid a single test and no more.
@@ -1744,15 +1744,15 @@ module Wolf3D
       # back and what is left reaches the surface itself. A door has already worked out its own
       # distance, because its panel does not stand on a grid line.
       (@isdoor == 0).then do
-        (@side == 0).then { @dist.set(@sidex - @deltax) }.else { @dist.set(@sidey - @deltay) }
+        (@side == 0).then { @dist.set!(@sidex - @deltax) }.else { @dist.set!(@sidey - @deltay) }
       end
 
       # Correct for the fan: a ray angled away from centre travels further to reach the same
       # flat wall, and without this a straight wall bows outward at the edges of the view.
-      @seen.set(@dist * @sin[(col * SPREAD) + QUARTER - ((COLUMNS - 1) * SPREAD / 2)])
+      @seen.set!(@dist * @sin[(col * SPREAD) + QUARTER - ((COLUMNS - 1) * SPREAD / 2)])
 
       # ...AND NO NEARER THAN THIS, which is not about perspective. See NEAREST.
-      @seen.clamp(NEAREST, FAR)
+      @seen.clamp!(NEAREST, FAR)
 
       # The perspective divide, which is the whole trick: a wall twice as far away covers half
       # as much of the screen.
@@ -1769,14 +1769,14 @@ module Wolf3D
       # ONE height, and dropping the fraction puts every strip whose height lands exactly on a
       # whole number at the mercy of the last bit — half of them fall to the pixel below and
       # the top edge of a flat wall wanders.
-      @colh.set((WALL_SCALE / @seen + 0.5).to_i)
-      @top.set HORIZON
-      @top.sub(@colh / 2)
+      @colh.set!((WALL_SCALE / @seen + 0.5).to_i)
+      @top.set! HORIZON
+      @top.sub!(@colh / 2)
 
       draw_strip(col)
 
       # ...and leave the angle pointing at the next strip along.
-      @ang.add SPREAD
+      @ang.add! SPREAD
     end
 
     # Does this floor have a lift at all? Every lever test is built only when it does — see the
@@ -1791,9 +1791,9 @@ module Wolf3D
       (@cell >= PUSH).then { meet_a_pushwall(width) }
         .else do
           (@cell >= DOOR).then { meet_a_door }.else do
-            @hit.set 1
-            @wall.set(@cell - 1 + @side)
-            @isdoor.set 0
+            @hit.set! 1
+            @wall.set!(@cell - 1 + @side)
+            @isdoor.set! 0
           end
         end
     end
@@ -1809,10 +1809,10 @@ module Wolf3D
     # walls, and flipping them all would show the pulled picture on faces the original never
     # shows it on. See the note on pulled_picture for why those faces are worth avoiding.
     def meet_a_lever
-      @hit.set 1
-      @isdoor.set 0
-      (@pulled == (@mapy * @level.width) + @mapx).then { @wall.set(pulled_picture + @side) }
-                                                 .else { @wall.set(lever_picture + @side) }
+      @hit.set! 1
+      @isdoor.set! 0
+      (@pulled == (@mapy * @level.width) + @mapx).then { @wall.set!(pulled_picture + @side) }
+                                                 .else { @wall.set!(lever_picture + @side) }
     end
 
     # Where the two lever pictures sit in the row of them, worked out while building. A lever
@@ -1838,13 +1838,13 @@ module Wolf3D
     # that is this cell it is a wall like any other; if not, this cell is the floor the map
     # always said it was and the ray carries straight on.
     def meet_a_pushwall(width)
-      @push.set(@cell - PUSH)
-      @pcell.set(@push_home[@push_first + @push])
-      @pcell.add(@push_gone[@push] * @push_step[@push])
+      @push.set!(@cell - PUSH)
+      @pcell.set!(@push_home[@push_first + @push])
+      @pcell.add!(@push_gone[@push] * @push_step[@push])
       (@pcell == (@mapy * width) + @mapx).then do
-        @hit.set 1
-        @isdoor.set 0
-        @wall.set(@push_face[@push_first + @push] + @side)
+        @hit.set! 1
+        @isdoor.set! 0
+        @wall.set!(@push_face[@push_first + @push] + @side)
       end
     end
 
@@ -1859,16 +1859,16 @@ module Wolf3D
     # The half-cell step is the same for either kind of panel, because the distance from one
     # grid line to the next along this ray is exactly what the walk already keeps.
     def meet_a_door
-      @door.set(@cell - DOOR)
+      @door.set!(@cell - DOOR)
 
       (@door_across[@door_first + @door] == 0).then do
-        @mid.set(@sidex - (@deltax / 2))         # half a cell back from the far side
-        @wallx.set(@py + (@mid * @dy))           # ...and where the ray is by then
-        @edge.set(@wallx.to_i - @mapy)
+        @mid.set!(@sidex - (@deltax / 2))         # half a cell back from the far side
+        @wallx.set!(@py + (@mid * @dy))           # ...and where the ray is by then
+        @edge.set!(@wallx.to_i - @mapy)
       end.else do
-        @mid.set(@sidey - (@deltay / 2))
-        @wallx.set(@px + (@mid * @dx))
-        @edge.set(@wallx.to_i - @mapx)
+        @mid.set!(@sidey - (@deltay / 2))
+        @wallx.set!(@px + (@mid * @dx))
+        @edge.set!(@wallx.to_i - @mapx)
       end
 
       # Still inside this cell when it got there? If not the ray went by the doorway rather
@@ -1876,14 +1876,14 @@ module Wolf3D
       (@edge == 0).then do
         # The panel has slid this far out of the way, so the ray passes through anything up to
         # there and meets the panel beyond it.
-        @slid.set(@open[@door])
-        @wallx.sub(@wallx.to_i.to_f) # how far across the cell, with the whole cells taken off
+        @slid.set!(@open[@door])
+        @wallx.sub!(@wallx.to_i.to_f) # how far across the cell, with the whole cells taken off
         (@wallx > @slid).then do
-          @hit.set 1
-          @isdoor.set 1
-          @dist.set @mid
-          @wall.set(@door_picture[@door_first + @door])
-          @wallx.sub @slid
+          @hit.set! 1
+          @isdoor.set! 1
+          @dist.set! @mid
+          @wall.set!(@door_picture[@door_first + @door])
+          @wallx.sub! @slid
         end
       end
     end
@@ -1901,8 +1901,8 @@ module Wolf3D
       (@isdoor == 1).then do
         strip(col, (@wall * TEX) + texture_column)
       end.else do
-        (@side == 0).then { @wallx.set(@py + (@dist * @dy)) }
-                    .else { @wallx.set(@px + (@dist * @dx)) }
+        (@side == 0).then { @wallx.set!(@py + (@dist * @dy)) }
+                    .else { @wallx.set!(@px + (@dist * @dx)) }
         strip(col, (@wall * TEX) + texture_column)
       end
     end
