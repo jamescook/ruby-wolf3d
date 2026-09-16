@@ -152,8 +152,8 @@ class TestSounds < Minitest::Test
     backend = GBA.new
     rom = ROM.assemble(backend.lower(program), title: "SOUND")
 
-    firing = ->(frame) { frame.between?(8, 9) ? RubyGBA::Constants::KEY_B : 0 }
-    console = RubyGBA::Verifier.new(rom, frames: 40, keys: firing)
+    firing = ->(frame) { frame.between?(8, 9) ? Constants::KEY_B : 0 }
+    console = Verifier.new(rom, frames: 40, keys: firing)
 
     assert console.sound?, "the cartridge should have made a noise"
   end

@@ -277,7 +277,7 @@ class TestEnemies < Minitest::Test
     program = a_drawn_floor_of(:dog, at: 10)
     interp = Reference.new.run(program, frames: 3)
     rom = ROM.assemble(GBA.new.lower(program), title: "DOGS")
-    gba = RubyGBA::Verifier.new(rom, frames: 8)
+    gba = Verifier.new(rom, frames: 8)
 
     refute_empty dog_columns(interp), "the interpreter draws him, so there is something to match"
     differ = (0...240).to_a.product((0...160).to_a).reject do |x, y|
@@ -310,7 +310,7 @@ class TestEnemies < Minitest::Test
   def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
   def palette = Wolf3D::Palette.game
 
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   def pool_field(run, field, slot = 0)
     run.instance_variable_get(:@lists)[:"__pool_guard_#{field}"].get(slot)

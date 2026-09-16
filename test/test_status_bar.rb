@@ -167,10 +167,10 @@ class TestStatusBar < Minitest::Test
   def test_the_console_shows_the_changed_bar_on_both_pages
     program = view_of(arena(guards: [[13, 8, :east]]))
     rom = ROM.assemble(GBA.new.lower(program), title: "BAR")
-    fire = ->(frame) { frame.between?(8, 9) ? RubyGBA::Constants::KEY_B : 0 }
+    fire = ->(frame) { frame.between?(8, 9) ? Constants::KEY_B : 0 }
 
     bars = [40, 41].map do |frames|
-      gba = RubyGBA::Verifier.new(rom, frames: frames, keys: fire)
+      gba = Verifier.new(rom, frames: frames, keys: fire)
       pixels = (0...FP::ACROSS).step(2).flat_map do |x|
         (FP::VIEW_H...FP::DOWN).step(2).map { |y| gba.pixel_gba(x, y) }
       end
@@ -268,7 +268,7 @@ class TestStatusBar < Minitest::Test
                        title: "BARGUN")
     # Far enough in that the cartridge has painted both pages. Read at four the screen is still
     # black, which would say nothing about which gun.
-    gba = RubyGBA::Verifier.new(rom, frames: 10)
+    gba = Verifier.new(rom, frames: 10)
 
     assert_equal :pistol, weapon_drawn { |x, y| gba.pixel_gba(x, y) }
   end
@@ -417,7 +417,7 @@ class TestStatusBar < Minitest::Test
   def vswap = self.class.vswap
   def palette = Wolf3D::Palette.game
   def ground = palette[Bar::GROUND]
-  def font = RubyGBA::Fonts.get(Bar::FONT)
+  def font = RubyGBA::Graphics::Fonts.get(Bar::FONT)
 
   def arena(player: [8, 8], facing: :east, guards: [], things: {})
     cells = Array.new(SIDE * SIDE, FLOOR)

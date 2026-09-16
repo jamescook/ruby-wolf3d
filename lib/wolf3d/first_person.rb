@@ -200,8 +200,8 @@ module Wolf3D
     # where @noise is declared.
     HEARD_FOR = 2
 
-    CEILING = RubyGBA::Color.rgb(7, 7, 9)
-    FLOOR_COLOR = RubyGBA::Color.rgb(12, 11, 10)
+    CEILING = RubyGBA::Graphics::Color.rgb(7, 7, 9)
+    FLOOR_COLOR = RubyGBA::Graphics::Color.rgb(12, 11, 10)
 
     # +floors+ is every floor the cartridge holds. A game with one floor may hand over its pieces
     # loose instead — `level:`, `doors:` and the rest — which is what a test builds and what a
@@ -1319,8 +1319,10 @@ module Wolf3D
     end
 
     # A number as a table will really hold it, to the places a variable with a fraction keeps.
-    def as_a_table_holds_it(number) = RubyGBA::Fraction.scale(number, RubyGBA::Fraction::DEFAULT_BITS) /
-                                      (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+    def as_a_table_holds_it(number)
+      places = RubyGBA::DSL::Fraction::DEFAULT_BITS
+      RubyGBA::DSL::Fraction.scale(number, places) / (1 << places).to_f
+    end
 
     # Plane 1 says which way the player starts; the angle table runs clockwise from east.
     def facing_angle(facing)

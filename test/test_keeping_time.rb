@@ -33,7 +33,7 @@ class TestKeepingTime < Minitest::Test
   SIDE = 16
   FLOOR = Wolf3D::Level::FLOOR
   WALL = Release::WALL
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # A walled field with the player in it, facing east — so walking forward raises px and the
   # wall down the east side is what eventually stops them.

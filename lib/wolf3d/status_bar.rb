@@ -154,7 +154,7 @@ module Wolf3D
     # Without the art there is no face and no weapon at all, and the keys are two blocks side by
     # side.
     def self.plain_width(field)
-      font = RubyGBA::Fonts.get(FONT)
+      font = RubyGBA::Graphics::Fonts.get(FONT)
       case field.name
       when :face, :weapon then 0
       when :keys then [font.text_width(field.label), (METALS.length * KEY_W) + KEY_GAP].max
@@ -349,7 +349,7 @@ module Wolf3D
     def boundaries = self.class.boundaries(@art)
 
     def colour(index) = Palette.game[index]
-    def font = RubyGBA::Fonts.get(FONT)
+    def font = RubyGBA::Graphics::Fonts.get(FONT)
 
     # Centred in its own field, which is what keeps the bar looking arranged as the numbers grow
     # and shrink. A figure reserves room for every digit it could reach, so the width is the

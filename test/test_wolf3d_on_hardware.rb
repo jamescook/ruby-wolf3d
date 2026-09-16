@@ -2,9 +2,9 @@
 
 require_relative "test_helper"
 
-# The real cartridge, in the emulator. Reached through RubyGBA::Verifier rather than the
-# framework's own test support, because a game outside the framework cannot reach into its test
-# directory — and this one is here to feel that constraint.
+# The real cartridge, in the emulator. Reached through the framework's public seam,
+# RubyGBA::Diagnostics::Verifier, rather than its own test support, because a game outside the
+# framework cannot reach into its test directory — and this one is here to feel that constraint.
 class TestWolf3DOnHardware < Minitest::Test
   include Wolf3DTest
 
@@ -19,7 +19,7 @@ class TestWolf3DOnHardware < Minitest::Test
 
   def test_the_cartridge_boots_and_draws_something
     rom = a_small_cartridge { Wolf3D.build_rom(out: StringIO.new, err: StringIO.new) }
-    gba = RubyGBA::Verifier.new(rom, frames: FIRST_DRAWN_FRAME)
+    gba = Verifier.new(rom, frames: FIRST_DRAWN_FRAME)
 
     refute gba.all_black?, "the cartridge booted to a black screen"
   end
@@ -33,8 +33,8 @@ class TestWolf3DOnHardware < Minitest::Test
       game_loop { screen_title.update }
     end
 
-    showing = lit_pixels(RubyGBA::Verifier.new(rom, frames: 4), 100, 112)
-    gone = lit_pixels(RubyGBA::Verifier.new(rom, frames: 70), 100, 112)
+    showing = lit_pixels(Verifier.new(rom, frames: 4), 100, 112)
+    gone = lit_pixels(Verifier.new(rom, frames: 70), 100, 112)
 
     assert_operator showing, :>, 0, "expected the prompt early in the cycle"
     assert_equal 0, gone, "expected the prompt to be dark later in the cycle"
@@ -71,7 +71,7 @@ class TestMapViewOnHardware < Minitest::Test
     game_data_or_skip
     level = Wolf3D.maps[0]
     view = Wolf3D::MapView
-    gba = RubyGBA::Verifier.new(views_rom(level), frames: 4)
+    gba = Verifier.new(views_rom(level), frames: 4)
 
     start = level.start
     assert_equal view::START, gba.pixel_gba(view::ORIGIN_X + (start.x * view::SCALE),
@@ -90,7 +90,7 @@ class TestMapViewOnHardware < Minitest::Test
     game_data_or_skip
     palette = Wolf3D.palette
     view = Wolf3D::PaletteView
-    gba = RubyGBA::Verifier.new(views_rom(Wolf3D.maps[0]), frames: 4)
+    gba = Verifier.new(views_rom(Wolf3D.maps[0]), frames: 4)
 
     [0, 1, 16, 255].each do |index|
       x = view::ORIGIN_X + ((index % view::ACROSS) * view::CELL)

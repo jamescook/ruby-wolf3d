@@ -368,8 +368,8 @@ class TestMenus < Minitest::Test
   def test_the_menu_opens_on_the_console
     backend = GBA.new
     rom = ROM.assemble(backend.lower(self.class.program), title: "MENU")
-    gba = RubyGBA::Verifier.new(rom, frames: 6, vars: backend.var_addresses,
-                                     keys: ->(frame) { frame >= 3 ? RubyGBA::Constants::KEY_A : 0 })
+    gba = Verifier.new(rom, frames: 6, vars: backend.var_addresses,
+                                     keys: ->(frame) { frame >= 3 ? Constants::KEY_A : 0 })
 
     assert_equal Menus::MENU, gba.var(:screen), "a press should open the menu on the console"
     refute gba.all_black?, "and the menu should be on the screen"

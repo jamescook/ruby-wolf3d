@@ -102,7 +102,7 @@ module Wolf3D
     attr_reader :channels
 
     def colours
-      @colours ||= @channels.map { |r, g, b| RubyGBA::Color.rgb(r >> 1, g >> 1, b >> 1) }
+      @colours ||= @channels.map { |r, g, b| RubyGBA::Graphics::Color.rgb(r >> 1, g >> 1, b >> 1) }
     end
 
     def [](index) = colours.fetch(index)

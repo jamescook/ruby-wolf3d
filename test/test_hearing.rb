@@ -145,8 +145,8 @@ class TestHearing < Minitest::Test
     passes = shot_lands_on
     oracle = Reference.new.input_each_frame { |f| tapping(f) }
                      .run(program, frames: passes + 1)
-    console = RubyGBA::Verifier.new(rom, frames: (passes + 1) * 3,
-                                         keys: ->(f) { f == 3 ? RubyGBA::Constants::KEY_B : 0 },
+    console = Verifier.new(rom, frames: (passes + 1) * 3,
+                                         keys: ->(f) { f == 3 ? Constants::KEY_B : 0 },
                                          vars: backend.var_addresses)
 
     assert_operator oracle[:noise], :>, 0, "the oracle should be mid-noise on this pass"
@@ -167,7 +167,7 @@ class TestHearing < Minitest::Test
   # to about a second, counted down on the passes he thinks, which is every other one.
   REACTED = 140
 
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # EVERY GUARD ON THE FLOOR, as the three things these tests ask about him. Read by slot and
   # then picked apart by what he IS, because the order a pool hands out its slots is not the

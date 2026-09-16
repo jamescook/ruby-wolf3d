@@ -21,7 +21,7 @@ class TestRooms < Minitest::Test
   SIDE = 16
   FLOOR = Wolf3D::Level::FLOOR
   WALL = Release::WALL
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # Long enough for a patrolling guard to have gone somewhere.
   FRAMES = 90

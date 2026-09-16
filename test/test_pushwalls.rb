@@ -175,7 +175,7 @@ class TestPushwalls < Minitest::Test
     wall = @pushwalls.walls.first
 
     run = shove(press + (per_cell * 3), press: press)
-    px = run[:px] / (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+    px = run[:px] / (1 << Fraction::DEFAULT_BITS).to_f
 
     assert_equal Wolf3D::Pushwalls::DISTANCE, gone(run), "it should have finished moving"
     assert_operator px, :>, wall.x, "and the player should have walked through where it stood"

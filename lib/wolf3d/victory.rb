@@ -88,7 +88,7 @@ module Wolf3D
 
     # Where a line of words starts if it is to sit in the middle of the screen.
     def centred_x(words) = (FirstPerson::ACROSS - font.text_width(words)) / 2
-    def font = RubyGBA::Fonts.get(FONT)
+    def font = RubyGBA::Graphics::Fonts.get(FONT)
     def colour = Palette.game[INK]
   end
 end

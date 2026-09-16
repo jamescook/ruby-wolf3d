@@ -14,13 +14,13 @@ module Wolf3D
     ORIGIN_X = 56
     ORIGIN_Y = 14
 
-    FLOOR = RubyGBA::Color.rgb(4, 4, 6)
-    DOOR = RubyGBA::Color.rgb(31, 26, 6)
-    LOCKED = RubyGBA::Color.rgb(31, 12, 22)
-    ELEVATOR = RubyGBA::Color.rgb(10, 26, 31)
-    PUSHWALL = RubyGBA::Color.rgb(20, 10, 26)
-    THING = RubyGBA::Color.rgb(12, 12, 14)
-    START = RubyGBA::Color.rgb(10, 31, 10)
+    FLOOR = RubyGBA::Graphics::Color.rgb(4, 4, 6)
+    DOOR = RubyGBA::Graphics::Color.rgb(31, 26, 6)
+    LOCKED = RubyGBA::Graphics::Color.rgb(31, 12, 22)
+    ELEVATOR = RubyGBA::Graphics::Color.rgb(10, 26, 31)
+    PUSHWALL = RubyGBA::Graphics::Color.rgb(20, 10, 26)
+    THING = RubyGBA::Graphics::Color.rgb(12, 12, 14)
+    START = RubyGBA::Graphics::Color.rgb(10, 31, 10)
 
     def initialize(build, level)
       @build = build
@@ -66,7 +66,7 @@ module Wolf3D
     # makes the rooms of a floor tell themselves apart.
     def wall_shade(code)
       step = (code % 6) * 3
-      RubyGBA::Color.rgb(12 + step, 10 + (step / 2), 8)
+      RubyGBA::Graphics::Color.rgb(12 + step, 10 + (step / 2), 8)
     end
   end
 end

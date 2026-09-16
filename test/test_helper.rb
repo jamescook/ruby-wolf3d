@@ -5,10 +5,16 @@ require_relative "../lib/wolf3d"
 
 # Run from this directory: cd games/wolf3d && rake test:parallel
 module Wolf3DTest
+  # THE FRAMEWORK'S NAMES, SAID ONCE. Each of these lives a module or two down in ruby-gba, and
+  # a test that spelled the whole path every time would wrap at every call. Naming them here
+  # also means the next time the framework moves one, one line moves with it.
   Reference = RubyGBA::IR::Backends::Reference # the oracle: runs a program in-process
   GBA = RubyGBA::IR::Backends::GBA
   Builder = RubyGBA::Builder
-  ROM = RubyGBA::ROM
+  ROM = RubyGBA::Cartridge::ROM
+  Verifier = RubyGBA::Diagnostics::Verifier # the real cartridge, in the emulator
+  Constants = RubyGBA::Cartridge::Constants # KEY_UP and the rest of the hardware's names
+  Fraction = RubyGBA::DSL::Fraction # a number with a fractional part, kept in the low bits
 
   # A real copy of the game, for the few tests that check us against the world rather than
   # against ourselves. The suite never depends on one being here.

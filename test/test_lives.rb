@@ -266,7 +266,7 @@ class TestLives < Minitest::Test
 
   private
 
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   def fixture = @fixture ||= Wolf3D::Fixture::Release.new
   def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])

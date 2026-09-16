@@ -12,7 +12,7 @@ class TestWolf3DBuilds < Minitest::Test
   # copy of the game is here to build from.
   def test_the_game_lowers_to_a_valid_cartridge
     rom = a_small_cartridge { Wolf3D.build_rom(out: StringIO.new, err: StringIO.new) }
-    stamped = rom.buffer[RubyGBA::ROM::HEADER_TITLE, RubyGBA::ROM::TITLE_LENGTH].delete("\x00")
+    stamped = rom.buffer[ROM::HEADER_TITLE, ROM::TITLE_LENGTH].delete("\x00")
 
     assert_predicate rom.size, :positive?
     assert_equal Wolf3D::TITLE, stamped

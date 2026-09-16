@@ -14,14 +14,14 @@ class TestDying < Minitest::Test
 
   FP = Wolf3D::FirstPerson
   Dying = Wolf3D::Dying
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # Long enough for the worst turn there can be, the settle, and the whole fizzle.
   FRAMES = Dying::MOST_TURNS + Dying::SETTLE + Dying::FRAMES + 8
 
   RED = Wolf3D::Palette.game[Dying::INK]
-  GROUND = RubyGBA::Color.resolve(:blue)
-  BAR = RubyGBA::Color.resolve(:green)
+  GROUND = RubyGBA::Graphics::Color.resolve(:blue)
+  BAR = RubyGBA::Graphics::Color.resolve(:green)
 
   # A killer standing +away+ cells north of a player who is facing east, so the turn has a
   # quarter of a circle to cover and a side to pick.
@@ -169,9 +169,10 @@ class TestDying < Minitest::Test
       path = File.join(dir, "dying.gba")
       ROM.assemble(GBA.new.lower(dying_program), title: "DYING")
          .write(path)
-      probe = RubyGBA::Emulator.probe(path)
+      probe = RubyGBA::Diagnostics::Emulator.probe(path)
       probe.step(Dying::MOST_TURNS + Dying::SETTLE + 6) # ...past the turn and into the dots
-      busiest = 20.times.map { RubyGBA::Analyzer.frame_scanlines(probe.frame_cost) }.max
+      analyzer = RubyGBA::Diagnostics::Analyzer
+      busiest = 20.times.map { analyzer.frame_scanlines(probe.frame_cost) }.max
       probe.close
 
       assert_operator busiest, :<, 228,
@@ -190,7 +191,7 @@ class TestDying < Minitest::Test
   def test_the_console_fills_the_whole_view_too
     program = dying_program
     rom = ROM.assemble(GBA.new.lower(program), title: "DYING")
-    gba = RubyGBA::Verifier.new(rom, frames: FRAMES + 8)
+    gba = Verifier.new(rom, frames: FRAMES + 8)
     got = redness(->(x, y) { gba.pixel_gba(x, y) })
 
     assert_in_delta 1.0, got[:view], 0.0001, "every pixel of the view, on whichever page is shown"

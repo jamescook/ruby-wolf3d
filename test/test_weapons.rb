@@ -197,7 +197,7 @@ class TestWeapons < Minitest::Test
     rom = ROM.assemble(backend.lower(built), title: "WEAPON")
 
     interp = Reference.new.run(built, frames: 3)
-    gba = RubyGBA::Verifier.new(rom, frames: 8)
+    gba = Verifier.new(rom, frames: 8)
 
     across = (Weapons::LEFT...(Weapons::LEFT + FP::VIEW_H)).step(4).to_a
     down = ((atlas.art_rows.first * Weapons::SCALE)...FP::VIEW_H).step(4).to_a

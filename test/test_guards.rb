@@ -471,7 +471,7 @@ class TestGuards < Minitest::Test
     program = view_of(arena(guards: [[13, 8, :east]]))
     interp = Reference.new.run(program, frames: 3)
     rom = ROM.assemble(GBA.new.lower(program), title: "GUARDS")
-    gba = RubyGBA::Verifier.new(rom, frames: 8)
+    gba = Verifier.new(rom, frames: 8)
 
     refute_empty guard_columns(interp), "the interpreter draws him, so there is something to match"
     differ = (0...240).to_a.product((0...160).to_a).reject do |x, y|
@@ -530,7 +530,7 @@ class TestGuards < Minitest::Test
     Reference.new.run(view_of(arena(**), drawing: false), frames: frames)
   end
 
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   def pool_field(run, field, slot = 0) = run.instance_variable_get(:@lists)[:"__pool_guard_#{field}"].get(slot)
   def state_of(run, slot = 0) = pool_field(run, :state, slot)

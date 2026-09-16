@@ -31,7 +31,10 @@ end
 `test_helper` pulls in minitest and the game (which pulls in the framework), and
 `Wolf3DTest` hands the test these names and helpers:
 
-- `Reference` (the framework's oracle backend), `GBA` (the ROM lowering), `Builder`, `ROM`
+- `Reference` (the framework's oracle backend), `GBA` (the ROM lowering), `Builder`, `ROM`,
+  `Verifier` (the real cartridge in the emulator), `Constants` (`KEY_UP` and the rest of the
+  hardware's names), `Fraction`. Each lives a module or two down in ruby-gba; the helper names
+  them once so the next reshuffle there moves one line, not a hundred.
 - `game_data_or_skip` — a real copy of Wolfenstein, or a skip saying how to point at one
 - `a_small_cartridge { }` — builds under `WOLF3D_FLOORS=1`, for the tests that build the whole
   game. Shipping sixty floors to prove the wiring works takes a minute; one floor is a few
@@ -102,7 +105,7 @@ another in the real cartridge.
 **What the console really DID**, for anything about time:
 
 ```ruby
-result = RubyGBA::Profiler.run(rom, frames: 30, picture: false)
+result = RubyGBA::Diagnostics::Profiler.run(rom, frames: 30, picture: false)
 result.idle_share        # how much of each frame was left over — the usual one
 result.fps               # 60.0, or less when a pass does not fit in a frame
 result.samples_per_frame # instructions a frame
@@ -129,7 +132,7 @@ handling it — it draws every dot on two frames running, which is why it does n
 
 - **Reference interpreter** `RubyGBA::IR::Backends::Reference` — headless oracle, no
   emulator, in-process, deterministic. This is where nearly every behavioural test here lives.
-- **Hardware** via `RubyGBA::Verifier` — runs the real cartridge, reads real pixels.
+- **Hardware** via `RubyGBA::Diagnostics::Verifier` — runs the real cartridge, reads real pixels.
   `test/test_wolf3d_on_hardware.rb` is the whole of it.
 
 Reached through the framework's public seam, never through its test directory: a game outside
@@ -183,7 +186,7 @@ The framework's public seam. Build a cartridge, hand it to a `Verifier`, read pi
 
 ```ruby
 rom = a_small_cartridge { Wolf3D.build_rom(out: StringIO.new, err: StringIO.new) }
-v = RubyGBA::Verifier.new(rom, frames: 8)
+v = RubyGBA::Diagnostics::Verifier.new(rom, frames: 8)
 
 v.all_black?                               # "did it boot to nothing"
 v.pixel_is?(x, y, :red)                    # colour by name or 15-bit value

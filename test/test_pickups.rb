@@ -183,8 +183,8 @@ class TestPickups < Minitest::Test
     # PASS of the game loop, and the cartridge takes two or three frames over a pass where the
     # oracle takes one. Both are walked until the player has crossed everything and come up
     # against the wall at the end, which is a settled state rather than a moment.
-    walking = ->(_f) { RubyGBA::Constants::KEY_UP }
-    console = RubyGBA::Verifier.new(rom, frames: cells(4) * 4, keys: walking,
+    walking = ->(_f) { Constants::KEY_UP }
+    console = Verifier.new(rom, frames: cells(4) * 4, keys: walking,
                                          vars: backend.var_addresses)
     oracle = Reference.new.input_each_frame { [:up] }
                      .run(program, frames: cells(4))
@@ -197,7 +197,7 @@ class TestPickups < Minitest::Test
 
   private
 
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   def fixture = @fixture ||= Release.new
   def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])

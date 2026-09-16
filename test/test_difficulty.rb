@@ -129,7 +129,7 @@ class TestDifficulty < Minitest::Test
   def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
   def palette = Wolf3D::Palette.game
 
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # HOW LONG TO PLAY BEFORE READING, for the program that walks the four settings in turn: far
   # enough in for the setting to have been written and the floor started again on it.

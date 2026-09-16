@@ -56,7 +56,7 @@ class TestDoors < Minitest::Test
     end.run(program, frames: frames)
   end
 
-  ONE = 1 << RubyGBA::Fraction::DEFAULT_BITS
+  ONE = 1 << Fraction::DEFAULT_BITS
 
   # How far open a door is, as the 0-to-1 the game writes. The list holds numbers with a
   # fraction, so what is stored is multiplied up.
@@ -259,7 +259,7 @@ class TestDoors < Minitest::Test
   end
 
   def test_the_console_opens_the_door_too
-    keys = RubyGBA::Constants
+    keys = Constants
     walking = ->(_f) { keys::KEY_UP }
     # Tapped rather than held, since only the moment of pressing counts.
     opening = ->(f) { keys::KEY_UP | ((f / 6).even? ? keys::KEY_A : 0) }
@@ -267,8 +267,8 @@ class TestDoors < Minitest::Test
     backend = GBA.new
     rom = ROM.assemble(backend.lower(corridor_program(corridor)), title: "DOORS")
     vars = backend.var_addresses
-    stopped = RubyGBA::Verifier.new(rom, frames: CONSOLE_FRAMES, keys: walking, vars: vars)
-    through = RubyGBA::Verifier.new(rom, frames: CONSOLE_FRAMES, keys: opening, vars: vars)
+    stopped = Verifier.new(rom, frames: CONSOLE_FRAMES, keys: walking, vars: vars)
+    through = Verifier.new(rom, frames: CONSOLE_FRAMES, keys: opening, vars: vars)
 
     refute stopped.frame_gba.all?(&:zero?), "the cartridge should be drawing something"
     assert_operator stopped.var(:px) / ONE.to_f, :<, DOOR_AT,

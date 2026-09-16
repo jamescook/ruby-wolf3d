@@ -78,8 +78,17 @@ bundler does not build extensions for those. If the emulator will not load, run
 `rake compile_emulator` in the framework checkout — its error message says so too.
 
 **A git gem does not move on its own.** `bundle install` keeps whatever revision the lock
-names; to pick up new framework commits, `bundle update ruby-gba`. That moves the whole source,
-so both gems come along and can never end up on different revisions.
+names; to pick up new framework commits, **name both gems**:
+
+```bash
+bundle update ruby-gba ruby-gba-emulator
+```
+
+Naming only one of them does nothing, and says so in a way that reads like success —
+`Bundler attempted to update ruby-gba but its version stayed the same`, then `Bundle updated!`,
+with the revision in `Gemfile.lock` unchanged. The two gems share one git source, and bundler
+will not move a shared source while a gem in it is still pinned. Name both and the source
+moves, so they can never end up on different revisions.
 
 **The verb reference lives in the framework**, at `.claude/rules/dsl-reference.md` in the
 ruby-gba checkout. Read it there rather than copying it here: it is large, it changes with
@@ -88,9 +97,9 @@ every verb, and a copy would be wrong within a week.
 ## Emulator & integration tests
 
 Integration tests run the built cartridge in an emulator, reached through the framework's one
-seam, `RubyGBA::Verifier`. Behind that is **ruby-gba-emulator** — a headless libmgba probe,
-and a gem of its own rather than part of ruby-gba, because building a cartridge is pure Ruby
-and running one is not.
+seam, `RubyGBA::Diagnostics::Verifier`. Behind that is **ruby-gba-emulator** — a headless
+libmgba probe, and a gem of its own rather than part of ruby-gba, because building a cartridge
+is pure Ruby and running one is not.
 
 **Nothing here builds it.** It is a Gemfile line, and bundler builds its C extension on
 install, per Ruby ABI — so changing Ruby version gets a rebuild rather than a library compiled
@@ -142,9 +151,9 @@ altitudes here, and neither is the framework's.
     `i = Reference.new.run(program); i.screen.pixel(x, y)` — or `i[:name]` for a variable.
     In-process, deterministic, no emulator. `test/test_first_person.rb` is the worked
     example: it builds the view over a one-room fixture level and reads the picture.
-  - **Hardware path: the real cartridge** through `RubyGBA::Verifier`, reached the way any
-    game outside the framework must reach it. `test/test_wolf3d_on_hardware.rb` is the whole
-    of it — keep it to the few things only the console can answer.
+  - **Hardware path: the real cartridge** through `RubyGBA::Diagnostics::Verifier`, reached
+    the way any game outside the framework must reach it. `test/test_wolf3d_on_hardware.rb`
+    is the whole of it — keep it to the few things only the console can answer.
   - Supply input through the interpreter's `hold(:btn)` / `input_each_frame { }`, not by
     poking internal state.
 

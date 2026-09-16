@@ -72,8 +72,8 @@ class TestFloors < Minitest::Test
              .run(program(floors), frames: frames)
   end
 
-  def at(run) = [run[:px] / (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f,
-                 run[:py] / (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f]
+  def at(run) = [run[:px] / (1 << Fraction::DEFAULT_BITS).to_f,
+                 run[:py] / (1 << Fraction::DEFAULT_BITS).to_f]
 
   # --- what a cartridge of floors is ---
 

@@ -105,7 +105,7 @@ class TestScenery < Minitest::Test
     program = view_of(underfoot)
     rom = ROM.assemble(GBA.new.lower(program), title: "SCENERY")
     walked = Reference.new.hold(:up).run(program, frames: 20)
-    gba = RubyGBA::Verifier.new(rom, frames: 26, keys: RubyGBA::Constants::KEY_UP)
+    gba = Verifier.new(rom, frames: 26, keys: Constants::KEY_UP)
     inks = Scenery.new(underfoot).pictures.map { |p| palette[Release::SPRITE_INK + p] }
     below = (0...FP::ACROSS).to_a.product((FP::VIEW_H...FP::DOWN).to_a)
 
@@ -285,7 +285,7 @@ class TestScenery < Minitest::Test
     program = view_of(arena(things: { [10, 8] => CEILING_LIGHT }, guards: [[13, 8, :east]]))
     interp = Reference.new.run(program, frames: 3)
     rom = ROM.assemble(GBA.new.lower(program), title: "LAMP")
-    gba = RubyGBA::Verifier.new(rom, frames: 12)
+    gba = Verifier.new(rom, frames: 12)
 
     refute_empty guard_columns(interp), "the interpreter draws him through the gap, so there is a match to make"
     differ = (0...240).to_a.product((0...160).to_a).reject do |x, y|
@@ -355,7 +355,7 @@ class TestScenery < Minitest::Test
     Reference.new.run(view_of(arena(**), drawing: false), frames: frames)
   end
 
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # Hold the forward button and see how far east the player gets.
   def walk_east(**)

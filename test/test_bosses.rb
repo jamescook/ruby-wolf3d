@@ -323,7 +323,7 @@ class TestBosses < Minitest::Test
 
   # Stand and empty the pistol into him. +then_walk+ walks forward afterwards, over whatever he
   # left. He is drawn, because a shot goes to a man the view put on the screen.
-  ONE = (1 << RubyGBA::Fraction::DEFAULT_BITS).to_f
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # ENOUGH SPRITES TO REACH THE LAST PICTURE A BOSS CAN WEAR, plus the weapons a release keeps
   # last. Gretel's run sits a long way up — four bosses this cartridge does not build yet stand

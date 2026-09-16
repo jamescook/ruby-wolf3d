@@ -108,13 +108,13 @@ class TestVgagraph < Minitest::Test
       font :wolf, glyphs: glyphs
       draw_text "M", 10, 10, :white
     end
-    registered = RubyGBA::Fonts.get(:wolf)
+    registered = RubyGBA::Graphics::Fonts.get(:wolf)
 
     assert_equal 3, registered.height
     assert_equal 1, registered.glyph_width("I")
     assert_equal 3, registered.glyph_width("M")
   ensure
-    RubyGBA::Fonts.instance_variable_get(:@registry).delete(:wolf)
+    RubyGBA::Graphics::Fonts.instance_variable_get(:@registry).delete(:wolf)
   end
 
   def test_a_font_that_is_not_there_is_a_friendly_error
@@ -263,12 +263,12 @@ class TestVgagraph < Minitest::Test
 
     b = Builder.new
     b.instance_eval { font :wolf_small, glyphs: glyphs }
-    registered = RubyGBA::Fonts.get(:wolf_small)
+    registered = RubyGBA::Graphics::Fonts.get(:wolf_small)
 
     assert_equal real.font(0).height, registered.height
     assert_operator registered.text_width("HELLO"), :>, 0
     refute_equal 0, registered.glyph_pixels("A"), "the letter A must light some pixels"
   ensure
-    RubyGBA::Fonts.instance_variable_get(:@registry).delete(:wolf_small)
+    RubyGBA::Graphics::Fonts.instance_variable_get(:@registry).delete(:wolf_small)
   end
 end
