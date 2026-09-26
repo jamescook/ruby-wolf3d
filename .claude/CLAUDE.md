@@ -45,7 +45,7 @@ or newlines in a single invocation, and do not bundle a file-writing heredoc
 (`cat > f <<EOF …`) with the command that consumes it.
 
 Why this is non-negotiable here: the operator reads each command before allowing it, and the
-permission allow/denylist matches on recognizable prefixes (`git commit`, `rake test:parallel`,
+permission allow/denylist matches on recognizable prefixes (`git commit`, `rake test`,
 `rake build`). A blob like `cat > msg <<EOF … EOF; git add .; git commit -F msg; git show` is
 unreadable, can't be allowlisted, and can't be denied granularly.
 
@@ -111,20 +111,29 @@ rather than skipping.
 
 ## Running Tests
 
-**`rake test:parallel` is how the suite is run.** It runs across processes and is several times
-faster; bare `rake test` runs everything in one process and is slow enough to be the wrong
-command every time. Reach for `rake test` ONLY to run one file or one test:
+**`rake test` is the suite.** It runs every test in a pool of Ractors — Ruby's way of using
+every core inside one process — through the minitest-ractor plugin, the way the framework's own
+suite runs. A worker is refused the moment it touches state another one can see, so a green run
+also says the code those tests reached shares none. The report at the end says so, or names
+what was touched and what to change.
 
 ```bash
-rake test:parallel                                              # the suite (JOBS=8 to pick a count)
+rake test                                                       # the suite
 rake test TEST=test/test_maps.rb                                # one file
 rake test TEST=test/test_maps.rb TESTOPTS="--name=/pattern/"    # one test
+rake test TESTOPTS=--no-ractor                                  # minitest's own threads, to chase one failure
+bundle exec minitest-ractor -I lib -I test test/                # the audit alone: what to change, grouped by cause
 ```
 
-No `bundle exec`: the Rakefile and `lib/wolf3d.rb` each require `bundler/setup` first, which
-also carries the bundle into the processes the parallel runner spawns. `bundle exec` is still
-needed for an executable that comes out of the bundle rather than out of this repository —
-`bundle exec ruby-gba profile wolf3d.rb`.
+**Nothing a test does may reach another test running at the same time.** That rules out
+changing `ENV` (use `Wolf3D.dialled(WOLF3D_FLOORS: "1") { … }`, or hand `GameData` an `env:` of
+its own), swapping a constant, or caching on a class or module (use `Ractor.current[:key] ||=`).
+A constant a test class declares is frozen all the way down for you as it is declared — see
+`test/test_helper.rb`.
+
+No `bundle exec`: the Rakefile and `lib/wolf3d.rb` each require `bundler/setup` first. `bundle
+exec` is still needed for an executable that comes out of the bundle rather than out of this
+repository — `bundle exec ruby-gba profile wolf3d.rb`.
 
 See `.claude/rules/testing.md`.
 

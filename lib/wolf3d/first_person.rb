@@ -211,12 +211,17 @@ module Wolf3D
     # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
     def initialize(build:, atlas:, level: nil, doors: nil, pushwalls: nil, guards: nil,
                    things: nil, scenery: nil, vswap: nil, lifts: nil, floors: nil, bar_art: nil,
-                   gun_art: nil, startable: false, sound_on: nil, armed_with: nil, ammo: nil)
+                   gun_art: nil, startable: false, sound_on: nil, armed_with: nil, ammo: nil,
+                   pacing: PACING)
       @floors = floors || Floors.of(level: level, doors: doors, pushwalls: pushwalls,
                                     lifts: lifts, guards: guards, scenery: scenery)
       here = @floors.first_floor
       @b = build
       @atlas = atlas
+      # HOW THE WORLD IS PACED: PACING, unless the builder asks for the other setting. The tests
+      # of keeping time build both, and pass it here rather than swap the constant, which every
+      # build running at the same time would see.
+      @pacing = pacing
       # THE FIRST FLOOR'S OWN PIECES, which is what the build-time questions with no floor in them
       # ask: how wide a map is, and what a wall code's picture is. Everything that differs from
       # one floor to the next goes through @floors instead.
@@ -308,7 +313,7 @@ module Wolf3D
     # so. The guards go on about their business around the body, which is what the original does
     # too while the death is playing out.
     def play
-      @b.call :the_world_takes_a_step if PACING == :by_the_pass
+      @b.call :the_world_takes_a_step if @pacing == :by_the_pass
       still_playing.then do
         @b.call :a_door_opens
         @b.call :the_player_fires
@@ -361,7 +366,7 @@ module Wolf3D
     # step to guard. (The framework caps the catch-up anyway, so a very late pass is never asked
     # to replay half a second.)
     def declare_the_clock
-      return unless PACING == :by_the_frame
+      return unless @pacing == :by_the_frame
 
       @b.once_a_frame(:the_world_moves) { move_the_world }
     end
@@ -688,7 +693,7 @@ module Wolf3D
     # cuts are along what a pass actually is — the world takes a step, the player acts, the lift
     # runs — so each is a thing with a name rather than an arbitrary slice of a block.
     def declare_what_a_pass_does
-      @b.func(:the_world_takes_a_step) { move_the_world } if PACING == :by_the_pass
+      @b.func(:the_world_takes_a_step) { move_the_world } if @pacing == :by_the_pass
       # ...and the two the player does, which are read on their button's EDGE and so belong on
       # the pass whatever paces the world (see PACING). One routine each, because the two are
       # nothing like the same size — shoving a door open is a few tests where the gun is a

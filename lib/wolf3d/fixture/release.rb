@@ -221,14 +221,14 @@ module Wolf3D
       # in the square, the light it throws low in it, and see-through nothing between. Anything
       # further off that lands in that gap is looked at THROUGH the lamp, so this is the piece
       # that asks whether one thing standing in a room can be seen past another.
-      BAND = [[16, 48]].freeze
-      HANGS = [[4, 20], [52, 60]].freeze
+      BAND = Ractor.make_shareable([[16, 48]])
+      HANGS = Ractor.make_shareable([[4, 20], [52, 60]])
 
       # ...AND A GUN HANGS OFF THE BOTTOM of its square, which is the shape every one of the
       # last twenty sprites of a real release has. The gun's picture is built out of exactly
       # that fact — it ships the rows that hold art and no others — so a fixture whose weapons
       # sat in the middle like everything else would prove the wrong thing about it.
-      HELD = [[40, 64]].freeze
+      HELD = Ractor.make_shareable([[40, 64]])
 
       def self.hanging_picture = Scenery.picture_of(Scenery::CEILING_LIGHT)
 
@@ -276,7 +276,7 @@ module Wolf3D
       # four quarter-width pictures stacked. A width that did not divide by four could not
       # be stored at all, so writing one here would teach the reader a shape that cannot
       # happen.
-      PICTURES = [[8, 4], [16, 2]].freeze
+      PICTURES = Ractor.make_shareable([[8, 4], [16, 2]])
 
       # --- A RELEASE WHOSE PICTURES HAVE NAMES ---------------------------------------------
       #
@@ -347,10 +347,10 @@ module Wolf3D
       # THE TWO ALPHABETS, and both are PROPORTIONAL on purpose: a reader that assumed one
       # width for the whole font would find the second character in the wrong place and
       # still come back with something that looked like letters.
-      FONTS = [
+      FONTS = Ractor.make_shareable([
         { height: 3, glyphs: { "I" => %w[# # #], "M" => ["# #", "###", "# #"] } },
         { height: 5, glyphs: { "L" => ["#.", "#.", "#.", "#.", "##"] } }
-      ].freeze
+      ])
 
       # What a lit pixel of a glyph holds. Anything but zero is ink; the colour is chosen
       # when the game writes, not when the alphabet was drawn.

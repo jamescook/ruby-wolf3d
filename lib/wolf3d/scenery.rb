@@ -50,7 +50,7 @@ module Wolf3D
     # THE TWO GUNS GIVE THEIR ROUNDS AND THEN THEMSELVES, in that order, which is the original's
     # GiveWeapon: six rounds first, then the gun, and the gun only if it beats what you were
     # already carrying. See Weapons.
-    BONUSES = {
+    BONUSES = Ractor.make_shareable({
       6 => [:health, 4],        # bad food — worth having, and not much
       20 => [:key, :gold],
       21 => [:key, :silver],
@@ -68,7 +68,7 @@ module Wolf3D
       # when you are nearly dead. That last part is a rule of its own, so it is a kind of its own.
       34 => [:scraps, 1],
       38 => [:scraps, 1]
-    }.freeze
+    })
 
     # THE CEILING LIGHT, named because its SHAPE matters and not only its rules. It is the lamp
     # high in its square and the light it throws low in it, with see-through nothing between —

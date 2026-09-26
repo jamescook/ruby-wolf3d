@@ -2,11 +2,6 @@
 *.sav
 .DS_Store
 
-# Per-file test timings, rewritten by every `rake test:parallel` to balance the next one.
-# Local by nature: it changes on every run, so committing it would mean a conflicting diff
-# on every merge, and all a fresh clone loses is one unbalanced run before it builds its own.
-.test_timings.json
-
 # Not committed — a fresh resolve each time, since the framework is pulled from git.
 Gemfile.lock
 

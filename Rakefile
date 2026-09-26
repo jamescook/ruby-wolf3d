@@ -17,23 +17,23 @@ require "rake/testtask"
 # library compiled for another Ruby. There used to be a task here that reached into the
 # framework's checkout and ran make, because the emulator was not packaged as a gem and nothing
 # else would build it.
+#
+# THE SUITE RUNS IN RACTORS — Ruby's way of using every core inside one process — through the
+# minitest-ractor plugin, the way the framework's own suite runs. A worker is refused the moment
+# it touches state another one can see, so a green run also says the code these tests reached
+# keeps none. `--no-ractor` in TESTOPTS runs it the ordinary way, for chasing one failure.
+#
+# --ractor GOES INTO TESTOPTS rather than the task's own options, because rake reads TESTOPTS
+# INSTEAD of those options when it is set — so `TESTOPTS=--verbose` would quietly run the whole
+# suite without Ractors, and a test could pass there that the suite would refuse.
+ENV["TESTOPTS"] = "--ractor #{ENV.fetch('TESTOPTS', '')}".strip unless ENV.fetch("TESTOPTS", "").include?("ractor")
+
 Rake::TestTask.new(:test) do |t|
   t.libs << "test" << "lib"
   t.test_files = FileList["test/**/test_*.rb"]
   t.warning = false
-  t.description = "Run ONE file or test in one process (rake test TEST=test/test_maps.rb) " \
-                  "— for the whole suite use rake test:parallel"
-end
-
-# The same files split across processes: it shards by each file's recorded time from the
-# last run (kept beside this suite, gitignored) and prints one live dot stream.
-require_relative "tools/parallel_test"
-
-namespace :test do
-  desc "Run this game's suite across processes (rake test:parallel JOBS=8)"
-  task :parallel do
-    ParallelTest.run(FileList["test/**/test_*.rb"].to_a)
-  end
+  t.description = 'Run the suite (one file with TEST=test/test_maps.rb, one test with ' \
+                  'TESTOPTS="--name=/pattern/")'
 end
 
 desc "Build wolf3d.gba"

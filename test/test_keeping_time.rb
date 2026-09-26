@@ -56,20 +56,9 @@ class TestKeepingTime < Minitest::Test
   def fixture = @fixture ||= Release.new
   def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
 
-  # Which way the world is paced is settled while the game is BUILT, so it has to be in force
-  # while the program is made rather than while it runs.
-  def paced(how)
-    was = FP::PACING
-    FP.send(:remove_const, :PACING)
-    FP.const_set(:PACING, how)
-    yield
-  ensure
-    FP.send(:remove_const, :PACING)
-    FP.const_set(:PACING, was)
-  end
-
   # The game with no picture at all, which is what every test here wants: they read where the
-  # player got to, not what they saw on the way.
+  # player got to, not what they saw on the way. Which way the world is paced is settled while
+  # the game is BUILT, so it is handed to the view rather than to the run.
   def game(level, pacing: :by_the_frame)
     doors = Wolf3D::Doors.new(level, vswap)
     pushwalls = Wolf3D::Pushwalls.new(level)
@@ -77,14 +66,13 @@ class TestKeepingTime < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game, guards.pictures)
 
-    paced(pacing) do
-      RubyGBA.game("TIME") do
-        screen :bitmap, tear_free: true
-        view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                       pushwalls: pushwalls, guards: guards, things: things)
-        game_loop { view.play }
-      end.program
-    end
+    RubyGBA.game("TIME") do
+      screen :bitmap, tear_free: true
+      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
+                                     pushwalls: pushwalls, guards: guards, things: things,
+                                     pacing: pacing)
+      game_loop { view.play }
+    end.program
   end
 
   # Hold forward for +passes+ passes of the game loop, each of which answered for +late+ frames.

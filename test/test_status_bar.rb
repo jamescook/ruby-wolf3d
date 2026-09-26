@@ -407,10 +407,11 @@ class TestStatusBar < Minitest::Test
   # only slow thing in it and nothing here changes it.
   NAMED_SET = "WL6"
 
-  def self.release = @release ||= Release.new(set: NAMED_SET)
-  def self.pictures = @pictures ||= release.pictures
-  def self.art = @art ||= Wolf3D::BarArt.of(pictures)
-  def self.vswap = @vswap ||= Wolf3D::Vswap.new(release.files["VSWAP"])
+  # Kept per Ractor rather than on the class: a worker may not write to a class.
+  def self.release = Ractor.current[:status_bar_release] ||= Release.new(set: NAMED_SET)
+  def self.pictures = Ractor.current[:status_bar_pictures] ||= release.pictures
+  def self.art = Ractor.current[:status_bar_art] ||= Wolf3D::BarArt.of(pictures)
+  def self.vswap = Ractor.current[:status_bar_vswap] ||= Wolf3D::Vswap.new(release.files["VSWAP"])
 
   def pictures = self.class.pictures
   def art = self.class.art

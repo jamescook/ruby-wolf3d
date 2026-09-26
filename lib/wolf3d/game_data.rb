@@ -27,14 +27,17 @@ module Wolf3D
     attr_reader :dir, :set, :source, :home
 
     # The data, or nil when there is none. For tests that skip rather than fail.
-    def self.find(home: Wolf3D.home)
-      locate(home: home)
+    #
+    # +env+ is where WOLF3D_DATA is looked up: the process's environment unless somebody hands
+    # over their own, which is how a test points at a directory without changing it for everyone.
+    def self.find(home: Wolf3D.home, env: ENV)
+      locate(home: home, env: env)
     rescue NotFound
       nil
     end
 
-    def self.locate(home: Wolf3D.home)
-      dir, source = configured_dir(home)
+    def self.locate(home: Wolf3D.home, env: ENV)
+      dir, source = configured_dir(home, env)
       raise NotFound, unset_message(home) if dir.nil?
       raise NotFound, missing_dir_message(dir, source) unless File.directory?(dir)
 
@@ -79,8 +82,8 @@ module Wolf3D
       SETS.keys.select { |set| STEMS.all? { |stem| file_in(dir, stem, set) } }
     end
 
-    def self.configured_dir(home)
-      from_env = ENV.fetch(ENV_VAR, nil)
+    def self.configured_dir(home, env)
+      from_env = env.fetch(ENV_VAR, nil)
       return [File.expand_path(from_env), ENV_VAR] unless from_env.to_s.empty?
 
       named = config_value(home, "data")

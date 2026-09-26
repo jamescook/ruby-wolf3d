@@ -36,23 +36,41 @@ end
   hardware's names), `Fraction`. Each lives a module or two down in ruby-gba; the helper names
   them once so the next reshuffle there moves one line, not a hundred.
 - `game_data_or_skip` — a real copy of Wolfenstein, or a skip saying how to point at one
-- `a_small_cartridge { }` — builds under `WOLF3D_FLOORS=1`, for the tests that build the whole
-  game. Shipping sixty floors to prove the wiring works takes a minute; one floor is a few
-  seconds and proves the same thing.
+- `a_small_cartridge { }` — builds with `WOLF3D_FLOORS=1` dialled for this test alone, for the
+  tests that build the whole game. Shipping sixty floors to prove the wiring works takes a
+  minute; one floor is a few seconds and proves the same thing.
 
 Unlike the framework's suite, this one does **not** reopen `Minitest::Test` — each file says
-`include Wolf3DTest`, so the names appear only where they are used.
+`include Wolf3DTest`, so the names appear only where they are used. Including it also hands the
+class to the pool (`parallelize_me!`) and freezes every constant the class declares after that
+line, all the way down, because a worker may only read a constant nothing can change.
 
-Running them. **The suite is `rake test:parallel`** — it spreads the files over processes and
-finishes in a fraction of the time. Bare `rake test` runs the lot in one process, so use it
-only to name ONE file or one test:
+Running them. **The suite is `rake test`**, every test in a pool of Ractors (the minitest-ractor
+plugin). It ends with a report: either no findings, or each piece of shared state a test
+reached, grouped by cause, with what to change.
 
 ```bash
-rake test:parallel                                              # the suite (JOBS=8 to pick a count)
+rake test                                                       # the suite
 rake test TEST=test/test_maps.rb                                # one file
 rake test TEST=test/test_maps.rb TESTOPTS="--name=/pattern/"    # one test; -n /pat/ trips shell quoting
-ruby -Itest -Ilib test/test_maps.rb                             # one file, no rake
+rake test TESTOPTS=--no-ractor                                  # minitest's own threads instead
+bundle exec minitest-ractor -I lib -I test test/                # the audit on its own
 ```
+
+## Tests run at the same time as each other
+
+Every test shares the process with others running on other cores, so nothing a test does may
+reach past itself:
+
+- **Never change `ENV`.** It is the whole process's. Ask for a dial with
+  `Wolf3D.dialled(WOLF3D_EPISODES: "2") { … }`, which holds it for this thread only, or hand
+  `GameData.locate` an `env:` hash of its own.
+- **Never swap a constant** to build something a different way. Pass the setting in —
+  `FirstPerson.new(pacing: :by_the_frame)` is the worked example.
+- **Never cache on a class or module** (`def self.x = @x ||= …`). A worker may not write one.
+  Cache per Ractor instead: `Ractor.current[:status_bar_release] ||= …`. Each worker then builds
+  it once. Not `Ractor.store_if_absent`, which holds a lock while it works the value out, so one
+  cached value asking for another waits on itself.
 
 No `bundle exec`: `lib/wolf3d.rb` and the Rakefile each require `bundler/setup` first.
 
@@ -236,7 +254,7 @@ have is the worked example.
 ## Gotchas
 
 - Don't name a test helper `run` — it shadows `Minitest::Test#run`.
-- `rake test:parallel` runs everything; a single file is `ruby -Itest -Ilib test/the_file.rb`.
+- `rake test` runs everything; a single file is `rake test TEST=test/the_file.rb`.
 - Tests needing a real copy of the game **skip** (not fail) without one — a green run with
   skips is not proof those paths work. Check the skip count when it matters; a full run with
   a copy present reports **0 skips**.

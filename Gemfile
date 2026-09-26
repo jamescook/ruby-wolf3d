@@ -44,6 +44,10 @@ end
 gem "minitest", "~> 6.0"
 gem "rake", "~> 13.0"
 
+# Runs the suite on every core in one process, as Ractors — the framework's suite runs the
+# same way. From git until it is released as a gem.
+gem "minitest-ractor", git: "https://github.com/jamescook/minitest-ractor.git", group: :test
+
 # For `rake build:profile` alone, which samples a build of this game. It is this game's own
 # tool and not the framework's: what it measures is the time between typing the command and
 # holding a cartridge, which is Ruby running on your machine. How the finished cartridge spends

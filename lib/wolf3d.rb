@@ -6,8 +6,7 @@
 # work and nobody has to remember `bundle exec`. This is an application rather than a library
 # — nothing else will ever require it from inside its own bundle — and every way into it goes
 # through this file, so saying it once here covers the build script, the Rakefile and a test
-# file run on its own. It also sets RUBYOPT, which is what carries the bundle into the
-# processes the parallel test runner spawns.
+# file run on its own.
 require "bundler/setup"
 
 # The framework, as any other game built on it would have it: a gem, resolved by the Gemfile
@@ -82,9 +81,35 @@ module Wolf3D
 
   # Nil until someone points the build at their copy. The game still builds without it, so the
   # cartridge can say what is missing instead of the build dying.
-  def self.data = @data ||= GameData.find
+  #
+  # KEPT PER RACTOR, not on the module. A build on another core may not write to a module, and
+  # what is read out of your copy is not frozen, so it cannot be shared either: each Ractor that
+  # asks reads the files for itself, once. Ractor-local storage rather than store_if_absent,
+  # which holds a lock while it works the value out, so that maps asking for data does not wait
+  # on itself.
+  def self.data = Ractor.current[:wolf3d_data] ||= GameData.find(env: env)
 
-  def self.maps = @maps ||= data && Maps.from(data)
+  def self.maps = Ractor.current[:wolf3d_maps] ||= data && Maps.from(data)
+
+  # WHERE THE DIALS BELOW ARE READ FROM: the environment, unless a build was handed its own.
+  #
+  # The environment belongs to the whole process, so changing it to build one cartridge changes
+  # it for every other build running beside that one. `dialled` hands the code running here — and
+  # nothing else — a set of its own for as long as the block runs, which is how the tests ask for
+  # one floor or one episode without touching anybody else's build.
+  #
+  # HELD PER THREAD, not per Ractor. Several threads can share one Ractor — minitest's own pool
+  # runs that way when the suite is not in Ractors — and a Ractor's storage is common to all of
+  # them, so a dial kept there reaches a build on the next thread over.
+  def self.env = Thread.current[:wolf3d_env] || ENV
+
+  def self.dialled(**dials)
+    was = Thread.current[:wolf3d_env]
+    Thread.current[:wolf3d_env] = env.to_h.merge(dials.to_h { |name, value| [name.to_s, value] })
+    yield
+  ensure
+    Thread.current[:wolf3d_env] = was
+  end
 
   # WHICH EPISODES THE CARTRIDGE HOLDS. Every one your copy has, unless you say otherwise —
   # and it is said in EPISODES because that is how the game is divided, how its own menu asks
@@ -101,7 +126,7 @@ module Wolf3D
   # eight seconds for one. So the whole game is the default and trimming it is for when you are
   # building over and over.
   def self.which_episodes
-    asked = ENV.fetch("WOLF3D_EPISODES", nil).to_s.strip
+    asked = env.fetch("WOLF3D_EPISODES", nil).to_s.strip
     return (1..maps.episodes).to_a if asked.empty?
 
     episodes_named(asked)
@@ -140,8 +165,8 @@ module Wolf3D
   # is also the fastest build there is, which is what you want while changing something else.
   def self.which_floors
     floors = which_episodes.flat_map { |episode| maps.floors_of(episode) }
-    floors = floors.drop(Integer(ENV.fetch("WOLF3D_FROM", 0)))
-    asked = ENV.fetch("WOLF3D_FLOORS", nil)
+    floors = floors.drop(Integer(env.fetch("WOLF3D_FROM", 0)))
+    asked = env.fetch("WOLF3D_FLOORS", nil)
     asked ? floors.first(Integer(asked)) : floors
   end
   # ...AND WHERE ON THE FIRST FLOOR YOU START, which is the same kind of dial and exists for the
@@ -154,7 +179,7 @@ module Wolf3D
   # Add `,north` (or east, south, west) to say which way you are looking; without it you face
   # whichever way the map had you facing.
   def self.where_to_start
-    asked = ENV.fetch("WOLF3D_START", nil).to_s.strip
+    asked = env.fetch("WOLF3D_START", nil).to_s.strip
     return nil if asked.empty?
 
     x, y, facing = asked.split(",").map(&:strip)
@@ -192,7 +217,7 @@ module Wolf3D
   # The four are knife, pistol, machine_gun and chain_gun. Left unsaid you get what the game
   # gives you, which is the pistol and eight rounds.
   def self.armed_with
-    asked = ENV.fetch("WOLF3D_ARMED", nil).to_s.strip
+    asked = env.fetch("WOLF3D_ARMED", nil).to_s.strip
     return nil if asked.empty?
 
     Weapons::NUMBERS.fetch(asked.downcase.to_sym) do
@@ -203,7 +228,7 @@ module Wolf3D
   end
 
   def self.starting_ammo
-    asked = ENV.fetch("WOLF3D_AMMO", nil).to_s.strip
+    asked = env.fetch("WOLF3D_AMMO", nil).to_s.strip
     asked.empty? ? nil : Integer(asked)
   end
 
@@ -215,16 +240,16 @@ module Wolf3D
   #   WOLF3D_SCREEN=credits ruby wolf3d.rb
   #
   # The screens are: notice, title, credits, menu, episodes, difficulty, playing.
-  def self.which_screen = Menus.screen_named(ENV.fetch("WOLF3D_SCREEN", nil))
+  def self.which_screen = Menus.screen_named(env.fetch("WOLF3D_SCREEN", nil))
 
-  def self.vswap = @vswap ||= data && Vswap.from(data)
+  def self.vswap = Ractor.current[:wolf3d_vswap] ||= data && Vswap.from(data)
 
-  def self.vgagraph = @vgagraph ||= data && Vgagraph.from(data)
+  def self.vgagraph = Ractor.current[:wolf3d_vgagraph] ||= data && Vgagraph.from(data)
 
   # The pictures of the gun in your hands, or nil for a copy of the game that does not hold
   # them — in which case the four weapons still work and you simply cannot see the one you have.
   def self.gun_art
-    @gun_art ||= WeaponAtlas.in?(vswap) ? WeaponAtlas.new(vswap, palette) : nil
+    Ractor.current[:wolf3d_gun_art] ||= WeaponAtlas.in?(vswap) ? WeaponAtlas.new(vswap, palette) : nil
   end
 
   def self.palette = Palette.game

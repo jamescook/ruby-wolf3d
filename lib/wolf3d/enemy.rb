@@ -94,18 +94,18 @@ module Wolf3D
 
     # A MAN: eight standing, thirty-two walking, then the six that do not turn and his gun. The
     # guard and the SS are laid out exactly this way.
-    MAN = Poses.new(still: 0, walk: [8, 16, 24, 32], hurt: [40, 44],
-                    fall: [41, 42, 43], dead: 45, attack: [46, 47, 48])
+    MAN = Ractor.make_shareable(Poses.new(still: 0, walk: [8, 16, 24, 32], hurt: [40, 44],
+                                          fall: [41, 42, 43], dead: 45, attack: [46, 47, 48]))
 
     # ...and one who takes an extra picture to fall over, which pushes everything after it up.
     LONGER_FALL = [41, 42, 43, 45].freeze
-    OFFICER_POSES = Poses.new(still: 0, walk: MAN.walk, hurt: MAN.hurt,
-                              fall: LONGER_FALL, dead: 46, attack: [47, 48, 49])
-    MUTANT_POSES = Poses.new(still: 0, walk: MAN.walk, hurt: MAN.hurt,
-                             fall: LONGER_FALL, dead: 46, attack: [47, 48, 49, 50])
+    OFFICER_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: MAN.walk, hurt: MAN.hurt,
+                                                    fall: LONGER_FALL, dead: 46, attack: [47, 48, 49]))
+    MUTANT_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: MAN.walk, hurt: MAN.hurt,
+                                                   fall: LONGER_FALL, dead: 46, attack: [47, 48, 49, 50]))
     # A dog has no standing pictures at all, and no flinch — see DOG_STATES.
-    DOG_POSES = Poses.new(still: nil, walk: [0, 8, 16, 24], hurt: [],
-                          fall: [32, 33, 34], dead: 35, attack: [36, 37, 38])
+    DOG_POSES = Ractor.make_shareable(Poses.new(still: nil, walk: [0, 8, 16, 24], hurt: [],
+                                                fall: [32, 33, 34], dead: 35, attack: [36, 37, 38]))
 
     # A BOSS IS ELEVEN PICTURES AND NOT SEVENTY, because none of his turn: the original marks
     # every one of his states "does not rotate", so he faces the player whichever way he is
@@ -114,8 +114,8 @@ module Wolf3D
     # the falling rather than after it.
     #
     # He has no standing picture of his own either: he stands in the first of his walking ones.
-    BOSS_POSES = Poses.new(still: 0, walk: [0, 1, 2, 3], hurt: [],
-                           fall: [8, 9, 10], dead: 7, attack: [4, 5, 6])
+    BOSS_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: [0, 1, 2, 3], hurt: [],
+                                                 fall: [8, 9, 10], dead: 7, attack: [4, 5, 6]))
 
     # --- what every kind does the same way ------------------------------------------------
 
@@ -322,7 +322,7 @@ module Wolf3D
     # source, the same way the rank-and-file numbers were: the four Pac-Man ghosts sit between
     # the officer and Hans, and between Hans and Gretel sit Schabbs, the syringes he throws,
     # both Hitlers, Giftmacher, and the rockets — none of which this cartridge builds yet.
-    ALL = [
+    ALL = Ractor.make_shareable([
       new(name: :guard, standing: 108, harder: HARDER_STEP, first_picture: 50,
           hit_points: [25] * 4, points: 100, patrol_speed: 512, chase_times: 3,
           leaves: :clip, states: GUARD_STATES, stands: true, **RANKS),
@@ -347,9 +347,9 @@ module Wolf3D
       new(name: :gretel, standing: 197, first_picture: 385,
           hit_points: BOSS_HIT_POINTS, points: BOSS_POINTS, patrol_speed: 512, chase_times: 3,
           leaves: :gold_key, states: BOSS_STATES, stands: true, **BOSS)
-    ].freeze
+    ])
 
-    BY_NAME = ALL.to_h { |kind| [kind.name, kind] }.freeze
+    BY_NAME = Ractor.make_shareable(ALL.to_h { |kind| [kind.name, kind] })
 
     def self.[](name) = BY_NAME.fetch(name)
 

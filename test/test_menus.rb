@@ -470,19 +470,25 @@ class TestMenus < Minitest::Test
 
   # ONE RELEASE AND TWO CARTRIDGES FOR THE WHOLE FILE. Packing the art and building the game is
   # the only slow thing here and nothing in the tests changes either.
+  #
+  # Kept per Ractor rather than on the class, because the suite runs in several and a worker may
+  # not write to a class. Each worker that runs a test from this file builds them once.
   class << self
-    def release = @release ||= Release.new(set: "WL6")
-    def pictures = @pictures ||= release.pictures
-    def art = @art ||= Wolf3D::MenuArt.of(pictures)
-    def vswap = @vswap ||= Wolf3D::Vswap.new(release.files["VSWAP"])
-    def program = @program ||= cartridge(episodes: 1)
-    def two_episodes = @two_episodes ||= cartridge(episodes: 2)
+    def release = Ractor.current[:menus_release] ||= Release.new(set: "WL6")
+    def pictures = Ractor.current[:menus_pictures] ||= release.pictures
+    def art = Ractor.current[:menus_art] ||= Wolf3D::MenuArt.of(pictures)
+    def vswap = Ractor.current[:menus_vswap] ||= Wolf3D::Vswap.new(release.files["VSWAP"])
+    def program = Ractor.current[:menus_program] ||= cartridge(episodes: 1)
+    def two_episodes = Ractor.current[:menus_two_episodes] ||= cartridge(episodes: 2)
 
     def booting_on_the_difficulty
-      @booting_on_the_difficulty ||= cartridge(episodes: 1, starting_on: Menus::DIFFICULTY)
+      Ractor.current[:menus_booting_on_the_difficulty] ||=
+        cartridge(episodes: 1, starting_on: Menus::DIFFICULTY)
     end
 
-    def on_the_credits = @on_the_credits ||= cartridge(episodes: 1, starting_on: Menus::CREDITS)
+    def on_the_credits
+      Ractor.current[:menus_on_the_credits] ||= cartridge(episodes: 1, starting_on: Menus::CREDITS)
+    end
 
     # A room with walls round it and the player in the middle. The menus care about none of
     # this; a game has to be here for them to hand you into.

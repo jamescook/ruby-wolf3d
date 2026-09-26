@@ -119,12 +119,12 @@ module Wolf3D
     # about either one hinting at the other — so reordering these rows, or adding a fifth, can
     # never quietly change what a row means. The one name that differs is the middle setting:
     # the original's art calls its portrait "normal" and its code calls the setting "medium".
-    DIFFICULTIES = [
+    DIFFICULTIES = Ractor.make_shareable([
       [:baby, "Can I play, Daddy?", :difficulty_baby],
       [:easy, "Don't hurt me.", :difficulty_easy],
       [:medium, "Bring 'em on!", :difficulty_normal],
       [:hard, "I am Death incarnate!", :difficulty_hard]
-    ].freeze
+    ])
 
     HOW_TOUGH = "How tough are you?"
     WHICH_EPISODE = "Which episode to play?"

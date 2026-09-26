@@ -25,13 +25,7 @@ end
 class TestWhichEpisodes < Minitest::Test
   include Wolf3DTest
 
-  def asking(**dials)
-    was = dials.to_h { |name, _| [name.to_s, ENV.fetch(name.to_s, nil)] }
-    dials.each { |name, value| ENV[name.to_s] = value }
-    Wolf3D.which_floors
-  ensure
-    was.each { |name, value| value ? ENV[name] = value : ENV.delete(name) }
-  end
+  def asking(**dials) = Wolf3D.dialled(**dials) { Wolf3D.which_floors }
 
   def test_it_ships_every_episode_the_copy_holds_unless_told_otherwise
     game_data_or_skip

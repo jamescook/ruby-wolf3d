@@ -91,7 +91,7 @@ module Wolf3D
     # WHICH WAY EACH DIRECTION GOES, in the order the original numbers them: counter-clockwise
     # from east, with the diagonals between. Eight is "nowhere", which is what one hemmed in on
     # every side is left with.
-    WAYS = [[1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1]].freeze
+    WAYS = Ractor.make_shareable([[1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1], [1, 1]])
     NOWHERE = WAYS.length
 
     # A cell of plane 1 holding one of these is a TURNING POINT: a patrolling guard who reaches

@@ -22,7 +22,7 @@ module Wolf3D
     ENTRIES = 256
     CHANNEL_MAX = 63
 
-    CHANNELS = [
+    CHANNELS = Ractor.make_shareable([
       [ 0,  0,  0], [ 0,  0, 42], [ 0, 42,  0], [ 0, 42, 42],
       [42,  0,  0], [42,  0, 42], [42, 21,  0], [42, 42, 42],
       [21, 21, 21], [21, 21, 63], [21, 63, 21], [21, 63, 63],
@@ -87,23 +87,24 @@ module Wolf3D
       [ 8, 45, 45], [ 8, 44, 44], [ 0, 41, 41], [ 0, 38, 38],
       [ 0, 35, 35], [ 0, 33, 33], [ 0, 31, 31], [ 0, 30, 30],
       [ 0, 29, 29], [ 0, 28, 28], [ 0, 27, 27], [38,  0, 34]
-    ].freeze
-
-    def self.game = @game ||= new(CHANNELS)
+    ])
 
     def initialize(channels)
       raise ArgumentError, "a palette is #{ENTRIES} colours, got #{channels.length}" unless
         channels.length == ENTRIES
 
       @channels = channels
+      @colours = channels.map { |r, g, b| RubyGBA::Graphics::Color.rgb(r >> 1, g >> 1, b >> 1) }
     end
+
+    # Worked out once as the game loads and frozen through, so a build running on another core
+    # can read it too.
+    GAME = Ractor.make_shareable(new(CHANNELS))
+
+    def self.game = GAME
 
     # Still 6-bit, the way the game stored them.
-    attr_reader :channels
-
-    def colours
-      @colours ||= @channels.map { |r, g, b| RubyGBA::Graphics::Color.rgb(r >> 1, g >> 1, b >> 1) }
-    end
+    attr_reader :channels, :colours
 
     def [](index) = colours.fetch(index)
     def length = ENTRIES

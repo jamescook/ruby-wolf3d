@@ -43,7 +43,7 @@ the sampling starts, so a reading always shows how much of the time it is not lo
 ## Test it
 
 ```sh
-rake test:parallel                  # the suite, across processes
+rake test                           # the suite, on every core
 rake test TEST=test/test_maps.rb    # one file
 ```
 

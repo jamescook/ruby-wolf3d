@@ -10,7 +10,7 @@ class TestGameData < Minitest::Test
 
   def test_it_finds_a_complete_set_and_says_which_release_it_is
     with_release("WL6") do |dir|
-      data = with_env(dir) { Data.locate(home: dir) }
+      data = Data.locate(home: dir, env: env(dir))
 
       assert_equal "WL6", data.set
       assert_includes data.label, "registered"
@@ -22,7 +22,7 @@ class TestGameData < Minitest::Test
   # another system, so neither can be assumed.
   def test_it_finds_files_whatever_case_they_are_in
     with_release("WL1", downcase: true) do |dir|
-      data = with_env(dir) { Data.locate(home: dir) }
+      data = Data.locate(home: dir, env: env(dir))
 
       assert_equal "WL1", data.set
       assert_equal "raw vswap", File.binread(data.path("VSWAP"))
@@ -35,7 +35,7 @@ class TestGameData < Minitest::Test
       dir = File.join(tmp, "GOG Games", "Wolfenstein 3D")
       write_release(dir, "WL6")
 
-      assert_equal "WL6", with_env(dir) { Data.locate(home: dir) }.set
+      assert_equal "WL6", Data.locate(home: dir, env: env(dir)).set
     end
   end
 
@@ -46,8 +46,8 @@ class TestGameData < Minitest::Test
       write_release(tmp, "WL6")
       write_release(File.join(tmp, "m1"), "SOD")
 
-      assert_equal "WL6", with_env(tmp) { Data.locate(home: tmp) }.set
-      assert_equal "SOD", with_env(File.join(tmp, "m1")) { Data.locate(home: tmp) }.set
+      assert_equal "WL6", Data.locate(home: tmp, env: env(tmp)).set
+      assert_equal "SOD", Data.locate(home: tmp, env: env(File.join(tmp, "m1"))).set
     end
   end
 
@@ -56,8 +56,8 @@ class TestGameData < Minitest::Test
       with_release("WL1") do |config_dir|
         File.write(File.join(config_dir, Data::CONFIG_FILE), { "data" => config_dir }.to_yaml)
 
-        assert_equal "WL6", with_env(env_dir) { Data.locate(home: config_dir) }.set
-        assert_equal "WL1", with_env(nil) { Data.locate(home: config_dir) }.set
+        assert_equal "WL6", Data.locate(home: config_dir, env: env(env_dir)).set
+        assert_equal "WL1", Data.locate(home: config_dir, env: {}).set
       end
     end
   end
@@ -67,7 +67,7 @@ class TestGameData < Minitest::Test
       home = File.expand_path("..", dir)
       File.write(File.join(home, Data::CONFIG_FILE), { "data" => "beside" }.to_yaml)
 
-      assert_equal "WL1", with_env(nil) { Data.locate(home: home) }.set
+      assert_equal "WL1", Data.locate(home: home, env: {}).set
     end
   end
 
@@ -75,14 +75,14 @@ class TestGameData < Minitest::Test
     with_release("WL6") do |dir|
       File.delete(File.join(dir, "MAPHEAD.WL6"))
 
-      error = assert_raises(Data::NotFound) { with_env(dir) { Data.locate(home: dir) } }
+      error = assert_raises(Data::NotFound) { Data.locate(home: dir, env: env(dir)) }
       assert_includes error.message, "MAPHEAD"
     end
   end
 
   def test_saying_nothing_at_all_explains_both_ways_to_say_it
     Dir.mktmpdir do |home|
-      error = assert_raises(Data::NotFound) { with_env(nil) { Data.locate(home: home) } }
+      error = assert_raises(Data::NotFound) { Data.locate(home: home, env: {}) }
 
       assert_includes error.message, "WOLF3D_DATA"
       assert_includes error.message, Data::CONFIG_FILE
@@ -109,7 +109,7 @@ class TestGameData < Minitest::Test
     Dir.mktmpdir do |home|
       missing = File.join(home, "nowhere")
 
-      error = assert_raises(Data::NotFound) { with_env(missing) { Data.locate(home: home) } }
+      error = assert_raises(Data::NotFound) { Data.locate(home: home, env: env(missing)) }
       assert_includes error.message, missing
       assert_includes error.message, "WOLF3D_DATA"
     end
@@ -120,7 +120,7 @@ class TestGameData < Minitest::Test
       write_release(dir, "WL6")
       write_release(dir, "WL1")
 
-      error = assert_raises(Data::NotFound) { with_env(dir) { Data.locate(home: dir) } }
+      error = assert_raises(Data::NotFound) { Data.locate(home: dir, env: env(dir)) }
       assert_includes error.message, "WL6"
       assert_includes error.message, "WL1"
     end
@@ -128,7 +128,7 @@ class TestGameData < Minitest::Test
 
   def test_find_gives_back_nothing_rather_than_raising
     Dir.mktmpdir do |home|
-      assert_nil with_env(nil) { Data.find(home: home) }
+      assert_nil Data.find(home: home, env: {})
     end
   end
 
@@ -150,11 +150,7 @@ class TestGameData < Minitest::Test
     end
   end
 
-  def with_env(value)
-    was = ENV.fetch(Data::ENV_VAR, nil)
-    value.nil? ? ENV.delete(Data::ENV_VAR) : ENV[Data::ENV_VAR] = value
-    yield
-  ensure
-    was.nil? ? ENV.delete(Data::ENV_VAR) : ENV[Data::ENV_VAR] = was
-  end
+  # An environment of this test's own that points at +dir+. The real one belongs to every test
+  # running at the same time, so it is never changed here.
+  def env(dir) = { Data::ENV_VAR => dir }
 end

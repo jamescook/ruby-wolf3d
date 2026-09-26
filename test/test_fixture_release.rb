@@ -14,7 +14,7 @@ class TestFixtureRelease < Minitest::Test
     Dir.mktmpdir do |dir|
       Release.write(dir, set: "WL1")
 
-      data = with_env(dir) { Wolf3D::GameData.locate(home: dir) }
+      data = Wolf3D::GameData.locate(home: dir, env: env(dir))
       assert_equal "WL1", data.set
     end
   end
@@ -192,9 +192,9 @@ class TestFixtureRelease < Minitest::Test
 
   private
 
-  # A release written as a set the reader has names for. Kept on the class because packing its
-  # art is the only slow thing here and nothing changes it.
-  def self.named = @named ||= Release.new(set: "WL6")
+  # A release written as a set the reader has names for. Kept once per Ractor because packing its
+  # art is the only slow thing here and nothing changes it — and a worker may not write to a class.
+  def self.named = Ractor.current[:fixture_release_named] ||= Release.new(set: "WL6")
   def named = self.class.named
 
   def decode_plane(release, plane)
@@ -219,11 +219,6 @@ class TestFixtureRelease < Minitest::Test
       sounds: all[first_sound...(count - 1)] }
   end
 
-  def with_env(value)
-    was = ENV.fetch("WOLF3D_DATA", nil)
-    ENV["WOLF3D_DATA"] = value
-    yield
-  ensure
-    was.nil? ? ENV.delete("WOLF3D_DATA") : ENV["WOLF3D_DATA"] = was
-  end
+  # An environment of this test's own that points at +dir+; the real one is shared.
+  def env(dir) = { Wolf3D::GameData::ENV_VAR => dir }
 end
