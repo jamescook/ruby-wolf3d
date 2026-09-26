@@ -97,24 +97,30 @@ class TestVgagraph < Minitest::Test
 
   # The door to the framework: an alphabet handed over as pictures of its letters, which
   # is the only way a font that already exists can arrive. Nobody retypes one.
+  #
+  # The fixture's "M" is drawn as two posts joined across the middle, so its top row is
+  # lit, dark, lit — which a font that lost its shape, or drew in the built-in letters
+  # instead, would not reproduce.
   def test_the_alphabet_registers_as_a_font_and_writes_with_it
     glyphs = fixture.font(0).glyphs
 
     assert_equal %w[I M], glyphs.keys.sort
 
-    b = Builder.new
-    b.instance_eval do
+    measured = nil
+    program = RubyGBA.game("FONT") do
       screen :bitmap
       font :wolf, glyphs: glyphs
-      draw_text "M", 10, 10, :white
-    end
-    registered = RubyGBA::Graphics::Fonts.get(:wolf)
+      measured = [text_height(font: :wolf), text_width("I", font: :wolf), text_width("M", font: :wolf)]
+      draw_text "M", 10, 10, :white, font: :wolf
+    end.program
 
-    assert_equal 3, registered.height
-    assert_equal 1, registered.glyph_width("I")
-    assert_equal 3, registered.glyph_width("M")
-  ensure
-    RubyGBA::Graphics::Fonts.instance_variable_get(:@registry).delete(:wolf)
+    assert_equal [3, 1, 3], measured, "a line's height, then the width of each letter"
+
+    screen = Reference.new.run(program).screen
+    assert_operator screen.pixel(10, 10), :>, 0, "the left post"
+    assert_equal 0, screen.pixel(11, 10), "the gap between the posts"
+    assert_operator screen.pixel(11, 11), :>, 0, "the bar across the middle"
+    assert_operator screen.pixel(12, 12), :>, 0, "the right post"
   end
 
   def test_a_font_that_is_not_there_is_a_friendly_error
@@ -261,14 +267,20 @@ class TestVgagraph < Minitest::Test
     assert_includes glyphs.keys, "A"
     assert_includes glyphs.keys, "0"
 
-    b = Builder.new
-    b.instance_eval { font :wolf_small, glyphs: glyphs }
-    registered = RubyGBA::Graphics::Fonts.get(:wolf_small)
+    measured = nil
+    program = RubyGBA.game("FONT") do
+      screen :bitmap
+      font :wolf_small, glyphs: glyphs
+      measured = [text_height(font: :wolf_small), text_width("HELLO", font: :wolf_small)]
+      draw_text "A", 0, 0, :white, font: :wolf_small
+    end.program
+    height, width = measured
 
-    assert_equal real.font(0).height, registered.height
-    assert_operator registered.text_width("HELLO"), :>, 0
-    refute_equal 0, registered.glyph_pixels("A"), "the letter A must light some pixels"
-  ensure
-    RubyGBA::Graphics::Fonts.instance_variable_get(:@registry).delete(:wolf_small)
+    assert_equal real.font(0).height, height
+    assert_operator width, :>, 0
+
+    screen = Reference.new.run(program).screen
+    lit = (0...height).sum { |y| (0...16).count { |x| screen.pixel(x, y).to_i > 0 } }
+    assert_operator lit, :>, 0, "the letter A must light some pixels"
   end
 end

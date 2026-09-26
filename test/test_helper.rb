@@ -13,7 +13,7 @@ module Wolf3DTest
   Builder = RubyGBA::Builder
   ROM = RubyGBA::Cartridge::ROM
   Verifier = RubyGBA::Diagnostics::Verifier # the real cartridge, in the emulator
-  Constants = RubyGBA::Cartridge::Constants # KEY_UP and the rest of the hardware's names
+  Constants = RubyGBA::Console::Hardware # KEY_UP and the rest of the hardware's names
   Fraction = RubyGBA::DSL::Fraction # a number with a fractional part, kept in the low bits
 
   # A real copy of the game, for the few tests that check us against the world rather than
