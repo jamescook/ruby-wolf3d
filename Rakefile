@@ -14,9 +14,7 @@ require "rake/testtask"
 #
 # Nothing here builds the emulator. It is a gem (see the Gemfile) and bundler builds its C
 # extension on install, per Ruby ABI — so changing Ruby version gets a rebuild rather than a
-# library compiled for another Ruby. There used to be a task here that reached into the
-# framework's checkout and ran make, because the emulator was not packaged as a gem and nothing
-# else would build it.
+# library compiled for another Ruby.
 #
 # THE SUITE RUNS IN RACTORS — Ruby's way of using every core inside one process — through the
 # minitest-ractor plugin, the way the framework's own suite runs. A worker is refused the moment
@@ -25,8 +23,10 @@ require "rake/testtask"
 #
 # --ractor GOES INTO TESTOPTS rather than the task's own options, because rake reads TESTOPTS
 # INSTEAD of those options when it is set — so `TESTOPTS=--verbose` would quietly run the whole
-# suite without Ractors, and a test could pass there that the suite would refuse.
-ENV["TESTOPTS"] = "--ractor #{ENV.fetch('TESTOPTS', '')}".strip unless ENV.fetch("TESTOPTS", "").include?("ractor")
+# suite without Ractors, and a test could pass there that the suite would refuse. The flag is
+# matched as a whole word, so a pattern that happens to say "ractor" is not taken for it.
+testopts = ENV.fetch("TESTOPTS", "")
+ENV["TESTOPTS"] = "--ractor #{testopts}".strip unless testopts.split.intersect?(%w[--ractor --no-ractor])
 
 Rake::TestTask.new(:test) do |t|
   t.libs << "test" << "lib"

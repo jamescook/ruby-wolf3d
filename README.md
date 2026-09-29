@@ -118,8 +118,12 @@ first N, because a cartridge boots on the first floor it holds and the only way 
 *later* floor costs is to build one that starts there:
 
 ```sh
-WOLF3D_FROM=1 WOLF3D_FLOORS=1 bundle exec ruby-gba profile wolf3d.rb
+bundle exec ruby-gba profile wolf3d.rb --set from=1 --set floors=1
 ```
+
+The profiler takes the dials as `--set` settings, named without the `WOLF3D_`: `episodes`,
+`from`, `floors`, `start`, `armed`, `ammo` and `screen`. `ruby wolf3d.rb` and `rake build` read
+them from the environment as above.
 
 Floors differ enormously in what stands on them — the second floor of episode one carries three
 times the guards and three times the scenery of the first — so "what does a frame cost" has no

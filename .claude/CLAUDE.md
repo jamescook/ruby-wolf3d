@@ -126,8 +126,9 @@ bundle exec minitest-ractor -I lib -I test test/                # the audit alon
 ```
 
 **Nothing a test does may reach another test running at the same time.** That rules out
-changing `ENV` (use `Wolf3D.dialled(WOLF3D_FLOORS: "1") { … }`, or hand `GameData` an `env:` of
-its own), swapping a constant, or caching on a class or module (use `Ractor.current[:key] ||=`).
+changing `ENV` (hand the build its settings — `Wolf3D.build_rom(settings: { floors: 1 })` — or
+hand `GameData` an `env:` of its own), swapping a constant, or caching on a class or module (use
+`Ractor.current[:key] ||=`).
 A constant a test class declares is frozen all the way down for you as it is declared — see
 `test/test_helper.rb`.
 

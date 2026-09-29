@@ -84,31 +84,27 @@ module Wolf3D
   #
   # KEPT PER RACTOR, not on the module. A build on another core may not write to a module, and
   # what is read out of your copy is not frozen, so it cannot be shared either: each Ractor that
-  # asks reads the files for itself, once. Ractor-local storage rather than store_if_absent,
-  # which holds a lock while it works the value out, so that maps asking for data does not wait
-  # on itself.
-  def self.data = Ractor.current[:wolf3d_data] ||= GameData.find(env: env)
+  # asks reads the files for itself, once. `||=` on Ractor-local storage is safe to nest, which
+  # maps asking for data does.
+  #
+  # WHERE your copy is comes from WOLF3D_DATA or wolf3d.yml, and is not one of the build's
+  # settings below: it is a fact about this machine, the same for every build made on it.
+  def self.data = Ractor.current[:wolf3d_data] ||= GameData.find
 
   def self.maps = Ractor.current[:wolf3d_maps] ||= data && Maps.from(data)
 
-  # WHERE THE DIALS BELOW ARE READ FROM: the environment, unless a build was handed its own.
-  #
-  # The environment belongs to the whole process, so changing it to build one cartridge changes
-  # it for every other build running beside that one. `dialled` hands the code running here — and
-  # nothing else — a set of its own for as long as the block runs, which is how the tests ask for
-  # one floor or one episode without touching anybody else's build.
-  #
-  # HELD PER THREAD, not per Ractor. Several threads can share one Ractor — minitest's own pool
-  # runs that way when the suite is not in Ractors — and a Ractor's storage is common to all of
-  # them, so a dial kept there reaches a build on the next thread over.
-  def self.env = Thread.current[:wolf3d_env] || ENV
+  # THE DIALS, as the environment spells them and as the build is told them. A build is handed
+  # its settings (`GAME.program(settings: { floors: 1 })`, `ruby-gba build wolf3d.rb --set
+  # floors=1`); the environment is read only where a cartridge is built from the command line —
+  # wolf3d.rb's last line — so a test building one floor never changes what another build sees.
+  DIALS = { episodes: "WOLF3D_EPISODES", from: "WOLF3D_FROM", floors: "WOLF3D_FLOORS",
+            start: "WOLF3D_START", armed: "WOLF3D_ARMED", ammo: "WOLF3D_AMMO",
+            screen: "WOLF3D_SCREEN" }.freeze
 
-  def self.dialled(**dials)
-    was = Thread.current[:wolf3d_env]
-    Thread.current[:wolf3d_env] = env.to_h.merge(dials.to_h { |name, value| [name.to_s, value] })
-    yield
-  ensure
-    Thread.current[:wolf3d_env] = was
+  # The settings the environment asks for — only the dials it actually sets, so an unset one
+  # takes the game's own default.
+  def self.settings_from(env)
+    DIALS.filter_map { |name, var| [name, env[var]] unless env[var].to_s.strip.empty? }.to_h
   end
 
   # WHICH EPISODES THE CARTRIDGE HOLDS. Every one your copy has, unless you say otherwise —
@@ -125,8 +121,8 @@ module Wolf3D
   # release: all six episodes is an 8MB cartridge and about a minute to build, against 4MB and
   # eight seconds for one. So the whole game is the default and trimming it is for when you are
   # building over and over.
-  def self.which_episodes
-    asked = env.fetch("WOLF3D_EPISODES", nil).to_s.strip
+  def self.which_episodes(asked = nil)
+    asked = asked.to_s.strip
     return (1..maps.episodes).to_a if asked.empty?
 
     episodes_named(asked)
@@ -157,17 +153,16 @@ module Wolf3D
   # cartridge boots on the first floor it holds, so the only way to read what a LATER floor
   # costs is to build one that begins there:
   #
-  #   WOLF3D_FROM=1 WOLF3D_FLOORS=1 bundle exec ruby-gba profile wolf3d.rb
+  #   bundle exec ruby-gba profile wolf3d.rb --set from=1 --set floors=1
   #
   # Floors differ enormously in what stands on them — the second floor of the first episode
   # carries three times the guards and three times the scenery of the first — so "what does a
   # frame cost" has no single answer for a game, only one per floor. WOLF3D_FLOORS on its own
   # is also the fastest build there is, which is what you want while changing something else.
-  def self.which_floors
-    floors = which_episodes.flat_map { |episode| maps.floors_of(episode) }
-    floors = floors.drop(Integer(env.fetch("WOLF3D_FROM", 0)))
-    asked = env.fetch("WOLF3D_FLOORS", nil)
-    asked ? floors.first(Integer(asked)) : floors
+  def self.which_floors(episodes: nil, from: 0, floors: nil)
+    picked = which_episodes(episodes).flat_map { |episode| maps.floors_of(episode) }
+    picked = picked.drop(Integer(from))
+    floors ? picked.first(Integer(floors)) : picked
   end
   # ...AND WHERE ON THE FIRST FLOOR YOU START, which is the same kind of dial and exists for the
   # same reason: the moments worth looking at are the far ones, and every one of them is a long
@@ -178,8 +173,8 @@ module Wolf3D
   # puts you three cells from Hans Grosse on the boss floor of the first episode, facing him.
   # Add `,north` (or east, south, west) to say which way you are looking; without it you face
   # whichever way the map had you facing.
-  def self.where_to_start
-    asked = env.fetch("WOLF3D_START", nil).to_s.strip
+  def self.where_to_start(asked)
+    asked = asked.to_s.strip
     return nil if asked.empty?
 
     x, y, facing = asked.split(",").map(&:strip)
@@ -191,14 +186,14 @@ module Wolf3D
   end
 
   # The floors this cartridge holds, with the first one's start moved if it was asked for.
-  def self.floors
-    floors = Floors.from(maps, vswap, which_floors)
-    where = where_to_start
+  def self.floors(which, start: nil)
+    floors = Floors.from(maps, vswap, which)
+    where = where_to_start(start)
     return floors unless where
 
     x, y, facing = where
     moved = floors.first_floor.level.starting_at(x, y, **(facing ? { facing: facing } : {}))
-    Floors.from(SwappedFirstFloor.new(maps, moved, which_floors.first), vswap, which_floors)
+    Floors.from(SwappedFirstFloor.new(maps, moved, which.first), vswap, which)
   end
 
   # A GAMEMAPS with one floor read differently, so that moving the start needs no new path
@@ -216,8 +211,8 @@ module Wolf3D
   #
   # The four are knife, pistol, machine_gun and chain_gun. Left unsaid you get what the game
   # gives you, which is the pistol and eight rounds.
-  def self.armed_with
-    asked = env.fetch("WOLF3D_ARMED", nil).to_s.strip
+  def self.armed_with(asked)
+    asked = asked.to_s.strip
     return nil if asked.empty?
 
     Weapons::NUMBERS.fetch(asked.downcase.to_sym) do
@@ -227,8 +222,8 @@ module Wolf3D
     end
   end
 
-  def self.starting_ammo
-    asked = env.fetch("WOLF3D_AMMO", nil).to_s.strip
+  def self.starting_ammo(asked)
+    asked = asked.to_s.strip
     asked.empty? ? nil : Integer(asked)
   end
 
@@ -240,7 +235,7 @@ module Wolf3D
   #   WOLF3D_SCREEN=credits ruby wolf3d.rb
   #
   # The screens are: notice, title, credits, menu, episodes, difficulty, playing.
-  def self.which_screen = Menus.screen_named(env.fetch("WOLF3D_SCREEN", nil))
+  def self.which_screen(asked) = Menus.screen_named(asked&.to_s)
 
   def self.vswap = Ractor.current[:wolf3d_vswap] ||= data && Vswap.from(data)
 
@@ -269,8 +264,20 @@ module Wolf3D
     # torn one.
     screen :bitmap, tear_free: true
 
+    # THE BUILD'S SETTINGS, every one asked here at the top: the framework treats a setting the
+    # game never asks for as a misspelling, and a build with no copy of the game to read would
+    # otherwise ask for none of them. See DIALS for what each one means.
+    episodes = setting :episodes, nil
+    from = setting :from, 0
+    how_many = setting :floors, nil
+    start = setting :start, nil
+    armed = setting :armed, nil
+    ammo = setting :ammo, nil
+    boot_screen = setting :screen, nil
+
     if Wolf3D.maps
-      floors = Wolf3D.floors
+      floors = Wolf3D.floors(Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many),
+                             start: start)
       atlas = Wolf3D::WallAtlas.new(Wolf3D.vswap, Wolf3D.palette, floors.map(&:level),
                                     doors: floors.map(&:doors), lifts: floors.map(&:lifts))
       things = Wolf3D::ThingAtlas.new(Wolf3D.vswap, Wolf3D.palette,
@@ -294,11 +301,12 @@ module Wolf3D
                                      bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph),
                                      gun_art: Wolf3D.gun_art,
                                      startable: !menu_art.nil?, sound_on: sound_on,
-                                     armed_with: Wolf3D.armed_with, ammo: Wolf3D.starting_ammo)
+                                     armed_with: Wolf3D.armed_with(armed),
+                                     ammo: Wolf3D.starting_ammo(ammo))
       if menu_art
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
                                   palette: Wolf3D.palette, sound_on: sound_on,
-                                  starting_on: Wolf3D.which_screen)
+                                  starting_on: Wolf3D.which_screen(boot_screen))
         game_loop { menus.update }
       else
         game_loop { view.update }

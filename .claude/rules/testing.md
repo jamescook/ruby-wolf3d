@@ -36,8 +36,8 @@ end
   hardware's names), `Fraction`. Each lives a module or two down in ruby-gba; the helper names
   them once so the next reshuffle there moves one line, not a hundred.
 - `game_data_or_skip` — a real copy of Wolfenstein, or a skip saying how to point at one
-- `a_small_cartridge { }` — builds with `WOLF3D_FLOORS=1` dialled for this test alone, for the
-  tests that build the whole game. Shipping sixty floors to prove the wiring works takes a
+- `a_small_cartridge` — the whole game built with the setting `floors: 1`, for the tests that
+  build the whole game. Shipping sixty floors to prove the wiring works takes a
   minute; one floor is a few seconds and proves the same thing.
 
 Unlike the framework's suite, this one does **not** reopen `Minitest::Test` — each file says
@@ -62,8 +62,9 @@ bundle exec minitest-ractor -I lib -I test test/                # the audit on i
 Every test shares the process with others running on other cores, so nothing a test does may
 reach past itself:
 
-- **Never change `ENV`.** It is the whole process's. Ask for a dial with
-  `Wolf3D.dialled(WOLF3D_EPISODES: "2") { … }`, which holds it for this thread only, or hand
+- **Never change `ENV`.** It is the whole process's. Hand a build its settings instead —
+  `Wolf3D.build_rom(settings: { episodes: "2" })`, or `GAME.program(settings: …)` — which reach
+  that one build and nothing else; the names are the keys of `Wolf3D::DIALS`. Hand
   `GameData.locate` an `env:` hash of its own.
 - **Never swap a constant** to build something a different way. Pass the setting in —
   `FirstPerson.new(pacing: :by_the_frame)` is the worked example.
@@ -203,7 +204,7 @@ two backends agree on it.
 The framework's public seam. Build a cartridge, hand it to a `Verifier`, read pixels:
 
 ```ruby
-rom = a_small_cartridge { Wolf3D.build_rom(out: StringIO.new, err: StringIO.new) }
+rom = a_small_cartridge
 v = RubyGBA::Diagnostics::Verifier.new(rom, frames: 8)
 
 v.all_black?                               # "did it boot to nothing"
@@ -226,9 +227,8 @@ with a comment saying it has moved before and to re-measure it rather than suspe
   part of these tests, not running them.
 
 - **The real game**, for the two tests that check the whole wiring:
-  `a_small_cartridge { Wolf3D.build_rom(out: StringIO.new, err: StringIO.new) }`. Pass
-  `StringIO` for both streams so the build's report does not print into the test output — and
-  so a test can assert on what it said.
+  `a_small_cartridge`. It passes `StringIO` for both streams so the build's report does not
+  print into the test output.
 
 Note `RubyGBA.game(...)` hands back a game whose `.program` is the IR; `RubyGBA.build(...)`
 hands back a finished ROM. Tests that read pixels off the oracle want the first.

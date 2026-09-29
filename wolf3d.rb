@@ -10,4 +10,6 @@
 require_relative "lib/wolf3d"
 
 Wolf3D.report if $PROGRAM_NAME == __FILE__
-Wolf3D::GAME.write_if_main
+# The WOLF3D_* dials are read here, where a cartridge is built from the command line, and handed
+# to this one build — see Wolf3D::DIALS.
+Wolf3D::GAME.write_if_main(settings: Wolf3D.settings_from(ENV))

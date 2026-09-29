@@ -46,7 +46,9 @@ module ProfileBuild
     # raw: true keeps every sample's whole stack rather than only the totals, which is the part
     # a flame graph is drawn from — without it speedscope has nothing to show.
     StackProf.run(mode: :wall, raw: true, interval: INTERVAL, out: dump) do
-      built = time_it { Wolf3D.build_rom(out: StringIO.new, err: StringIO.new) }
+      built = time_it do
+        Wolf3D.build_rom(out: StringIO.new, err: StringIO.new, settings: Wolf3D.settings_from(ENV))
+      end
     end
 
     report = StackProf::Report.new(Marshal.load(File.binread(dump)))

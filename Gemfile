@@ -45,7 +45,7 @@ gem "minitest", "~> 6.0"
 gem "rake", "~> 13.0"
 
 # Runs the suite on every core in one process, as Ractors — the framework's suite runs the
-# same way. From git until it is released as a gem.
+# same way. It is not on rubygems.org, so it comes from git.
 gem "minitest-ractor", git: "https://github.com/jamescook/minitest-ractor.git", group: :test
 
 # For `rake build:profile` alone, which samples a build of this game. It is this game's own

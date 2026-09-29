@@ -219,8 +219,7 @@ module Wolf3D
       @b = build
       @atlas = atlas
       # HOW THE WORLD IS PACED: PACING, unless the builder asks for the other setting. The tests
-      # of keeping time build both, and pass it here rather than swap the constant, which every
-      # build running at the same time would see.
+      # of keeping time build both.
       @pacing = pacing
       # THE FIRST FLOOR'S OWN PIECES, which is what the build-time questions with no floor in them
       # ask: how wide a map is, and what a wall code's picture is. Everything that differs from

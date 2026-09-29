@@ -103,7 +103,8 @@ module Wolf3D
 
     def self.game = GAME
 
-    # Still 6-bit, the way the game stored them.
+    # +channels+ are still 6-bit, the way the game stored them; +colours+ are what the console
+    # shows, each one a 15-bit number.
     attr_reader :channels, :colours
 
     def [](index) = colours.fetch(index)

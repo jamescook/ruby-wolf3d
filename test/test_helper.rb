@@ -4,7 +4,6 @@ require "minitest/autorun"
 require "minitest/ractor"
 require_relative "../lib/wolf3d"
 
-# Run from this directory: rake test
 module Wolf3DTest
   # THE FRAMEWORK'S NAMES, SAID ONCE. Each of these lives a module or two down in ruby-gba, and
   # a test that spelled the whole path every time would wrap at every call. Naming them here
@@ -64,7 +63,7 @@ module Wolf3DTest
   # The build ships every episode your copy holds, which is right for playing and wrong here:
   # on the registered release that is sixty floors, an 8MB cartridge and about a minute, and
   # what these tests want to know is only that the wiring works. One floor is a few seconds and
-  # proves the same thing. The dial is handed to this test's own build rather than set in the
-  # environment, which every test running at the same time shares.
-  def a_small_cartridge(&) = Wolf3D.dialled(WOLF3D_FLOORS: "1", &)
+  # proves the same thing. The setting is handed to this build alone, so nothing another test is
+  # building at the same moment sees it.
+  def a_small_cartridge = Wolf3D.build_rom(out: StringIO.new, err: StringIO.new, settings: { floors: 1 })
 end
