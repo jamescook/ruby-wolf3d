@@ -204,8 +204,8 @@ class TestPickups < Minitest::Test
   def palette = Wolf3D::Palette.game
 
   def code(index) = Scenery::FIRST_CODE + index
-  def gone(run, piece) = run.instance_variable_get(:@lists)[:thing_gone].get(piece)
-  def pool(run, field, slot = 0) = run.instance_variable_get(:@lists)[:"__pool_guard_#{field}"].get(slot)
+  def gone(run, piece) = run.list(:thing_gone)[piece]
+  def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]
 
   # The flat colour the fixture gave the clip's own picture.
   def clip_colour = palette[Release::SPRITE_INK + Scenery.clip_picture]

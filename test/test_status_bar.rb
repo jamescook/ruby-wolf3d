@@ -472,7 +472,7 @@ class TestStatusBar < Minitest::Test
     x = Bar.centred(field, font.text_width(field.label), nil)
     y = FP::VIEW_H + Bar::LABEL_ROW
     font.text_width(field.label).times.any? do |dx|
-      font.instance_variable_get(:@height).times.any? { |dy| run.screen.pixel(x + dx, y + dy) == ink }
+      font.height.times.any? { |dy| run.screen.pixel(x + dx, y + dy) == ink }
     end
   end
 
@@ -489,7 +489,7 @@ class TestStatusBar < Minitest::Test
   # right-aligned with no leading noughts).
   def digit_at(run, x, y)
     ink = palette[Bar::FIGURE]
-    lit = (0...font.width).to_a.product((0...font.instance_variable_get(:@height)).to_a)
+    lit = (0...font.width).to_a.product((0...font.height).to_a)
           .select { |dx, dy| run.screen.pixel(x + dx, y + dy) == ink }.to_set
     return "" if lit.empty?
 

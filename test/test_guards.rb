@@ -532,7 +532,7 @@ class TestGuards < Minitest::Test
 
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
-  def pool_field(run, field, slot = 0) = run.instance_variable_get(:@lists)[:"__pool_guard_#{field}"].get(slot)
+  def pool_field(run, field, slot = 0) = run.pool(:guard, field)[slot]
   def state_of(run, slot = 0) = pool_field(run, :state, slot)
   def guard_hp(run, slot = 0) = pool_field(run, :hp, slot)
   def guard_at(run, axis) = pool_field(run, axis) / ONE

@@ -40,14 +40,7 @@ class TestDifficulty < Minitest::Test
   # WHO REALLY STOOD UP, read off the game rather than off the level: every live slot of the
   # pool, by the cell he is standing in. A pool hands out its slots from the back, so this is
   # sorted — the order they are stored in is not something to depend on.
-  def standing_up(run)
-    pool = run.instance_variable_get(:@lists)
-    active = pool[:__pool_guard_active]
-    xs = pool[:__pool_guard_x]
-    (0...active.length).select { |slot| active.get(slot) == 1 }
-                       .map { |slot| (xs.get(slot) / ONE).floor }
-                       .sort
-  end
+  def standing_up(run) = run.pool(:guard, :x).compact.map { |x| (x / ONE).floor }.sort
 
   # ---------------------------------------------------------------- which guards are there
 
@@ -78,11 +71,13 @@ class TestDifficulty < Minitest::Test
   end
 
   # A guard the setting leaves out is not a hidden one — he is never spawned at all, so he costs
-  # a frame nothing. The pool's own count is what the game's per-frame walk is charged for.
+  # a frame nothing. The slots taken are what the game's per-frame walk is charged for.
   def test_a_guard_his_setting_leaves_out_takes_up_no_slot
-    assert_equal 1, started_at(:baby)[:__pool_guard_count]
-    assert_equal 3, started_at(:hard)[:__pool_guard_count]
+    assert_equal 1, guards_spawned(started_at(:baby))
+    assert_equal 3, guards_spawned(started_at(:hard))
   end
+
+  def guards_spawned(run) = run.pool(:guard, :x).compact.length
 
   # THE TWO EASIEST SETTINGS AGREE ABOUT THE GUARDS, which is the half of the original's rule
   # that is easy to get wrong: the second setting brings in nothing at all, and only the two

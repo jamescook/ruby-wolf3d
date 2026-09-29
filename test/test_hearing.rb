@@ -173,11 +173,11 @@ class TestHearing < Minitest::Test
   # then picked apart by what he IS, because the order a pool hands out its slots is not the
   # order the level lists its men — so nothing here may name a man by number.
   def guards_in(run, count)
-    lists = run.instance_variable_get(:@lists)
+    xs = run.pool(:guard, :x)
+    ambush = run.pool(:guard, :ambush)
+    state = run.pool(:guard, :state)
     (0...count).map do |slot|
-      { x: (lists[:__pool_guard_x].get(slot) / ONE).round,
-        ambush: lists[:__pool_guard_ambush].get(slot) == 1,
-        standing: lists[:__pool_guard_state].get(slot) == STANDING }
+      { x: (xs[slot] / ONE).round, ambush: ambush[slot] == 1, standing: state[slot] == STANDING }
     end
   end
 

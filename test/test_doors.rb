@@ -60,7 +60,7 @@ class TestDoors < Minitest::Test
 
   # How far open a door is, as the 0-to-1 the game writes. The list holds numbers with a
   # fraction, so what is stored is multiplied up.
-  def door_open(run, index) = run.instance_variable_get(:@lists)[:door_open].get(index) / ONE.to_f
+  def door_open(run, index) = run.list(:door_open)[index] / ONE.to_f
 
   def where(run) = run[:py] / ONE.to_f
 

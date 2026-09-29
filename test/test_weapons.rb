@@ -281,7 +281,7 @@ class TestWeapons < Minitest::Test
     frames = Weapons::CYCLE * 4
     run = Reference.new.input_each_frame { |f| swinging(f, with_knife: with_knife) }
                   .run(program(guards: [[9, 8, :west]], drawing: true), frames: frames)
-    run.instance_variable_get(:@lists)[:__pool_guard_hp].get(0)
+    run.pool(:guard, :hp)[0]
   end
 
   # Change to the knife first if that is what is being asked about, and then tap the trigger as

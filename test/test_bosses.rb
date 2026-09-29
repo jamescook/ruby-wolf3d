@@ -335,12 +335,13 @@ class TestBosses < Minitest::Test
   def palette = Wolf3D::Palette.game
 
   def pool_field(run, field, slot = 0)
-    run.instance_variable_get(:@lists)[:"__pool_guard_#{field}"].get(slot)
+    run.pool(:guard, field)[slot]
   end
 
+  # The pool answers nil for a slot nobody is in.
   def live_slots(run)
-    lists = run.instance_variable_get(:@lists)
-    (0...lists[:__pool_guard_active].length).select { |n| lists[:__pool_guard_active].get(n) == 1 }
+    xs = run.pool(:guard, :x)
+    xs.each_index.reject { |slot| xs[slot].nil? }
   end
 
   def nearest(run) = live_slots(run).min_by { |slot| pool_field(run, :x, slot) } || 0

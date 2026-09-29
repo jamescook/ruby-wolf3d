@@ -94,9 +94,9 @@ class TestRooms < Minitest::Test
     Reference.new.input_each_frame { keys }.run(game(level, drawing: drawing), frames: frames)
   end
 
-  def pool(run, field, slot = 0) = run.instance_variable_get(:@lists)[:"__pool_guard_#{field}"].get(slot)
+  def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]
   def guard_at(run, slot = 0) = [pool(run, :x, slot) / ONE, pool(run, :y, slot) / ONE]
-  def room_open(run, room) = run.instance_variable_get(:@lists)[:room_open].get(room)
+  def room_open(run, room) = run.list(:room_open)[room]
 
   # --- is it built at all ---
 

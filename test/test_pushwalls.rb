@@ -41,7 +41,7 @@ class TestPushwalls < Minitest::Test
     end.program
   end
 
-  def slot(run, list, index) = run.instance_variable_get(:@lists)[list].get(index)
+  def slot(run, list, index) = run.list(list)[index]
 
   def gone(run) = slot(run, :push_gone, 0)
 

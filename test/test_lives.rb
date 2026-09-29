@@ -297,8 +297,8 @@ class TestLives < Minitest::Test
   def quarter_turn = ((FP::TURN / 4) / FP::TURN_SPEED.to_f).ceil
   def about_turn = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil
 
-  def list(run, name, index) = run.instance_variable_get(:@lists)[name].get(index)
-  def pool(run, field, slot = 0) = list(run, :"__pool_guard_#{field}", slot)
+  def list(run, name, index) = run.list(name)[index]
+  def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]
   def open_of(run, index) = list(run, :door_open, index) / ONE
 
   def white_pixels(run)

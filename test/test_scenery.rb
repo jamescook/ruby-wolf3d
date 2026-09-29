@@ -364,7 +364,7 @@ class TestScenery < Minitest::Test
     run[:px] / ONE
   end
 
-  def guard_x(run) = run.instance_variable_get(:@lists)[:__pool_guard_x].get(0) / ONE
+  def guard_x(run) = run.pool(:guard, :x)[0] / ONE
 
   # How many standing things the frame that just finished queued up to draw.
   def queued(run) = run[:_seen]

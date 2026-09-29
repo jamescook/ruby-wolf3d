@@ -313,28 +313,25 @@ class TestEnemies < Minitest::Test
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   def pool_field(run, field, slot = 0)
-    run.instance_variable_get(:@lists)[:"__pool_guard_#{field}"].get(slot)
+    run.pool(:guard, field)[slot]
   end
 
   # A POOL HANDS OUT ITS SLOTS FROM THE BACK, so the order a level put its enemies down is not
   # the order they are stored in. Everything below reads the NEAREST one, which is the one a
   # shot down the line meets and the one that reaches you first.
-  def nearest(run)
-    lists = run.instance_variable_get(:@lists)
-    live = (0...lists[:__pool_guard_active].length).select { |n| lists[:__pool_guard_active].get(n) == 1 }
-    live.min_by { |slot| pool_field(run, :x, slot) } || 0
+  def nearest(run) = live_slots(run).min_by { |slot| pool_field(run, :x, slot) } || 0
+
+  # The pool answers nil for a slot nobody is in.
+  def live_slots(run)
+    xs = run.pool(:guard, :x)
+    xs.each_index.reject { |slot| xs[slot].nil? }
   end
 
   def hp(run) = pool_field(run, :hp, nearest(run))
   def where(run) = pool_field(run, :x, nearest(run)) / ONE
 
   # What every live slot is lying beside, which is how "he left a gun" is read off a game.
-  def dropped(run)
-    lists = run.instance_variable_get(:@lists)
-    (0...lists[:__pool_guard_active].length)
-      .select { |slot| lists[:__pool_guard_active].get(slot) == 1 }
-      .map { |slot| pool_field(run, :dropped, slot) }
-  end
+  def dropped(run) = run.pool(:guard, :dropped).compact
 
   def toughness(name) = Enemy[name].toughness(Guards.number_of(Guards::DEFAULT_DIFFICULTY))
 
