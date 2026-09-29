@@ -265,6 +265,7 @@ module Wolf3D
       @floor.set! slot
       @lives.start_again
       @victory&.start_again
+      @b.call :a_fresh_player
       @b.call :start_the_floor
     end
 
@@ -590,6 +591,10 @@ module Wolf3D
       @health = b.var :health, START_HEALTH
       @ammo = b.var :ammo, @start_ammo
       @score = b.var :score, 0
+      # ...and THE SCORE YOU WALKED ONTO THIS FLOOR WITH, the original's oldscore. Starting a floor
+      # puts the score back to it and only finishing one moves it on, so a death takes back what
+      # was scored on the floor it happened on.
+      @floor_score = b.var :floor_score, 0
 
       # HOW TOUGH YOU SAID YOU WERE, and it lives with the world rather than with the screen
       # that asks it, because two things in the world read it: which guards stand up when a
@@ -631,7 +636,7 @@ module Wolf3D
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you
       # another go.
       declare_the_dying
-      @lives = Lives.new(build: b, score: @score, dying: @dying)
+      @lives = Lives.new(build: b, score: @score, floor_score: @floor_score, dying: @dying)
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
       # floor you can walk out of, which is a boss floor — see Level::EXIT.
       @victory = Victory.new(build: b, lives: @lives) if any_floor_has_a_way_out?
@@ -671,6 +676,7 @@ module Wolf3D
         @push_wait << 0
       end
       declare_the_floor_start
+      declare_a_fresh_player
       declare_the_bar
       declare_the_view
       declare_what_a_pass_does
@@ -1143,10 +1149,15 @@ module Wolf3D
       @stood = b.var :_stood, 0
     end
 
-    # STARTING THE FLOOR AGAIN, which is everything the level holds that CHANGES put back the way
-    # it was built. That is the whole of what a life costs and it is worth listing: where the
-    # player stands and what they carry, every door, every wall that slides, every key still lying
-    # about, everything picked up, and every guard.
+    # STARTING A FLOOR, which is everything the level holds that CHANGES put back the way it was
+    # built: where the player stands, every door, every wall that slides, every key still lying
+    # about, everything picked up, and every guard. The keys you carry go too, and the floor's
+    # counts of what you found.
+    #
+    # WHAT YOU CARRY IS NOT PART OF IT. The lift runs this and nothing else, and in the original
+    # finishing a floor takes your keys and leaves the rest of you alone (wl_game.cpp, GameLoop's
+    # ex_completed branch): health, ammunition and guns go down the lift with you. It is dying,
+    # and a new game, that hand you a fresh player first — see #declare_a_fresh_player.
     #
     # Everything here had its starting value applied once at boot, by the declaration that made
     # it. This is the same values written a second time — which is why the ones that are worked
@@ -1165,6 +1176,20 @@ module Wolf3D
       @b.func(:start_the_floor, fast: false) { start_the_floor_again }
     end
 
+    # A FRESH PLAYER: full health, the pistol and eight rounds, which is what the original's Died
+    # hands you when you have a life left (wl_game.cpp) and what NewGame starts you with
+    # (wl_main.cpp). Asked for by name wherever one of those happens, always before the floor is
+    # started.
+    def declare_a_fresh_player
+      return if @dying.nil? && !@startable
+
+      @b.func(:a_fresh_player, fast: false) do
+        @health.set! START_HEALTH
+        @ammo.set! @start_ammo
+        @weapons.start_again
+      end
+    end
+
     def start_the_floor_again
       # WHICH FLOOR'S SLICE OF EVERY TABLE, first, because everything below reads through it.
       go_to_this_floor
@@ -1173,10 +1198,9 @@ module Wolf3D
       # AGAIN as well: shutting every door writes each one straight back to nought rather than
       # sliding it, so the doors never say they moved and nothing else here would notice.
       @rooms&.floor_started
-      @health.set! START_HEALTH
-      @ammo.set! @start_ammo
+      # The original's `gamestate.score = gamestate.oldscore`, the first line of every floor.
+      @score.set! @floor_score
       @keys.set! 0
-      @weapons.start_again
       # ...and none of the floor has been found yet, which is what makes these a share of it.
       @kills.set! 0
       @secrets.set! 0
@@ -1580,6 +1604,9 @@ module Wolf3D
       elsif @floors.count > 1
         on_to_the_next_floor
       end
+      # A FINISHED FLOOR KEEPS ITS POINTS: the original's `gamestate.oldscore = gamestate.score`,
+      # so the floor about to start puts back the score you leave this one with.
+      @floor_score.set! @score
       @b.call :start_the_floor
     end
 

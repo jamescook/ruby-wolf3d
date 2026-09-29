@@ -47,6 +47,7 @@ class TestLives < Minitest::Test
         restarts.add! 1
         dying.start_again
       end
+      func(:a_fresh_player) {} # the view's, and tested against the real thing below
 
       game_loop do
         dying.turn
@@ -104,12 +105,13 @@ class TestLives < Minitest::Test
   end
 
   # A NEW GAME IS THE SAME MACHINERY AS A NEW LIFE plus the two things a life does not touch: the
-  # goes go back to three and the score back to nothing.
+  # goes go back to three and the score back to nothing. (What a life does to the score — back to
+  # what the floor was entered with — is the view's, and is tested against it further down.)
   def test_pressing_start_on_a_finished_game_begins_another
     over = dying_over(4)
     again = dying_over(4, pressing: ->(f) { f > (BETWEEN_DEATHS * 3) + 100 ? [:start] : [] })
 
-    assert_equal 500, over[:score], "the score is left alone by dying..."
+    assert_equal 500, over[:score], "the game ending does not clear the score..."
     assert_equal 0, again[:score], "...and cleared by a new game"
     assert_equal 0, again[:game_over], "which is no longer over"
     assert_operator again[:lives], :>, 0, "and has goes left in it"
@@ -217,6 +219,22 @@ class TestLives < Minitest::Test
     assert_equal Wolf3D::Behaviour.for([:guard]).starting_state(guard_zero), pool(back, :state),
                  "in the state the level put him in"
     assert_in_delta guard_zero.x + 0.5, pool(back, :x) / ONE, 0.0001, "where the level put him"
+  end
+
+  # THE POINTS SCORED ON A FLOOR GO WITH THE LIFE YOU LOST THERE. The original starts every floor
+  # with `gamestate.score = gamestate.oldscore` (wl_game.cpp, the top of GameLoop), and oldscore
+  # only moves on when a floor is finished — so starting one again hands back the score you walked
+  # in with. The same two runs as the test above: the guard shot dead, then the floor started.
+  def test_the_points_scored_on_the_floor_are_taken_back
+    killed, back = either_side_of_a_restart(at: 250, drawn: true) do |f|
+      next [:right] if f <= quarter_turn
+      next [:b] if f > quarter_turn && f.even?
+
+      []
+    end
+
+    assert_operator killed[:score], :>, 0, "killing him should have scored"
+    assert_equal 0, back[:score], "and starting the floor again takes it back"
   end
 
   # WALKED DIAGONALLY, and that is the whole reason the script turns first. The player starts

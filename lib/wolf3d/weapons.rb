@@ -143,11 +143,9 @@ module Wolf3D
     # the machine gun he was carrying only if you have not got one — and half a clip if you have.
     def already_has(which) = @best >= which
 
-    # ...and a floor started again puts the pistol back in your hands.
-    #
-    # THE ORIGINAL DOES THIS WHEN YOU DIE and not when a floor starts — but this game already
-    # puts the health and the ammunition back on both, so the weapon goes with them rather than
-    # being the one thing that survives a lift.
+    # ...and a fresh player has only the pistol, which is what dying leaves you with in the
+    # original (wl_game.cpp, Died) and what a new game starts you with. A lift does not: the
+    # guns you found go down it with you.
     def start_again
       @in_hand.set! @starting
       @chosen.set! @starting

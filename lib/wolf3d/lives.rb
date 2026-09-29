@@ -29,11 +29,14 @@ module Wolf3D
     FONT = :default
 
     # +dying+ may be nil: a floor with nothing on it that can kill you still shows a number of
-    # lives, and never spends one. +score+ is zeroed when a new game starts, which is the one
-    # thing a death does NOT do to it.
-    def initialize(build:, score:, dying: nil)
+    # lives, and never spends one. +score+ is zeroed when a new game starts, and so is
+    # +floor_score+, the score the floor was entered with: starting a floor puts the score back
+    # to it, so left alone it would hand the last game's score to the new one. Nil where nothing
+    # starts a floor again.
+    def initialize(build:, score:, floor_score: nil, dying: nil)
       @b = build
       @score = score
+      @floor_score = floor_score
       @dying = dying
       declare
     end
@@ -57,6 +60,7 @@ module Wolf3D
     def start_again
       @left.set! START
       @score.set! 0
+      @floor_score&.set! 0
       @ended&.set! 0
     end
 
@@ -109,11 +113,17 @@ module Wolf3D
       (@ended == 0).then do
         @dying.finished.then do
           @left.sub! 1
-          (@left > 0).then { @b.call(:start_the_floor) }.else { end_the_game }
+          (@left > 0).then { another_life }.else { end_the_game }
         end
       end.else { start_another_game }
 
       @words.draw
+    end
+
+    # A LIFE LEFT: a fresh player, and the floor from the top (wl_game.cpp, Died).
+    def another_life
+      @b.call(:a_fresh_player)
+      @b.call(:start_the_floor)
     end
 
     def end_the_game
@@ -126,7 +136,7 @@ module Wolf3D
     def start_another_game
       @b.pressed(:start).then do
         start_again
-        @b.call(:start_the_floor)
+        another_life
       end
     end
 
