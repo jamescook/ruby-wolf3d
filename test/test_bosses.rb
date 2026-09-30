@@ -316,7 +316,7 @@ class TestBosses < Minitest::Test
     RubyGBA.game("BOSSES") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery, startable: true)
+                    guards: guards, things: things, scenery: scenery)
       game_loop { view.update }
     end.program
   end

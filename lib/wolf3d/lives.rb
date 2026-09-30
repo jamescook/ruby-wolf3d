@@ -11,7 +11,7 @@ module Wolf3D
   # WHAT IT DOES NOT OWN is putting the floor back. That is a great many things — where every
   # guard stands, which doors are open, which keys are still on the floor — and all of them belong
   # to the view, which is where their starting values were worked out in the first place. This
-  # says WHEN, and asks for it by name.
+  # says WHEN, and asks the playthrough for another life or a new game.
   class Lives
     # How many goes a new game hands you, which is the original's number.
     START = 3
@@ -29,14 +29,10 @@ module Wolf3D
     FONT = :default
 
     # +dying+ may be nil: a floor with nothing on it that can kill you still shows a number of
-    # lives, and never spends one. +score+ is zeroed when a new game starts, and so is
-    # +floor_score+, the score the floor was entered with: starting a floor puts the score back
-    # to it, so left alone it would hand the last game's score to the new one. Nil where nothing
-    # starts a floor again.
-    def initialize(build:, score:, floor_score: nil, dying: nil)
+    # lives, and never spends one. +playthrough+ is what starts play again after a death.
+    def initialize(build:, playthrough:, dying: nil)
       @b = build
-      @score = score
-      @floor_score = floor_score
+      @playthrough = playthrough
       @dying = dying
       declare
     end
@@ -51,16 +47,10 @@ module Wolf3D
     # not.
     def over = @ended
 
-    # EVERYTHING A NEW GAME PUTS BACK that a new life does not: the score to nothing and the
-    # goes back to three. Public because the menu starts a game as well, and it has to mean
-    # the same thing there as it does here.
-    #
-    # It does not put the FLOOR back, and that is deliberate: which floor a game begins on is
-    # what the episode you picked decides, and this cannot know it.
+    # WHAT A NEW GAME PUTS BACK HERE: the goes back to three, and a game that is not over. Every
+    # new game does this, however it was started — see Playthrough.
     def start_again
       @left.set! START
-      @score.set! 0
-      @floor_score&.set! 0
       @ended&.set! 0
     end
 
@@ -121,23 +111,16 @@ module Wolf3D
     end
 
     # A LIFE LEFT: a fresh player, and the floor from the top (wl_game.cpp, Died).
-    def another_life
-      @b.call(:a_fresh_player)
-      @b.call(:start_the_floor)
-    end
+    def another_life = @playthrough.start(:another_life)
 
     def end_the_game
       @ended.set! 1
       @words.changed
     end
 
-    # A NEW GAME, which is the same machinery a new life is plus the two things a life does not
-    # touch: the score goes back to nothing and the goes go back to three.
+    # START BEGINS A NEW GAME, on the floor the last one began on.
     def start_another_game
-      @b.pressed(:start).then do
-        start_again
-        another_life
-      end
+      @b.pressed(:start).then { @playthrough.start(:new_game) }
     end
 
     def declare

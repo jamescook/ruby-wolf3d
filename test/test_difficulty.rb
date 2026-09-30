@@ -137,7 +137,7 @@ class TestDifficulty < Minitest::Test
     Reference.new.run(a_floor_started_at_each_setting(one_of_each_block), frames: settled(how))
   end
 
-  # ONE PROGRAM THAT PLAYS EVERY SETTING IN TURN. It writes a setting, starts the floor on it,
+  # ONE PROGRAM THAT PLAYS EVERY SETTING IN TURN. It writes a setting, starts a new game on it,
   # and does it again a few passes later for the next one — so reading the four is four runs of
   # one build rather than four builds, and the setting is plainly being read at run time.
   def a_floor_started_at_each_setting(level)
@@ -149,7 +149,7 @@ class TestDifficulty < Minitest::Test
         Guards::SETTINGS.each_with_index do |_, n|
           (passes == (n + 1) * APART).then do
             view.difficulty.set! n
-            b.call :start_the_floor
+            view.playthrough.start(:new_game)
           end
         end
       end
@@ -179,8 +179,7 @@ class TestDifficulty < Minitest::Test
     RubyGBA.game("HOWTOUGH") do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things,
-                                     startable: true)
+                                     pushwalls: pushwalls, guards: guards, things: things)
       loop_body.call(self, view)
     end.program
   end

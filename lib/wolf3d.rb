@@ -54,6 +54,8 @@ require_relative "wolf3d/dying"
 require_relative "wolf3d/lives"
 # ...and its sibling, the other way a game can stop. After lives, whose new game it begins.
 require_relative "wolf3d/victory"
+# ...and what starts play again after either of them, or at the bottom of a lift.
+require_relative "wolf3d/playthrough"
 # ...and after the view, whose START_HEALTH and KEY_BITS say what a full player is and what a key
 # is worth, and after lives, which a one-up on the floor hands another of.
 require_relative "wolf3d/pickups"
@@ -300,7 +302,7 @@ module Wolf3D
                                      vswap: Wolf3D.vswap,
                                      bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph),
                                      gun_art: Wolf3D.gun_art,
-                                     startable: !menu_art.nil?, sound_on: sound_on,
+                                     sound_on: sound_on,
                                      armed_with: Wolf3D.armed_with(armed),
                                      ammo: Wolf3D.starting_ammo(ammo))
       if menu_art

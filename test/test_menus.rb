@@ -531,7 +531,7 @@ class TestMenus < Minitest::Test
         screen :bitmap, tear_free: true
         sound_on = var :sound_on, 1
         view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
-                                       startable: true, sound_on: sound_on)
+                                       sound_on: sound_on)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art, palette: palette,
                                   sound_on: sound_on, starting_on: starting_on)
         game_loop { menus.update }

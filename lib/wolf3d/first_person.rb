@@ -206,13 +206,10 @@ module Wolf3D
     # +floors+ is every floor the cartridge holds. A game with one floor may hand over its pieces
     # loose instead — `level:`, `doors:` and the rest — which is what a test builds and what a
     # cartridge with nowhere to go is; the two are the same thing with one floor in it.
-    # +startable+ says a menu will ask for a game to begin, which is what makes the routine
-    # that puts a floor back worth emitting on a cartridge where nothing else would want it.
     # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
     def initialize(build:, atlas:, level: nil, doors: nil, pushwalls: nil, guards: nil,
                    things: nil, scenery: nil, vswap: nil, lifts: nil, floors: nil, bar_art: nil,
-                   gun_art: nil, startable: false, sound_on: nil, armed_with: nil, ammo: nil,
-                   pacing: PACING)
+                   gun_art: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING)
       @floors = floors || Floors.of(level: level, doors: doors, pushwalls: pushwalls,
                                     lifts: lifts, guards: guards, scenery: scenery)
       here = @floors.first_floor
@@ -245,7 +242,6 @@ module Wolf3D
       @vswap = vswap # the player's own copy of the recorded sounds, or nil for a silent build
       @bar_art = bar_art # Wolfenstein's own art for the bar, or nil to draw it plainly
       @gun_art = gun_art # ...and for the gun in your hands, or nil to hold one you cannot see
-      @startable = startable
       @sound_on = sound_on
       declare
     end
@@ -256,21 +252,97 @@ module Wolf3D
     # ...and how tough the game is set, so the screen that asks can write the answer here.
     attr_reader :difficulty
 
-    # BEGIN A GAME on the floor +slot+ of the ones this cartridge holds — a fresh player with
-    # three goes and no score, on a floor put back the way it was built.
-    #
-    # WHICH FLOOR IS SET FIRST, because everything the floor's own start does reads through
-    # it: which slice of the map, which doors, which guards, and where you stand.
-    def begin_a_new_game(slot)
-      @floor.set! slot
-      @lives.start_again
-      @victory&.start_again
-      @b.call :a_fresh_player
-      @b.call :start_the_floor
-    end
+    # WHAT STARTS PLAY: a new game, another life, the next floor. The menu begins a game through
+    # it. See Playthrough for what each of those puts back, and in what order.
+    attr_reader :playthrough
 
     # Whether the game has ended, or nil where nothing can kill you. See {Lives#over}.
     def over = @lives.over
+
+    # THE FIVE STEPS PLAY STARTS WITH. The playthrough decides which of them each reason runs and
+    # in what order; these are what each one does to this view and the parts of the game it holds.
+
+    # A NEW GAME'S OWN COUNTS: three goes, and no episode won.
+    def reset_game
+      @lives.start_again
+      @victory&.start_again
+    end
+
+    # A FRESH PLAYER: full health, the pistol and eight rounds, which is what the original's Died
+    # hands you when you have a life left (wl_game.cpp) and what NewGame starts you with
+    # (wl_main.cpp).
+    def reset_player
+      @health.set! START_HEALTH
+      @ammo.set! @start_ammo
+      @weapons.start_again
+    end
+
+    # POINT EVERY TABLE AT THIS FLOOR: where its slice of the map starts, and of the doors, the
+    # walls that move, the guards and the pieces. Set once as a floor starts and read unchanged
+    # while it is played.
+    #
+    # ONE ARM PER FLOOR, which looks extravagant and is the cheap way round. The alternative is
+    # yet more tables — a first and a count per floor per kind of thing — read at run time. This
+    # runs a handful of times in a whole game and never while anybody is playing, so the room it
+    # takes in the cartridge buys a table read saved on every door, wall and lever for ever.
+    def select_floor
+      on_each_floor do |floor, n|
+        @map_base.set! @floors.map_base(n)
+        @door_first.set! @floors.first_of(:doors, n)
+        @door_count.set! @floors.count_of(:doors, n)
+        @push_first.set! @floors.first_of(:pushwalls, n)
+        @push_count.set! @floors.count_of(:pushwalls, n)
+        @guard_count.set! @floors.count_of(:guards, n)
+        @guard_first.set! @floors.first_of(:guards, n)
+        @piece_first.set! @floors.first_of(:pieces, n)
+        @piece_count.set! @floors.count_of(:pieces, n)
+        @secret_car.set!(floor.lifts&.secret_cars&.first || -1)
+      end
+      # ...and that moved the map which rooms are open is read out of, so the answer kept from
+      # the floor before this one is about a different building. It matters on a floor started
+      # AGAIN as well: shutting every door writes each one straight back to nought rather than
+      # sliding it, so the doors never say they moved and nothing else here would notice.
+      @rooms&.floor_started
+    end
+
+    # WHERE THE FLOOR STARTS YOU, and which way it points you.
+    def place_player
+      on_each_floor do |floor, _|
+        @px.set!(floor.level.start.x + 0.5)
+        @py.set!(floor.level.start.y + 0.5)
+        @view.set! facing_angle(floor.level.start.facing)
+      end
+    end
+
+    # EVERYTHING THE FLOOR HOLDS THAT CHANGES, put back the way it was built: every door, every
+    # wall that slides, every key still lying about, everything picked up, and every guard. The
+    # keys you carry go too, and the floor's counts of what you found.
+    #
+    # WHAT YOU CARRY IS NOT PART OF IT. In the original, finishing a floor takes your keys and
+    # leaves the rest of you alone (wl_game.cpp, GameLoop's ex_completed branch): health,
+    # ammunition and guns go down the lift with you. See #reset_player.
+    #
+    # Everything here had its starting value applied once at boot, by the declaration that made
+    # it. This is the same values written a second time — which is why the ones that are worked
+    # out rather than written down (where each guard stands) are read from one place by both.
+    def reset_floor
+      @keys.set! 0
+      # ...and none of the floor has been found yet, which is what makes these a share of it.
+      @kills.set! 0
+      @secrets.set! 0
+      @treasures.set! 0
+      # The lever comes back up and the lift forgets it was ever called.
+      if lifts?
+        @pulled.set!(-1)
+        @lift_secret.set! 0
+        @lift_wait.set! 0
+      end
+      shut_every_door
+      put_the_secret_walls_back
+      @pickups&.put_them_all_back
+      put_the_guards_back
+      @dying&.start_again
+    end
 
     # WHAT PACES THE WORLD, and it is a real choice with no free answer.
     #
@@ -551,8 +623,8 @@ module Wolf3D
       @lift_secret = b.var :lift_secret, 0
       # ...and HOW LONG until the floor ends.
       @lift_wait = b.var :lift_wait, 0
-      # WHICH FLOOR IS BEING PLAYED, counting from nought in the order the cartridge holds them,
-      # and WHERE ITS SLICE OF EACH TABLE BEGINS.
+      # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE OF EACH TABLE. Which floor that is belongs to
+      # the playthrough, declared below.
       #
       # These are what make more than one floor possible. Every table in the cartridge holds all
       # the floors end to end, and reading one is the same read with the matching number below
@@ -561,12 +633,11 @@ module Wolf3D
       #
       # THEY ARE SET FROM AN ARM PER FLOOR rather than looked up in yet more tables, because
       # starting a floor happens a handful of times in a whole game: a great deal of code that
-      # never runs while anybody is playing. See #go_to_this_floor.
+      # never runs while anybody is playing. See #select_floor.
       # THEY START AT THE FIRST FLOOR'S OWN NUMBERS, not at nothing, because at boot no floor has
       # been STARTED — the game simply begins on the first one. Left at nothing the game would
       # come up on a floor with no doors, no walls that move and nobody on it, until something
       # sent the player back to the beginning and quietly fixed it.
-      @floor = b.var :floor, 0
       @map_base = b.var :_map_base, @floors.map_base(0)
       @door_first = b.var :_door_first, @floors.first_of(:doors, 0)
       @door_count = b.var :_door_count, @floors.count_of(:doors, 0)
@@ -591,10 +662,12 @@ module Wolf3D
       @health = b.var :health, START_HEALTH
       @ammo = b.var :ammo, @start_ammo
       @score = b.var :score, 0
-      # ...and THE SCORE YOU WALKED ONTO THIS FLOOR WITH, the original's oldscore. Starting a floor
-      # puts the score back to it and only finishing one moves it on, so a death takes back what
-      # was scored on the floor it happened on.
-      @floor_score = b.var :floor_score, 0
+
+      # WHAT STARTS PLAY, and which floor is being played. Its steps are this view's own (see
+      # #reset_game and the four after it), asked for only once the game is running, so it can be
+      # made before the parts those steps reach.
+      @playthrough = Playthrough.new(build: b, floors: @floors, score: @score, world: self)
+      @floor = @playthrough.floor
 
       # HOW TOUGH YOU SAID YOU WERE, and it lives with the world rather than with the screen
       # that asks it, because two things in the world read it: which guards stand up when a
@@ -636,7 +709,7 @@ module Wolf3D
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you
       # another go.
       declare_the_dying
-      @lives = Lives.new(build: b, score: @score, floor_score: @floor_score, dying: @dying)
+      @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying)
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
       # floor you can walk out of, which is a boss floor — see Level::EXIT.
       @victory = Victory.new(build: b, lives: @lives) if any_floor_has_a_way_out?
@@ -675,8 +748,6 @@ module Wolf3D
         @push_gone << 0
         @push_wait << 0
       end
-      declare_the_floor_start
-      declare_a_fresh_player
       declare_the_bar
       declare_the_view
       declare_what_a_pass_does
@@ -1149,101 +1220,12 @@ module Wolf3D
       @stood = b.var :_stood, 0
     end
 
-    # STARTING A FLOOR, which is everything the level holds that CHANGES put back the way it was
-    # built: where the player stands, every door, every wall that slides, every key still lying
-    # about, everything picked up, and every guard. The keys you carry go too, and the floor's
-    # counts of what you found.
-    #
-    # WHAT YOU CARRY IS NOT PART OF IT. The lift runs this and nothing else, and in the original
-    # finishing a floor takes your keys and leaves the rest of you alone (wl_game.cpp, GameLoop's
-    # ex_completed branch): health, ammunition and guns go down the lift with you. It is dying,
-    # and a new game, that hand you a fresh player first — see #declare_a_fresh_player.
-    #
-    # Everything here had its starting value applied once at boot, by the declaration that made
-    # it. This is the same values written a second time — which is why the ones that are worked
-    # out rather than written down (where the player starts, where each guard stands) are read
-    # from one place by both.
-    #
-    # A ROUTINE, not code in the game loop, and for the usual reason: it is a great deal of code
-    # that runs at most a few times a game, and the console's quick memory belongs to the eighty
-    # rays a frame spends its time in.
-    def declare_the_floor_start
-      # Emitted when anything can ask for it. Dying is one such thing; so is a lift, which puts
-      # the floor back the way it started when it arrives; and so is a menu, whose NEW GAME is
-      # this plus a fresh player.
-      return if @dying.nil? && !lifts? && !@startable
-
-      @b.func(:start_the_floor, fast: false) { start_the_floor_again }
-    end
-
-    # A FRESH PLAYER: full health, the pistol and eight rounds, which is what the original's Died
-    # hands you when you have a life left (wl_game.cpp) and what NewGame starts you with
-    # (wl_main.cpp). Asked for by name wherever one of those happens, always before the floor is
-    # started.
-    def declare_a_fresh_player
-      return if @dying.nil? && !@startable
-
-      @b.func(:a_fresh_player, fast: false) do
-        @health.set! START_HEALTH
-        @ammo.set! @start_ammo
-        @weapons.start_again
-      end
-    end
-
-    def start_the_floor_again
-      # WHICH FLOOR'S SLICE OF EVERY TABLE, first, because everything below reads through it.
-      go_to_this_floor
-      # ...and that moved the map which rooms are open is read out of, so the answer kept from
-      # the floor before this one is about a different building. It matters on a floor started
-      # AGAIN as well: shutting every door writes each one straight back to nought rather than
-      # sliding it, so the doors never say they moved and nothing else here would notice.
-      @rooms&.floor_started
-      # The original's `gamestate.score = gamestate.oldscore`, the first line of every floor.
-      @score.set! @floor_score
-      @keys.set! 0
-      # ...and none of the floor has been found yet, which is what makes these a share of it.
-      @kills.set! 0
-      @secrets.set! 0
-      @treasures.set! 0
-      # The lever comes back up and the lift forgets it was ever called.
-      if lifts?
-        @pulled.set!(-1)
-        @lift_secret.set! 0
-        @lift_wait.set! 0
-      end
-      shut_every_door
-      put_the_secret_walls_back
-      @pickups&.put_them_all_back
-      put_the_guards_back
-      @dying&.start_again
-    end
-
-    # POINT EVERY TABLE AT THIS FLOOR, and put the player where it starts you.
-    #
-    # ONE ARM PER FLOOR, which looks extravagant and is the cheap way round. The alternative is
-    # yet more tables — a first and a count per floor per kind of thing — read at run time. This
-    # runs a handful of times in a whole game and never while anybody is playing, so the room it
-    # takes in the cartridge buys a table read saved on every door, wall and lever for ever.
-    #
-    # A ONE-FLOOR CARTRIDGE gets one arm with nothing to compare, so it costs what it always did.
-    def go_to_this_floor
+    # ONE ARM PER FLOOR, and the arm for the floor being played runs the block, handed that floor
+    # and its number. A one-floor cartridge gets one arm with nothing to compare, so it costs what
+    # it always did.
+    def on_each_floor(&settle)
       @floors.each_with_index do |floor, n|
-        settle = lambda do
-          @map_base.set! @floors.map_base(n)
-          @door_first.set! @floors.first_of(:doors, n)
-          @door_count.set! @floors.count_of(:doors, n)
-          @push_first.set! @floors.first_of(:pushwalls, n)
-          @push_count.set! @floors.count_of(:pushwalls, n)
-          @guard_count.set! @floors.count_of(:guards, n)
-          @guard_first.set! @floors.first_of(:guards, n)
-          @piece_first.set! @floors.first_of(:pieces, n)
-          @piece_count.set! @floors.count_of(:pieces, n)
-          @secret_car.set!(floor.lifts&.secret_cars&.first || -1)
-          @px.set!(floor.level.start.x + 0.5)
-          @py.set!(floor.level.start.y + 0.5)
-          @view.set! facing_angle(floor.level.start.facing)
-        end
-        @floors.count == 1 ? settle.call : (@floor == n).then { settle.call }
+        @floors.count == 1 ? settle.call(floor, n) : (@floor == n).then { settle.call(floor, n) }
       end
     end
 
@@ -1555,7 +1537,7 @@ module Wolf3D
         # has one such cell or none, so this is a comparison against a number settled at build
         # time rather than a table to look in.
         # One comparison, whatever the cartridge holds: which cell means the secret lift on THIS
-        # floor was settled when the floor started (see #go_to_this_floor), so there is no arm
+        # floor was settled when the floor started (see #select_floor), so there is no arm
         # per floor here and no table to read.
         if @floors.any? { |floor| floor.lifts && !floor.lifts.secret_cars.empty? }
           @here.set!((@py.to_i * @level.width) + @px.to_i)
@@ -1565,54 +1547,12 @@ module Wolf3D
       end
     end
 
-    # The floor ends when that count runs out.
+    # The floor ends when that count runs out, and the playthrough decides where the lift goes.
     def run_the_lift
       (@lift_wait > 0).then do
         @lift_wait.sub! 1
-        (@lift_wait == 0).then { go_to_the_next_floor }
+        (@lift_wait == 0).then { @playthrough.start(:next_floor, secret: @lift_secret) }
       end
-    end
-
-    # WHERE THE LIFT TAKES YOU, read off the original (wl_game.cpp) rather than remembered. Three
-    # rules and they are tested in this order, which matters:
-    #
-    #   COMING BACK FROM THE SECRET FLOOR puts you on the normal run, not one further along it.
-    #     The original keeps a small table of where each episode comes back to; for the first it
-    #     is the second floor.
-    #   GOING TO THE SECRET FLOOR is what the secret lever does, and there is one such floor per
-    #     episode — the last of the ten.
-    #   OTHERWISE the next floor along.
-    #
-    # A CARTRIDGE HOLDING FEWER FLOORS THAN A WHOLE EPISODE has no secret floor, so neither of the
-    # first two rules is emitted at all and every lever simply goes to the next floor. Clamping
-    # them to a floor it does have was tried and is wrong in a way worth remembering: the floor a
-    # missing one clamps to is the FIRST, so "are you coming back from the secret floor" became
-    # "are you on the first floor", which is true at the start of every game.
-    #
-    # AND WHEN IT RUNS OUT OF FLOORS it goes round to the first. That is not the original, which
-    # has an episode to end; this has nowhere to put an ending yet, and going round beats stopping
-    # dead on a lever that does nothing.
-    SECRET_FLOOR = 9
-    BACK_FROM_SECRET = 1
-
-    def go_to_the_next_floor
-      if @floors.count > SECRET_FLOOR
-        (@floor == SECRET_FLOOR).then { @floor.set! BACK_FROM_SECRET }
-          .else do
-            (@lift_secret == 1).then { @floor.set! SECRET_FLOOR }.else { on_to_the_next_floor }
-          end
-      elsif @floors.count > 1
-        on_to_the_next_floor
-      end
-      # A FINISHED FLOOR KEEPS ITS POINTS: the original's `gamestate.oldscore = gamestate.score`,
-      # so the floor about to start puts back the score you leave this one with.
-      @floor_score.set! @score
-      @b.call :start_the_floor
-    end
-
-    def on_to_the_next_floor
-      @floor.add! 1
-      (@floor > @floors.count - 1).then { @floor.set! 0 }
     end
 
     # Lean on a secret wall and it goes. Which way it goes is which way you are pushing, taken

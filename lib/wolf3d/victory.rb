@@ -54,7 +54,7 @@ module Wolf3D
       end
     end
 
-    # A NEW GAME PUTS THIS BACK. Called wherever one begins, alongside Lives#start_again.
+    # A NEW GAME PUTS THIS BACK, however it was started — see Playthrough.
     def start_again
       @won.set! 0
       @words.cancel

@@ -398,13 +398,13 @@ class TestEnemies < Minitest::Test
   def a_dog_shot_once = @a_dog_shot_once ||= shoot_at(:dog, shots: 1, frames: 40, at: 6)
 
   # A mutant standing up on a game set +how+, which is the only way to see the setting being
-  # read WHEN THE FLOOR STARTS rather than baked in when the cartridge was built. The floor is
-  # started again after the setting is written, which is what a game does when you pick.
+  # read WHEN THE FLOOR STARTS rather than baked in when the cartridge was built. A new game is
+  # started after the setting is written, which is what the menu does when you pick.
   def standing_hp_at(how)
     program = program_for(:mutant, 10, :west, 1, how) do |b, view|
       b.game_loop do
         view.difficulty.set! Guards.number_of(how)
-        b.call :start_the_floor
+        view.playthrough.start(:new_game)
       end
     end
     hp(Reference.new.run(program, frames: 2))
@@ -459,7 +459,7 @@ class TestEnemies < Minitest::Test
     RubyGBA.game("ENEMIES") do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery, startable: true)
+                    guards: guards, things: things, scenery: scenery)
       loop_body.call(self, view)
     end.program
   end

@@ -214,6 +214,9 @@ class TestFloors < Minitest::Test
   end
 
   # --- where the lift goes ---
+  #
+  # The rules of where it goes are the playthrough's, tested in test_playthrough.rb. This is the
+  # test that the view tells it which lever called the lift: the cell you stand on in the car.
 
   # A whole episode: the secret lever goes to the floor kept aside for it, which the original
   # makes the last of the ten.
@@ -229,43 +232,13 @@ class TestFloors < Minitest::Test
     secret = take_the_lift(an_episode(secret_car_on_first: true))
 
     assert_equal 1, plain[:floor], "an ordinary lever goes to the next floor"
-    assert_equal FP::SECRET_FLOOR, secret[:floor], "a secret one goes to the last of the ten"
+    assert_equal Wolf3D::Playthrough::SECRET_FLOOR, secret[:floor],
+                 "a secret one goes to the last of the ten"
   end
 
-  # ...and the lever on THAT floor puts you back on the normal run rather than one further along
-  # it, which is the original's own rule and the reason it keeps a table of where to come back to.
-  #
-  # Two rides in one run: the secret lever on the first floor, then the ordinary lever waiting on
-  # the secret floor when you arrive.
-  def test_the_lever_on_the_secret_floor_comes_back_to_the_normal_run
-    program = program(an_episode(secret_car_on_first: true))
-    again = FP::LIFT_WAIT + 20
-    two_rides = Reference.new.input_each_frame { |f| [2, again].include?(f) ? [:a] : [] }
-
-    there = two_rides.run(program, frames: FP::LIFT_WAIT + 10)
-    back = Reference.new.input_each_frame { |f| [2, again].include?(f) ? [:a] : [] }
-                   .run(program, frames: again + FP::LIFT_WAIT + 10)
-
-    assert_equal FP::SECRET_FLOOR, there[:floor], "the secret lever took you to the last floor"
-    assert_equal FP::BACK_FROM_SECRET, back[:floor],
-                 "and the lever there puts you back on the normal run, not one further along it"
-  end
-
-  # A cartridge shorter than an episode has NO secret floor, so every lever simply goes to the
-  # next one. Clamping the rule to a floor it does have was tried and is wrong: the floor a
-  # missing one clamps to is the first, which makes "coming back from the secret floor" true at
-  # the start of every game.
-  def test_a_short_cartridge_has_no_secret_floor_and_every_lever_goes_on
-    secret = floors_of(a_floor(name: "one", start_x: 4, start_y: 8, secret_car: true),
-                       a_floor(name: "two", start_x: 9, start_y: 3))
-
-    assert_equal 1, take_the_lift(secret)[:floor]
-  end
-
-  # A cartridge that runs out of floors goes round rather than stopping on a lever that does
-  # nothing. It is not the original's behaviour — the original ends the episode — and there is
-  # nowhere to put an ending yet.
-  def test_the_last_floor_goes_back_to_the_first
+  # ONE PULL OF THE LEVER IS ONE RIDE: the lift arriving puts the lever back up, so waiting long
+  # enough for a second ride does not take one.
+  def test_one_pull_of_the_lever_is_one_ride
     floors = floors_of(a_floor(name: "one", start_x: 4, start_y: 8),
                        a_floor(name: "two", start_x: 9, start_y: 3))
     twice = take_the_lift(floors, frames: (FP::LIFT_WAIT * 2) + 30, press: 2)

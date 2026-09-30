@@ -8,7 +8,7 @@ require_relative "test_helper"
 # a death, so it is driven the way test_dying drives one — struck, turn, fizzle — over a bare
 # screen, and three whole deaths run in a moment. PUTTING THE FLOOR BACK needs a real floor with
 # a door and a key and a guard on it, and the fixture release has exactly that; those tests ask
-# for the floor to be started again by name and then look at what changed.
+# for another life straight away and then look at what changed.
 class TestLives < Minitest::Test
   include Wolf3DTest
 
@@ -27,10 +27,33 @@ class TestLives < Minitest::Test
 
   # ---------------------------------------------------------------- counting the goes
 
-  # A death and nothing else, over and over. The floor being started again is stood in for by a
-  # counter, because what it really does belongs to the view and is tested against the real
-  # thing further down — all this one needs of it is that it is asked for.
+  # THE REST OF THE GAME, as far as a death reaches it. Putting the floor back is stood in for by
+  # a counter, because what it really does belongs to the view and is tested against the real
+  # thing further down — all this needs of it is that it is asked for. A new game puts the goes
+  # back, which is the one step that is Lives' own.
+  class CountingWorld
+    attr_writer :lives
+
+    def initialize(restarts:, dying:)
+      @restarts = restarts
+      @dying = dying
+    end
+
+    def reset_game = @lives.start_again
+    def reset_player = nil
+    def select_floor = nil
+    def place_player = nil
+
+    def reset_floor
+      @restarts.add! 1
+      @dying.start_again
+    end
+  end
+
+  # A death and nothing else, over and over, started again by the real playthrough over the
+  # counting world. R scores a few points, so a test can see what a death does to them.
   def counting_program
+    floors = one_empty_floor
     RubyGBA.game("LIVES") do
       screen :bitmap, tear_free: true
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
@@ -38,27 +61,28 @@ class TestLives < Minitest::Test
       py = var :py, 8.5
       angle = var :view, 0
       killer = Struct.new(:x, :y).new(var(:kx, 8.5), var(:ky, 4.5))
-      score = var :score, 500
+      score = var :score, 0
       restarts = var :restarts, 0
 
       dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin })
-      lives = Lives.new(build: self, score: score, dying: dying)
-      func(:start_the_floor) do
-        restarts.add! 1
-        dying.start_again
-      end
-      func(:a_fresh_player) {} # the view's, and tested against the real thing below
+      world = CountingWorld.new(restarts: restarts, dying: dying)
+      play = Wolf3D::Playthrough.new(build: self, floors: floors, score: score, world: world)
+      lives = Lives.new(build: self, playthrough: play, dying: dying)
+      world.lives = lives
 
       game_loop do
         dying.turn
         # STRUCK ON A BUTTON rather than whenever there is a go going spare, so the test says how
         # many deaths it wants instead of working out how many frames one takes.
         pressed(:b).then { dying.struck_by(killer) }
+        pressed(:r).then { score.add! POINTS }
         dying.draw
         lives.update
       end
     end.program
   end
+
+  POINTS = 500
 
   # +times+ deaths, one every BETWEEN_DEATHS passes, with the reading taken at the end of the
   # last of them. Anything else pressed comes from +pressing+.
@@ -104,14 +128,15 @@ class TestLives < Minitest::Test
     assert_operator white_pixels(over), :>, 20, "and GAME OVER is written over one that is not"
   end
 
-  # A NEW GAME IS THE SAME MACHINERY AS A NEW LIFE plus the two things a life does not touch: the
-  # goes go back to three and the score back to nothing. (What a life does to the score — back to
-  # what the floor was entered with — is the view's, and is tested against it further down.)
+  # START ON A FINISHED GAME BEGINS ANOTHER: the goes back to three and the score back to nothing.
+  # The points are scored on the last life, just before the death that ends the game.
   def test_pressing_start_on_a_finished_game_begins_another
-    over = dying_over(4)
-    again = dying_over(4, pressing: ->(f) { f > (BETWEEN_DEATHS * 3) + 100 ? [:start] : [] })
+    scored = ->(f) { f == BETWEEN_DEATHS * 3 ? [:r] : [] }
+    over = dying_over(4, pressing: scored)
+    started = ->(f) { f > (BETWEEN_DEATHS * 3) + 100 ? [:start] : [] }
+    again = dying_over(4, pressing: ->(f) { scored.call(f) + started.call(f) })
 
-    assert_equal 500, over[:score], "the game ending does not clear the score..."
+    assert_equal POINTS, over[:score], "the game ending does not clear the score..."
     assert_equal 0, again[:score], "...and cleared by a new game"
     assert_equal 0, again[:game_over], "which is no longer over"
     assert_operator again[:lives], :>, 0, "and has goes left in it"
@@ -144,10 +169,10 @@ class TestLives < Minitest::Test
       game_loop do
         drawn ? view.update : view.play
         passes.add! 1
-        # The floor is asked for by name, which is the same thing a spent life asks for. Driving
-        # it this way rather than by standing in front of a guard until he finishes you off is
-        # what keeps these quick: a real death is several hundred frames away.
-        (passes == restart_at).then { call :start_the_floor }
+        # Another life, asked for straight away, which is what a spent life asks for. Driving it
+        # this way rather than by standing in front of a guard until he finishes you off is what
+        # keeps these quick: a real death is several hundred frames away.
+        (passes == restart_at).then { view.playthrough.start(:another_life) }
       end
     end.program
   end
@@ -285,6 +310,13 @@ class TestLives < Minitest::Test
   private
 
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
+
+  # One floor with nothing on it: the playthrough asks a cartridge's floors only how many there are.
+  def one_empty_floor
+    empty = Wolf3D::Level.new(name: "empty", width: 4, height: 4,
+                              walls: Array.new(16, Wolf3D::Level::FLOOR), things: Array.new(16, 0))
+    Wolf3D::Floors.of(level: empty, doors: nil, pushwalls: nil)
+  end
 
   def fixture = @fixture ||= Wolf3D::Fixture::Release.new
   def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])

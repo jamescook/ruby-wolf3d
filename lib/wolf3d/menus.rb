@@ -435,7 +435,8 @@ module Wolf3D
     # LEAVING a menu, which is what the original fades.
     #
     # UNLESS THE GAME IS OVER, and then START means the other thing it has always meant here:
-    # begin another game where you fell. The two never overlap, so one button does both.
+    # begin another game on the floor the last one began on. The two never overlap, so one button
+    # does both.
     def pausing
       pause = -> { @b.pressed(:start).then { @in_game.set! 1; go_to MENU } }
       over = @view.over
@@ -445,7 +446,7 @@ module Wolf3D
     # A GAME BEGINS: on the floor the episode list picked, with a fresh player, and then the
     # screen fades away to leave you in it.
     def start_the_game
-      @view.begin_a_new_game(@start_floor)
+      @view.playthrough.start(:new_game, floor: @start_floor)
       @in_game.set! 1
       leaving_for PLAYING
     end
