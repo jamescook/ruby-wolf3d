@@ -664,8 +664,9 @@ module Wolf3D
       @score = b.var :score, 0
 
       # WHAT STARTS PLAY, and which floor is being played. Its steps are this view's own (see
-      # #reset_game and the four after it), asked for only once the game is running, so it can be
-      # made before the parts those steps reach.
+      # #reset_game and the four after it), and it writes them into routine bodies, which the
+      # framework builds only after this whole block has run. So it can be made here, before the
+      # parts those steps reach.
       @playthrough = Playthrough.new(build: b, floors: @floors, score: @score, world: self)
       @floor = @playthrough.floor
 

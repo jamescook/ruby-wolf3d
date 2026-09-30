@@ -56,17 +56,15 @@ module Wolf3D
     #
     # A CARTRIDGE HOLDING FEWER FLOORS THAN A WHOLE EPISODE has no secret floor, so neither of the
     # first two rules is emitted at all and every lever simply goes to the next floor. Clamping
-    # them to a floor it does have was tried and is wrong in a way worth remembering: the floor a
-    # missing one clamps to is the FIRST, so "are you coming back from the secret floor" became
-    # "are you on the first floor", which is true at the start of every game.
+    # them to a floor it does have would be wrong: the floor a missing one clamps to is the FIRST,
+    # so "are you coming back from the secret floor" would become "are you on the first floor",
+    # which is true at the start of every game.
     #
-    # AND WHEN IT RUNS OUT OF FLOORS it goes round to the first. That is not the original, which
-    # has an episode to end; this has nowhere to put an ending yet, and going round beats stopping
-    # dead on a lever that does nothing.
+    # AND WHEN IT RUNS OUT OF FLOORS it goes round to the first. That is not the original: there a
+    # lift never runs out of floors, because the last floor of an episode is left by its way out,
+    # not by a lift. Going round beats stopping dead on a lever that does nothing.
     SECRET_FLOOR = 9
     BACK_FROM_SECRET = 1
-
-    private
 
     # WHAT EACH REASON ASKS OF THE WORLD, in the order it asks. A new game also puts back the
     # game's own counts, and only the lift leaves the player alone.
@@ -75,6 +73,9 @@ module Wolf3D
       another_life: %i[reset_player select_floor place_player reset_floor],
       next_floor: %i[select_floor place_player reset_floor]
     })
+    private_constant :STEPS
+
+    private
 
     # ONE ROUTINE PER REASON, made the first time anything asks for it. It is a lot of code that
     # runs a few times a game, so it lives outside the console's quick memory; and a cartridge
@@ -140,7 +141,7 @@ module Wolf3D
                              "does not exist. Give a floor from 0 to #{@floors.count - 1}."
       end
       if secret && reason != :next_floor
-        raise ArgumentError, "Only the lift is called by a lever. " \
+        raise ArgumentError, "A lever calls only the lift. " \
                              "To fix this, remove secret: from start(#{reason.inspect})."
       end
       return unless reason == :next_floor && secret.nil? && secret_floor?

@@ -94,7 +94,9 @@ class TestPlaythrough < Minitest::Test
   # --- which floor ---
 
   # THE MENU PICKS THE FLOOR: the first of the episode you chose, which it writes into a variable
-  # of its own before the game starts (NewGame's `gamestate.mapon = 0` of that episode).
+  # of its own before the game starts. In the original, NewGame clears the whole of gamestate
+  # (wl_main.cpp, `memset (&gamestate,0,sizeof(gamestate))`), so the floor is the first of
+  # `gamestate.episode`.
   def test_a_new_game_begins_on_the_floor_it_is_asked_for
     run = played(:new_game, on: 2, count: 3)
 
@@ -102,8 +104,9 @@ class TestPlaythrough < Minitest::Test
   end
 
   # ...AND START AFTER A GAME ENDS BEGINS ANOTHER WHERE THAT ONE BEGAN, not on the floor it ended
-  # on. The original has no such restart — it goes back to the menus, where NEW GAME begins on the
-  # first floor of an episode — so a cartridge without the menus begins again on that same floor.
+  # on. The original has no such restart: GameLoop's ex_died and ex_victorious branches
+  # (wl_game.cpp) end with `return`, back to the menus, where NEW GAME begins on the first floor of
+  # an episode. So a cartridge without the menus begins again on that same floor.
   def test_starting_again_begins_where_the_last_game_began
     run = played(:new_game, :lift, :again, on: 1, count: 3)
 
@@ -204,7 +207,7 @@ class TestPlaythrough < Minitest::Test
       next [:start] if f == WON_BY + 10
 
       f > WON_BY + 20 ? [:up] : []
-    end.run(a_floor_with_a_way_out, frames: WON_BY + 50)
+    end.run(program_of(way_out_level), frames: WON_BY + 50)
 
     assert_equal 0, run[:episode_won], "the new game has not been won"
     assert_operator run[:px] / ONE, :>, START_X + 0.5 + 0.5, "and the player walks"
@@ -212,16 +215,28 @@ class TestPlaythrough < Minitest::Test
 
   # THE GAME AT POWER-ON IS A NEW GAME ON THE FIRST FLOOR. Nothing runs to start it — every
   # variable simply begins at the value it was declared with — so this is the test that those
-  # values and what a new game writes agree. Read over the fixture's floor, which holds one of
-  # everything that changes: a door, a locked door with its key, a wall that slides, and a guard.
+  # values and what a new game writes agree.
+  #
+  # Read over two floors between them holding one of everything that changes: the fixture's, with
+  # a door, a locked door and its key, a wall that slides and a guard; and one with a lift and a
+  # way out, for the lever's state and whether an episode was won.
   def test_the_game_at_power_on_is_a_new_game_on_the_first_floor
-    booted = state_of(at_power_on(new_game: false))
-    begun = state_of(at_power_on(new_game: true))
+    [fixture_level, way_out_level].each do |level|
+      booted = state_of(at_power_on(level, new_game: false))
+      begun = state_of(at_power_on(level, new_game: true))
 
-    assert_equal booted, begun
+      assert booted == begun, "on the floor #{level.name.inspect}, these differ: #{differences(booted, begun)}"
+    end
   end
 
   private
+
+  # Which of the things a state holds differ between two, by name.
+  def differences(one, other)
+    one.flat_map { |part, values| values.keys.reject { |name| values[name] == other[part][name] } }
+  end
+
+  FP = Wolf3D::FirstPerson
 
   # EVERYTHING THE GAME KEEPS: each variable but the framework's own, and each list and the
   # guards' pool by name.
@@ -238,28 +253,38 @@ class TestPlaythrough < Minitest::Test
   LISTS = %i[door_open door_linger push_step push_gone push_wait thing_gone].freeze
   GUARD_FIELDS = %i[x y dir state ticks wait togo hp shown awake turn dropped ambush].freeze
 
-  # The fixture's floor, with nothing played: the loop only begins a new game on A, if +new_game+.
-  def at_power_on(new_game:)
+  # +level+ with nothing played: the loop only begins a new game on A, if +new_game+.
+  def at_power_on(level, new_game:)
     Reference.new.input_each_frame { |f| new_game && f == 1 ? [:a] : [] }
-             .run(fixture_program, frames: 3)
+             .run(program_of(level, only_new_game: true), frames: 3)
   end
 
-  def fixture_program
-    level = Wolf3D::Maps.new(maphead: fixture.files["MAPHEAD"], gamemaps: fixture.files["GAMEMAPS"])[0]
-    doors = Wolf3D::Doors.new(level, vswap)
-    atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Wolf3D::Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
-                                    (guards.pictures + scenery.pictures).uniq.sort)
-    RubyGBA.game("BOOT") do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, doors: doors, atlas: atlas,
-                                     pushwalls: pushwalls, guards: guards, things: things,
-                                     scenery: scenery)
-      game_loop { pressed(:a).then { view.playthrough.start(:new_game, floor: 0) } }
-    end.program
+  # A cartridge of +level+ alone, with every part of the view a floor can hold read off it. Its
+  # loop plays and draws the floor, or with +only_new_game+ does nothing but begin a new game on A.
+  def program_of(level, only_new_game: false)
+    @programs ||= {}
+    @programs[[level.name, only_new_game]] ||= begin
+      doors = Wolf3D::Doors.new(level, vswap)
+      lifts = Wolf3D::Elevator.new(level)
+      guards = Wolf3D::Guards.new(level)
+      scenery = Wolf3D::Scenery.new(level)
+      atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors, lifts: lifts)
+      things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
+                                      (guards.pictures + scenery.pictures).uniq.sort)
+      RubyGBA.game("VIEW") do
+        screen :bitmap, tear_free: true
+        view = FP.new(build: self, level: level, atlas: atlas, doors: doors, lifts: lifts,
+                      pushwalls: Wolf3D::Pushwalls.new(level), guards: guards, things: things,
+                      scenery: scenery)
+        game_loop do
+          if only_new_game
+            pressed(:a).then { view.playthrough.start(:new_game, floor: 0) }
+          else
+            view.update
+          end
+        end
+      end.program
+    end
   end
 
   # The player stands facing east, and the way out is the cell behind them.
@@ -269,42 +294,34 @@ class TestPlaythrough < Minitest::Test
   WON_BY = 20 # passes of walking backwards, which is further than one cell
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
-  def fixture = @fixture ||= Wolf3D::Fixture::Release.new
+  # A release whose walls reach as far as the lift's lever, pulled and not.
+  def fixture = @fixture ||= Wolf3D::Fixture::Release.new(walls: (Wolf3D::Elevator::PULLED * 2) + 2)
   def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
 
-  # A room with the way out behind the player, and a guard shut in a room of his own below it.
-  # The guard is there because a game needs something that can kill you before it counts lives
-  # at all, and it is the count of lives that answers START.
-  def a_floor_with_a_way_out
-    cells = Array.new(SIDE * SIDE, Wolf3D::Level::FLOOR)
-    things = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        wall = x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1 || y == SIDE / 2
-        cells[(y * SIDE) + x] = Wolf3D::Fixture::Release::WALL if wall
-      end
-    end
-    things[(ROW * SIDE) + START_X] = Wolf3D::Level::FACINGS.key(:east)
-    things[(ROW * SIDE) + START_X - 1] = Wolf3D::Level::EXIT
-    things[(12 * SIDE) + 10] = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
-    program_of(Wolf3D::Level.new(name: "Way out", width: SIDE, height: SIDE, walls: cells,
-                                 things: things))
+  def fixture_level
+    @fixture_level ||= Wolf3D::Maps.new(maphead: fixture.files["MAPHEAD"],
+                                        gamemaps: fixture.files["GAMEMAPS"])[0]
   end
 
-  def program_of(level)
-    doors = Wolf3D::Doors.new(level, vswap)
-    guards = Wolf3D::Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
-                                    (guards.pictures + scenery.pictures).uniq.sort)
-    RubyGBA.game("WON") do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: Wolf3D::Pushwalls.new(level), guards: guards,
-                                     things: things, scenery: scenery)
-      game_loop { view.update }
-    end.program
+  # A room with the way out behind the player and a lift's lever in the far wall, and a guard shut
+  # in a room of his own below it. The guard is there because a game needs something that can kill
+  # you before it counts lives at all, and it is the count of lives that answers START.
+  def way_out_level
+    @way_out_level ||= begin
+      cells = Array.new(SIDE * SIDE, Wolf3D::Level::FLOOR)
+      things = Array.new(SIDE * SIDE, 0)
+      SIDE.times do |y|
+        SIDE.times do |x|
+          wall = x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1 || y == SIDE / 2
+          cells[(y * SIDE) + x] = Wolf3D::Fixture::Release::WALL if wall
+        end
+      end
+      cells[(2 * SIDE) + SIDE - 1] = Wolf3D::Elevator::SWITCH
+      things[(ROW * SIDE) + START_X] = Wolf3D::Level::FACINGS.key(:east)
+      things[(ROW * SIDE) + START_X - 1] = Wolf3D::Level::EXIT
+      things[(12 * SIDE) + 10] = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
+      Wolf3D::Level.new(name: "Way out", width: SIDE, height: SIDE, walls: cells, things: things)
+    end
   end
 
   # The error building a cartridge raises when +asking+ is what it asks of the playthrough.
@@ -339,8 +356,15 @@ class TestPlaythrough < Minitest::Test
   # +on+ is the floor a :new_game is asked to begin on, written into a variable the way the menu
   # writes it; nil asks for none.
   def played(*events, count: 1, on: nil)
+    presses = events.map { |event| EVENTS.fetch(event) }
+    Reference.new.input_each_frame { |f| f.odd? ? [presses[f / 2]].compact : [] }
+             .run(counting_program(count, on), frames: (presses.length * 2) + 2)
+  end
+
+  def counting_program(count, on)
     floors = floors_of(count)
-    program = RubyGBA.game("PLAY") do
+    @counting_programs ||= {}
+    @counting_programs[[count, on]] ||= RubyGBA.game("PLAY") do
       screen :bitmap
       score = var :score, 0
       picked = on && var(:picked, on)
@@ -355,9 +379,6 @@ class TestPlaythrough < Minitest::Test
         pressed(EVENTS[:secret_lift]).then { secret.set! 1; play.start(:next_floor, secret: secret) }
       end
     end.program
-    presses = events.map { |event| EVENTS.fetch(event) }
-    Reference.new.input_each_frame { |f| f.odd? ? [presses[f / 2]].compact : [] }
-             .run(program, frames: (presses.length * 2) + 2)
   end
 
   # +count+ floors with nothing on them. The playthrough asks a cartridge's floors only how many
