@@ -48,20 +48,21 @@ module Wolf3D
     def won
       (@won == 0).then do
         @won.set! 1
-        @words.changed
         # ...and the game has ended, which is the fact the menus and the restart both read.
         @lives.ended_by_winning
       end
     end
 
     # A NEW GAME PUTS THIS BACK, however it was started — see Playthrough.
-    def start_again
-      @won.set! 0
-      @words.cancel
-    end
+    def start_again = @won.set!(0)
 
-    # ONE PASS. Nothing at all until an episode has been won, and then the words for as long
-    # as the screen still wants them.
+    # ONE PASS. Nothing at all until an episode has been won, and then the words, on every pass
+    # until START.
+    #
+    # EVERY PASS, NOT ONCE, and that is what makes this different from GAME OVER. A death stops
+    # the view being drawn, so its words are painted once and left over the red. A won episode
+    # only stops the world MOVING: the view is still drawn every pass, the same picture each time,
+    # and it would cover words painted once on the very next pass.
     #
     # A ROUTINE RATHER THAN CODE IN THE LOOP, for the reason Lives gives: the console's quick
     # memory holds 32K, the game loop's own body wants nearly all of it, and this is a few
@@ -72,13 +73,7 @@ module Wolf3D
 
     def declare
       @won = @b.var :episode_won, 0
-
-      # The words, put up when the episode is won and then left there — the same arrangement
-      # Lives gives GAME OVER, with `keep_showing` deciding how many paints that takes on
-      # the screen this game draws on.
-      @words = @b.keep_showing(:victory) { paint }
-
-      @b.func(:after_a_victory, fast: false) { @words.draw }
+      @b.func(:after_a_victory, fast: false) { (@won == 1).then { paint } }
     end
 
     def paint
