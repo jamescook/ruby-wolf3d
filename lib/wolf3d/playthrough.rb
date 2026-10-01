@@ -22,9 +22,13 @@ module Wolf3D
       @floor_score = @b.var :floor_score, 0
       # ...and THE FLOOR THIS GAME BEGAN ON, which is where a new game asked for no floor begins.
       @began_on = @b.var :began_on, 0
-      # ...and WHETHER THE LIFT WAS CALLED BY THE SECRET LEVER, copied in as it is called. Only
-      # a cartridge holding a secret floor asks.
-      @secret = @b.var :_secret_lift, 0 if secret_floor?
+      # ...and WHETHER THE LIFT WAS CALLED BY THE SECRET LEVER, copied in as it is called, and
+      # where it takes you from each floor. Only a cartridge holding a secret floor asks.
+      if secret_floor?
+        @secret = @b.var :_secret_lift, 0
+        @to_secret = @b.table :lift_to_secret, secret_floors, width: :byte
+        @back = @b.table :lift_back_from_secret, ways_back, width: :byte
+      end
       @declared = {}
     end
 
@@ -44,27 +48,33 @@ module Wolf3D
       @b.call routine_for(reason)
     end
 
-    # WHERE THE LIFT TAKES YOU, read off the original (wl_game.cpp) rather than remembered. Three
-    # rules and they are tested in this order, which matters:
+    # WHERE THE LIFT TAKES YOU, read off the original (wl_game.cpp, GameLoop's ex_completed
+    # branch) rather than remembered. Three rules and they are tested in this order, which
+    # matters:
     #
-    #   COMING BACK FROM THE SECRET FLOOR puts you on the normal run, not one further along it.
-    #     The original keeps a small table of where each episode comes back to; for the first it
-    #     is the second floor.
+    #   COMING BACK FROM THE SECRET FLOOR puts you on the normal run of its episode, not one
+    #     further along it: the map the original's ElevatorBackTo keeps for that episode.
     #   GOING TO THE SECRET FLOOR is what the secret lever does, and there is one such floor per
-    #     episode — the last of the ten.
+    #     episode — the last of its ten, map 9 counting from nought.
     #   OTHERWISE the next floor along.
     #
-    # A CARTRIDGE HOLDING FEWER FLOORS THAN A WHOLE EPISODE has no secret floor, so neither of the
-    # first two rules is emitted at all and every lever simply goes to the next floor. Clamping
-    # them to a floor it does have would be wrong: the floor a missing one clamps to is the FIRST,
-    # so "are you coming back from the secret floor" would become "are you on the first floor",
-    # which is true at the start of every game.
+    # ALL OF IT IS WITHIN THE EPISODE YOU ARE IN, because the original counts its maps from nought
+    # within an episode. A cartridge holds floors end to end, perhaps several episodes and perhaps
+    # starting partway through one, so each floor's two answers are worked out while the cartridge
+    # is built, from where that floor sits in the release, and kept in two tables a floor number
+    # reads.
+    #
+    # A ROUTE TO A FLOOR THE CARTRIDGE DOES NOT HOLD is no route, and that lever goes to the next
+    # floor instead. A cartridge holding none at all emits none of the first two rules. Clamping a
+    # missing one to a floor it does have would be wrong: the floor it clamps to is the FIRST, so
+    # "are you coming back from the secret floor" would become "are you on the first floor", which
+    # is true at the start of every game.
     #
     # AND WHEN IT RUNS OUT OF FLOORS it goes round to the first. That is not the original: there a
     # lift never runs out of floors, because the last floor of an episode is left by its way out,
     # not by a lift. Going round beats stopping dead on a lever that does nothing.
     SECRET_FLOOR = 9
-    BACK_FROM_SECRET = 1
+    BACK_FROM_SECRET = [1, 1, 7, 3, 5, 3].freeze
 
     # WHAT EACH REASON ASKS OF THE WORLD, in the order it asks. A new game also puts back the
     # game's own counts, and only the lift leaves the player alone.
@@ -111,9 +121,10 @@ module Wolf3D
 
     def choose_next_floor
       if secret_floor?
-        (@floor == SECRET_FLOOR).then { @floor.set! BACK_FROM_SECRET }
+        (@back[@floor] >= 0).then { @floor.set! @back[@floor] }
           .else do
-            (@secret == 1).then { @floor.set! SECRET_FLOOR }.else { advance_one_floor }
+            ((@secret == 1) & (@to_secret[@floor] >= 0)).then { @floor.set! @to_secret[@floor] }
+              .else { advance_one_floor }
           end
       elsif @floors.count > 1
         advance_one_floor
@@ -125,7 +136,43 @@ module Wolf3D
       (@floor > @floors.count - 1).then { @floor.set! 0 }
     end
 
-    def secret_floor? = @floors.count > SECRET_FLOOR
+    # Does any lever on this cartridge lead to a secret floor, or back from one? Worked out once,
+    # while the cartridge is built.
+    def secret_floor?
+      @secret_floor = (secret_floors + ways_back).any? { |slot| slot >= 0 } if @secret_floor.nil?
+      @secret_floor
+    end
+
+    # WHERE THE SECRET LEVER ON EACH FLOOR TAKES YOU: the secret floor of that floor's own
+    # episode, as the cartridge's floor number, or -1 where the cartridge does not hold it. The
+    # secret floor itself sends you nowhere secret.
+    def secret_floors
+      return Array.new(@floors.count, -1) unless @floors.episodes_of_ten?
+
+      @floors.map do |floor|
+        episode, map = floor.index.divmod(Floors::PER_EPISODE)
+        next -1 if map == SECRET_FLOOR
+
+        holding((episode * Floors::PER_EPISODE) + SECRET_FLOOR)
+      end
+    end
+
+    # ...AND WHERE THE LEVER ON EACH SECRET FLOOR BRINGS YOU BACK TO, the map its episode keeps in
+    # BACK_FROM_SECRET; -1 on every other floor, and where the cartridge does not hold that map.
+    def ways_back
+      return Array.new(@floors.count, -1) unless @floors.episodes_of_ten?
+
+      @floors.map do |floor|
+        episode, map = floor.index.divmod(Floors::PER_EPISODE)
+        back = BACK_FROM_SECRET[episode]
+        next -1 unless map == SECRET_FLOOR && back
+
+        holding((episode * Floors::PER_EPISODE) + back)
+      end
+    end
+
+    # Which of the cartridge's floors is the release's map +index+, or -1 where it holds none.
+    def holding(index) = @floors.to_a.index { |floor| floor.index == index } || -1
 
     def check_request!(reason, floor, secret)
       unless STEPS.key?(reason)

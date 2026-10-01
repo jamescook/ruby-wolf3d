@@ -232,8 +232,7 @@ class TestFloors < Minitest::Test
     secret = take_the_lift(an_episode(secret_car_on_first: true))
 
     assert_equal 1, plain[:floor], "an ordinary lever goes to the next floor"
-    assert_equal Wolf3D::Playthrough::SECRET_FLOOR, secret[:floor],
-                 "a secret one goes to the last of the ten"
+    assert_equal 9, secret[:floor], "a secret one goes to the last of the ten"
   end
 
   # ONE PULL OF THE LEVER IS ONE RIDE: the lift arriving puts the lever back up, so waiting long

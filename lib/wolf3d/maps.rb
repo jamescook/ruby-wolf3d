@@ -41,7 +41,12 @@ module Wolf3D
     # them, and everything else is one long game — which is what it is.
     def episodes = episodic? ? count / PER_EPISODE : 1
 
-    def episodic? = count > PER_EPISODE && (count % PER_EPISODE).zero?
+    def episodic? = count > PER_EPISODE && episodes_of_ten?
+
+    # WHETHER THE MAPS ARE LAID OUT IN EPISODES OF TEN at all, which the shareware's single
+    # episode is as much as the registered six — and which is what decides where a secret lift
+    # goes. Spear of Destiny's twenty-one are not.
+    def episodes_of_ten? = (count % PER_EPISODE).zero?
 
     # Which of this copy's floors an episode is made of, counting episodes from 1 the way the
     # game numbers them. A release with no episodes hands back all of them.

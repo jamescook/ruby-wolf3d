@@ -41,7 +41,7 @@ module Wolf3D
                   lifts: Elevator.new(level),
                   guards: Guards.new(level),
                   scenery: Scenery.new(level))
-      end)
+      end, episodes_of_ten: maps.episodes_of_ten?)
     end
 
     # ...and the one-floor case, which is what every test builds and what a cartridge with no
@@ -55,12 +55,21 @@ module Wolf3D
                      lifts: lifts, guards: guards, scenery: scenery)])
     end
 
-    def initialize(floors)
+    # +episodes_of_ten+ says the release these floors come from is Wolfenstein's own layout — see
+    # #episodes_of_ten?.
+    def initialize(floors, episodes_of_ten: true)
       raise ArgumentError, "a game needs at least one floor" if floors.empty?
 
       @floors = floors
+      @episodes_of_ten = episodes_of_ten
       check_they_are_all_the_same_size!
     end
+
+    # IS THE RELEASE EPISODES OF TEN, the last of each its secret floor? Wolfenstein's are, the
+    # shareware's one episode as much as the registered six. Spear of Destiny is not — see
+    # Maps#episodes_of_ten? — so a floor's place in it says nothing about episodes or secret
+    # floors.
+    def episodes_of_ten? = @episodes_of_ten
 
     # How many floors an episode is. It is a fact about the map set rather than about this
     # cartridge's slice of it, so it is kept where the maps are read.

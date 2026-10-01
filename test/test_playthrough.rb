@@ -123,15 +123,58 @@ class TestPlaythrough < Minitest::Test
     secret = played(:secret_lift, count: EPISODE)
 
     assert_equal 1, plain[:floor], "an ordinary lever goes to the next floor"
-    assert_equal Playthrough::SECRET_FLOOR, secret[:floor], "a secret one goes to the last of the ten"
+    assert_equal 9, secret[:floor], "a secret one goes to the last of the ten"
   end
 
   # ...and the lever on THAT floor puts you back on the normal run rather than one further along
   # it, which is the original's own rule and the reason it keeps a table of where to come back to.
+  # For the first episode that is its second floor.
   def test_the_lever_on_the_secret_floor_comes_back_to_the_normal_run
     run = played(:secret_lift, :lift, count: EPISODE)
 
-    assert_equal Playthrough::BACK_FROM_SECRET, run[:floor]
+    assert_equal 1, run[:floor]
+  end
+
+  # THE SECRET FLOOR IS THE ONE OF THE EPISODE YOU ARE IN. The original counts `gamestate.mapon`
+  # from nought within the episode, so the secret lever sends you to map 9 of your own episode. On
+  # a cartridge holding the first two episodes end to end, episode 2's is the twentieth floor.
+  def test_the_secret_lever_goes_to_the_secret_floor_of_its_own_episode
+    run = played(:new_game, :secret_lift, count: 2 * EPISODE, on: EPISODE)
+
+    assert_equal 19, run[:floor]
+  end
+
+  # ...AND ITS LEVER COMES BACK INTO THAT EPISODE, to the map the original's ElevatorBackTo
+  # (wl_game.cpp) keeps for it: {1, 1, 7, 3, 5, 3}, one per episode. Episode 2's is its second
+  # floor, the cartridge's twelfth.
+  def test_the_lever_on_a_secret_floor_comes_back_into_its_own_episode
+    run = played(:new_game, :secret_lift, :lift, count: 2 * EPISODE, on: EPISODE)
+
+    assert_equal 11, run[:floor]
+  end
+
+  # Episode 3's comes back to its eighth floor, which is the cartridge's eighth on one built from
+  # that episode alone.
+  def test_episode_threes_secret_floor_comes_back_to_its_eighth
+    run = played(:secret_lift, :lift, count: EPISODE, from: 2 * EPISODE)
+
+    assert_equal 7, run[:floor]
+  end
+
+  # A CARTRIDGE BEGUN PARTWAY THROUGH AN EPISODE still has that episode's secret floor, if it
+  # holds it: here, the episode's last five floors.
+  def test_a_cartridge_begun_partway_through_an_episode_keeps_its_secret_floor
+    run = played(:secret_lift, count: 5, from: 5)
+
+    assert_equal 4, run[:floor]
+  end
+
+  # A RELEASE THAT IS NOT EPISODES OF TEN has none of this. Spear of Destiny is twenty-one floors
+  # in one campaign, and its tenth is an ordinary floor whose lever goes on to the eleventh.
+  def test_a_release_not_in_episodes_of_ten_has_no_secret_floor_at_its_tenth
+    run = played(:new_game, :lift, count: 21, on: 9, tens: false)
+
+    assert_equal 10, run[:floor]
   end
 
   # A cartridge shorter than an episode has NO secret floor, so every lever simply goes to the
@@ -354,17 +397,18 @@ class TestPlaythrough < Minitest::Test
   # every press is a fresh one.
   #
   # +on+ is the floor a :new_game is asked to begin on, written into a variable the way the menu
-  # writes it; nil asks for none.
-  def played(*events, count: 1, on: nil)
+  # writes it; nil asks for none. +from+ is the map of the release the cartridge's first floor is,
+  # and +tens+ whether that release is episodes of ten.
+  def played(*events, count: 1, on: nil, from: 0, tens: true)
     presses = events.map { |event| EVENTS.fetch(event) }
     Reference.new.input_each_frame { |f| f.odd? ? [presses[f / 2]].compact : [] }
-             .run(counting_program(count, on), frames: (presses.length * 2) + 2)
+             .run(counting_program(count, on, from, tens), frames: (presses.length * 2) + 2)
   end
 
-  def counting_program(count, on)
-    floors = floors_of(count)
+  def counting_program(count, on, from, tens)
+    floors = floors_of(count, from: from, tens: tens)
     @counting_programs ||= {}
-    @counting_programs[[count, on]] ||= RubyGBA.game("PLAY") do
+    @counting_programs[[count, on, from, tens]] ||= RubyGBA.game("PLAY") do
       screen :bitmap
       score = var :score, 0
       picked = on && var(:picked, on)
@@ -381,13 +425,14 @@ class TestPlaythrough < Minitest::Test
     end.program
   end
 
-  # +count+ floors with nothing on them. The playthrough asks a cartridge's floors only how many
-  # there are, so an empty room will do for every one.
-  def floors_of(count)
+  # +count+ floors with nothing on them, the release's maps from +from+ on. The playthrough asks a
+  # cartridge's floors only how many there are and which map of the release each one is, so an
+  # empty room will do for every one.
+  def floors_of(count, from: 0, tens: true)
     Wolf3D::Floors.new(Array.new(count) do |n|
-      Wolf3D::Floors::Floor.new(index: n, level: empty, doors: nil, pushwalls: nil, lifts: nil,
-                                guards: nil, scenery: nil)
-    end)
+      Wolf3D::Floors::Floor.new(index: from + n, level: empty, doors: nil, pushwalls: nil,
+                                lifts: nil, guards: nil, scenery: nil)
+    end, episodes_of_ten: tens)
   end
 
   def empty = Wolf3D::Level.new(name: "empty", width: 4, height: 4,
