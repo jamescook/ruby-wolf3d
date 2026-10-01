@@ -256,6 +256,10 @@ module Wolf3D
     # it. See Playthrough for what each of those puts back, and in what order.
     attr_reader :playthrough
 
+    # WHAT A SAVED GAME HOLDS, for the menu that saves one to hand to its save record. See
+    # LastingState.
+    attr_reader :lasting
+
     # Whether the game has ended, or nil where nothing can kill you. See {Lives#over}.
     def over = @lives.over
 
@@ -532,6 +536,9 @@ module Wolf3D
 
     def declare
       b = @b
+      # FIRST, because everything a saved game holds is declared through it, here and in every
+      # part this view builds.
+      @lasting = LastingState.new(build: b)
       @sin = b.table :sin, (0...TURN).map { |a| Math.sin(a * 2 * Math::PI / TURN) }
 
       # One over the sine, which is what the walk below needs: how far along a ray it is from
@@ -578,8 +585,8 @@ module Wolf3D
       # is how long it still has to stand open.
       # SIZED FOR THE WORST FLOOR, not for all of them added together, because only one floor is
       # ever being played. Every list below is the state of the floor under your feet.
-      @open = b.list :door_open, capacity: room_for(:doors), holds: 0.0
-      @linger = b.list :door_linger, capacity: room_for(:doors)
+      @open = @lasting.list :door_open, capacity: room_for(:doors), holds: 0.0
+      @linger = @lasting.list :door_linger, capacity: room_for(:doors)
 
       # Which picture each door wears, worked out while building — a door's panel does not
       # turn, so unlike a wall it needs no choosing as the game runs.
@@ -601,14 +608,14 @@ module Wolf3D
       # against cells the game works out while playing that floor and those are local too.
       @push_home = b.table :push_home, at_least_one(over_floors { |f| f.pushwalls.homes })
       @push_face = b.table :push_face, at_least_one(over_floors { |f| push_pictures(f) }), width: :byte
-      @push_step = b.list :push_step, capacity: room_for(:pushwalls)
-      @push_gone = b.list :push_gone, capacity: room_for(:pushwalls)
-      @push_wait = b.list :push_wait, capacity: room_for(:pushwalls)
+      @push_step = @lasting.list :push_step, capacity: room_for(:pushwalls)
+      @push_gone = @lasting.list :push_gone, capacity: room_for(:pushwalls)
+      @push_wait = @lasting.list :push_wait, capacity: room_for(:pushwalls)
 
       # Which keys the player is carrying, one bit each. A key is a thing lying on the floor like
       # a clip of ammunition is, so picking one up belongs to Pickups; this is only what is
       # carried, which is the one number a locked door asks about.
-      @keys = b.var :keys, 0
+      @keys = @lasting.var :keys, 0
 
       # THE LIFT, as three numbers, and all three are one-per-game rather than one-per-lift
       # because a floor ends the first time anybody pulls anything: there is never a second lift
@@ -617,12 +624,12 @@ module Wolf3D
       # WHICH CELL holds the lever that was pulled, so the walk can give that one cell the pulled
       # picture and leave the car's other levers alone. Minus one for none, because nought is a
       # real cell.
-      @pulled = b.var :lift_pulled, -1
+      @pulled = @lasting.var :lift_pulled, -1
       # ...WHETHER IT WAS THE SECRET LIFT, which is a different question and is the one that
       # decides where you come out. Read off where the player was standing, not off the lever.
-      @lift_secret = b.var :lift_secret, 0
+      @lift_secret = @lasting.var :lift_secret, 0
       # ...and HOW LONG until the floor ends.
-      @lift_wait = b.var :lift_wait, 0
+      @lift_wait = @lasting.var :lift_wait, 0
       # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE OF EACH TABLE. Which floor that is belongs to
       # the playthrough, declared below.
       #
@@ -654,20 +661,21 @@ module Wolf3D
 
       b.image :walls, width: @atlas.width, height: @atlas.height, data: @atlas.pixels
 
-      @px = b.var :px, start_x
-      @py = b.var :py, start_y
-      @view = b.var :view, start_view
+      @px = @lasting.var :px, start_x
+      @py = @lasting.var :py, start_y
+      @view = @lasting.var :view, start_view
 
       # What the player has: what the bar along the bottom shows, and what the game is played by.
-      @health = b.var :health, START_HEALTH
-      @ammo = b.var :ammo, @start_ammo
-      @score = b.var :score, 0
+      @health = @lasting.var :health, START_HEALTH
+      @ammo = @lasting.var :ammo, @start_ammo
+      @score = @lasting.var :score, 0
 
       # WHAT STARTS PLAY, and which floor is being played. Its steps are this view's own (see
       # #reset_game and the four after it), and it writes them into routine bodies, which the
       # framework builds only after this whole block has run. So it can be made here, before the
       # parts those steps reach.
-      @playthrough = Playthrough.new(build: b, floors: @floors, score: @score, world: self)
+      @playthrough = Playthrough.new(build: b, floors: @floors, score: @score, world: self,
+                                     lasting: @lasting)
       @floor = @playthrough.floor
 
       # HOW TOUGH YOU SAID YOU WERE, and it lives with the world rather than with the screen
@@ -677,7 +685,7 @@ module Wolf3D
       # A cartridge with no menu to ask on plays at the setting the original's own menu opens
       # on, so the guards a test cartridge stands up are the guards a player gets by pressing
       # the button twice.
-      @difficulty = b.var :difficulty, Guards.number_of(Guards::DEFAULT_DIFFICULTY)
+      @difficulty = @lasting.var :difficulty, Guards.number_of(Guards::DEFAULT_DIFFICULTY)
 
       # HOW MUCH OF THE FLOOR HAS BEEN FOUND: how many of its guards are down, how many of its
       # secret walls have been shoved, how many of its treasures are in your pocket. Three
@@ -687,9 +695,9 @@ module Wolf3D
       #
       # The score is the opposite and is deliberately not here: it is kept across floors and
       # comes back to nothing only when a whole game starts again.
-      @kills = b.var :kills, 0
-      @secrets = b.var :secrets, 0
-      @treasures = b.var :treasures, 0
+      @kills = @lasting.var :kills, 0
+      @secrets = @lasting.var :secrets, 0
+      @treasures = @lasting.var :treasures, 0
 
       # A NOISE THE PLAYER MADE. A gun going off is one, and so is a man crying out when you hit
       # him — the original's own flag is commented "true when shooting or screaming". A guard who
@@ -710,10 +718,10 @@ module Wolf3D
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you
       # another go.
       declare_the_dying
-      @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying)
+      @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying, lasting: @lasting)
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
       # floor you can walk out of, which is a boss floor — see Level::EXIT.
-      @victory = Victory.new(build: b, lives: @lives) if any_floor_has_a_way_out?
+      @victory = Victory.new(build: b, lives: @lives, lasting: @lasting) if any_floor_has_a_way_out?
       # Which way the eye points, worked out once a move. The shot needs it, every standing thing
       # needs it, and it is here rather than with the rest of the working room because a floor
       # with nothing standing in it never wants it.
@@ -728,7 +736,7 @@ module Wolf3D
       # ...then the gun in your hands: after the sounds, because each of the three guns has one
       # of its own, and before the things lying on the floor, because two of those ARE guns.
       @weapons = Weapons.new(build: b, ammo: @ammo, atlas: @gun_art, sounds: @sounds,
-                             noise: @noise, starting: @armed_with)
+                             noise: @noise, starting: @armed_with, lasting: @lasting)
       # ...and before both of them, because a guard asks it whether to think and every piece of
       # scenery asks it whether to be looked at.
       declare_the_rooms
@@ -1054,7 +1062,8 @@ module Wolf3D
     def declare_the_dying
       return if @guards.nil? || @guards.empty?
 
-      @dying = Dying.new(build: @b, eye: { x: @px, y: @py, angle: @view, sin: @sin })
+      @dying = Dying.new(build: @b, eye: { x: @px, y: @py, angle: @view, sin: @sin },
+                         lasting: @lasting)
     end
 
     # THINGS ON THE FLOOR YOU PICK UP BY WALKING OVER THEM. It sits between the guards and their
@@ -1066,7 +1075,7 @@ module Wolf3D
     # still has keys lying on it, and the tests of the locked doors are exactly that game.
     def declare_the_pickups
       @pickups = Pickups.new(build: @b, floors: @floors, pool: @guard, lives: @lives,
-                             weapons: @weapons,
+                             weapons: @weapons, lasting: @lasting,
                              bases: { map: @map_base, piece: @piece_first },
                              player: { x: @px, y: @py, health: @health, ammo: @ammo,
                                        score: @score, keys: @keys, treasures: @treasures })
@@ -1085,7 +1094,6 @@ module Wolf3D
     def declare_the_guards
       return if no_floor_has?(:guards)
 
-      b = @b
       # +dropped+ is whether he is lying beside the clip of ammunition he left when he fell. It is
       # a field of his rather than a place of its own because where the clip lies is where he
       # lies — see Pickups#a_guard_fell.
@@ -1096,11 +1104,11 @@ module Wolf3D
       # +ambush+ is a guard put down lying in wait, who has to SEE you: he is the one a gunshot
       # does not bring. Carried on him rather than read off the map because the original clears
       # it the moment he does see you, and from then on he is a guard like any other.
-      @guard = b.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
-                              hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0,
-                              capacity: room_for(:guards),
-                              estimate: { usually: guards_usually_standing },
-                              widths: guard_widths
+      @guard = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
+                                     hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0,
+                                     capacity: room_for(:guards),
+                                     estimate: { usually: guards_usually_standing },
+                                     widths: guard_widths
       # THE FIRST FLOOR'S GUARDS AT BOOT, written out rather than read from the tables, because
       # at boot there is no floor to have started yet. Every floor after this one is filled by
       # #put_the_guards_back from the same tables the first floor's numbers came from.

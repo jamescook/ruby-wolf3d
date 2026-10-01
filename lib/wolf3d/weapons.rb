@@ -90,14 +90,16 @@ module Wolf3D
     # +noise+ is the flag a guard listens on, or nil on a game with nobody to hear.
     # +starting+ is what a new game puts in your hands, which is the pistol unless a cartridge
     # was built to hand you something else — a measuring and demoing dial, not a way to play.
-    # See Wolf3D.armed_with.
-    def initialize(build:, ammo:, atlas: nil, sounds: nil, noise: nil, starting: STARTING)
+    # See Wolf3D.armed_with. +lasting+ is what a saved game holds (see LastingState).
+    def initialize(build:, ammo:, atlas: nil, sounds: nil, noise: nil, starting: STARTING,
+                   lasting: LastingState.new(build:))
       @b = build
       @ammo = ammo
       @atlas = atlas
       @sounds = sounds
       @noise = noise
       @starting = starting
+      @lasting = lasting
       declare
     end
 
@@ -163,14 +165,14 @@ module Wolf3D
       # WHAT IS IN YOUR HANDS, WHAT YOU CHOSE, AND THE BEST YOU HAVE FOUND. Three numbers where
       # one looks like enough — see the note at the top of this file for why the middle one is
       # the one that matters.
-      @in_hand = b.var :weapon, @starting
-      @chosen = b.var :weapon_chosen, @starting
-      @best = b.var :weapon_best, @starting
+      @in_hand = @lasting.var :weapon, @starting
+      @chosen = @lasting.var :weapon_chosen, @starting
+      @best = @lasting.var :weapon_best, @starting
 
       # WHERE THE ATTACK HAS GOT TO, and how long this stage has left. At rest is a stage of
       # minus one rather than a flag of its own, so "am I attacking" is one comparison.
-      @stage = b.var :weapon_stage, AT_REST
-      @wait = b.var :weapon_wait, 0
+      @stage = @lasting.var :weapon_stage, AT_REST
+      @wait = @lasting.var :weapon_wait, 0
       # ...and which stage comes next, worked out before the stage acts so that an automatic can
       # send itself back a step from inside its own arm.
       @next = b.var :_weapon_next, 0

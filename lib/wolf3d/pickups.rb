@@ -78,10 +78,12 @@ module Wolf3D
     # where every slice begins at nothing.
     # +weapons+ is what the two guns on the floor are handed to, or nil on a game with no
     # weapons to hold — and then they give their rounds and nothing else, which is what this
-    # did before there was a gun to pick up.
+    # did before there was a gun to pick up. +lasting+ is what a saved game holds (see
+    # LastingState).
     def initialize(build:, player:, level: nil, lives: nil, scenery: nil, pool: nil,
-                   floors: nil, bases: {}, weapons: nil)
+                   floors: nil, bases: {}, weapons: nil, lasting: LastingState.new(build:))
       @b = build
+      @lasting = lasting
       @weapons = weapons
       @floors = floors || Floors.of(level: level, doors: Doors.new(level, nil),
                                     pushwalls: Pushwalls.new(level),
@@ -231,7 +233,7 @@ module Wolf3D
       # WHAT HAS BEEN TAKEN, which is the only thing about a floor's things that ever changes.
       # One floor's worth, since only one is ever being played.
       room = most_pieces
-      @taken = b.list :thing_gone, capacity: room
+      @taken = @lasting.list :thing_gone, capacity: room
       room.times { @taken << 0 }
 
       declare_the_scratch

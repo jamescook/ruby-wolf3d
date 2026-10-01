@@ -9,19 +9,21 @@ module Wolf3D
   # themselves: this calls a small fixed set of steps on the +world+, which is the view in the
   # real game.
   class Playthrough
-    def initialize(build:, floors:, score:, world:)
+    # +lasting+ is what a saved game holds (see LastingState), and the three numbers below are in
+    # it.
+    def initialize(build:, floors:, score:, world:, lasting: LastingState.new(build:))
       @b = build
       @floors = floors
       @score = score
       @world = world
       # WHICH FLOOR IS BEING PLAYED, counting from nought in the order the cartridge holds them.
-      @floor = @b.var :floor, 0
+      @floor = lasting.var :floor, 0
       # ...and THE SCORE YOU WALKED ONTO IT WITH, the original's oldscore. A death puts the score
       # back to it, and only finishing a floor moves it on, so a death takes back what was scored
       # on the floor it happened on.
-      @floor_score = @b.var :floor_score, 0
+      @floor_score = lasting.var :floor_score, 0
       # ...and THE FLOOR THIS GAME BEGAN ON, which is where a new game asked for no floor begins.
-      @began_on = @b.var :began_on, 0
+      @began_on = lasting.var :began_on, 0
       # ...and WHETHER THE LIFT WAS CALLED BY THE SECRET LEVER, copied in as it is called, and
       # where it takes you from each floor. Only a cartridge holding a secret floor asks.
       if secret_floor?
@@ -36,7 +38,8 @@ module Wolf3D
     # slice of every table is this floor's.
     attr_reader :floor
 
-    # START PLAY for +reason+.
+    # START PLAY for +reason+: :new_game, :another_life, :next_floor, or :resume straight after a
+    # saved game is loaded.
     #
     # +floor+, for a new game only, is the floor it begins on; without one it begins on the floor
     # the last game began on. +secret+, for the next floor only, is 1 when the secret lever called
@@ -78,10 +81,16 @@ module Wolf3D
 
     # WHAT EACH REASON ASKS OF THE WORLD, in the order it asks. A new game also puts back the
     # game's own counts, and only the lift leaves the player alone.
+    #
+    # RESUMING A SAVED GAME asks the least: a load has already put back everything the game keeps
+    # (see LastingState), the floor among it, so all that is left is to point every table at that
+    # floor again. The original's LoadTheGame (wl_main.cpp) does the same: SetupGameLevel for the
+    # floor the save names, then the save read over it.
     STEPS = Ractor.make_shareable({
       new_game: %i[reset_game reset_player select_floor place_player reset_floor],
       another_life: %i[reset_player select_floor place_player reset_floor],
-      next_floor: %i[select_floor place_player reset_floor]
+      next_floor: %i[select_floor place_player reset_floor],
+      resume: %i[select_floor]
     })
     private_constant :STEPS
 
@@ -102,6 +111,7 @@ module Wolf3D
           choose_next_floor
           @floor_score.set! @score
         end
+        # ...and :resume changes nothing first: the save already said which floor, and the score.
         STEPS.fetch(reason).each { |step| @b.call step_routine(step) }
       end
     end

@@ -32,10 +32,12 @@ module Wolf3D
     FONT = :default
 
     # +lives+ is who owns "the game has ended" — see Lives#ended_by_winning for why the flag is
-    # kept there and not here, and why START is answered there too.
-    def initialize(build:, lives:)
+    # kept there and not here, and why START is answered there too. +lasting+ is what a saved
+    # game holds (see LastingState).
+    def initialize(build:, lives:, lasting: LastingState.new(build:))
       @b = build
       @lives = lives
+      @lasting = lasting
       declare
     end
 
@@ -72,7 +74,7 @@ module Wolf3D
     private
 
     def declare
-      @won = @b.var :episode_won, 0
+      @won = @lasting.var :episode_won, 0
       @b.func(:after_a_victory, fast: false) { (@won == 1).then { paint } }
     end
 

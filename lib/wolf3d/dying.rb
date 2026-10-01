@@ -94,9 +94,12 @@ module Wolf3D
     # fizzle alternating between two views a turn-step apart, which reads as a shudder.
     SETTLE = 2
 
-    def initialize(build:, eye:)
+    # +lasting+ is what a saved game holds (see LastingState). Only whether you are dying is in
+    # it; the rest is working room that each death begins by putting back.
+    def initialize(build:, eye:, lasting: LastingState.new(build:))
       @b = build
       @eye = eye
+      @lasting = lasting
       declare
     end
 
@@ -109,30 +112,31 @@ module Wolf3D
     # stays true until somebody does one of the two.
     def finished = @state == GONE
 
-    # BACK TO THE TOP, for another go at the floor. Everything the death remembered is dropped:
-    # which way it was turning and how far it had got, and both walkers back to where they start.
-    # They start at 1 rather than 0 because nought is the one number a step like theirs can never
-    # leave — see #scatter.
-    def start_again
-      @state.set! ALIVE
-      @was.set! 0
-      @turned.set! 0
-      @held.set! 0
-      @lead.set! 1
-      @lag.set! 1
-      @lead_done.set! 0
-      @lag_done.set! 0
-    end
+    # BACK TO THE TOP, for another go at the floor: alive again. What the last death remembered is
+    # dropped when the next one begins — see #struck_by.
+    def start_again = @state.set!(ALIVE)
 
     # A shot has landed and taken the last of the health. Remember where it came from — the turn
-    # is the whole reason a death needs to know.
+    # is the whole reason a death needs to know — and begin the death from its beginning: no turn
+    # taken yet, and both walkers back to where they start. They start at 1 rather than 0 because
+    # nought is the one number a step like theirs can never leave — see #scatter.
+    #
+    # FROM THE BEGINNING AS IT BEGINS, rather than when the last one ended, because a saved game
+    # keeps whether you are dying and none of the rest (see LastingState). A game loaded after a
+    # death had run to its end comes back alive with that death's count still at its end, and
+    # put back only when a death ended, the next one would start there and draw no red at all.
     def struck_by(guard)
       (@state == ALIVE).then do
         @kill_x.set! guard.x
         @kill_y.set! guard.y
         @state.set! TURNING
-        @turned.set! 0
         @was.set! 0
+        @turned.set! 0
+        @held.set! 0
+        @lead.set! 1
+        @lag.set! 1
+        @lead_done.set! 0
+        @lag_done.set! 0
       end
     end
 
@@ -185,7 +189,7 @@ module Wolf3D
 
     def declare
       b = @b
-      @state = b.var :dying, ALIVE
+      @state = @lasting.var :dying, ALIVE
       @kill_x = b.var :_kill_x, 0.0
       @kill_y = b.var :_kill_y, 0.0
 

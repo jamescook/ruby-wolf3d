@@ -30,10 +30,12 @@ module Wolf3D
 
     # +dying+ may be nil: a floor with nothing on it that can kill you still shows a number of
     # lives, and never spends one. +playthrough+ is what starts play again after a death.
-    def initialize(build:, playthrough:, dying: nil)
+    # +lasting+ is what a saved game holds (see LastingState).
+    def initialize(build:, playthrough:, dying: nil, lasting: LastingState.new(build:))
       @b = build
       @playthrough = playthrough
       @dying = dying
+      @lasting = lasting
       declare
     end
 
@@ -124,12 +126,12 @@ module Wolf3D
     end
 
     def declare
-      @left = @b.var :lives, START
+      @left = @lasting.var :lives, START
       return unless @dying
 
       # Whether the game has ended. It starts at nothing: a game that has not been played
       # cannot be over.
-      @ended = @b.var :game_over, 0
+      @ended = @lasting.var :game_over, 0
 
       # The words, put up when the game ends and then left there. `keep_showing` decides how
       # many paints that takes: this game draws on a tear-free screen, where a picture painted
