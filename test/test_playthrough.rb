@@ -281,20 +281,15 @@ class TestPlaythrough < Minitest::Test
 
   FP = Wolf3D::FirstPerson
 
-  # EVERYTHING THE GAME KEEPS: each variable but the framework's own, and each list and the
-  # guards' pool by name.
+  # EVERYTHING THE GAME DECLARED, as the framework reads it: every variable, list and pool, and
+  # whatever is declared after this test was written.
   #
   # Less one: how many guards have stood up so far while a floor is filled, which is working room
   # for that and read by nothing after it.
   def state_of(run)
-    vars = run.vars.reject { |name, _| name.to_s.start_with?("__") || name == :_stood }
-    lists = LISTS.to_h { |name| [name, run.list(name)] }
-    guards = GUARD_FIELDS.to_h { |field| [field, run.pool(:guard, field)] }
-    { vars: vars, lists: lists, guards: guards }
+    state = run.game_state
+    state.merge(vars: state[:vars].except(:_stood))
   end
-
-  LISTS = %i[door_open door_linger push_step push_gone push_wait thing_gone].freeze
-  GUARD_FIELDS = %i[x y dir state ticks wait togo hp shown awake turn dropped ambush].freeze
 
   # +level+ with nothing played: the loop only begins a new game on A, if +new_game+.
   def at_power_on(level, new_game:)

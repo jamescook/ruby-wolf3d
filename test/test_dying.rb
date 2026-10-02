@@ -25,28 +25,43 @@ class TestDying < Minitest::Test
 
   # A killer standing +away+ cells north of a player who is facing east, so the turn has a
   # quarter of a circle to cover and a side to pick.
-  def dying_program(kill_x: 8.5, kill_y: 4.5, tear_free: true)
+  #
+  # +saving+ hands what a saved game keeps of it — whether you are dying, and which way the eye
+  # looks — to a save record, and puts the death on buttons: A saves, B loads and L strikes. A load
+  # paints the background again, which is the picture a loaded game would draw.
+  def dying_program(kill_x: 8.5, kill_y: 4.5, tear_free: true, saving: false)
     RubyGBA.game("DYING") do
       screen :bitmap, tear_free: tear_free
+      lasting = Wolf3D::LastingState.new(build: self)
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
       px = var :px, 8.5
       py = var :py, 8.5
-      angle = var :view, 0
+      angle = lasting.var :view, 0
       killer = Struct.new(:x, :y).new(var(:kx, kill_x), var(:ky, kill_y))
       settling = var :settling, 0
 
-      dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin })
+      dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin }, lasting: lasting)
+      game = saving && save_data(:game, copies: 1)
+      lasting.keep_in(game) if game
 
       once_a_frame { dying.turn }
       game_loop do
         # Both pages want the background before anything is added to it, and a frame paints one
         # of them — so it goes on twice, and only then is the player struck.
-        (settling < 2).then do
+        painting = (settling < 2).then do
           clear_screen GROUND
           dma_fill_rect 0, FP::VIEW_H, FP::ACROSS, Wolf3D::StatusBar::HEIGHT, BAR
           settling.add! 1
-        end.else do
-          dying.struck_by(killer)
+        end
+        if game
+          pressed(:a).then { game[0].save }
+          pressed(:b).then do
+            game[0].load
+            settling.set! 0
+          end
+          pressed(:l).then { dying.struck_by(killer) }
+        else
+          painting.else { dying.struck_by(killer) }
         end
         dying.draw
       end
@@ -164,7 +179,7 @@ class TestDying < Minitest::Test
   # (Died, wl_game.cpp) and nothing of it outlives the call.
   def test_a_death_after_a_load_still_turns_and_goes_red
     ran = Reference.new.input_each_frame { |f| LOADED_AND_KILLED[f] || [] }
-                   .run(loading_program, frames: LOADED_AND_KILLED.length + FRAMES)
+                   .run(dying_program(saving: true), frames: LOADED_AND_KILLED.length + FRAMES)
     got = redness(->(x, y) { ran.screen.pixel(x, y) })
 
     assert_in_delta FP::QUARTER * 3, ran[:view] % FP::TURN, FP::TURN_SPEED * 2,
@@ -175,42 +190,6 @@ class TestDying < Minitest::Test
   # Save while alive, be struck and die all the way to red, load, and once the background is back
   # be struck again.
   LOADED_AND_KILLED = [[], [:a], [], [:l]] + ([[]] * FRAMES) + [[:b]] + ([[]] * 4) + [[:l]]
-
-  # The death over the plain background, with what a saved game keeps of it handed to a save
-  # record: whether you are dying, and which way the eye looks. A saves, B loads and L strikes; a
-  # load paints the background again, which is the picture a loaded game would draw.
-  def loading_program
-    RubyGBA.game("DYING") do
-      screen :bitmap, tear_free: true
-      sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
-      lasting = Wolf3D::LastingState.new(build: self)
-      px = var :px, 8.5
-      py = var :py, 8.5
-      angle = lasting.var :view, 0
-      killer = Struct.new(:x, :y).new(var(:kx, 8.5), var(:ky, 4.5))
-      settling = var :settling, 0
-
-      dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin }, lasting: lasting)
-      game = save_data :game, copies: 1
-      lasting.keep_in(game)
-
-      once_a_frame { dying.turn }
-      game_loop do
-        (settling < 2).then do
-          clear_screen GROUND
-          dma_fill_rect 0, FP::VIEW_H, FP::ACROSS, Wolf3D::StatusBar::HEIGHT, BAR
-          settling.add! 1
-        end
-        pressed(:a).then { game[0].save }
-        pressed(:b).then do
-          game[0].load
-          settling.set! 0
-        end
-        pressed(:l).then { dying.struck_by(killer) }
-        dying.draw
-      end
-    end.program
-  end
 
   # --- what a frame of it costs -------------------------------------------------------------
 

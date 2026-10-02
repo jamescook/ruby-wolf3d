@@ -42,9 +42,6 @@ module Wolf3D
       @record = nil
     end
 
-    # The names of everything kept so far, in the order the record holds them.
-    def names = @names.dup
-
     # A variable, declared and kept.
     def var(name, init) = kept(name) { @b.var(name, init) }
 

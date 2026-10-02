@@ -54,29 +54,31 @@ class TestLastingState < Minitest::Test
 
   # A GAME SAVED PARTWAY THROUGH A FLOOR LOADS AS IT WAS SAVED. On the second floor, shoot the
   # guard, take the key, open a door and stand in it; save; turn the console off and on; load.
-  # Everything kept is back as it was at the save, and each table is pointed at the second floor
-  # again rather than at the first, which is where the console powers on.
+  # Everything that lasts is back as it was at the save — read off the whole game, not off the
+  # list of what is kept, so a thing that lasts and is not kept fails here too — and each table
+  # is pointed at the second floor again rather than at the first, which is where the console
+  # powers on.
   #
-  # The world is held still while a test saves or loads (see #saving_cartridge), so what came back can
-  # be held against the moment of the save. The original's LoadTheGame (wl_main.cpp) sets the
-  # floor up and then reads the save over it; here the save is read first and the tables pointed
-  # at its floor after, which comes to the same thing, because pointing them touches nothing the
-  # save holds.
+  # The world is held still while a test saves or loads (see #saving_cartridge), so what came
+  # back can be held against the moment of the save. The original's LoadTheGame (wl_main.cpp)
+  # sets the floor up and then reads the save over it; here the save is read first and the tables
+  # pointed at its floor after, which comes to the same thing, because pointing them touches
+  # nothing the save holds.
   def test_a_game_saved_on_the_second_floor_loads_as_it_was_saved
-    program, names = saving_cartridge
     store = {}
-    saved = Reference.new(save: store).input_each_frame { |f| presses_to_save(f) }.run(program, frames: SAVED_BY)
+    saved = Reference.new(save: store).input_each_frame { |f| presses_to_save(f) }
+                     .run(saving_cartridge, frames: SAVED_BY)
     loaded = Reference.new(save: store).input_each_frame { |f| presses_to_load(f) }
-                      .run(program, frames: WRITTEN_BY)
-    powered_on = Reference.new.input_each_frame { STILL }.run(program, frames: 2)
+                      .run(saving_cartridge, frames: WRITTEN_BY)
+    powered_on = Reference.new.input_each_frame { STILL }.run(saving_cartridge, frames: 2)
 
     assert_equal 1, saved[:floor], "the game was saved on the second floor"
     assert_operator saved.pool(:guard, :hp).compact.min, :<, Wolf3D::Guards::HIT_POINTS,
                     "with the guard shot"
     refute_equal 0, saved[:keys], "and the key taken"
     assert saved.list(:door_open).any?(&:positive?), "and a door open"
-    before = kept_state(saved, names)
-    after = kept_state(loaded, names)
+    before = lasting_state_of(saved)
+    after = lasting_state_of(loaded)
     assert before == after, "these came back changed: #{differences(before, after)}"
     refute_equal cursors(powered_on), cursors(saved), "the second floor's tables are not the first's"
     assert_equal cursors(saved), cursors(loaded), "and they point at the second floor again"
@@ -91,12 +93,11 @@ class TestLastingState < Minitest::Test
   # Read a pass after the save and a pass after the load, which is when the rooms are next worked
   # out. Which rooms are open does not depend on anything a pass of play can roll.
   def test_a_game_saved_in_a_doorway_loads_with_the_same_rooms_open
-    program, = saving_cartridge
     store = {}
     saved = Reference.new(save: store).input_each_frame { |f| f == SAVED_BY ? [] : presses_to_save(f) }
-                     .run(program, frames: SAVED_BY + 2)
+                     .run(saving_cartridge, frames: SAVED_BY + 2)
     loaded = Reference.new(save: store).input_each_frame { |f| f == WRITTEN_BY ? [] : presses_to_load(f) }
-                      .run(program, frames: WRITTEN_BY + 2)
+                      .run(saving_cartridge, frames: WRITTEN_BY + 2)
 
     assert_equal DOORWAY_ROW, (saved[:py] / ONE).floor, "the game was saved in the doorway"
     assert_equal saved.list(:_room_open), loaded.list(:_room_open)
@@ -229,48 +230,40 @@ class TestLastingState < Minitest::Test
 
   # THE CARTRIDGE THE ROUND TRIP PLAYS: the whole view over the two floors, its LastingState
   # handed to a save record, and test buttons to start a new game on the second floor, to save
-  # and to load. With the names it keeps.
+  # and to load.
   def saving_cartridge
-    @saving_cartridge ||= begin
-      floors = two_floors
-      atlas, things = atlases_of(floors)
-      names = []
-      program = RubyGBA.game("SAVED") do
-        screen :bitmap, tear_free: true
-        view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things)
-        game = save_data :game, copies: 1
-        view.lasting.keep_in(game)
-        names.concat(view.lasting.names)
-        game_loop do
-          (held(:l) & held(:r)).then do
-            pressed(:a).then { view.playthrough.start(:new_game, floor: 1) }
-            pressed(:b).then { game[0].save }
-            pressed(:select).then do
-              game[0].load
-              view.playthrough.start(:resume)
-            end
-          end.else { view.update }
-        end
-      end.program
-      [program, names]
+    floors = two_floors
+    atlas, things = atlases_of(floors)
+    @saving_cartridge ||= RubyGBA.game("SAVED") do
+      screen :bitmap, tear_free: true
+      view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things)
+      game = save_data :game, copies: 1
+      view.lasting.keep_in(game)
+      game_loop do
+        (held(:l) & held(:r)).then do
+          pressed(:a).then { view.playthrough.start(:new_game, floor: 1) }
+          pressed(:b).then { game[0].save }
+          pressed(:select).then do
+            game[0].load
+            view.playthrough.start(:resume)
+          end
+        end.else { view.update }
+      end
+    end.program
+  end
+
+  # WHAT A SAVE IS MEANT TO HOLD, read off everything the game declared: less its working room,
+  # which is named with an underscore, and less what it leaves out on purpose.
+  def lasting_state_of(run)
+    run.game_state.transform_values do |things|
+      things.reject { |name, _| name.start_with?("_") || LastingState::LEFT_OUT.key?(name) }
     end
   end
 
-  # Everything +names+ holds in +run+, by name: a variable's value, a list's items, and every field
-  # of every slot of the guards.
-  def kept_state(run, names)
-    names.to_h do |name|
-      value = if run.vars.key?(name) then run[name]
-              elsif name == :guard then GUARD_FIELDS.to_h { |field| [field, run.pool(:guard, field)] }
-              else run.list(name)
-              end
-      [name, value]
-    end
+  # Which things differ between two readings of the whole game, by name.
+  def differences(one, other)
+    one.flat_map { |part, things| things.keys.reject { |name| things[name] == other[part][name] } }
   end
-
-  GUARD_FIELDS = %i[x y dir state ticks wait togo hp shown awake turn dropped ambush].freeze
-
-  def differences(one, other) = one.keys.reject { |name| one[name] == other[name] }
 
   # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE OF EACH TABLE: of the map, the doors, the walls
   # that slide, the guards and the things lying about, and which cell is its secret lift. None of
