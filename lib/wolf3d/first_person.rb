@@ -1157,7 +1157,7 @@ module Wolf3D
 
       @rooms = Rooms.new(build: @b, floors: @floors, map_base: @map_base,
                          door_first: @door_first, door_count: @door_count, door_open: @open,
-                         player: { x: @px, y: @py })
+                         player: { x: @px, y: @py }, lasting: @lasting)
     end
 
     # WHERE THE WAY OUT OF EACH FLOOR IS, as the first and last cell of its run of exit tiles.

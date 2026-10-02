@@ -14,24 +14,25 @@ module Wolf3D
   # WHAT IS NOT IN IT is named with an underscore, and is one of two things. Working room, which
   # nothing reads from one pass to the next. Or a thing worked out from the rest, such as where
   # the floor being played has its slice of each table: a load puts the floor back, and
-  # Playthrough's :resume works the slices out again from it.
+  # Playthrough's :resume works the slices out again from it. The few things that last and are
+  # still not saved are in LEFT_OUT, each with its reason.
   #
-  # One test holds the game to this: every variable without an underscore is either kept or in
-  # LEFT_OUT (test_lasting_state.rb). It cannot see a list or a pool, because the framework's
-  # interpreter has no way to list them, so those are on the honour of whoever declares one.
+  # THE FRAMEWORK HOLDS THE GAME TO THIS while the cartridge is built: a game that says
+  # `saves_keep_everything except: LastingState::LEFT_OUT.keys` will not build while any variable,
+  # list or pool without an underscore is neither kept nor left out on purpose.
   class LastingState
     # WHAT A SAVED GAME LEAVES OUT ON PURPOSE, though it lasts, and why. Each is the original's own
     # choice: SaveTheGame (wl_main.cpp) writes the game's state and the floor's, and none of these.
-    #
-    # THE RANDOM NUMBERS ARE LEFT OUT TOO, and are not a variable so are not listed. The original
-    # never writes rndindex, so a loaded game rolls on from wherever the numbers have got to, and
-    # the guard who was going to miss may hit.
+    # The names are what the framework's `saves_keep_everything` is told to leave out.
     LEFT_OUT = Ractor.make_shareable({
       sound_on: "A setting, not part of a game. The original keeps it in its config file " \
                 "(WriteConfig, wl_main.cpp), so loading a game leaves it as the player set it.",
       screen: "Which menu is up. Loading is done from a menu and goes straight into the game.",
       noise: "A shot heard for the next pass or two. The original's madenoise is a global " \
-             "outside gamestate, and a save never writes it."
+             "outside gamestate, and a save never writes it.",
+      random_numbers: "The original never writes rndindex, so a loaded game rolls on from " \
+                      "wherever the numbers have got to, and the guard who was going to miss " \
+                      "may hit."
     })
 
     def initialize(build:)

@@ -162,12 +162,14 @@ class TestDying < Minitest::Test
   #
   # The original cannot get this wrong, because its death runs start to finish inside one call
   # (Died, wl_game.cpp) and nothing of it outlives the call.
-  def test_a_death_after_a_load_still_goes_red
+  def test_a_death_after_a_load_still_turns_and_goes_red
     ran = Reference.new.input_each_frame { |f| LOADED_AND_KILLED[f] || [] }
                    .run(loading_program, frames: LOADED_AND_KILLED.length + FRAMES)
     got = redness(->(x, y) { ran.screen.pixel(x, y) })
 
-    assert_in_delta 1.0, got[:view], 0.0001, "every pixel of the view, red again"
+    assert_in_delta FP::QUARTER * 3, ran[:view] % FP::TURN, FP::TURN_SPEED * 2,
+                    "turned from east, where the load left the eye, to the killer in the north"
+    assert_in_delta 1.0, got[:view], 0.0001, "and every pixel of the view red again"
   end
 
   # Save while alive, be struck and die all the way to red, load, and once the background is back
@@ -175,19 +177,19 @@ class TestDying < Minitest::Test
   LOADED_AND_KILLED = [[], [:a], [], [:l]] + ([[]] * FRAMES) + [[:b]] + ([[]] * 4) + [[:l]]
 
   # The death over the plain background, with what a saved game keeps of it handed to a save
-  # record. A saves, B loads and L strikes; a load paints the background again, which is the
-  # picture a loaded game would draw.
+  # record: whether you are dying, and which way the eye looks. A saves, B loads and L strikes; a
+  # load paints the background again, which is the picture a loaded game would draw.
   def loading_program
     RubyGBA.game("DYING") do
       screen :bitmap, tear_free: true
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
+      lasting = Wolf3D::LastingState.new(build: self)
       px = var :px, 8.5
       py = var :py, 8.5
-      angle = var :view, 0
+      angle = lasting.var :view, 0
       killer = Struct.new(:x, :y).new(var(:kx, 8.5), var(:ky, 4.5))
       settling = var :settling, 0
 
-      lasting = Wolf3D::LastingState.new(build: self)
       dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin }, lasting: lasting)
       game = save_data :game, copies: 1
       lasting.keep_in(game)

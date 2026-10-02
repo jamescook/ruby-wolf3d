@@ -96,7 +96,7 @@ class TestRooms < Minitest::Test
 
   def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]
   def guard_at(run, slot = 0) = [pool(run, :x, slot) / ONE, pool(run, :y, slot) / ONE]
-  def room_open(run, room) = run.list(:room_open)[room]
+  def room_open(run, room) = run.list(:_room_open)[room]
 
   # --- is it built at all ---
 

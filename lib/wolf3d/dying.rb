@@ -121,10 +121,10 @@ module Wolf3D
     # taken yet, and both walkers back to where they start. They start at 1 rather than 0 because
     # nought is the one number a step like theirs can never leave — see #scatter.
     #
-    # FROM THE BEGINNING AS IT BEGINS, rather than when the last one ended, because a saved game
-    # keeps whether you are dying and none of the rest (see LastingState). A game loaded after a
-    # death had run to its end comes back alive with that death's count still at its end, and
-    # put back only when a death ended, the next one would start there and draw no red at all.
+    # PUT BACK HERE, AS EACH DEATH BEGINS, because a saved game keeps whether you are dying and
+    # none of the rest (see LastingState). A game loaded after a death has run to its end comes
+    # back alive with that death's count still at its end, and the next death has to start from
+    # nothing all the same, or it would draw no red at all.
     def struck_by(guard)
       (@state == ALIVE).then do
         @kill_x.set! guard.x

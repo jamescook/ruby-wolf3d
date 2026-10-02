@@ -62,8 +62,12 @@ module Wolf3D
       level.each_cell.filter_map { |x, y| level.area(x, y) }.uniq
     end
 
-    def initialize(build:, floors:, map_base:, door_first:, door_count:, door_open:, player:)
+    # +lasting+ is what a saved game holds (see LastingState), and the room the player is in is in
+    # it — see #where_the_player_stands.
+    def initialize(build:, floors:, map_base:, door_first:, door_count:, door_open:, player:,
+                   lasting: LastingState.new(build:))
       @b = build
+      @lasting = lasting
       @floors = floors
       @map_base = map_base
       @door_first = door_first
@@ -102,6 +106,11 @@ module Wolf3D
     # open and every lamp in the level would blink out for the two steps it takes to walk
     # through. The room they were last really in is the right answer there — a doorway they are
     # standing in is open by definition, so the room on the other side of it is open too.
+    #
+    # SO A SAVED GAME HOLDS IT. Nothing else says which room a player in a doorway belongs to, so
+    # a game loaded straight into one would otherwise go on with the room of whatever was played
+    # before the load. The original saves it for the same reason: the player's areanumber is
+    # written with the rest of the player (SaveTheGame, wl_main.cpp).
     def where_the_player_stands
       @stood.set!(@room_of[@map_base + (@player[:y].to_i * @width) + @player[:x].to_i])
       (@stood > NOWHERE).then { @here.set! @stood }
@@ -151,14 +160,15 @@ module Wolf3D
       @side_b = b.table :door_side_b, sides.map(&:last), width: :byte
 
       # WHICH ROOMS ARE OPEN RIGHT NOW, one entry a room. Written every frame, so it is a list
-      # rather than a table.
+      # rather than a table. Worked out from the doors and where the player stands, so a saved
+      # game does not hold it.
       @count = most_rooms + 1
-      @open_room = b.list :room_open, capacity: @count
+      @open_room = b.list :_room_open, capacity: @count
       @count.times { @open_room << 0 }
 
       @always = always_joined
-      @room, @here, @stood, @spread, @near, @far =
-        whole(:room, :here, :stood, :spread, :near, :far)
+      @room, @stood, @spread, @near, @far = whole(:room, :stood, :spread, :near, :far)
+      @here = @lasting.var :room_here, NOWHERE
       # WHAT THE LAST WALK WAS ABOUT, so this one can tell whether it would say anything new.
       # The room starts at one nothing can be in and the flag starts set, so the first frame of
       # the game does the walk however it starts. Declared with those values rather than assigned

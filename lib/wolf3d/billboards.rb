@@ -115,15 +115,16 @@ module Wolf3D
       b.image :things, width: @things.width, height: @things.height,
                        data: @things.pixels, transparent: true
 
-      @depth = b.list :seen_at, capacity: FP::COLUMNS
+      @depth = b.list :_seen_at, capacity: FP::COLUMNS
       FP::COLUMNS.times { @depth << 0 }
 
       # WHAT IS ON SCREEN THIS FRAME, and it is a queue rather than a record of the screen: the
       # picture each thing wears, where it lands across the screen, and how tall it stands. Kept
-      # furthest first, which is the order they are drawn in.
-      @seen_shape = slots(:seen_shape)
-      @seen_across = slots(:seen_across)
-      @seen_height = slots(:seen_height)
+      # furthest first, which is the order they are drawn in. Working room, like the depths above:
+      # each frame writes it afresh, so a saved game never holds it.
+      @seen_shape = slots(:_seen_shape)
+      @seen_across = slots(:_seen_across)
+      @seen_height = slots(:_seen_height)
 
       # WHICH COLUMNS OF EACH PICTURE hold anything, read by where the picture sits in the row
       # rather than by what is wearing it — a shooting guard is a different shape from a walking

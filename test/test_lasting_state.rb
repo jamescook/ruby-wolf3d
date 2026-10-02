@@ -38,49 +38,68 @@ class TestLastingState < Minitest::Test
 
   # --- the real game ---
 
-  # EVERYTHING THE GAME DECLARES IS KEPT, OR LEFT OUT ON PURPOSE. A variable whose name has no
-  # underscore lasts, and a save that missed one would load a game that is not the one saved:
-  # the keys you carried, gone, or the lift's lever still down.
+  # EVERYTHING THE GAME DECLARES IS KEPT, OR LEFT OUT ON PURPOSE. A thing whose name has no
+  # underscore lasts, and a save that missed one would load a game that is not the one saved: the
+  # keys you carried, gone, or the lift's lever still down.
   #
-  # Read over a cartridge holding one of every part that is only sometimes there: a floor with a
-  # lift and a way out, the fixture's floor with a door, a locked door and its key, a wall that
-  # slides and a guard, and the menus.
-  def test_every_lasting_variable_is_kept_or_left_out_on_purpose
-    names = []
-    run = Reference.new.run(whole_game(names), frames: 1)
-    lasting = run.vars.keys.reject { |name| name.start_with?("_") }
-    missing = lasting - names - LastingState::LEFT_OUT.keys
-
-    assert_empty missing, "A saved game does not keep these. Declare each through LastingState, " \
-                          "or put it in LastingState::LEFT_OUT and say why."
-    assert_empty LastingState::LEFT_OUT.keys - lasting, "and what is left out is all still declared"
+  # The framework checks it while the cartridge is built (saves_keep_everything): every variable,
+  # list and pool, and the random numbers, must be kept by a save record or named as left out, and
+  # everything named as left out must be something the game declares. So the test is that the
+  # whole game builds. Built over a cartridge holding one of every part that is only sometimes
+  # there: a floor with a lift and a way out, the fixture's floor with a door, a locked door and
+  # its key, a wall that slides and a guard, and the menus.
+  def test_the_whole_game_keeps_everything_but_what_it_leaves_out_on_purpose
+    assert whole_game, "it builds"
   end
 
-  # A GAME SAVED PARTWAY THROUGH A FLOOR LOADS AS IT WAS SAVED. On the second floor, take the key,
-  # open a door and fire a shot that brings the guard round; save; turn the console off and on;
-  # load. Everything kept is back as it was at the save, and each table is pointed at the second
-  # floor again rather than at the first, which is where the console powers on.
+  # A GAME SAVED PARTWAY THROUGH A FLOOR LOADS AS IT WAS SAVED. On the second floor, shoot the
+  # guard, take the key, open a door and stand in it; save; turn the console off and on; load.
+  # Everything kept is back as it was at the save, and each table is pointed at the second floor
+  # again rather than at the first, which is where the console powers on.
   #
-  # The world is held still while a test saves or loads (see #round_trip), so what came back can
-  # be held against the moment of the save. The original's LoadTheGame (wl_main.cpp) is the same
-  # three things in the same order: set the floor up, read the save over it, and work out again
-  # what follows from where the player stands.
+  # The world is held still while a test saves or loads (see #saving_cartridge), so what came back can
+  # be held against the moment of the save. The original's LoadTheGame (wl_main.cpp) sets the
+  # floor up and then reads the save over it; here the save is read first and the tables pointed
+  # at its floor after, which comes to the same thing, because pointing them touches nothing the
+  # save holds.
   def test_a_game_saved_on_the_second_floor_loads_as_it_was_saved
-    program, names = round_trip
+    program, names = saving_cartridge
     store = {}
-    saved = Reference.new(save: store).input_each_frame { |f| saving(f) }.run(program, frames: SAVED_BY)
-    loaded = Reference.new(save: store).input_each_frame { |f| loading(f) }
+    saved = Reference.new(save: store).input_each_frame { |f| presses_to_save(f) }.run(program, frames: SAVED_BY)
+    loaded = Reference.new(save: store).input_each_frame { |f| presses_to_load(f) }
                       .run(program, frames: WRITTEN_BY)
     powered_on = Reference.new.input_each_frame { STILL }.run(program, frames: 2)
 
     assert_equal 1, saved[:floor], "the game was saved on the second floor"
-    refute_equal 0, saved[:keys], "with the key taken"
+    assert_operator saved.pool(:guard, :hp).compact.min, :<, Wolf3D::Guards::HIT_POINTS,
+                    "with the guard shot"
+    refute_equal 0, saved[:keys], "and the key taken"
     assert saved.list(:door_open).any?(&:positive?), "and a door open"
     before = kept_state(saved, names)
     after = kept_state(loaded, names)
     assert before == after, "these came back changed: #{differences(before, after)}"
     refute_equal cursors(powered_on), cursors(saved), "the second floor's tables are not the first's"
     assert_equal cursors(saved), cursors(loaded), "and they point at the second floor again"
+  end
+
+  # A GAME SAVED IN A DOORWAY LOADS WITH THE SAME ROOMS OPEN. A doorway is in no room, so the room
+  # the player is in is remembered as the last one they were really in, and a load straight into
+  # a doorway has nothing else to go on. Not saved, it would still be the room of whatever the
+  # console was doing before the load: here, the first floor's. The original saves it too: the
+  # player's areanumber goes into the save with the rest of the player (SaveTheGame).
+  #
+  # Read a pass after the save and a pass after the load, which is when the rooms are next worked
+  # out. Which rooms are open does not depend on anything a pass of play can roll.
+  def test_a_game_saved_in_a_doorway_loads_with_the_same_rooms_open
+    program, = saving_cartridge
+    store = {}
+    saved = Reference.new(save: store).input_each_frame { |f| f == SAVED_BY ? [] : presses_to_save(f) }
+                     .run(program, frames: SAVED_BY + 2)
+    loaded = Reference.new(save: store).input_each_frame { |f| f == WRITTEN_BY ? [] : presses_to_load(f) }
+                      .run(program, frames: WRITTEN_BY + 2)
+
+    assert_equal DOORWAY_ROW, (saved[:py] / ONE).floor, "the game was saved in the doorway"
+    assert_equal saved.list(:_room_open), loaded.list(:_room_open)
   end
 
   # --- what it refuses, while the cartridge is built ---
@@ -181,23 +200,38 @@ class TestLastingState < Minitest::Test
   LOAD = %i[l r select].freeze
   STILL = %i[l r].freeze
 
-  ABOUT_TURN = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil
+  QUARTER_TURN = ((FP::TURN / 4) / FP::TURN_SPEED.to_f).ceil
+  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
-  # WHAT THE PLAYER DOES ON THE SECOND FLOOR, a pass at a time, and then saves. They start in the
-  # fixture's room facing north with the key one cell ahead: turn to face the door behind, back
-  # over the key, walk to the door and open it, fire once, and let the door start to move.
-  PLAYED = [[], NEW_GAME] + ([[:left]] * ABOUT_TURN) + ([[:down]] * 20) + ([[:up]] * 69) +
-           [%i[up a], [:b]] + ([[]] * 8) + [SAVE]
+  # The fixture's room, which the second floor is: the player starts in the middle facing north,
+  # the key is one cell ahead, the guard two cells to the east facing away, and a door is in the
+  # middle of the south wall.
+  MIDDLE = Wolf3D::Fixture::Release::GRID / 2
+  DOORWAY_ROW = MIDDLE + Wolf3D::Fixture::Release::ROOM
+
+  # HOW LONG EACH PART OF THE WALK TAKES, in passes, and each is generous: one more pass walking
+  # into a wall or a shut door changes nothing.
+  SHOT_LANDS = 4 * Wolf3D::Weapons::STAGE_PASSES # a pistol's four stages, one round
+  OVER_THE_KEY = 20 # backing a cell and more
+  TO_THE_DOOR = 70 # from the key to the shut door, and stopped against it
+  INTO_THE_DOORWAY = 26 # through a door as it opens, and no further
+
+  # WHAT THE PLAYER DOES ON THE SECOND FLOOR, a pass at a time, and then saves: turn to face the
+  # guard and shoot him, turn on to face the door, back over the key, walk to the door, open it,
+  # and stop in the doorway.
+  PLAYED = [[], NEW_GAME] + ([[:right]] * QUARTER_TURN) + [[:b]] + ([[]] * SHOT_LANDS) +
+           ([[:right]] * QUARTER_TURN) + ([[:down]] * OVER_THE_KEY) + ([[:up]] * TO_THE_DOOR) +
+           [%i[up a]] + ([[:up]] * INTO_THE_DOORWAY) + [SAVE]
   SAVED_BY = PLAYED.length + WRITTEN_BY
 
-  def saving(pass) = PLAYED[pass] || STILL
-  def loading(pass) = pass == 1 ? LOAD : STILL
+  def presses_to_save(pass) = PLAYED[pass] || STILL
+  def presses_to_load(pass) = pass == 1 ? LOAD : STILL
 
   # THE CARTRIDGE THE ROUND TRIP PLAYS: the whole view over the two floors, its LastingState
   # handed to a save record, and test buttons to start a new game on the second floor, to save
   # and to load. With the names it keeps.
-  def round_trip
-    @round_trip ||= begin
+  def saving_cartridge
+    @saving_cartridge ||= begin
       floors = two_floors
       atlas, things = atlases_of(floors)
       names = []
@@ -215,7 +249,7 @@ class TestLastingState < Minitest::Test
               game[0].load
               view.playthrough.start(:resume)
             end
-          end.else { view.play }
+          end.else { view.update }
         end
       end.program
       [program, names]
@@ -246,9 +280,9 @@ class TestLastingState < Minitest::Test
 
   def cursors(run) = CURSORS.map { |name| run[name] }
 
-  # THE WHOLE GAME, wired the way the real cartridge wires it, with the names its LastingState
-  # keeps written into +names+.
-  def whole_game(names)
+  # THE WHOLE GAME, wired the way the real cartridge wires it, with a save record that keeps what
+  # its LastingState holds and the framework's check that nothing else is left out by accident.
+  def whole_game
     floors = two_floors
     art = Wolf3D::MenuArt.of(release.pictures)
     atlas, things = atlases_of(floors)
@@ -259,7 +293,8 @@ class TestLastingState < Minitest::Test
                                      sound_on: sound_on)
       menus = Wolf3D::Menus.new(build: self, view: view, art: art, palette: Wolf3D::Palette.game,
                                 sound_on: sound_on)
-      names.concat(view.lasting.names)
+      view.lasting.keep_in(save_data(:game, copies: 1))
+      saves_keep_everything except: Wolf3D::LastingState::LEFT_OUT.keys
       game_loop { menus.update }
     end.program
   end
@@ -276,7 +311,7 @@ class TestLastingState < Minitest::Test
   # its key, a wall that slides, and a guard.
   def two_floors
     @two_floors ||= Wolf3D::Floors.new(
-      [a_floor_with_a_lift_and_a_way_out, fixture_level].each_with_index.map do |level, n|
+      [lift_floor, fixture_level].each_with_index.map do |level, n|
         Wolf3D::Floors::Floor.new(index: n, level: level, doors: Wolf3D::Doors.new(level, vswap),
                                   pushwalls: Wolf3D::Pushwalls.new(level),
                                   lifts: Wolf3D::Elevator.new(level), guards: Wolf3D::Guards.new(level),
@@ -299,19 +334,25 @@ class TestLastingState < Minitest::Test
 
   # Every floor of a cartridge is the same size, so this one is the fixture's.
   GRID = Wolf3D::Fixture::Release::GRID
-  ROOM = 6
+  ROOM = 6 # cells across each of the lift floor's two rooms, and down the first
 
-  # A small room in the corner of the map, with a lift's lever in its east wall, the way out on
-  # its floor, and a guard. The guard is there because dying needs something that can kill you on
+  # Two small rooms in the corner of the map, one above the other with a door between, which is
+  # what makes the game build its rooms at all. The upper one has a lift's lever in its east wall,
+  # the way out on its floor, the player, and a guard: dying needs something that can kill you on
   # the floor a cartridge boots on.
-  def a_floor_with_a_lift_and_a_way_out
+  def lift_floor
     cells = Array.new(GRID * GRID, Wolf3D::Fixture::Release::WALL)
     things = Array.new(GRID * GRID, 0)
-    (1..ROOM).each { |y| (1..ROOM).each { |x| cells[(y * GRID) + x] = Wolf3D::Level::FLOOR } }
-    cells[(2 * GRID) + ROOM + 1] = Wolf3D::Elevator::SWITCH
-    things[(2 * GRID) + 3] = Wolf3D::Level::FACINGS.key(:east)
-    things[(2 * GRID) + 1] = Wolf3D::Level::EXIT
-    things[(5 * GRID) + 5] = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
+    at = ->(x, y) { (y * GRID) + x }
+    (1..ROOM).each do |x|
+      (1..ROOM).each { |y| cells[at.call(x, y)] = Wolf3D::Level::FLOOR }
+      (ROOM + 2..(2 * ROOM) + 1).each { |y| cells[at.call(x, y)] = Wolf3D::Level::FLOOR + 1 }
+    end
+    cells[at.call(3, ROOM + 1)] = Wolf3D::Level::DOORS.first
+    cells[at.call(ROOM + 1, 2)] = Wolf3D::Elevator::SWITCH
+    things[at.call(3, 2)] = Wolf3D::Level::FACINGS.key(:east)
+    things[at.call(1, 2)] = Wolf3D::Level::EXIT
+    things[at.call(5, 5)] = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
     Wolf3D::Level.new(name: "Lift", width: GRID, height: GRID, walls: cells, things: things)
   end
 end
