@@ -335,6 +335,11 @@ module Wolf3D
       @kills.set! 0
       @secrets.set! 0
       @treasures.set! 0
+      # ...and how much there is to find on it. The kill total is counted as the guards stand up.
+      on_each_floor do |floor, n|
+        @secret_total.set! floor.pushwalls.count
+        @treasure_total.set! @pickups.treasure_total(n)
+      end
       # The lever comes back up and the lift forgets it was ever called.
       if lifts?
         @pulled.set!(-1)
@@ -518,19 +523,13 @@ module Wolf3D
       @bar.draw
     end
 
-    # HOW MUCH OF THE FLOOR HAS BEEN FOUND, and how much there was to find. The three counts are
-    # variables the game moves; the three totals are settled while building, because they are
-    # facts about the map. A percentage is one over the other, and the original gives a bonus for
-    # a hundred per cent of any of them.
+    # HOW MUCH OF THE FLOOR HAS BEEN FOUND, and how much there was to find on it. A percentage is
+    # one over the other, and the original gives a bonus for a hundred per cent of any of them.
     #
     # PUBLIC because the tally at the end of a floor is the whole reason they exist, and that
     # screen is not written yet — it wants the game's own lettering, which is a piece of work of
     # its own. Counting them is not, so they are counted, and the screen will find them here.
-    attr_reader :kills, :secrets, :treasures
-
-    def kill_total = @guards&.count || 0
-    def secret_total = @pushwalls.count
-    def treasure_total = @pickups&.treasure_total || 0
+    attr_reader :kills, :secrets, :treasures, :kill_total, :secret_total, :treasure_total
 
     private
 
@@ -695,6 +694,9 @@ module Wolf3D
       #
       # The score is the opposite and is deliberately not here: it is kept across floors and
       # comes back to nothing only when a whole game starts again.
+      #
+      # How much there was to find is declared with the things lying on the floor, which it
+      # counts — see #declare_what_there_is_to_find.
       @kills = @lasting.var :kills, 0
       @secrets = @lasting.var :secrets, 0
       @treasures = @lasting.var :treasures, 0
@@ -742,6 +744,7 @@ module Wolf3D
       declare_the_rooms
       declare_the_guards
       declare_the_pickups
+      declare_what_there_is_to_find
       declare_the_guards_minds
       declare_the_standing
       declare_the_scratch
@@ -1081,6 +1084,25 @@ module Wolf3D
                                        score: @score, keys: @keys, treasures: @treasures })
     end
 
+    # HOW MUCH THERE IS TO FIND ON THE FLOOR BEING PLAYED: the men to kill, the walls that slide
+    # and the treasures, which the counts of what has been found are a share of.
+    #
+    # COUNTED AFRESH AS EACH FLOOR IS SET UP, the way the original counts them: SetupGameLevel
+    # zeroes all three, then ScanInfoPlane adds one for each wall that slides, SpawnStatic one for
+    # each treasure and each Spawn one for each man (wl_game.cpp, wl_act1.cpp, wl_act2.cpp). So
+    # the kill total is the men THIS game stood up, and a man who only turns up on a harder
+    # setting is not one of them. See #reset_floor and #put_the_guards_back.
+    #
+    # A SAVED GAME KEEPS THEM, and loading one does not count them again: every one of those adds
+    # in the original sits behind `if (!loadedgame)`. They start at the first floor's, because at
+    # power-on the game simply begins there with nothing having set it up.
+    def declare_what_there_is_to_find
+      first = @floors.first_floor
+      @kill_total = @lasting.var :kill_total, first.guards&.at(Guards::DEFAULT_DIFFICULTY)&.length || 0
+      @secret_total = @lasting.var :secret_total, first.pushwalls.count
+      @treasure_total = @lasting.var :treasure_total, @pickups.treasure_total(0)
+    end
+
     # THE GUARDS THEMSELVES: where each stands and what state he is in. Their minds come after the
     # things on the floor, because a guard who falls leaves one.
     # THE POOL HOLDS ONE FLOOR'S WORTH, not every floor's, because only one floor is ever being
@@ -1224,9 +1246,6 @@ module Wolf3D
                                   at_least_one(everyone.map { |g| @behaviour.hit_points_at(g.kind) }),
                                   width: :byte
       @hit_points = b.table :guard_hit_points, @behaviour.hit_points, width: :half
-      # How many have stood up so far while a floor is being filled, which is what spreads their
-      # thinking over the two passes. See #put_the_guards_back.
-      @stood = b.var :_stood, 0
     end
 
     # ONE ARM PER FLOOR, and the arm for the floor being played runs the block, handed that floor
@@ -1275,10 +1294,13 @@ module Wolf3D
       return if @guard.nil?
 
       @guard.each(&:remove)
-      # WHICH PASS EACH ONE THINKS ON is counted over the guards who really STAND UP, not over
-      # the slots walked — otherwise an easier game, which spawns from scattered slots, could
-      # land most of its floor on the same pass and pay for it twice over on that one.
-      @stood.set! 0
+      # EACH ONE WHO STANDS UP IS ONE MORE TO KILL, which is the floor's kill total: the original
+      # adds one in every Spawn (wl_act2.cpp).
+      #
+      # ...AND WHICH PASS HE THINKS ON is counted the same way, over the guards who really stand
+      # up and not over the slots walked — otherwise an easier game, which spawns from scattered
+      # slots, could land most of its floor on the same pass and pay for it twice over on that one.
+      @kill_total.set! 0
       @b.repeat(@guard_count, estimate: how_many(:guards)) do |n|
         @slot.set!(@guard_first + n)
         (@difficulty >= @guard_home_from[@slot]).then do
@@ -1287,8 +1309,8 @@ module Wolf3D
                        state: @guard_home_state[@slot], ticks: @guard_home_ticks[@slot],
                        hp: @hit_points[@guard_home_tough[@slot] + @difficulty],
                        wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
-                       ambush: @guard_home_ambush[@slot], turn: @stood % 2
-          @stood.add! 1
+                       ambush: @guard_home_ambush[@slot], turn: @kill_total % 2
+          @kill_total.add! 1
         end
       end
     end

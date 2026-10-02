@@ -35,8 +35,12 @@ class TestFloors < Minitest::Test
   #
   # +in_the_car+ lays that piece in the car instead and starts the player one cell back from it,
   # so walking up to the lever picks it up.
+  #
+  # +guards+, +crosses+ and +secrets+ put that many of each along the bottom of the room, out of
+  # the way: the guards facing the wall, so none of them sees a player who never goes near.
+  # +harder+ adds that many guards who turn up only on the hardest setting.
   def a_floor(name:, start_x:, start_y:, secret_car: false, lift: true, door_at: nil,
-              in_the_car: nil)
+              in_the_car: nil, guards: 0, harder: 0, crosses: 0, secrets: 0)
     cells = Array.new(SIDE * SIDE, FLOOR + 1)
     things = Array.new(SIDE * SIDE, 0)
     SIDE.times do |y|
@@ -53,27 +57,54 @@ class TestFloors < Minitest::Test
     player = in_the_car ? start_x - 1 : start_x
     things[(start_y * SIDE) + player] = Wolf3D::Level::FACINGS.key(:east)
     things[(start_y * SIDE) + start_x] = Wolf3D::Scenery::FIRST_CODE + in_the_car if in_the_car
+    guards.times { |n| things[(13 * SIDE) + 2 + (2 * n)] = FACING_THE_WALL }
+    harder.times { |n| things[(13 * SIDE) + 2 + (2 * (guards + n))] = ONLY_ON_HARD }
+    crosses.times { |n| things[(11 * SIDE) + 2 + (2 * n)] = Wolf3D::Scenery::FIRST_CODE + CROSS }
+    secrets.times do |n|
+      cells[(14 * SIDE) + 9 + (2 * n)] = WALL
+      things[(14 * SIDE) + 9 + (2 * n)] = Wolf3D::Level::PUSHWALL
+    end
     Wolf3D::Level.new(name: name, width: SIDE, height: SIDE, walls: cells, things: things)
   end
 
-  def floors_of(*levels)
+  FACING_THE_WALL = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
+  # ...and the same man in the third block of his codes, which is the hardest setting's.
+  ONLY_ON_HARD = FACING_THE_WALL + (2 * Wolf3D::Enemy::GUARD.harder)
+
+  # +standing+ reads each floor's guards and scenery too, which most of these leave out: a floor
+  # with nobody on it is a quicker game to play, and the lift does not care.
+  def floors_of(*levels, standing: false)
     Wolf3D::Floors.new(levels.each_with_index.map do |level, index|
       Wolf3D::Floors::Floor.new(index: index, level: level,
                                 doors: Wolf3D::Doors.new(level, @vswap),
                                 pushwalls: Wolf3D::Pushwalls.new(level),
                                 lifts: EL.new(level),
-                                guards: nil, scenery: nil)
+                                guards: (Wolf3D::Guards.new(level) if standing),
+                                scenery: (Wolf3D::Scenery.new(level) if standing))
     end)
   end
 
   def program(floors, drawing: false)
     atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, floors.map(&:level),
                                   doors: floors.map(&:doors), lifts: floors.map(&:lifts))
+    things = things_of(floors)
     RubyGBA.game("FLOORS") do
       screen :bitmap, tear_free: true
-      view = FP.new(build: self, floors: floors, atlas: atlas)
+      view = FP.new(build: self, floors: floors, atlas: atlas, things: things)
       game_loop { drawing ? view.update : view.play }
     end.program
+  end
+
+  # The pictures of whatever stands on the floors, or nothing where nothing does.
+  def things_of(floors)
+    standing = floors.select(&:guards)
+    return nil if standing.empty?
+
+    Wolf3D::ThingAtlas.new(@vswap, Wolf3D::Palette.game,
+                           standing.flat_map { |floor|
+                             floor.guards.pictures + floor.scenery.pictures +
+                               Wolf3D::Pickups.pictures(floor.guards)
+                           }.uniq.sort)
   end
 
   # Pull the lever and run on long enough for the lift to arrive.
@@ -211,6 +242,40 @@ class TestFloors < Minitest::Test
     assert_operator holding[:keys], :>, 0, "walking into the car should have picked the key up"
     assert_equal 1, arrived[:floor], "on the second floor"
     assert_equal 0, arrived[:keys], "with no keys"
+  end
+
+  # --- how much there is to find ---
+
+  # EACH FLOOR'S OWN, which is what makes the tally at the end of a floor a share of THAT floor.
+  # The original counts all three afresh as it sets each floor up: SetupGameLevel zeroes them, and
+  # then ScanInfoPlane counts a wall that slides, SpawnStatic a treasure and each Spawn a man
+  # (wl_game.cpp, wl_act1.cpp, wl_act2.cpp).
+  def test_what_there_is_to_find_is_the_floor_you_are_on
+    floors = floors_of(a_floor(name: "one", start_x: 4, start_y: 8, guards: 1, crosses: 1, secrets: 1),
+                       a_floor(name: "two", start_x: 9, start_y: 3, guards: 2, crosses: 3, secrets: 2),
+                       standing: true)
+    run = take_the_lift(floors)
+
+    assert_equal 1, run[:floor], "on the second floor"
+    assert_equal 2, run[:kill_total], "its two guards"
+    assert_equal 2, run[:secret_total], "its two walls that slide"
+    assert_equal 3, run[:treasure_total], "its three crosses"
+  end
+
+  # ...AND ONLY THE MEN THIS GAME STANDS UP. One put down for the hardest setting alone is never
+  # spawned on an easier one, and the original counts a man as it spawns him — ScanInfoPlane's
+  # `if (gamestate.difficulty<gd_hard) break;` comes before the Spawn that would count him. Read
+  # at the setting a game plays at until somebody picks, on the floor the game powers on to and
+  # on the one the lift brings you to, because the two are set up by different code.
+  def test_a_guard_only_a_harder_game_meets_is_not_one_to_kill
+    floors = floors_of(a_floor(name: "one", start_x: 4, start_y: 8, guards: 1, harder: 1),
+                       a_floor(name: "two", start_x: 9, start_y: 3, guards: 2, harder: 1),
+                       standing: true)
+    powered_on = Reference.new.run(program(floors), frames: 3)
+    arrived = take_the_lift(floors)
+
+    assert_equal 1, powered_on[:kill_total], "the first floor's one"
+    assert_equal 2, arrived[:kill_total], "and the second floor's two"
   end
 
   # --- where the lift goes ---

@@ -3,8 +3,9 @@
 require_relative "test_helper"
 
 # HOW MUCH OF A FLOOR HAS BEEN FOUND: its guards killed, its secret walls shoved, its treasures
-# taken. Three counts the game keeps and three totals settled while building, which together are
-# the percentages the original shows between floors.
+# taken. Three counts the game keeps and three totals counted as the floor is set up, which
+# together are the percentages the original shows between floors. That each floor gets its own
+# totals is tested in test_floors.rb, which has the lift.
 #
 # THEY BELONG TO THE FLOOR, not to the game, and that is the whole point of them being apart from
 # the score: the score is kept across floors, these go back to nothing when a floor starts.
@@ -58,7 +59,6 @@ class TestTally < Minitest::Test
     Wolf3D::Level.new(name: "Tally", width: SIDE, height: SIDE, walls: cells, things: standing)
   end
 
-  # Handed back so a test can ask the build-time totals as well as run the game.
   # +drawn+ is what anything that SHOOTS needs, and only that: a shot goes to a man the renderer
   # put on the screen, so with nothing drawn nobody is ever on it and nothing can be shot. Walking
   # over a secret or a treasure needs none of it, and drawing costs about a hundred times playing.
@@ -71,52 +71,53 @@ class TestTally < Minitest::Test
     things = Wolf3D::ThingAtlas.new(vswap, palette,
                                     (guards.pictures + scenery.pictures +
                                      Pickups.pictures(guards)).uniq.sort)
-    seen = nil
-    program = RubyGBA.game("TALLY") do
+    RubyGBA.game("TALLY") do
       screen :bitmap, tear_free: true
-      seen = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
+      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery)
-      game_loop { drawn ? seen.update : seen.play }
+      game_loop { drawn ? view.update : view.play }
     end.program
-    [program, seen]
   end
 
   def walk_east(level, cells:)
-    program, view = view_of(level)
-    [Reference.new.input_each_frame { [:up] }.run(program, frames: cells(cells)), view]
+    Reference.new.input_each_frame { [:up] }.run(view_of(level), frames: cells(cells))
+  end
+
+  # What there is to find, as the game holds it once it has been powered on: guards, secret
+  # walls and treasures.
+  def totals_of(level)
+    run = Reference.new.run(view_of(level), frames: 1)
+    [run[:kill_total], run[:secret_total], run[:treasure_total]]
   end
 
   # --- what there was to find ---
 
   def test_the_totals_are_what_the_floor_holds
-    _, view = view_of(arena(ahead: [CROSS, CHALICE, CLIP], guards: [[9, ROW, :west]], secret: 11))
+    kills, secrets, treasures = totals_of(arena(ahead: [CROSS, CHALICE, CLIP],
+                                                guards: [[9, ROW, :west]], secret: 11))
 
-    assert_equal 1, view.kill_total, "one guard on this floor"
-    assert_equal 1, view.secret_total, "one wall that moves"
-    assert_equal 2, view.treasure_total, "the cross and the chalice; a clip is not treasure"
+    assert_equal 1, kills, "one guard on this floor"
+    assert_equal 1, secrets, "one wall that moves"
+    assert_equal 2, treasures, "the cross and the chalice; a clip is not treasure"
   end
 
   # THE ONE-UP COUNTS AS A TREASURE, which looks wrong and is the original's own accounting: it
   # sits in the same arm of GetBonus as the cross, the chalice, the bible and the crown. Miss it
   # and a player who collected everything is told they found half of it.
   def test_a_one_up_counts_as_treasure
-    _, view = view_of(arena(ahead: [CROSS, ONE_UP]))
+    _, _, treasures = totals_of(arena(ahead: [CROSS, ONE_UP]))
 
-    assert_equal 2, view.treasure_total
+    assert_equal 2, treasures
   end
 
   def test_a_floor_with_nothing_on_it_has_nothing_to_find
-    _, view = view_of(arena)
-
-    assert_equal 0, view.kill_total
-    assert_equal 0, view.secret_total
-    assert_equal 0, view.treasure_total
+    assert_equal [0, 0, 0], totals_of(arena)
   end
 
   # --- what has been found ---
 
   def test_nothing_is_found_before_anything_happens
-    run, = walk_east(arena(ahead: [CROSS], guards: [[9, ROW, :west]], secret: 11), cells: 0)
+    run = walk_east(arena(ahead: [CROSS], guards: [[9, ROW, :west]], secret: 11), cells: 0)
 
     assert_equal 0, run[:kills]
     assert_equal 0, run[:secrets]
@@ -124,7 +125,7 @@ class TestTally < Minitest::Test
   end
 
   def test_walking_over_treasure_counts_it
-    run, = walk_east(arena(ahead: [CROSS, CHALICE]), cells: 3)
+    run = walk_east(arena(ahead: [CROSS, CHALICE]), cells: 3)
 
     assert_equal 2, run[:treasures], "both of them"
     assert_operator run[:score], :>, 0, "and the score went up too, which is a separate thing"
@@ -133,13 +134,13 @@ class TestTally < Minitest::Test
   # A clip changes the ammunition and nothing else. If treasure were counted by "anything taken"
   # this is the test that would fail.
   def test_walking_over_a_clip_is_not_treasure
-    run, = walk_east(arena(ahead: [CLIP]), cells: 2)
+    run = walk_east(arena(ahead: [CLIP]), cells: 2)
 
     assert_equal 0, run[:treasures]
   end
 
   def test_taking_a_one_up_counts_as_treasure
-    run, = walk_east(arena(ahead: [ONE_UP]), cells: 2)
+    run = walk_east(arena(ahead: [ONE_UP]), cells: 2)
 
     assert_equal 1, run[:treasures], "the original counts it with the cross and the crown"
   end
@@ -154,7 +155,7 @@ class TestTally < Minitest::Test
   end
 
   def test_shoving_a_secret_wall_counts_once
-    program, = view_of(arena(secret: START + 1))
+    program = view_of(arena(secret: START + 1))
 
     early = shove(program, 20)
     later = shove(program, Wolf3D::Pushwalls::FRAMES_PER_CELL * 3)
@@ -165,7 +166,7 @@ class TestTally < Minitest::Test
 
   def test_killing_a_guard_counts_it
     level = arena(guards: [[9, ROW, :west]])
-    program, = view_of(level, drawn: true)
+    program = view_of(level, drawn: true)
     run = Reference.new.input_each_frame { |f| (f / 2).even? ? [:b] : [] }
                    .run(program, frames: 120)
 

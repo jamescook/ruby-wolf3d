@@ -283,13 +283,7 @@ class TestPlaythrough < Minitest::Test
 
   # EVERYTHING THE GAME DECLARED, as the framework reads it: every variable, list and pool, and
   # whatever is declared after this test was written.
-  #
-  # Less one: how many guards have stood up so far while a floor is filled, which is working room
-  # for that and read by nothing after it.
-  def state_of(run)
-    state = run.game_state
-    state.merge(vars: state[:vars].except(:_stood))
-  end
+  def state_of(run) = run.game_state
 
   # +level+ with nothing played: the loop only begins a new game on A, if +new_game+.
   def at_power_on(level, new_game:)
