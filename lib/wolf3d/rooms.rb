@@ -93,8 +93,8 @@ module Wolf3D
     # map underneath all of this.
     def refresh
       where_the_player_stands
-      ((@here != @was_here) | (@changed == 1)).then do
-        @was_here.set! @here
+      ((@player_room != @worked_out_for) | (@changed == 1)).then do
+        @worked_out_for.set! @player_room
         @changed.set! 0
         @b.call(:which_rooms_are_open)
       end
@@ -113,7 +113,7 @@ module Wolf3D
     # written with the rest of the player (SaveTheGame, wl_main.cpp).
     def where_the_player_stands
       @stood.set!(@room_of[@map_base + (@player[:y].to_i * @width) + @player[:x].to_i])
-      (@stood > NOWHERE).then { @here.set! @stood }
+      (@stood > NOWHERE).then { @player_room.set! @stood }
     end
 
     # A DOOR MOVED, so the walk has to be done again. Said by the doors rather than worked out
@@ -168,12 +168,16 @@ module Wolf3D
 
       @always = always_joined
       @room, @stood, @spread, @near, @far = whole(:room, :stood, :spread, :near, :far)
-      @here = @lasting.var :room_here, NOWHERE
-      # WHAT THE LAST WALK WAS ABOUT, so this one can tell whether it would say anything new.
-      # The room starts at one nothing can be in and the flag starts set, so the first frame of
-      # the game does the walk however it starts. Declared with those values rather than assigned
-      # them, because a variable's starting value is applied once at boot wherever it is written.
-      @was_here = b.var(:_room_was_here, -1)
+      # THE ROOM THE PLAYER IS IN: the last one they were really standing in, which stays put
+      # while they cross a doorway, because a doorway is in no room. A saved game holds it — see
+      # #where_the_player_stands.
+      @player_room = @lasting.var :player_room, NOWHERE
+      # WHICH ROOM THE OPEN ROOMS WERE LAST WORKED OUT FOR, so the next walk can tell whether it
+      # would say anything new. It starts at one nothing can be in and the flag starts set, so the
+      # first frame of the game does the walk however it starts. Declared with those values rather
+      # than assigned them, because a variable's starting value is applied once at boot wherever
+      # it is written.
+      @worked_out_for = b.var(:_room_worked_out_for, -1)
       @changed = b.var(:_room_changed, 1)
       declare_the_fill
     end
@@ -252,7 +256,7 @@ module Wolf3D
 
       # Which room the player is in was read by the caller, which is where the decision to run
       # this at all was made — see #where_the_player_stands.
-      @open_room[@here] = 1
+      @open_room[@player_room] = 1
 
       # SPREAD THROUGH THE OPEN DOORS UNTIL NOTHING MORE OPENS. Two rooms joined by an open door
       # are one room as far as this is concerned, and a run of open doors joins the lot — so a
