@@ -923,7 +923,7 @@ module Wolf3D
       @ang, @hit, @wall, @cell, @colh, @top = whole(:ang, :hit, :wall, :cell, :colh, :top)
       @mapx, @mapy, @stepmx, @stepmy, @side = whole(:mapx, :mapy, :stepmx, :stepmy, :side)
       @dx, @dy, @deltax, @deltay = fraction(:dx, :dy, :deltax, :deltay)
-      @sidex, @sidey, @dist, @seen, @wallx = fraction(:sidex, :sidey, :dist, :seen, :wallx)
+      @sidex, @sidey, @dist, @depth, @wallx = fraction(:sidex, :sidey, :dist, :depth, :wallx)
 
       # ...AND WHERE THE EYE STANDS, which every ray needs and none of them can change: the cell
       # the player is in, how far through it they are, and how far it is to the far side. Worked
@@ -1749,10 +1749,10 @@ module Wolf3D
 
       # Correct for the fan: a ray angled away from centre travels further to reach the same
       # flat wall, and without this a straight wall bows outward at the edges of the view.
-      @seen.set!(@dist * @sin[(col * SPREAD) + QUARTER - ((COLUMNS - 1) * SPREAD / 2)])
+      @depth.set!(@dist * @sin[(col * SPREAD) + QUARTER - ((COLUMNS - 1) * SPREAD / 2)])
 
       # ...AND NO NEARER THAN THIS, which is not about perspective. See NEAREST.
-      @seen.clamp!(NEAREST, FAR)
+      @depth.clamp!(NEAREST, FAR)
 
       # The perspective divide, which is the whole trick: a wall twice as far away covers half
       # as much of the screen.
@@ -1769,7 +1769,7 @@ module Wolf3D
       # ONE height, and dropping the fraction puts every strip whose height lands exactly on a
       # whole number at the mercy of the last bit — half of them fall to the pixel below and
       # the top edge of a flat wall wanders.
-      @colh.set!((WALL_SCALE / @seen + 0.5).to_i)
+      @colh.set!((WALL_SCALE / @depth + 0.5).to_i)
       @top.set! HORIZON
       @top.sub!(@colh / 2)
 
