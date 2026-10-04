@@ -53,10 +53,12 @@ class TestMenus < Minitest::Test
     assert_equal Menus::TITLE, round[:screen], "and then round to the title again"
   end
 
-  # ANY BUTTON AT ALL OPENS THE MENU, which is the only way into Wolfenstein. Every one of them
-  # is tried, because "any" is the whole promise and a list of ten is where one gets left out.
+  # ANY BUTTON AT ALL OPENS THE MENU, which is the only way into Wolfenstein. Every one of the
+  # console's ten is tried, because "any" is the whole promise.
+  BUTTONS = %i[a b start select left right up down l r].freeze
+
   def test_any_button_at_all_opens_the_menu
-    Menus::BUTTONS.each do |button|
+    BUTTONS.each do |button|
       run = play(frames: 4) { |f| f >= 2 ? [button] : [] }
 
       assert_equal Menus::MENU, run[:screen], "#{button} should have opened the menu"
@@ -219,6 +221,15 @@ class TestMenus < Minitest::Test
 
     assert_equal Menus::TITLE, run[:screen], "ending a game leaves you at the title"
     assert_equal 0, run[:_in_game], "with no game behind the menu any more"
+  end
+
+  # A BUTTON STILL DOWN FROM THE MENU IS NOT A NEW PRESS. The original notes which buttons are
+  # down as a still screen starts and waits for one that was not (IN_StartAck and IN_CheckAck,
+  # id_in.cpp), so a player who ends the game and keeps A held a moment stays at the title.
+  def test_a_button_held_on_from_the_menu_does_not_open_it_again
+    run = playing(frames: 180) { |f| f == 95 ? [:start] : (f >= 120 ? [:a] : []) }
+
+    assert_equal Menus::TITLE, run[:screen]
   end
 
   # --- THE EPISODE LIST ----------------------------------------------------------------------

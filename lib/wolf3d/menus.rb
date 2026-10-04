@@ -284,7 +284,11 @@ module Wolf3D
         # A PRESS ALWAYS WINS, and it wins whichever way round these two are asked: moving on
         # puts the clock back to nothing, so the screen that arrives is the one the press
         # asked for either way. A player who touched the pad meant the menu.
-        anybody_pressing.then { go_to MENU }
+        #
+        # A NEW PRESS, not a button that is down. The original notes what is held as the screen
+        # starts and waits for something that was not (IN_StartAck and IN_CheckAck, id_in.cpp),
+        # so the A that ended a game, held a moment too long, does not open the menu again.
+        @b.pressed(:any).then { go_to MENU }
       end
     end
 
@@ -315,13 +319,6 @@ module Wolf3D
     # How many frames each two-pixel step holds for, so the drift out and back takes about four
     # fifths of the time the screen is up and settles for the rest of it. Never less than one.
     def pan_step(travel, over) = [(over * 4 / 5) / (travel * 2), 1].max
-
-    # ANY BUTTON AT ALL, which is how you get out of the attract loop. Written out one button
-    # at a time because that is the only way to say it: the framework has a test for each
-    # button and none for "somebody is touching this".
-    BUTTONS = %i[a b start select left right up down l r].freeze
-
-    def anybody_pressing = BUTTONS.map { |button| @b.held(button) }.reduce(:|)
 
     # --- THE MAIN MENU, WHICH IS ALSO THE PAUSE MENU -----------------------------------------
 
