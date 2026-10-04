@@ -9,6 +9,7 @@ module Wolf3DTest
   # a test that spelled the whole path every time would wrap at every call. Naming them here
   # also means the next time the framework moves one, one line moves with it.
   Reference = RubyGBA::IR::Backends::Reference # the oracle: runs a program in-process
+  SaveImage = RubyGBA::IR::SaveImage # a cartridge's save memory, for Reference.new(save:)
   GBA = RubyGBA::IR::Backends::GBA
   Builder = RubyGBA::Builder
   ROM = RubyGBA::Cartridge::ROM

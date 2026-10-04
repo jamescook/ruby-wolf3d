@@ -17,7 +17,7 @@ class TestLastingState < Minitest::Test
   # handed over or after. The parts of the game declare their state long before anything saves
   # it, and some after.
   def test_a_value_declared_through_it_comes_back_after_a_load
-    store = {}
+    store = SaveImage.new
     played(store, :change, :save)
     run = played(store, :load)
 
@@ -27,7 +27,7 @@ class TestLastingState < Minitest::Test
   # ...AND A LIST AND A POOL come back whole: how far open each door is, and every guard in the
   # slot he stood in.
   def test_a_list_and_a_pool_declared_through_it_come_back_after_a_load
-    store = {}
+    store = SaveImage.new
     saved = played(store, :change, :save)
     run = played(store, :load)
 
@@ -65,7 +65,7 @@ class TestLastingState < Minitest::Test
   # pointed at its floor after, which comes to the same thing, because pointing them touches
   # nothing the save holds.
   def test_a_game_saved_on_the_second_floor_loads_as_it_was_saved
-    store = {}
+    store = SaveImage.new
     saved = Reference.new(save: store).input_each_frame { |f| presses_to_save(f) }
                      .run(saving_cartridge, frames: SAVED_BY)
     loaded = Reference.new(save: store).input_each_frame { |f| presses_to_load(f) }
@@ -93,7 +93,7 @@ class TestLastingState < Minitest::Test
   # Read a pass after the save and a pass after the load, which is when the rooms are next worked
   # out. Which rooms are open does not depend on anything a pass of play can roll.
   def test_a_game_saved_in_a_doorway_loads_with_the_same_rooms_open
-    store = {}
+    store = SaveImage.new
     saved = Reference.new(save: store).input_each_frame { |f| f == SAVED_BY ? [] : presses_to_save(f) }
                      .run(saving_cartridge, frames: SAVED_BY + 2)
     loaded = Reference.new(save: store).input_each_frame { |f| f == WRITTEN_BY ? [] : presses_to_load(f) }

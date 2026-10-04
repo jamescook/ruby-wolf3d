@@ -31,7 +31,9 @@ end
 `test_helper` pulls in minitest and the game (which pulls in the framework), and
 `Wolf3DTest` hands the test these names and helpers:
 
-- `Reference` (the framework's oracle backend), `GBA` (the ROM lowering), `Builder`, `ROM`,
+- `Reference` (the framework's oracle backend), `SaveImage` (an empty save memory for
+  `Reference.new(save:)`; hand the same one to a second run to power the cartridge on again),
+  `GBA` (the ROM lowering), `Builder`, `ROM`,
   `Verifier` (the real cartridge in the emulator), `Constants` (`KEY_UP` and the rest of the
   hardware's names), `Fraction`. Each lives a module or two down in ruby-gba; the helper names
   them once so the next reshuffle there moves one line, not a hundred.
