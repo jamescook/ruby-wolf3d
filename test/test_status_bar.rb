@@ -99,8 +99,15 @@ class TestStatusBar < Minitest::Test
   RING = [[9, 8, :west], [7, 8, :east], [8, 9, :north], [8, 7, :south],
           [9, 9, :west], [7, 7, :east]].freeze
 
+  # READ IN THE QUIET AFTER THE FIRST DEATH: late enough that the dying has played out and the
+  # floor has started again, and before the ring, which is put back with it, has opened fire a
+  # second time. The ring's guards take their turns in the order the floor lists them, as the
+  # original's do (its actors are a list a new one joins at the end, GetNewActor in
+  # wl_play.cpp), so a change to that order moves both ends of the quiet.
+  BACK_ON_HIS_FEET = 180
+
   def test_the_lives_on_the_bar_come_down_when_you_die
-    died = Reference.new.run(view_of(arena(guards: RING)), frames: 210)
+    died = Reference.new.run(view_of(arena(guards: RING)), frames: BACK_ON_HIS_FEET)
 
     assert_equal Wolf3D::Lives::START - 1, died[:lives], "one go should have been spent by now"
     assert_equal died[:lives], figure(died, :lives), "and the bar should say what is left"
@@ -211,10 +218,10 @@ class TestStatusBar < Minitest::Test
   # CHANGES is what this asks.
   #
   # HURT AND STILL STANDING, which the test reads back rather than trusting a frame count to
-  # land there: a ring of six takes the player down in about a hundred frames, and dying starts
-  # the floor again at a fresh hundred of health — so a run left to play on long enough comes
-  # back wearing the HEALTHY face, and the test would fail with nothing wrong.
-  HURT_BUT_ALIVE = 80
+  # land there: a ring of six takes the player down within a few frames of its first shot, and
+  # dying starts the floor again at a fresh hundred of health — so a run left to play on long
+  # enough comes back wearing the HEALTHY face, and the test would fail with nothing wrong.
+  HURT_BUT_ALIVE = 70
 
   def test_a_hurt_player_gets_a_different_face
     healthy = Reference.new.run(view_of(arena, art: art), frames: 2)
