@@ -41,24 +41,41 @@ task :build do
   ruby "wolf3d.rb"
 end
 
+# The WOLF3D_* dials that are set, as --set arguments for the framework's own `ruby-gba` command.
+# wolf3d.rb reads the environment only when it is the file run, and under `ruby-gba` it is not, so
+# the dials have to be handed over. Loading the library to learn their names costs a second, and
+# keeps one list of them.
+def dial_arguments
+  require_relative "lib/wolf3d"
+  settings = Wolf3D.settings_from(ENV).map { |name, value| "#{name}=#{value}" }
+  settings.empty? ? [] : ["--set", *settings]
+end
+
 namespace :build do
   # The same game as a program for this computer: a window, with the keyboard as the console's
-  # buttons (mGBA's keys). The framework builds it — `ruby-gba build --format=native` — so this
-  # only hands it the dials. wolf3d.rb reads the environment only when it is the file run, and here
-  # the framework's command is, so each WOLF3D_* dial that is set goes in as a --set instead.
-  #
-  # Loading the library to learn the dials' names costs a second, and keeps one list of them.
+  # buttons (mGBA's keys). The framework builds it — `ruby-gba build --format=native`.
   desc "Build wolf3d-desktop, the game as a desktop app (the WOLF3D_* dials work as for build)"
   task :desktop do
-    require_relative "lib/wolf3d"
-    settings = Wolf3D.settings_from(ENV).map { |name, value| "#{name}=#{value}" }
-    set = settings.empty? ? [] : ["--set", *settings]
-    sh "bundle", "exec", "ruby-gba", "build", "wolf3d.rb", "--format=native", "--output=wolf3d-desktop", *set
+    sh "bundle", "exec", "ruby-gba", "build", "wolf3d.rb", "--format=native", "--output=wolf3d-desktop",
+       *dial_arguments
+  end
+
+  # The CARTRIDGE's frames, through `ruby-gba profile`: what the build made of each routine and
+  # which ones fit in the console's quick memory, then the game run in the emulator and where its
+  # frames went. OPTS goes to that command as it is, so its own options need no list here —
+  # `ruby-gba help profile` has them. Left alone it measures the game as it boots, which is the
+  # menu, so name the scene; and a player standing still costs little, so hold something:
+  #
+  #   rake build:gba_profile WOLF3D_FLOORS=1 OPTS="--scene playing --keys up"
+  desc 'Where the CARTRIDGE\'s frames go, run in the emulator (OPTS="--scene playing --keys up" ' \
+       "passes ruby-gba profile options)"
+  task :gba_profile do
+    sh "bundle", "exec", "ruby-gba", "profile", "wolf3d.rb", *dial_arguments, *ENV.fetch("OPTS", "").split
   end
 
   # NOT the game's frames. This samples the BUILD — Ruby, on this machine, turning your copy of
   # Wolfenstein into a cartridge. Where the finished cartridge spends its 228 scanlines a frame
-  # is a different question, and the framework's own rom.profile answers that one.
+  # is a different question, and build:gba_profile answers that one.
   desc "Where the BUILD's time goes: sample a full build, for speedscope.app"
   task :profile do
     ruby "tools/profile_build.rb"
