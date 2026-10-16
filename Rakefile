@@ -42,6 +42,20 @@ task :build do
 end
 
 namespace :build do
+  # The same game as a program for this computer: a window, with the keyboard as the console's
+  # buttons (mGBA's keys). The framework builds it — `ruby-gba build --format=native` — so this
+  # only hands it the dials. wolf3d.rb reads the environment only when it is the file run, and here
+  # the framework's command is, so each WOLF3D_* dial that is set goes in as a --set instead.
+  #
+  # Loading the library to learn the dials' names costs a second, and keeps one list of them.
+  desc "Build wolf3d-desktop, the game as a desktop app (the WOLF3D_* dials work as for build)"
+  task :desktop do
+    require_relative "lib/wolf3d"
+    settings = Wolf3D.settings_from(ENV).map { |name, value| "#{name}=#{value}" }
+    set = settings.empty? ? [] : ["--set", *settings]
+    sh "bundle", "exec", "ruby-gba", "build", "wolf3d.rb", "--format=native", "--output=wolf3d-desktop", *set
+  end
+
   # NOT the game's frames. This samples the BUILD — Ruby, on this machine, turning your copy of
   # Wolfenstein into a cartridge. Where the finished cartridge spends its 228 scanlines a frame
   # is a different question, and the framework's own rom.profile answers that one.

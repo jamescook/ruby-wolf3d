@@ -1,5 +1,7 @@
 *.gba
 *.sav
+# `rake build:desktop`. Like the cartridge, it carries your copy of the game's data inside it.
+*-desktop
 .DS_Store
 
 # Not committed — a fresh resolve each time, since the framework is pulled from git.
