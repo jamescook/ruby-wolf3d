@@ -29,7 +29,7 @@ rake build          # or: ruby wolf3d.rb — writes wolf3d.gba beside this READM
 rake build:profile   # samples a full build; writes tmp/build-<when>.json
 ```
 
-Drop that JSON on [speedscope.org](https://speedscope.org), or open it locally with
+Drop that JSON on [speedscope.app](https://speedscope.app), or open it locally with
 `npx speedscope tmp/build-<when>.json`. The run prints the heaviest routines too, so a reading
 says something without a browser.
 

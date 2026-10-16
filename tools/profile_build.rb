@@ -10,7 +10,7 @@
 #                a frame went. Nothing to do with this.
 #
 # Run it with `rake build:profile`. It leaves two files: the sampler's own dump, and the JSON
-# that speedscope.org reads. Open https://speedscope.org and drag the JSON onto it.
+# that speedscope.app reads. Open https://speedscope.app and drag the JSON onto it.
 #
 # WHAT IS SAMPLED is the BUILD. Reading your copy of Wolfenstein and declaring the game happen
 # when this file requires the game, before the sampler starts, and are timed separately below
@@ -70,7 +70,7 @@ module ProfileBuild
     puts
     report.print_text(false, SHOWN)
     puts
-    puts "Flame graph: open https://speedscope.org and drop #{json} onto it."
+    puts "Flame graph: open https://speedscope.app and drop #{json} onto it."
     puts "The sampler's own dump is #{dump}."
   end
 end

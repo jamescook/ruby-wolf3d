@@ -7,7 +7,7 @@
 # Not committed — a fresh resolve each time, since the framework is pulled from git.
 Gemfile.lock
 
-# What `rake build:profile` leaves: a sampler dump and the JSON speedscope.org reads. A
+# What `rake build:profile` leaves: a sampler dump and the JSON speedscope.app reads. A
 # reading is of one machine on one day, so it is yours and not the repository's.
 tmp/
 
