@@ -227,8 +227,7 @@ module Wolf3D
       # ...and where this frame's columns begin in the row of all twenty.
       @shape.set!(@shape * SQUARE)
 
-      b.repeat(@wide, estimate: { usually: @atlas.usual_columns,
-                                  most: @atlas.most_columns }) do |step|
+      b.repeat(@wide) do |step|
         @at.set!(@column + step)
         # THE WHOLE SQUARE, from the top of the view to the bottom of it, which is what the
         # original scales a weapon to. Every row of it is walked in the writing and hardly any

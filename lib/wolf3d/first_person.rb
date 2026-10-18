@@ -51,11 +51,6 @@ module Wolf3D
     QUARTER = TURN / 4
     CROSSINGS = 48        # grid lines a ray may cross before it gives up — about 24 cells
 
-    # ...and how many it really crosses, for the estimate only. See the note where the walk is
-    # written: measured over the first floor, from sixty-four places and four ways round each, a
-    # ray crosses four and a bit grid lines and no ray in twenty thousand ever ran out.
-    USUAL_CROSSINGS = 5
-
     # HOW WIDE THE VIEW IS: three angle units per strip, which over sixty strips is about 62
     # degrees across — a shade wider than the 60 the original uses.
     #
@@ -466,24 +461,12 @@ module Wolf3D
     # count comes down after the guards have had their look at it and before the trigger can top
     # it up again, and a shot is heard on the pass AFTER it is fired. That is a thirtieth of a
     # second against a reaction time of up to a whole one.
-    # HOW OFTEN A ROUND REALLY LEAVES, for the estimate's sake, and it is worth saying because
-    # what hangs off it is the biggest single thing in the frame: the shot walks every guard on
-    # the floor looking for a target. Unsaid, a test the game works out is counted on EVERY frame,
-    # so the report priced that walk as every-frame work and read seventeen times what drawing the
-    # gun costs — which is exactly the number that would send the next reader after the wrong
-    # thing.
-    #
-    # THE FASTEST GUN IN THE GAME IS THE CAUTIOUS ANSWER: a held chain gun puts out a round every
-    # stage, and a stage is Weapons::STAGE_PASSES passes. Everything else is slower — a machine
-    # gun is one stage in two, a tapped pistol one whole cycle of four — so this counts the
-    # worst weapon a player can be holding rather than the one they start with. The heaviest frame
-    # is unchanged either way: a frame that does fire pays for the walk whole.
     def fire
       (@noise > 0).then { @noise.sub! 1 }
       @weapons.update
       return unless @mind
 
-      @weapons.acted.then(estimate: { usually: 1, in: Weapons::STAGE_PASSES }) do
+      @weapons.acted.then do
         @mind.shoot(with_knife: @weapons.in_hand == Weapons::KNIFE)
       end
     end
@@ -985,26 +968,6 @@ module Wolf3D
                    state: self.class.width_for(@behaviour.length))
     end
 
-    # HOW MANY A LOOP OVER THEM REALLY MAKES, for the estimate only — nothing about how the game
-    # runs reads it. A loop counted by a variable has no number anywhere in the program, neither
-    # how many passes it makes nor the most it could, so unsaid it would be charged nothing at
-    # all and the report would call the whole of it free. The floors are right here, so both
-    # numbers are known: what a floor holds on average, and what the busiest one holds.
-    def how_many(kind)
-      counts = @floors.counts_of(kind)
-      { usually: [(counts.sum.to_f / counts.length).ceil, 1].max, most: [counts.max, 1].max }
-    end
-
-    # ...and the guards are the one kind where "how many are there" and "how many a loop over
-    # them touches" part company, because a floor carries every setting's men and stands up only
-    # its own. The routine that REFILLS the pool walks all of them, so it is counted by
-    # #how_many like everything else; the pool's own walk touches the ones who stood up, which
-    # is this. Averaged over the floors and taken at the setting a game opens on.
-    def guards_usually_standing
-      counts = @floors.map { |floor| floor.guards&.at(Guards::DEFAULT_DIFFICULTY)&.length || 0 }
-      [(counts.sum.to_f / counts.length).ceil, 1].max
-    end
-
     # A floor whose scenery all lets you through — and every floor, until there is scenery at
     # all — needs no table and pays nothing for one.
     # ...for every floor end to end, like the map itself and reached the same way. A floor whose
@@ -1107,12 +1070,7 @@ module Wolf3D
     # things on the floor, because a guard who falls leaves one.
     # THE POOL HOLDS ONE FLOOR'S WORTH, not every floor's, because only one floor is ever being
     # played — so it is sized for the busiest and refilled from the tables when a floor starts.
-    #
-    # IT IS SIZED FOR THE HARDEST GAME AND ESTIMATED FOR THE USUAL ONE, and the two are
-    # different numbers on purpose. The room has to be there or the hardest setting could not be
-    # played at all; what a frame really costs is how many stand up, which on a normal game is
-    # about two thirds of that. Counting the room would price every frame for a game nobody is
-    # playing. The worst case is still the room, which is what the ceiling means.
+    # It is sized for the hardest game too, or the hardest setting could not be played at all.
     def declare_the_guards
       return if no_floor_has?(:guards)
 
@@ -1128,9 +1086,7 @@ module Wolf3D
       # it the moment he does see you, and from then on he is a guard like any other.
       @guard = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
                                      hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0,
-                                     capacity: room_for(:guards),
-                                     estimate: { usually: guards_usually_standing },
-                                     widths: guard_widths
+                                     capacity: room_for(:guards), widths: guard_widths
       # THE FIRST FLOOR'S GUARDS AT BOOT, written out rather than read from the tables, because
       # at boot there is no floor to have started yet. Every floor after this one is filled by
       # #put_the_guards_back from the same tables the first floor's numbers came from.
@@ -1260,7 +1216,7 @@ module Wolf3D
     def shut_every_door
       return if no_floor_has?(:doors)
 
-      @b.repeat(@door_count, estimate: how_many(:doors)) do |door|
+      @b.repeat(@door_count) do |door|
         @open[door] = 0.0
         @linger[door] = 0
       end
@@ -1269,7 +1225,7 @@ module Wolf3D
     def put_the_secret_walls_back
       return if no_floor_has?(:pushwalls)
 
-      @b.repeat(@push_count, estimate: how_many(:pushwalls)) do |wall|
+      @b.repeat(@push_count) do |wall|
         @push_step[wall] = 0
         @push_gone[wall] = 0
         @push_wait[wall] = 0
@@ -1301,7 +1257,7 @@ module Wolf3D
       # up and not over the slots walked — otherwise an easier game, which spawns from scattered
       # slots, could land most of its floor on the same pass and pay for it twice over on that one.
       @kill_total.set! 0
-      @b.repeat(@guard_count, estimate: how_many(:guards)) do |n|
+      @b.repeat(@guard_count) do |n|
         @slot.set!(@guard_first + n)
         (@difficulty >= @guard_home_from[@slot]).then do
           @guard.spawn x: @guard_home_x[@slot], y: @guard_home_y[@slot],
@@ -1614,7 +1570,7 @@ module Wolf3D
     def move_the_walls
       return if no_floor_has?(:pushwalls)
 
-      @b.repeat(@push_count, estimate: how_many(:pushwalls)) do |wall|
+      @b.repeat(@push_count) do |wall|
         @wait.set!(@push_wait[wall])
         (@wait > 0).then do
           @push_wait[wall] = @wait - 1
@@ -1637,7 +1593,7 @@ module Wolf3D
 
       b = @b
       @here.set!(@world[@map_base + (@py.to_i * @level.width) + @px.to_i])
-      b.repeat(@door_count, estimate: how_many(:doors)) do |door|
+      b.repeat(@door_count) do |door|
         (@here == DOOR + door).then { @linger[door] = DOOR_LINGER }
         @wait.set!(@linger[door])
         @swing.set!(@open[door])
@@ -1707,14 +1663,10 @@ module Wolf3D
       end
 
       # Take whichever line is nearer, every time. That is all there is to it — and it stops
-      # the moment it meets a wall, which is well before the last crossing it is allowed.
-      #
-      # HOW SOON IT STOPS is measured rather than felt, because nothing at build time can know
-      # it and the estimate would otherwise count the ceiling: walking these same rays over the
-      # first floor, from sixty-four places and four ways round each, a ray crosses four and a
-      # bit grid lines and no ray in twenty thousand ever ran out. So the ceiling is generous
-      # and free, and this is what a frame really pays.
-      b.repeat(CROSSINGS, stop_when: @hit == 1, estimate: { usually: USUAL_CROSSINGS }) do
+      # the moment it meets a wall, which is well before the last crossing it is allowed: over
+      # the first floor a ray crosses four and a bit grid lines, so the ceiling is generous and
+      # costs nothing.
+      b.repeat(CROSSINGS, stop_when: @hit == 1) do
         (@sidex < @sidey).then do
           @sidex.add! @deltax
           @mapx.add! @stepmx
@@ -1918,24 +1870,12 @@ module Wolf3D
     # The height is also left behind for whatever stands in the room, which reads it to know
     # what it is behind. A ray that met nothing leaves nothing, so a guard at the end of an
     # open corridor is not held back by a wall that is not there.
-    # HOW TALL A WALL COLUMN USUALLY IS, for the estimate only — nothing about how the game runs
-    # reads it. Every height here is worked out as the game runs, because that is what
-    # perspective is, so nothing at build time can know how far down the screen a walk goes. The
-    # estimate would otherwise guess half the view.
-    #
-    # Measured on a running cartridge rather than reasoned about: the column heights this
-    # renderer produces, sampled over a full turn on the first floor, average about half the
-    # view — near walls are clipped at the top rather than drawn shorter, which piles the tall
-    # ones up at the ceiling instead of spreading them out.
-    USUALLY_TALL = VIEW_H / 2
-
     def strip(col, slice)
       b = @b
       depth = @standing&.depth
       drawn = (@hit == 1).then do
         depth[col] = @colh if depth
         b.draw_column_at :walls, slice: slice, x: col * COLUMN_W, top: @top, height: @colh,
-                                 estimate: { usually: USUALLY_TALL },
                                  width: COLUMN_W
       end
       drawn.else { depth[col] = 0 } if depth

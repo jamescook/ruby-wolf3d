@@ -238,12 +238,6 @@ module Wolf3D
     # front of the eye — hundreds of times a frame. The swap cost more than everything this
     # saves, and floor two went from twenty frames a second to fifteen: the change was measured
     # as a LOSS until this line was added.
-    #
-    # WHY THE FRAMEWORK CHOSE WRONG is not the framework being wrong. It ranks routines by what a
-    # frame costs, and the walk below is bounded by a floor's whole count of rooms — a ceiling it
-    # reaches only if every door on the floor stands open in one chain. That worst case is real,
-    # it is what an honest estimate has to report, and it is nothing like what a frame really
-    # pays. A ceiling far above the usual case is exactly when to say so by hand.
     def declare_the_fill
       @b.func(:which_rooms_are_open, fast: false) { fill }
     end
@@ -272,11 +266,11 @@ module Wolf3D
       # first pass as well as after it. Left at what the last frame finished on — nought, always,
       # since that is what ends it — the walk would never run at all.
       @spread.set! 1
-      b.repeat(@count, stop_when: @spread == 0, estimate: { usually: 1 }) do
+      b.repeat(@count, stop_when: @spread == 0) do
         @spread.set! 0
         # THE ROOMS THAT ARE ALWAYS JOINED, if this cartridge has any — see always_joined.
         @always.each { |near, far| join(near, far) }
-        b.repeat(@door_count, estimate: how_many_doors) do |door|
+        b.repeat(@door_count) do |door|
           (@open[door] > AJAR).then do
             @near.set!(@side_a[@door_first + door])
             @far.set!(@side_b[@door_first + door])
@@ -291,13 +285,6 @@ module Wolf3D
     def join(near, far)
       ((@open_room[near] == 1) & (@open_room[far] == 0)).then { @open_room[far] = 1; @spread.set! 1 }
       ((@open_room[far] == 1) & (@open_room[near] == 0)).then { @open_room[near] = 1; @spread.set! 1 }
-    end
-
-    # For the estimate only — the walk is over however many doors THIS floor has, which is a
-    # number the game works out, so the report is told what a floor usually holds.
-    def how_many_doors
-      counts = @floors.counts_of(:doors)
-      { usually: [(counts.sum.to_f / counts.length).ceil, 1].max, most: [counts.max, 1].max }
     end
   end
 end

@@ -175,10 +175,8 @@ module Wolf3D
       @turn = b.var :_gturn, 0
       b.func(:guard_thinking, fast: false) do
         @turn.set!((@turn + 1) % 2)
-        # HALF OF THEM ON ANY ONE FRAME, which is what @turn is for — said here because nothing at
-        # build time can read it off the test, and unsaid the report counts every guard thinking
-        # on every frame.
-        @pool.each { |guard| (guard.turn == @turn).then(estimate: { usually: 1, in: 2 }) { think(guard) } }
+        # HALF OF THEM ON ANY ONE FRAME, which is what @turn is for.
+        @pool.each { |guard| (guard.turn == @turn).then { think(guard) } }
       end
     end
 
@@ -235,23 +233,14 @@ module Wolf3D
       step_the_state(guard)
 
       # EXACTLY ONE OF THESE RUNS. They are the arms of one choice — a guard is standing, or
-      # walking his beat, or coming after you, or (a dog) hunting you down — and nothing at build
-      # time can see that, so unsaid the report counts all of them on every guard on every frame.
-      # It is not a small lie: nearly all of a job is the line of sight it walks, so counting
-      # three jobs where one runs put `guard_thinking` at three times its real cost and sent a
-      # whole afternoon after the wrong thing. One in however many there are, and the worst frame
-      # is unchanged either way.
-      #
-      # HALF AGAIN ON TOP OF THAT: a guard thinks on alternate frames (see @turn), so the body
-      # this sits in runs for half the pool on any one frame. That one is said where the loop is.
+      # walking his beat, or coming after you, or (a dog) hunting you down.
       #
       # A CARTRIDGE WITH NO DOGS HAS NO HUNTING ARM, so it pays nothing for one.
-      arms = @behaviour.jobs
       @job.set!(@think_of[guard.state])
-      (@job == LOOK).then(estimate: { usually: 1, in: arms }) { look(guard) }
-      (@job == PATROL).then(estimate: { usually: 1, in: arms }) { patrol(guard) }
-      (@job == CHASE).then(estimate: { usually: 1, in: arms }) { chase(guard) } if hunts?(:chase)
-      (@job == HUNT).then(estimate: { usually: 1, in: arms }) { hunt(guard) } if hunts?(:hunt)
+      (@job == LOOK).then { look(guard) }
+      (@job == PATROL).then { patrol(guard) }
+      (@job == CHASE).then { chase(guard) } if hunts?(:chase)
+      (@job == HUNT).then { hunt(guard) } if hunts?(:hunt)
     end
 
     # Does anything on this cartridge think this way at all?
@@ -466,13 +455,7 @@ module Wolf3D
     #
     # The ceiling is the width of the map, which no line can exceed, and the walk leaves as soon
     # as it arrives — so what it usually costs is how far apart they are, not how far apart they
-    # could ever be.
-    #
-    # HOW SOON IT STOPS is measured rather than felt. Walking this same line on the first floor,
-    # from every guard on it to eighty-five places the player can stand, it takes five steps in
-    # the middle of the range and nine in ten take under seven — because almost every line meets
-    # a wall almost at once. Not one of five hundred ever ran out of the sixty-four it is
-    # allowed. So the ceiling is generous and free, and five is what a frame really pays.
+    # could ever be — and almost every line meets a wall almost at once.
     def line_of_sight(guard) = walk_the_sight_line_from(guard.x, guard.y)
 
     # ONE COPY OF THE WALK, NOT FOUR, and that is what this indirection buys.
@@ -506,7 +489,7 @@ module Wolf3D
       @clear.set! 1
       @done.set! 0
 
-      b.repeat(@reach, stop_when: @done == 1, estimate: { usually: 5 }) do
+      b.repeat(@reach, stop_when: @done == 1) do
         @atx.add! @stepx
         @aty.add! @stepy
         @cellx.set! @atx.to_i

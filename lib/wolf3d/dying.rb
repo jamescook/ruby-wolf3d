@@ -168,10 +168,8 @@ module Wolf3D
     # ...and one frame of the fizzle, which is the whole of what a frame does once it starts.
     def draw
       # Not on a normal frame: this runs for a second or two at the end of a life and never
-      # otherwise. Unsaid, the estimate counts it on every frame — it cannot see through a
-      # test the game works out — and then this reads as one of the most expensive things
-      # in the game rather than one of the rarest.
-      (@state == FIZZLING).then(estimate: { usually: 0 }) { @b.call(:scatter_the_red) }
+      # otherwise.
+      (@state == FIZZLING).then { @b.call(:scatter_the_red) }
     end
 
     private

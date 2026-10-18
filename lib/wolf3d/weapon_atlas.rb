@@ -77,24 +77,6 @@ module Wolf3D
     def first_columns = @frames.map(&:first_column)
     def last_columns = @frames.map(&:last_column)
 
-    # HOW MANY COLUMNS THE DRAWING WALKS ON A NORMAL FRAME, and the most it can ever walk. For
-    # the estimate only — nothing about how the game runs reads either, and the loop that walks
-    # them is counted by a number the game works out, which is charged nothing at all unsaid.
-    #
-    # A NORMAL FRAME IS A GUN AT REST, which is why this is not the average over all twenty: you
-    # carry a weapon for whole minutes and fire it for a fifth of a second, so the four at-rest
-    # frames are what the screen shows nearly all the time. They are also the narrowest of each
-    # weapon's five — a chain gun firing is five times the width of a knife held still — so the
-    # two numbers here are far apart on purpose.
-    def usual_columns
-      at_rest = (0...WEAPONS.length).map { |n| columns_of(n * FRAMES) }
-      (at_rest.sum.to_f / at_rest.length).ceil
-    end
-
-    def most_columns = (0...COUNT).map { |n| columns_of(n) }.max
-
-    def columns_of(frame) = last_columns[frame] - first_columns[frame] + 1
-
     # Column-major in the file, and a picture here is row-major, so this is the one place the
     # two orders meet — the same crossing the walls make, over a sprite's see-through pixels.
     def pixels

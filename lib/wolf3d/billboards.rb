@@ -165,9 +165,8 @@ module Wolf3D
       #
       # MEASURED, on the fixture floor: without this the cartridge went from thirty passes a
       # second to twenty the moment sound was switched on, with nothing playing. With it, thirty
-      # either way. What it displaces instead is :remember_a_standing_thing, which the estimate
-      # ranks higher and which measurement says costs less — so this is the estimate being
-      # overruled by a reading, which is what the switch is for.
+      # either way. What it displaces instead is :remember_a_standing_thing, which measurement
+      # says costs less.
       b.func(:draw_a_standing_thing, fast: true) do
         b.inside 0, 0, FP::ACROSS, FP::VIEW_H do
           read_the_shape
@@ -338,10 +337,7 @@ module Wolf3D
       return if @piece_x.nil?
 
       if @piece_count
-        counts = @floors.counts_of(:pieces)
-        estimate = { usually: [(counts.sum.to_f / counts.length).ceil, 1].max,
-                     most: [counts.max, 1].max }
-        @b.repeat(@piece_count, estimate: estimate) { |piece| look_at_a_piece(piece) }
+        @b.repeat(@piece_count) { |piece| look_at_a_piece(piece) }
       else
         @b.repeat(@scenery.count) { |piece| look_at_a_piece(piece) }
       end
@@ -492,7 +488,7 @@ module Wolf3D
     # things themselves no longer write that record — a wall wrote every number in it, and no
     # wall moves between here and the drawing.
     def in_front_of_the_walls
-      @b.repeat(@s1 - @s0, stop_when: @shows == 1, estimate: { usually: 2 }) do |step|
+      @b.repeat(@s1 - @s0, stop_when: @shows == 1) do |step|
         (@theight > @depth[@s0 + step]).then { @shows.set! 1 }
       end
       @shows == 1
@@ -508,8 +504,7 @@ module Wolf3D
       b = @b
       (@seen < MOST_AT_ONCE).then do
         @at.set!(@seen - 1)
-        b.repeat(@seen, stop_when: @seen_height[@at] <= @theight,
-                        estimate: { usually: 2 }) do
+        b.repeat(@seen, stop_when: @seen_height[@at] <= @theight) do
           @seen_height[@at + 1] = @seen_height[@at]
           @seen_across[@at + 1] = @seen_across[@at]
           @seen_shape[@at + 1] = @seen_shape[@at]
@@ -526,23 +521,8 @@ module Wolf3D
     # ...and then draw them, in that order. Where a thing lands and how tall it is were both
     # worked out while it was being looked at, so nothing is measured twice; where it starts up
     # the screen follows from its height, which is cheaper to work out again than to carry.
-    # HOW MANY THINGS ARE USUALLY ON SCREEN AT ONCE, for the estimate only — nothing about how
-    # the game runs reads it. The queue holds whatever passed both tests this frame, so its
-    # length is worked out as the game runs and nothing in the program bounds it below the queue
-    # itself. Unsaid, that is charged NOTHING, and this is the loop that draws every guard and
-    # every lamp: the largest thing in the frame read as free, which is how a game got slow with
-    # its own report saying it had not.
-    #
-    # Measured over the first floor rather than guessed, from sixty-four places and four ways
-    # round each: about seven things are on screen at once, and the most anywhere in the whole
-    # game is forty-two, which is what MOST_AT_ONCE is sized from.
-    USUALLY_ON_SCREEN = 7
-
-    # ...and how many strips of the screen one of them usually covers. See #draw_the_strips.
-    USUALLY_WIDE = 12
-
     def draw_the_queue
-      @b.repeat(@seen, estimate: { usually: USUALLY_ON_SCREEN, most: MOST_AT_ONCE }) do |n|
+      @b.repeat(@seen) do |n|
         @theight.set! @seen_height[n]
         @cx.set! @seen_across[n]
         @shape.set! @seen_shape[n]
@@ -579,15 +559,7 @@ module Wolf3D
         @tstep.set!((FP::TEX * FP::COLUMN_W).to_f / @theight.to_f)
         @tex.set!((@s0 - @lstrip).to_f * @tstep)
 
-        # HOW WIDE A THING USUALLY IS ON SCREEN, in strips, for the estimate only. A standing
-        # thing is as wide as it is tall and its height is one number over its distance, so this
-        # is a distance in disguise: a guard six cells off covers about a dozen strips of the
-        # eighty, one at arm's length covers all of them, and one across the room a couple.
-        # Twelve is the middle of that and the most is the width of the screen.
-        #
-        # It is the loop the frame really goes into — every strip of every guard and every lamp —
-        # and unsaid a loop counted this way is charged NOTHING.
-        b.repeat(@s1 - @s0, estimate: { usually: USUALLY_WIDE, most: FP::COLUMNS }) do |step|
+        b.repeat(@s1 - @s0) do |step|
           @tstrip.set!(@s0 + step)
           @tcol.set!(@tex.to_i)
           @tex.add! @tstep

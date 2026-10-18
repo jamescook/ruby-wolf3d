@@ -193,10 +193,8 @@ class TestDying < Minitest::Test
 
   # --- what a frame of it costs -------------------------------------------------------------
 
-  # MEASURED ON THE CONSOLE RATHER THAN ARGUED ABOUT, because the estimate cannot answer this
-  # one: the fizzle and the view are two arms of the same branch and only ever one of them runs,
-  # where the model prices both and adds a share of each. What is wanted is the cost of a frame
-  # that is really fizzling.
+  # MEASURED ON THE CONSOLE: the fizzle and the view are two arms of the same branch and only
+  # ever one of them runs. What is wanted is the cost of a frame that is really fizzling.
   #
   # The number to beat is a frame, 228 scanlines. It fits because nothing else is happening —
   # the eighty rays a live frame spends nearly all of itself on are not cast once the world has
