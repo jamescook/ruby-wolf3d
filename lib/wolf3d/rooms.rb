@@ -230,16 +230,11 @@ module Wolf3D
     # ever being played. Numbered from one, so the count is the highest number.
     def most_rooms = @floors.map { |floor| self.class.rooms_in(floor.level).max.to_i + 1 }.max
 
-    # A ROUTINE, and told to stay OUT of the quick memory, which is the same instruction
-    # :guard_thinking carries and for the same reason — with one extra twist worth writing down.
-    #
-    # This runs ONCE a frame. What it displaced when it was allowed in was
-    # :remember_a_standing_thing, which runs once for every guard and every piece of scenery in
-    # front of the eye — hundreds of times a frame. The swap cost more than everything this
-    # saves, and floor two went from twenty frames a second to fifteen: the change was measured
-    # as a LOSS until this line was added.
+    # A ROUTINE, placed by what a frame really spends in it. It runs ONCE a frame, and what it
+    # competes with for the quick memory is :remember_a_standing_thing, which runs once for every
+    # guard and every piece of scenery in front of the eye — hundreds of times a frame.
     def declare_the_fill
-      @b.func(:which_rooms_are_open, fast: false) { fill }
+      @b.func(:which_rooms_are_open) { fill }
     end
 
     def fill

@@ -84,8 +84,8 @@ module Wolf3D
 
     # One frame of thinking, for every guard on the floor.
     #
-    # KEPT IN A ROUTINE OF ITS OWN, and told to stay out of the quick memory. The framework
-    # gives that memory to whatever a frame spends its time in, and the view's own loop — eighty
+    # KEPT IN A ROUTINE OF ITS OWN, so it is placed on its own merits. The framework gives the
+    # quick memory to whatever a frame spends its time in, and the view's own loop — eighty
     # rays and eighty stretched columns — is the thing that wants it. All of this is a great
     # deal of code and hardly any of a frame's work: ten guards think a few dozen statements
     # each, where the view draws thousands of pixels. Leaving it in the loop's own body pushed
@@ -173,7 +173,7 @@ module Wolf3D
       # between two moves on a game taking two frames a pass — back to where it started, so the
       # same half would think every time and the other half never.
       @turn = b.var :_gturn, 0
-      b.func(:guard_thinking, fast: false) do
+      b.func(:guard_thinking) do
         @turn.set!((@turn + 1) % 2)
         # HALF OF THEM ON ANY ONE FRAME, which is what @turn is for.
         @pool.each { |guard| (guard.turn == @turn).then { think(guard) } }

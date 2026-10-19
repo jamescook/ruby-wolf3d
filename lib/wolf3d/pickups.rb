@@ -238,7 +238,7 @@ module Wolf3D
 
       declare_the_scratch
 
-      b.func(:pick_things_up, fast: false) { what_am_i_standing_on }
+      b.func(:pick_things_up) { what_am_i_standing_on }
     end
 
     def declare_the_scratch
