@@ -212,7 +212,18 @@ module Wolf3D
     def draw
       notice_a_change
       @bar.draw
+      @parts.each_value(&:draw)
     end
+
+    # THE FIGURES A FIGHT MOVES, each painted on its own rather than with the whole bar. A chain
+    # gun puts out a round every few passes, and repainting the plate, every label and every
+    # field to move two numerals was most of what a fight cost the bar. Health brings the face
+    # with it, because the face is picked by how much health is left.
+    #
+    # It works only with the game's own numerals: each is a solid picture, so a new figure
+    # covers the old one exactly. The framework's font draws only its ink, and would leave the
+    # old digits showing through, so without the art every change repaints the whole bar.
+    PAINTED_ALONE = Ractor.make_shareable({ ammo: %i[ammo], health: %i[health face], score: %i[score] })
 
     private
 
@@ -224,7 +235,7 @@ module Wolf3D
       @remembered.each do |name, last|
         value = @shows.fetch(name)
         (value != last).then do
-          @changed.set! 1
+          @parts[name] ? @parts[name].changed : @changed.set!(1)
           last.set! value
         end
       end
@@ -259,6 +270,31 @@ module Wolf3D
       @remembered = @shows.filter_map do |name, value|
         [name, @b.var(:"_bar_last_#{name}", -1)] unless value.is_a?(Integer)
       end.to_h
+      declare_the_parts
+    end
+
+    # One `keep_showing` per figure in PAINTED_ALONE that this bar shows as a variable, for the
+    # same reason the bar has one: the screen keeps two pictures.
+    def declare_the_parts
+      @parts = {}
+      return unless @art
+
+      PAINTED_ALONE.each do |name, fields|
+        next unless @remembered.key?(name)
+
+        @parts[name] = @b.keep_showing(:"status_bar_#{name}") do
+          fields.each { |field| draw_a_field(FIELDS.find { |f| f.name == field }) }
+        end
+      end
+    end
+
+    def draw_a_field(field)
+      case field.name
+      when :face then draw_the_face(field)
+      when :keys then draw_the_keys(field)
+      when :weapon then draw_the_weapon(field)
+      else draw_a_figure(field)
+      end
     end
 
     # The faces and the keys, each as ONE wide picture of all of them side by side, so which one
@@ -286,12 +322,7 @@ module Wolf3D
       draw_the_plate
       FIELDS.each do |field|
         draw_a_label(field)
-        case field.name
-        when :face then draw_the_face(field)
-        when :keys then draw_the_keys(field)
-        when :weapon then draw_the_weapon(field)
-        else draw_a_figure(field)
-        end
+        draw_a_field(field)
       end
     end
 
@@ -373,7 +404,7 @@ module Wolf3D
       value = @shows.fetch(field.name)
       wide = @art.digit_width
       left = centred(field, field.digits * wide)
-      slot = @b.var :"_bar_digit_#{field.name}", 0
+      slot = (@digit_slots ||= {})[field.name] ||= @b.var(:"_bar_digit_#{field.name}", 0)
 
       field.digits.times do |i|
         place = 10**(field.digits - 1 - i)
