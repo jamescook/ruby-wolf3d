@@ -202,7 +202,7 @@ module Wolf3D
         @piece.sub! 1
         still_there(@piece).then { take_it }
       end
-      take_what_a_guard_left
+      @b.call :look_where_the_guards_fell if @pool
     end
 
     def declare
@@ -239,6 +239,18 @@ module Wolf3D
       declare_the_scratch
 
       b.func(:pick_things_up) { what_am_i_standing_on }
+      declare_the_walk_over_the_fallen
+    end
+
+    # THE WALK OVER THE GUARDS A ROUTINE OF ITS OWN, and taking what one of them left another.
+    # The walk is nearly all of this file's time and little of its code, where taking the clip
+    # is the other way round: it runs on the pass you step on one. Together they were too big
+    # for the quick memory, so the walk ran from the cartridge with everything else.
+    def declare_the_walk_over_the_fallen
+      return unless @pool
+
+      @pool.func(:take_what_he_left) { |guard| take_what_he_left(guard) }
+      @b.func(:look_where_the_guards_fell) { take_what_a_guard_left }
     end
 
     def declare_the_scratch
@@ -328,14 +340,12 @@ module Wolf3D
     # comparison, on a walk the frame is making anyway for other reasons. Only a guard who is
     # lying beside a clip goes on to work out which cell he is in.
     def take_what_a_guard_left
-      return unless @pool
-
       # The cell a guard fell in, counted the same way as the one under the player's feet — which
       # on a cartridge holding more than one floor means this floor's slice of the map, not the
       # first floor's. Compare them as different numbers and a clip is never found.
       @pool.each do |guard|
         still_dropped(guard).then do
-          (guard_cell(guard) == @here).then { take_what_he_left(guard) }
+          (guard_cell(guard) == @here).then { @b.call :take_what_he_left }
         end
       end
     end

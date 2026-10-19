@@ -163,6 +163,7 @@ module Wolf3D
       # for what that is worth and why it can be done at all.
       declare_the_line_walk
       declare_the_walkable_test
+      declare_the_jobs
 
       # WHOSE TURN IT IS. Flipped each time this routine runs, and a guard thinks on the turns
       # that match his — so half of them think each time and a guard is thought about every
@@ -237,10 +238,21 @@ module Wolf3D
       #
       # A CARTRIDGE WITH NO DOGS HAS NO HUNTING ARM, so it pays nothing for one.
       @job.set!(@think_of[guard.state])
-      (@job == LOOK).then { look(guard) }
-      (@job == PATROL).then { patrol(guard) }
-      (@job == CHASE).then { chase(guard) } if hunts?(:chase)
-      (@job == HUNT).then { hunt(guard) } if hunts?(:hunt)
+      (@job == LOOK).then { @b.call :guard_looks }
+      (@job == PATROL).then { @b.call :guard_patrols }
+      (@job == CHASE).then { @b.call :guard_chases } if hunts?(:chase)
+      (@job == HUNT).then { @b.call :guard_hunts } if hunts?(:hunt)
+    end
+
+    # EACH JOB A ROUTINE OF THE POOL'S OWN, run on whichever guard the walk is on. Written into
+    # the walk, the four came to one routine of nearly all the console's quick memory, which it
+    # could never be given, so all of it ran from the cartridge. Apart, each is placed on its own
+    # merits, and the one a fight spends its time in can go where it runs faster.
+    def declare_the_jobs
+      @pool.func(:guard_looks) { |guard| look(guard) }
+      @pool.func(:guard_patrols) { |guard| patrol(guard) }
+      @pool.func(:guard_chases) { |guard| chase(guard) } if hunts?(:chase)
+      @pool.func(:guard_hunts) { |guard| hunt(guard) } if hunts?(:hunt)
     end
 
     # Does anything on this cartridge think this way at all?
