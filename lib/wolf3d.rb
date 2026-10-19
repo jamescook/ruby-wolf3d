@@ -205,6 +205,7 @@ module Wolf3D
   # moved one exactly where it would have got the original.
   SwappedFirstFloor = Struct.new(:maps, :level, :which) do
     def [](index) = index == which ? level : maps[index]
+    def episodes_of_ten? = maps.episodes_of_ten?
   end
 
   # ...AND WHAT IS IN YOUR HANDS WHEN IT BOOTS, which is the last dial of the same family and

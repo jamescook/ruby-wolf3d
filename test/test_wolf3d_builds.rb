@@ -84,6 +84,24 @@ class TestWhichEpisodes < Minitest::Test
   end
 end
 
+# WHERE THE PLAYER STARTS, moved to any empty cell of the first floor the cartridge holds — the
+# dial for measuring a far corner of a floor without walking there.
+class TestWhereToStart < Minitest::Test
+  include Wolf3DTest
+
+  def test_the_first_floor_starts_where_it_was_told
+    game_data_or_skip
+    level = Wolf3D.maps[2]
+    x, y = level.each_cell.find do |cx, cy|
+      level.floor?(cx, cy) && !level.door?(cx, cy) && level.thing_code(cx, cy).zero?
+    end
+
+    start = Wolf3D.floors([2], start: "#{x},#{y},east").first_floor.level.start
+
+    assert_equal [x, y, :east], [start.x, start.y, start.facing]
+  end
+end
+
 # The holding screen on its own, in a program of its own. It used to be tested through the whole
 # game, which quietly stopped working the moment the game had data to draw instead.
 class TestTitleScreen < Minitest::Test
