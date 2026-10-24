@@ -60,6 +60,22 @@ namespace :build do
        *dial_arguments
   end
 
+  # The same program for another computer, built on this one: the framework cross-compiles with
+  # zig, so any machine can make all three. There is no Mac among them because the framework offers
+  # no Mac target — a Mac program is built on a Mac, by plain build:desktop. The Windows one has
+  # been played on Windows, in a virtual machine; the two Linux ones have not been run on Linux.
+  namespace :desktop do
+    { windows: "wolf3d-windows-desktop.exe", linux: "wolf3d-linux-desktop",
+      linux_arm: "wolf3d-linux-arm-desktop" }.each do |name, output|
+      target = name.to_s.tr("_", "-")
+      desc "Build #{output}, the desktop app for #{target} (the WOLF3D_* dials work as for build)"
+      task name do
+        sh "bundle", "exec", "ruby-gba", "build", "wolf3d.rb", "--format=native", "--target=#{target}",
+           "--output=#{output}", *dial_arguments
+      end
+    end
+  end
+
   # The CARTRIDGE's frames, through `ruby-gba profile`: what the build made of each routine and
   # which ones fit in the console's quick memory, then the game run in the emulator and where its
   # frames went. OPTS goes to that command as it is, so its own options need no list here —

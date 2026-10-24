@@ -1,6 +1,7 @@
 *.gba
 *.sav
-# `rake build:desktop`. Like the cartridge, it carries your copy of the game's data inside it.
+# `rake build:desktop` and its build:desktop:* siblings. Like the cartridge, each carries your copy
+# of the game's data inside it. The Windows one ends in .exe, which is ignored below.
 *-desktop
 .DS_Store
 
