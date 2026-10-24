@@ -582,7 +582,7 @@ module Wolf3D
       # never runs while anybody is playing. See #select_floor.
       # THEY START AT THE FIRST FLOOR'S OWN NUMBERS, not at nothing, because at boot no floor has
       # been STARTED — the game simply begins on the first one. Left at nothing the game would
-      # come up on a floor with no doors, no walls that move and nobody on it, until something
+      # come up on a floor with no doors and no walls that move, until something
       # sent the player back to the beginning and quietly fixed it.
       @map_base = b.var :_map_base, @floors.map_base(0)
       @door_first = b.var :_door_first, @floors.first_of(:doors, 0)

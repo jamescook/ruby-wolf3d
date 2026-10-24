@@ -14,8 +14,8 @@ module Wolf3D
   # of every floor started, and putting a floor's guards back when it starts.
   class GuardPool
     # HOW BIG EACH OF A GUARD'S FIELDS REALLY NEEDS TO BE. A pool is one list per field and a
-    # slot is a whole 32-bit number unless it is told otherwise, so the guards were taking four
-    # bytes each to keep a direction, a flag, or how many hit points are left. Ten of the
+    # slot is a whole 32-bit number unless it is told otherwise, so left alone a guard takes four
+    # bytes to keep a direction, a flag, or how many hit points are left. Ten of the
     # thirteen hold far less than that, and on a cartridge carrying every floor the pool is
     # sized for the busiest one — so what those ten cost is memory the placement chooser would
     # otherwise be giving to the code the frame runs in.
@@ -34,7 +34,7 @@ module Wolf3D
     #
     # `wait` is the one that never fits: a reaction is up to 192 units and it is counted
     # down the same way, so it wants -7..192 and a byte stops at 127. It takes a half instead,
-    # which is still half of what it took. And x, y and togo carry fractions, which need the
+    # which is still half a whole number. And x, y and togo carry fractions, which need the
     # whole word — a fraction is mostly its own fractional part.
     #
     # TWO OF THEM DEPEND ON WHAT THE CARTRIDGE HOLDS, so they are asked rather than written:
@@ -98,7 +98,7 @@ module Wolf3D
     # never spawned, so they cost this routine one comparison each and the frame nothing.
     #
     # +slot+ is working room the view already has, borrowed for the length of this. +kill_total+
-    # is the floor's count of men to kill, which this is what fills.
+    # is the floor's count of men to kill, and this is what fills it.
     def refill(slot:, kill_total:)
       @pool.each(&:remove)
       # EACH ONE WHO STANDS UP IS ONE MORE TO KILL, which is the floor's kill total: the original
@@ -162,7 +162,7 @@ module Wolf3D
     # THESE NEED NO TEST AGAINST THE SETTING, where the refill does. Nothing has run yet, so how
     # tough the game is set is still exactly the number the variable was declared with — a fact
     # known while the cartridge is built. So the ones that setting names are written out and the
-    # rest are simply not, which is also why this stays the size it was.
+    # rest are simply not, which is also why this costs no more than the guards it writes.
     def stand_up_the_first_floor
       (@floors.first_floor.guards&.at(Guards::DEFAULT_DIFFICULTY) || []).each_with_index do |guard, n|
         # A guard stands in the middle of his cell, like the player does.
