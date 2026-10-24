@@ -115,48 +115,6 @@ module Wolf3D
     # Which bit of what the player carries each key is.
     KEY_BITS = { gold: 1, silver: 2 }.freeze
 
-    # HOW BIG EACH OF A GUARD'S FIELDS REALLY NEEDS TO BE. A pool is one list per field and a
-    # slot is a whole 32-bit number unless it is told otherwise, so the guards were taking four
-    # bytes each to keep a direction, a flag, or how many hit points are left. Ten of the
-    # thirteen hold far less than that, and on a cartridge carrying every floor the pool is
-    # sized for the busiest one — so what those ten cost is memory the placement chooser would
-    # otherwise be giving to the code the frame runs in.
-    #
-    # EVERY RANGE HERE IS READ OFF THE GAME rather than guessed, and the three countdowns are
-    # why that matters. `ticks` and `wait` and `hp` are all written by taking something off and
-    # THEN testing against nothing, so each really does hold a negative number for the length
-    # of its own test. A narrow slot goes below nothing for exactly that reason (see the
-    # framework's `list`), which the first two fit inside a byte:
-    #
-    #   dir      0..7      which way he faces
-    #   ticks    -7..60    the longest state, less one think
-    #   turn     0..1      which half of the guards think on this frame
-    #   dropped  0..3      nothing, a clip, a machine gun, or the gold key
-    #   shown, awake, ambush   yes or no
-    #
-    # `wait` is the one that never fits: a reaction is up to 192 units and it is counted
-    # down the same way, so it wants -7..192 and a byte stops at 127. It takes a half instead,
-    # which is still half of what it took. And x, y and togo carry fractions, which need the
-    # whole word — a fraction is mostly its own fractional part.
-    #
-    # TWO OF THEM DEPEND ON WHAT THE CARTRIDGE HOLDS, so they are asked rather than written:
-    #
-    #   hp     an SS starts at 100 and a shot can take him past nothing, which is a byte. A
-    #          BOSS starts at up to 1200, which is not — see #hp_width.
-    #   state  every kind's states end to end, and a state number IS the kind. Five kinds is
-    #          117 of them and fits; all seven is 156 and does not.
-    #
-    # Both keep the byte on a cartridge that does not need more, which is the whole bargain
-    # these widths are: a game with no boss on any floor pays a boss nothing.
-    NARROW = { dir: :byte, ticks: :byte, turn: :byte, dropped: :byte,
-               shown: :byte, awake: :byte, ambush: :byte, wait: :half }.freeze
-
-    # How wide a slot has to be to hold every number that can go in it, given the range the
-    # cartridge really needs. Signed, because these are counted down past nothing.
-    def self.width_for(most)
-      most <= 127 ? :byte : :half
-    end
-
     TEX = WallAtlas::SIDE # a wall picture is this many columns across...
     PAIR = TEX * 2        # ...and each wall keeps two of them, lit then dark
     ACROSS = 240          # pixels across the screen
@@ -291,8 +249,7 @@ module Wolf3D
         @door_count.set! @floors.count_of(:doors, n)
         @push_first.set! @floors.first_of(:pushwalls, n)
         @push_count.set! @floors.count_of(:pushwalls, n)
-        @guard_count.set! @floors.count_of(:guards, n)
-        @guard_first.set! @floors.first_of(:guards, n)
+        @guard_pool&.select_floor(n)
         @piece_first.set! @floors.first_of(:pieces, n)
         @piece_count.set! @floors.count_of(:pieces, n)
         @secret_car.set!(floor.lifts&.secret_cars&.first || -1)
@@ -344,7 +301,7 @@ module Wolf3D
       shut_every_door
       put_the_secret_walls_back
       @pickups&.put_them_all_back
-      put_the_guards_back
+      @guard_pool&.refill(slot: @slot, kill_total: @kill_total)
       @dying&.start_again
     end
 
@@ -613,7 +570,7 @@ module Wolf3D
       # ...and HOW LONG until the floor ends.
       @lift_wait = @lasting.var :lift_wait, 0
       # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE OF EACH TABLE. Which floor that is belongs to
-      # the playthrough, declared below.
+      # the playthrough, declared below. The guards' own are kept with them, in GuardPool.
       #
       # These are what make more than one floor possible. Every table in the cartridge holds all
       # the floors end to end, and reading one is the same read with the matching number below
@@ -632,8 +589,6 @@ module Wolf3D
       @door_count = b.var :_door_count, @floors.count_of(:doors, 0)
       @push_first = b.var :_push_first, @floors.first_of(:pushwalls, 0)
       @push_count = b.var :_push_count, @floors.count_of(:pushwalls, 0)
-      @guard_first = b.var :_guard_first, @floors.first_of(:guards, 0)
-      @guard_count = b.var :_guard_count, @floors.count_of(:guards, 0)
       @piece_first = b.var :_piece_first, @floors.first_of(:pieces, 0)
       @piece_count = b.var :_piece_count, @floors.count_of(:pieces, 0)
       # ...and the cell that means the secret lift on THIS floor, or minus one where it has none.
@@ -961,13 +916,6 @@ module Wolf3D
     # — so nearly every cartridge builds none of the winning at all.
     def any_floor_has_a_way_out? = @floors.any? { |floor| floor.level.exits.any? }
 
-    # HOW WIDE EACH SLOT OF A GUARD HAS TO BE, given what this cartridge can really put down.
-    # See NARROW for the ones that never change and why these two do.
-    def guard_widths
-      NARROW.merge(hp: self.class.width_for(@behaviour.hit_points.max),
-                   state: self.class.width_for(@behaviour.length))
-    end
-
     # A floor whose scenery all lets you through — and every floor, until there is scenery at
     # all — needs no table and pays nothing for one.
     # ...for every floor end to end, like the map itself and reached the same way. A floor whose
@@ -1000,7 +948,8 @@ module Wolf3D
                                  piece_first: (@piece_first if many),
                                  piece_count: (@piece_count if many),
                                  rooms: @rooms, piece_room: declare_the_pieces_rooms,
-                                 guards: @guards, pool: @guard, mind: @mind, pickups: @pickups,
+                                 guards: @guards, pool: @guard_pool&.pool, mind: @mind,
+                                 pickups: @pickups,
                                  eye: { x: @px, y: @py, cos: @vcos, sin: @vsin, angle: @view })
     end
 
@@ -1040,7 +989,7 @@ module Wolf3D
     # It reads the floor for itself where no scenery was handed over. A game built without drawing
     # still has keys lying on it, and the tests of the locked doors are exactly that game.
     def declare_the_pickups
-      @pickups = Pickups.new(build: @b, floors: @floors, pool: @guard, lives: @lives,
+      @pickups = Pickups.new(build: @b, floors: @floors, pool: @guard_pool&.pool, lives: @lives,
                              weapons: @weapons, lasting: @lasting,
                              bases: { map: @map_base, piece: @piece_first },
                              player: { x: @px, y: @py, health: @health, ammo: @ammo,
@@ -1054,7 +1003,7 @@ module Wolf3D
     # zeroes all three, then ScanInfoPlane adds one for each wall that slides, SpawnStatic one for
     # each treasure and each Spawn one for each man (wl_game.cpp, wl_act1.cpp, wl_act2.cpp). So
     # the kill total is the men THIS game stood up, and a man who only turns up on a harder
-    # setting is not one of them. See #reset_floor and #put_the_guards_back.
+    # setting is not one of them. See #reset_floor and GuardPool#refill.
     #
     # A SAVED GAME KEEPS THEM, and loading one does not count them again: every one of those adds
     # in the original sits behind `if (!loadedgame)`. They start at the first floor's, because at
@@ -1066,56 +1015,20 @@ module Wolf3D
       @treasure_total = @lasting.var :treasure_total, @pickups.treasure_total(0)
     end
 
-    # THE GUARDS THEMSELVES: where each stands and what state he is in. Their minds come after the
-    # things on the floor, because a guard who falls leaves one.
-    # THE POOL HOLDS ONE FLOOR'S WORTH, not every floor's, because only one floor is ever being
-    # played — so it is sized for the busiest and refilled from the tables when a floor starts.
-    # It is sized for the hardest game too, or the hardest setting could not be played at all.
+    # THE GUARDS THEMSELVES: where each stands and what state he is in. See GuardPool. Their minds
+    # come after the things on the floor, because a guard who falls leaves one.
     def declare_the_guards
-      return if no_floor_has?(:guards)
+      return unless GuardPool.needed?(@floors)
 
-      # +dropped+ is whether he is lying beside the clip of ammunition he left when he fell. It is
-      # a field of his rather than a place of its own because where the clip lies is where he
-      # lies — see Pickups#a_guard_fell.
-      # +awake+ is whether he has ever been on the screen. Once he has, he thinks for ever after
-      # wherever he stands; until then he thinks only while his room is open to the player. That
-      # is the original's own rule (it calls him "active") and it is what keeps a floor of
-      # twenty-nine guards affordable — see Rooms.
-      # +ambush+ is a guard put down lying in wait, who has to SEE you: he is the one a gunshot
-      # does not bring. Carried on him rather than read off the map because the original clears
-      # it the moment he does see you, and from then on he is a guard like any other.
-      @guard = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
-                                     hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0,
-                                     capacity: room_for(:guards), widths: guard_widths
-      # THE FIRST FLOOR'S GUARDS AT BOOT, written out rather than read from the tables, because
-      # at boot there is no floor to have started yet. Every floor after this one is filled by
-      # #put_the_guards_back from the same tables the first floor's numbers came from.
-      #
-      # THESE NEED NO TEST AGAINST THE SETTING, where the refill below does. Nothing has run
-      # yet, so how tough the game is set is still exactly the number the variable was declared
-      # with — a fact known while the cartridge is built. So the ones that setting names are
-      # written out and the rest are simply not, which is also why this stays the size it was.
-      (@floors.first_floor.guards&.at(Guards::DEFAULT_DIFFICULTY) || []).each_with_index do |guard, n|
-        # A guard stands in the middle of his cell, like the player does.
-        state = @behaviour.starting_state(guard)
-        @guard.spawn x: guard.x + 0.5, y: guard.y + 0.5,
-                     dir: Guards.direction_of(guard.facing),
-                     state: state, ticks: @behaviour.state_at(state).ticks,
-                     hp: Enemy[guard.kind].toughness(Guards.number_of(Guards::DEFAULT_DIFFICULTY)),
-                     ambush: guard.ambush ? 1 : 0,
-                     # ...and thinks on every other frame, alternately with his neighbours, so
-                     # the floor's thinking is spread evenly over the frames rather than
-                     # arriving all at once.
-                     turn: n % 2
-      end
-      declare_where_the_guards_start
+      @guard_pool = GuardPool.new(build: @b, floors: @floors, behaviour: @behaviour,
+                                  lasting: @lasting, difficulty: @difficulty)
     end
 
     def declare_the_guards_minds
       return if @guards.nil? || @guards.empty?
 
       b = @b
-      @mind = GuardMind.new(build: b, guards: @guards, pool: @guard, level: @level,
+      @mind = GuardMind.new(build: b, guards: @guards, pool: @guard_pool&.pool, level: @level,
                             world: @world, door_open: @open, walls: { door: DOOR, push: PUSH },
                             things: @things, blocked: @blocked, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
@@ -1171,39 +1084,6 @@ module Wolf3D
       cells.first..cells.last
     end
 
-    # WHERE EVERY GUARD STARTED, so the floor can be started again. All of it is settled while
-    # the cartridge is built and none of it ever changes, so it lives in the cartridge — the same
-    # facts the spawns above are made of, kept where a routine can read them back by number.
-    def declare_where_the_guards_start
-      b = @b
-      everyone = over_floors { |floor| floor.guards&.guards || [] }
-      starting = everyone.map { |guard| @behaviour.starting_state(guard) }
-      @guard_home_x = b.table :guard_home_x, at_least_one(everyone.map { |g| g.x + 0.5 })
-      @guard_home_y = b.table :guard_home_y, at_least_one(everyone.map { |g| g.y + 0.5 })
-      @guard_home_dir = b.table :guard_home_dir,
-                                at_least_one(everyone.map { |g| Guards.direction_of(g.facing) }),
-                                width: :byte
-      @guard_home_state = b.table :guard_home_state, at_least_one(starting), width: :byte
-      @guard_home_ticks = b.table :guard_home_ticks,
-                                  at_least_one(starting.map { |s| @behaviour.state_at(s).ticks }),
-                                  width: :byte
-      @guard_home_ambush = b.table :guard_home_ambush,
-                                   at_least_one(everyone.map { |g| g.ambush ? 1 : 0 }), width: :byte
-      # ...and the easiest setting each one turns up on, which is the whole of how a harder game
-      # is a fuller floor. Every floor carries every guard it can ever hold; this is the column
-      # that says which of them a given game stands up. See Guards::FROM.
-      @guard_home_from = b.table :guard_home_from,
-                                 at_least_one(everyone.map(&:from)), width: :byte
-      # HOW MUCH KILLING EACH ONE TAKES, which needs two tables and not one: the mutant is the
-      # one kind a harder game toughens, and how hard the game is set is picked long after the
-      # cartridge is built. So each one carries where ITS four numbers begin, and the floor's
-      # start reads the one the setting names.
-      @guard_home_tough = b.table :guard_home_tough,
-                                  at_least_one(everyone.map { |g| @behaviour.hit_points_at(g.kind) }),
-                                  width: :byte
-      @hit_points = b.table :guard_hit_points, @behaviour.hit_points, width: :half
-    end
-
     # ONE ARM PER FLOOR, and the arm for the floor being played runs the block, handed that floor
     # and its number. A one-floor cartridge gets one arm with nothing to compare, so it costs what
     # it always did.
@@ -1229,45 +1109,6 @@ module Wolf3D
         @push_step[wall] = 0
         @push_gone[wall] = 0
         @push_wait[wall] = 0
-      end
-    end
-
-    # EVERYBODY OUT, THEN THIS FLOOR'S PEOPLE IN.
-    #
-    # A KILLED GUARD IS NEVER TAKEN OUT OF THE POOL while a floor is being played — he lies where
-    # he fell, in a state that lasts for ever, because a body is part of the room. So the pool
-    # arrives here full of whoever was on the last floor, alive or not, and the count is a
-    # different one from the floor about to start.
-    #
-    # Emptying it and filling it again is the honest way to say that, and it is the pool's own
-    # two verbs rather than anything reaching inside it. It also costs nothing worth counting:
-    # this runs when a floor starts and never while one is being played.
-    #
-    # AND THIS IS WHERE HOW TOUGH YOU SAID YOU WERE IS SPENT. The floor's slice holds every
-    # guard it can ever hold; the ones a game set this way does not have are walked over and
-    # never spawned, so they cost this routine one comparison each and the frame nothing.
-    def put_the_guards_back
-      return if @guard.nil?
-
-      @guard.each(&:remove)
-      # EACH ONE WHO STANDS UP IS ONE MORE TO KILL, which is the floor's kill total: the original
-      # adds one in every Spawn (wl_act2.cpp).
-      #
-      # ...AND WHICH PASS HE THINKS ON is counted the same way, over the guards who really stand
-      # up and not over the slots walked — otherwise an easier game, which spawns from scattered
-      # slots, could land most of its floor on the same pass and pay for it twice over on that one.
-      @kill_total.set! 0
-      @b.repeat(@guard_count) do |n|
-        @slot.set!(@guard_first + n)
-        (@difficulty >= @guard_home_from[@slot]).then do
-          @guard.spawn x: @guard_home_x[@slot], y: @guard_home_y[@slot],
-                       dir: @guard_home_dir[@slot],
-                       state: @guard_home_state[@slot], ticks: @guard_home_ticks[@slot],
-                       hp: @hit_points[@guard_home_tough[@slot] + @difficulty],
-                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
-                       ambush: @guard_home_ambush[@slot], turn: @kill_total % 2
-          @kill_total.add! 1
-        end
       end
     end
 

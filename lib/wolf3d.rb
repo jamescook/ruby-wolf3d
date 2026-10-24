@@ -47,6 +47,7 @@ require_relative "wolf3d/menu_art"
 require_relative "wolf3d/status_bar"
 # ...and before every part of the game that declares state a saved game holds.
 require_relative "wolf3d/lasting_state"
+require_relative "wolf3d/guard_pool"
 require_relative "wolf3d/first_person"
 # ...after the view, whose height is what the gun's square is scaled to.
 require_relative "wolf3d/weapons"
