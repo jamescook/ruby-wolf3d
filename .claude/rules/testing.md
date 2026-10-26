@@ -35,7 +35,7 @@ end
   `Reference.new(save:)`; hand the same one to a second run to power the cartridge on again),
   `GBA` (the ROM lowering), `Builder`, `ROM`,
   `Verifier` (the real cartridge in the emulator), `Constants` (`KEY_UP` and the rest of the
-  hardware's names), `Fraction`. Each lives a module or two down in ruby-gba; the helper names
+  hardware's names), `Fraction`. Each lives a module or two down in VBlank; the helper names
   them once so the next reshuffle there moves one line, not a hundred.
 - `game_data_or_skip` — a real copy of Wolfenstein, or a skip saying how to point at one
 - `a_small_cartridge` — the whole game built with the setting `floors: 1`, for the tests that
@@ -115,7 +115,7 @@ instruments, and picking the wrong one is the mistake to avoid.
 **What the build EMITTED**, for a claim about code that is a straight run of instructions:
 
 ```ruby
-RubyGBA::IR::Backends::GBA.new.lower(program).bytesize
+VBlank::IR::Backends::GBA.new.lower(program).bytesize
 ```
 
 Right for "drawing the bar's figures costs less than redrawing the plate". Wrong wherever
@@ -126,7 +126,7 @@ another in the real cartridge.
 **What the console really DID**, for anything about time:
 
 ```ruby
-result = RubyGBA::Diagnostics::Profiler.run(rom, frames: 30, picture: false)
+result = VBlank::Diagnostics::Profiler.run(rom, frames: 30, picture: false)
 result.idle_share        # how much of each frame was left over — the usual one
 result.fps               # 60.0, or less when a pass does not fit in a frame
 result.samples_per_frame # instructions a frame
@@ -151,9 +151,9 @@ handling it — it draws every dot on two frames running, which is why it does n
 
 ## The two backends you assert against
 
-- **Reference interpreter** `RubyGBA::IR::Backends::Reference` — headless oracle, no
+- **Reference interpreter** `VBlank::IR::Backends::Reference` — headless oracle, no
   emulator, in-process, deterministic. This is where nearly every behavioural test here lives.
-- **Hardware** via `RubyGBA::Diagnostics::Verifier` — runs the real cartridge, reads real pixels.
+- **Hardware** via `VBlank::Diagnostics::Verifier` — runs the real cartridge, reads real pixels.
   `test/test_wolf3d_on_hardware.rb` is the whole of it.
 
 Reached through the framework's public seam, never through its test directory: a game outside
@@ -207,7 +207,7 @@ The framework's public seam. Build a cartridge, hand it to a `Verifier`, read pi
 
 ```ruby
 rom = a_small_cartridge
-v = RubyGBA::Diagnostics::Verifier.new(rom, frames: 8)
+v = VBlank::Diagnostics::Verifier.new(rom, frames: 8)
 
 v.all_black?                               # "did it boot to nothing"
 v.pixel_is?(x, y, :red)                    # colour by name or 15-bit value
@@ -223,7 +223,7 @@ with a comment saying it has moved before and to re-measure it rather than suspe
 
 ## Building the program under test
 
-- **A cartridge of its own**, for a test about one part: `RubyGBA.game("VIEW", code:, maker:)
+- **A cartridge of its own**, for a test about one part: `VBlank.game("VIEW", consoles: %i[gba])
   { … }.program`, constructing that part inside the block over a fixture level. This is the
   common shape — see `test_first_person.rb#build_the_view`. Memoize it; building is the slow
   part of these tests, not running them.
@@ -232,7 +232,7 @@ with a comment saying it has moved before and to re-measure it rather than suspe
   `a_small_cartridge`. It passes `StringIO` for both streams so the build's report does not
   print into the test output.
 
-Note `RubyGBA.game(...)` hands back a game whose `.program` is the IR; `RubyGBA.build(...)`
+Note `VBlank.game(...)` hands back a game whose `.program` is the IR; `VBlank.build(...)`
 hands back a finished ROM. Tests that read pixels off the oracle want the first.
 
 ## Choosing test values

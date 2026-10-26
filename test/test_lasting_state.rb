@@ -155,7 +155,7 @@ class TestLastingState < Minitest::Test
   # Two values, one declared before the record is handed over and one after; and a list of two
   # doors and a pool of two men.
   def small_program
-    @small_program ||= RubyGBA.game("KEEP") do
+    @small_program ||= VBlank.game("KEEP", consoles: %i[gba]) do
       screen :bitmap
       lasting = Wolf3D::LastingState.new(build: self)
       before = lasting.var :before, 0
@@ -181,7 +181,7 @@ class TestLastingState < Minitest::Test
   # The error building a cartridge raises when +declaring+ is what it does with a LastingState.
   def refused(&declaring)
     assert_raises(ArgumentError) do
-      RubyGBA.game("KEEP") do
+      VBlank.game("KEEP", consoles: %i[gba]) do
         screen :bitmap
         declaring.call(Wolf3D::LastingState.new(build: self), self)
         game_loop { nil }
@@ -234,7 +234,7 @@ class TestLastingState < Minitest::Test
   def saving_cartridge
     floors = two_floors
     atlas, things = atlases_of(floors)
-    @saving_cartridge ||= RubyGBA.game("SAVED") do
+    @saving_cartridge ||= VBlank.game("SAVED", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things)
       game = save_data :game, copies: 1
@@ -279,7 +279,7 @@ class TestLastingState < Minitest::Test
     floors = two_floors
     art = Wolf3D::MenuArt.of(release.pictures)
     atlas, things = atlases_of(floors)
-    RubyGBA.game("SAVED") do
+    VBlank.game("SAVED", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       sound_on = var :sound_on, 1
       view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,

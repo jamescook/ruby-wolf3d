@@ -3,7 +3,7 @@
 require_relative "test_helper"
 
 # The real cartridge, in the emulator. Reached through the framework's public seam,
-# RubyGBA::Diagnostics::Verifier, rather than its own test support, because a game outside the
+# VBlank::Diagnostics::Verifier, rather than its own test support, because a game outside the
 # framework cannot reach into its test directory — and this one is here to feel that constraint.
 class TestWolf3DOnHardware < Minitest::Test
   include Wolf3DTest
@@ -27,7 +27,7 @@ class TestWolf3DOnHardware < Minitest::Test
   # The holding screen, on the console, in a cartridge of its own — so it is tested whether or
   # not a copy of the game is here for the real one to draw instead.
   def test_the_holding_screen_blinks_on_the_console
-    rom = RubyGBA.build("TITLE", out: StringIO.new, err: StringIO.new) do
+    rom = VBlank.build("TITLE", console: :gba, out: StringIO.new, err: StringIO.new) do
       screen :bitmap
       screen_title = Wolf3D::Title.new(self)
       game_loop { screen_title.update }
@@ -57,7 +57,7 @@ class TestMapViewOnHardware < Minitest::Test
   # A cartridge that draws only what these tests are about.
   def views_rom(level)
     palette = Wolf3D.palette
-    RubyGBA.build("VIEWS", out: StringIO.new, err: StringIO.new) do
+    VBlank.build("VIEWS", console: :gba, out: StringIO.new, err: StringIO.new) do
       screen :bitmap
       map = Wolf3D::MapView.new(self, level).declare
       colours = Wolf3D::PaletteView.new(self, palette).declare

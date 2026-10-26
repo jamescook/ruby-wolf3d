@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-# The framework this game is built with. From git rather than rubygems because ruby-gba is
+# The framework this game is built with. From git rather than rubygems because vblank is
 # pre-1.0 and this game is its largest consumer — the two still move together, and a released
 # version for every experiment would be a lie about how settled the API is. Unpinned on
 # purpose: a break here is worth knowing about the day it lands, which is the whole reason
@@ -11,10 +11,10 @@ source "https://rubygems.org"
 # WORKING ON BOTH AT ONCE: point bundler at a checkout beside this one and it resolves
 # against that instead of fetching, with no edit to this file —
 #
-#   bundle config --local local.ruby-gba ../ruby-gba
+#   bundle config --local local.vblank ../vblank
 #
 # which is why `branch:` is named: bundler only accepts a local override for a branch it can
-# check you are on. Undo it with `bundle config --delete local.ruby-gba`.
+# check you are on. Undo it with `bundle config --delete local.vblank`.
 # ONE BLOCK FOR BOTH GEMS, because both live in that one repository.
 #
 # The obvious way to write this is two `gem` lines each naming the same github: — and it is
@@ -29,15 +29,15 @@ source "https://rubygems.org"
 # they can never end up on different commits of the same repository. The glob has to match both
 # gemspecs — the framework's at the root, the emulator's a directory down.
 #
-# THE EMULATOR is a gem of its own and not a dependency of ruby-gba: building a cartridge is
+# THE EMULATOR is a gem of its own and not a dependency of vblank: building a cartridge is
 # pure Ruby, and only running one needs a C compiler and libmgba. This suite runs the built
 # cartridge on a real console, so it needs it. Bundler builds its C extension on install, per
 # Ruby ABI — which is what makes changing Ruby version a rebuild rather than a library that
 # will not load. It needs libmgba: brew install mgba, or apt install libmgba-dev.
-git "https://github.com/jamescook/ruby-gba.git",
+git "https://github.com/jamescook/vblank.git",
     branch: "main",
     glob: "{,ruby-gba-emulator/}*.gemspec" do
-  gem "ruby-gba"
+  gem "vblank"
   gem "ruby-gba-emulator"
 end
 

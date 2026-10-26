@@ -2,7 +2,7 @@
 
 require_relative "test_helper"
 
-# The wiring: a game living outside the framework can require ruby-gba, build a program, run it
+# The wiring: a game living outside the framework can require vblank, build a program, run it
 # on the interpreter, and lower it to a real cartridge. Everything after this assumes that works.
 class TestWolf3DBuilds < Minitest::Test
   include Wolf3DTest
@@ -108,7 +108,7 @@ class TestTitleScreen < Minitest::Test
   include Wolf3DTest
 
   def program
-    RubyGBA.game("TITLE") do
+    VBlank.game("TITLE", consoles: %i[gba]) do
       screen :bitmap
       screen_title = Wolf3D::Title.new(self)
       game_loop { screen_title.update }

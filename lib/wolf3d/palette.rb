@@ -94,7 +94,7 @@ module Wolf3D
         channels.length == ENTRIES
 
       @channels = channels
-      @colours = channels.map { |r, g, b| RubyGBA::Graphics::Color.rgb(r >> 1, g >> 1, b >> 1) }
+      @colours = channels.map { |r, g, b| VBlank::Graphics::Color.rgb(r >> 1, g >> 1, b >> 1) }
     end
 
     # Worked out once as the game loads and frozen through, so a build running on another core

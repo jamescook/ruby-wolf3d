@@ -71,7 +71,7 @@ class TestTally < Minitest::Test
     things = Wolf3D::ThingAtlas.new(vswap, palette,
                                     (guards.pictures + scenery.pictures +
                                      Pickups.pictures(guards)).uniq.sort)
-    RubyGBA.game("TALLY") do
+    VBlank.game("TALLY", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery)

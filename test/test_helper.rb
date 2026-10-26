@@ -5,17 +5,17 @@ require "minitest/ractor"
 require_relative "../lib/wolf3d"
 
 module Wolf3DTest
-  # THE FRAMEWORK'S NAMES, SAID ONCE. Each of these lives a module or two down in ruby-gba, and
+  # THE FRAMEWORK'S NAMES, SAID ONCE. Each of these lives a module or two down in VBlank, and
   # a test that spelled the whole path every time would wrap at every call. Naming them here
   # also means the next time the framework moves one, one line moves with it.
-  Reference = RubyGBA::IR::Backends::Reference # the oracle: runs a program in-process
-  SaveImage = RubyGBA::IR::SaveImage # a cartridge's save memory, for Reference.new(save:)
-  GBA = RubyGBA::IR::Backends::GBA
-  Builder = RubyGBA::Builder
-  ROM = RubyGBA::Cartridge::ROM
-  Verifier = RubyGBA::Diagnostics::Verifier # the real cartridge, in the emulator
-  Constants = RubyGBA::Console::Hardware # KEY_UP and the rest of the hardware's names
-  Fraction = RubyGBA::DSL::Fraction # a number with a fractional part, kept in the low bits
+  Reference = VBlank::IR::Backends::Reference # the oracle: runs a program in-process
+  SaveImage = VBlank::IR::SaveImage # a cartridge's save memory, for Reference.new(save:)
+  GBA = VBlank::IR::Backends::GBA
+  Builder = VBlank::Builder
+  ROM = VBlank::Cartridge::ROM
+  Verifier = VBlank::Diagnostics::Verifier # the real cartridge, in the emulator
+  Constants = VBlank::Console::Hardware # KEY_UP and the rest of the hardware's names
+  Fraction = VBlank::DSL::Fraction # a number with a fractional part, kept in the low bits
 
   # EVERY FIXTURE A TEST CLASS PARKS IN A CONSTANT IS FROZEN ALL THE WAY DOWN, the moment it is
   # declared. The suite runs in Ractors — Ruby's way of using several cores in one process — and

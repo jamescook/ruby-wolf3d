@@ -456,7 +456,7 @@ class TestEnemies < Minitest::Test
                                     (guards.pictures + scenery.pictures +
                                      Wolf3D::Pickups.pictures(guards)).uniq.sort)
 
-    RubyGBA.game("ENEMIES") do
+    VBlank.game("ENEMIES", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery)

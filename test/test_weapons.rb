@@ -333,7 +333,7 @@ class TestWeapons < Minitest::Test
                                      Pickups.pictures(guards)).uniq.sort)
     guns = atlas
 
-    RubyGBA.game("WEAPON") do
+    VBlank.game("WEAPON", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: walls, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery, gun_art: guns)

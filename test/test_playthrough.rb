@@ -303,7 +303,7 @@ class TestPlaythrough < Minitest::Test
       atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors, lifts: lifts)
       things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
                                       (guards.pictures + scenery.pictures).uniq.sort)
-      RubyGBA.game("VIEW") do
+      VBlank.game("VIEW", consoles: %i[gba]) do
         screen :bitmap, tear_free: true
         view = FP.new(build: self, level: level, atlas: atlas, doors: doors, lifts: lifts,
                       pushwalls: Wolf3D::Pushwalls.new(level), guards: guards, things: things,
@@ -360,7 +360,7 @@ class TestPlaythrough < Minitest::Test
   def refused(count: 1, &asking)
     floors = floors_of(count)
     assert_raises(ArgumentError) do
-      RubyGBA.game("PLAY") do
+      VBlank.game("PLAY", consoles: %i[gba]) do
         screen :bitmap
         play = Playthrough.new(build: self, floors: floors, score: var(:score, 0),
                                world: CountingWorld.new(self))
@@ -397,7 +397,7 @@ class TestPlaythrough < Minitest::Test
   def counting_program(count, on, from, tens)
     floors = floors_of(count, from: from, tens: tens)
     @counting_programs ||= {}
-    @counting_programs[[count, on, from, tens]] ||= RubyGBA.game("PLAY") do
+    @counting_programs[[count, on, from, tens]] ||= VBlank.game("PLAY", consoles: %i[gba]) do
       screen :bitmap
       score = var :score, 0
       picked = on && var(:picked, on)

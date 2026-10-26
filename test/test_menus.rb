@@ -538,7 +538,7 @@ class TestMenus < Minitest::Test
       things = Wolf3D::ThingAtlas.new(vswap, palette,
                                       floors.flat_map { |f| f.guards.pictures + f.scenery.pictures }
                                             .uniq.sort)
-      RubyGBA.game("MENU") do
+      VBlank.game("MENU", consoles: %i[gba]) do
         screen :bitmap, tear_free: true
         sound_on = var :sound_on, 1
         view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,

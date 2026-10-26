@@ -54,7 +54,7 @@ class TestLives < Minitest::Test
   # counting world. R scores a few points, so a test can see what a death does to them.
   def counting_program
     floors = one_empty_floor
-    RubyGBA.game("LIVES") do
+    VBlank.game("LIVES", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
       px = var :px, 8.5
@@ -160,7 +160,7 @@ class TestLives < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("FLOOR") do
+    VBlank.game("FLOOR", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,
@@ -372,7 +372,7 @@ class TestLives < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("RING") do
+    VBlank.game("RING", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,

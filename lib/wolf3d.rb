@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Wolfenstein 3D, built with ruby-gba. Needs a copy of the game you own — see README.md.
+# Wolfenstein 3D, built with VBlank. Needs a copy of the game you own — see README.md.
 
 # PUT THE BUNDLE ON THE LOAD PATH OURSELVES, so that plain `rake` and plain `ruby wolf3d.rb`
 # work and nobody has to remember `bundle exec`. This is an application rather than a library
@@ -11,7 +11,7 @@ require "bundler/setup"
 
 # The framework, as any other game built on it would have it: a gem, resolved by the Gemfile
 # beside this file. The public entry point only, never its internals.
-require "ruby_gba"
+require "vblank"
 
 require_relative "wolf3d/codec/rlew"
 require_relative "wolf3d/codec/carmack"
@@ -99,7 +99,7 @@ module Wolf3D
   def self.maps = Ractor.current[:wolf3d_maps] ||= data && Maps.from(data)
 
   # THE DIALS, as the environment spells them and as the build is told them. A build is handed
-  # its settings (`GAME.program(settings: { floors: 1 })`, `ruby-gba build wolf3d.rb --set
+  # its settings (`GAME.program(settings: { floors: 1 })`, `vblank build wolf3d.rb --set
   # floors=1`); the environment is read only where a cartridge is built from the command line —
   # wolf3d.rb's last line — so a test building one floor never changes what another build sees.
   DIALS = { episodes: "WOLF3D_EPISODES", from: "WOLF3D_FROM", floors: "WOLF3D_FLOORS",
@@ -158,7 +158,7 @@ module Wolf3D
   # cartridge boots on the first floor it holds, so the only way to read what a LATER floor
   # costs is to build one that begins there:
   #
-  #   bundle exec ruby-gba profile wolf3d.rb --set from=1 --set floors=1
+  #   bundle exec vblank profile wolf3d.rb --set from=1 --set floors=1
   #
   # Floors differ enormously in what stands on them — the second floor of the first episode
   # carries three times the guards and three times the scenery of the first — so "what does a
@@ -261,7 +261,7 @@ module Wolf3D
     data
   end
 
-  GAME = RubyGBA.game(TITLE) do
+  GAME = VBlank.game(TITLE, consoles: %i[gba]) do
     # Drawn on the tear-free screen, and it has to be. A first-person view repaints every
     # pixel every frame, and this one costs more than a frame holds — so on a screen the
     # display reads while the game is still drawing it, the player watches the picture

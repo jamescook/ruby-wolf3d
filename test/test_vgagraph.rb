@@ -107,7 +107,7 @@ class TestVgagraph < Minitest::Test
     assert_equal %w[I M], glyphs.keys.sort
 
     measured = nil
-    program = RubyGBA.game("FONT") do
+    program = VBlank.game("FONT", consoles: %i[gba]) do
       screen :bitmap
       font :wolf, glyphs: glyphs
       measured = [text_height(font: :wolf), text_width("I", font: :wolf), text_width("M", font: :wolf)]
@@ -268,7 +268,7 @@ class TestVgagraph < Minitest::Test
     assert_includes glyphs.keys, "0"
 
     measured = nil
-    program = RubyGBA.game("FONT") do
+    program = VBlank.game("FONT", consoles: %i[gba]) do
       screen :bitmap
       font :wolf_small, glyphs: glyphs
       measured = [text_height(font: :wolf_small), text_width("HELLO", font: :wolf_small)]

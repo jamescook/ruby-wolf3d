@@ -1,8 +1,8 @@
 # ruby-wolf3d
 
 Wolfenstein 3D for the Game Boy Advance, written in Ruby against
-[ruby-gba](https://github.com/jamescook/ruby-gba). Pure Ruby: this repository builds a
-cartridge, it does not implement one. It requires `ruby_gba` as a gem, the way anyone else's
+[VBlank](https://github.com/jamescook/vblank). Pure Ruby: this repository builds a
+cartridge, it does not implement one. It requires `vblank` as a gem, the way anyone else's
 game would.
 
 ## What this is FOR — the north star
@@ -15,7 +15,7 @@ workaround. So when this game hits a wall:
   get past it. Record it against the framework, not here.
 - **Do not work around a gap here if the framework could close it.** A clever hack in this
   repository hides the very thing the port exists to find.
-- **Never reach past the framework's public surface** — not into `RubyGBA::IR`, not into a
+- **Never reach past the framework's public surface** — not into `VBlank::IR`, not into a
   backend, not into its test directory. Feeling the constraint is the point; a game that can
   cheat its way past one stops reporting it.
 - **A gap worth closing is worth recording even when you route around it today.** Say which
@@ -61,16 +61,16 @@ unreadable, can't be allowlisted, and can't be denied granularly.
 
 ## The framework, and working on both at once
 
-`ruby-gba` and `ruby-gba-emulator` both come from git (see the `Gemfile`). To edit the
+`vblank` and `ruby-gba-emulator` both come from git (see the `Gemfile`). To edit the
 framework and this game together, point bundler at a checkout beside this one:
 
 ```bash
-bundle config set --local local.ruby-gba ../ruby-gba
+bundle config set --local local.vblank ../vblank
 ```
 
 **One override covers both gems**, because the Gemfile declares them as one git source — the
 emulator resolves to `ruby-gba-emulator/` inside that same checkout. Undo it with
-`bundle config --delete local.ruby-gba`. It is also the only way to test against framework work
+`bundle config --delete local.vblank`. It is also the only way to test against framework work
 that is not pushed yet.
 
 One catch while the override is on: an overridden gem behaves like a `path:` source, and
@@ -81,24 +81,24 @@ bundler does not build extensions for those. If the emulator will not load, run
 names; to pick up new framework commits, **name both gems**:
 
 ```bash
-bundle update ruby-gba ruby-gba-emulator
+bundle update vblank ruby-gba-emulator
 ```
 
 Naming only one of them does nothing, and says so in a way that reads like success —
-`Bundler attempted to update ruby-gba but its version stayed the same`, then `Bundle updated!`,
+`Bundler attempted to update vblank but its version stayed the same`, then `Bundle updated!`,
 with the revision in `Gemfile.lock` unchanged. The two gems share one git source, and bundler
 will not move a shared source while a gem in it is still pinned. Name both and the source
 moves, so they can never end up on different revisions.
 
 **The verb reference lives in the framework**, at `.claude/rules/dsl-reference.md` in the
-ruby-gba checkout. Read it there rather than copying it here: it is large, it changes with
+VBlank checkout. Read it there rather than copying it here: it is large, it changes with
 every verb, and a copy would be wrong within a week.
 
 ## Emulator & integration tests
 
 Integration tests run the built cartridge in an emulator, reached through the framework's one
-seam, `RubyGBA::Diagnostics::Verifier`. Behind that is **ruby-gba-emulator** — a headless
-libmgba probe, and a gem of its own rather than part of ruby-gba, because building a cartridge
+seam, `VBlank::Diagnostics::Verifier`. Behind that is **ruby-gba-emulator** — a headless
+libmgba probe, and a gem of its own rather than part of VBlank, because building a cartridge
 is pure Ruby and running one is not.
 
 **Nothing here builds it.** It is a Gemfile line, and bundler builds its C extension on
@@ -134,7 +134,7 @@ A constant a test class declares is frozen all the way down for you as it is dec
 
 No `bundle exec`: the Rakefile and `lib/wolf3d.rb` each require `bundler/setup` first. `bundle
 exec` is still needed for an executable that comes out of the bundle rather than out of this
-repository — `bundle exec ruby-gba profile wolf3d.rb`.
+repository — `bundle exec vblank profile wolf3d.rb`.
 
 See `.claude/rules/testing.md`.
 
@@ -161,7 +161,7 @@ altitudes here, and neither is the framework's.
     `i = Reference.new.run(program); i.screen.pixel(x, y)` — or `i[:name]` for a variable.
     In-process, deterministic, no emulator. `test/test_first_person.rb` is the worked
     example: it builds the view over a one-room fixture level and reads the picture.
-  - **Hardware path: the real cartridge** through `RubyGBA::Diagnostics::Verifier`, reached
+  - **Hardware path: the real cartridge** through `VBlank::Diagnostics::Verifier`, reached
     the way any game outside the framework must reach it. `test/test_wolf3d_on_hardware.rb`
     is the whole of it — keep it to the few things only the console can answer.
   - Supply input through the interpreter's `hold(:btn)` / `input_each_frame { }`, not by
@@ -208,7 +208,7 @@ are commented with what needs what).
 - `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
   around the game.
 - `lib/wolf3d.rb` — the dials (`WOLF3D_EPISODES`, `WOLF3D_FLOORS`, `WOLF3D_FROM`,
-  `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`) and `GAME`, the one `RubyGBA.game` block.
+  `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`) and `GAME`, the one `VBlank.game` block.
 
 ### Key patterns
 
@@ -265,8 +265,8 @@ comments — those stay conversational and explain generously (see above).
 
 ### DSL conventions, which belong to the framework
 
-The verb surface is ruby-gba's and is documented there, in `.claude/rules/dsl-reference.md` in
-the ruby-gba checkout. Read it there; do not copy it here. A few habits it establishes and this
+The verb surface is VBlank's and is documented there, in `.claude/rules/dsl-reference.md` in
+the VBlank checkout. Read it there; do not copy it here. A few habits it establishes and this
 game follows:
 
 - `flip` (not `negate`) for reversing direction; `copy :dest, :src` for assignment.

@@ -83,7 +83,7 @@ class TestVictory < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
                                     (guards.pictures + scenery.pictures).uniq.sort)
-    RubyGBA.game("WON") do
+    VBlank.game("WON", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors,
                     pushwalls: Wolf3D::Pushwalls.new(level), guards: guards, things: things,

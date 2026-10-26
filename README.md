@@ -1,6 +1,6 @@
 # Wolfenstein 3D
 
-Wolfenstein 3D, built with [ruby-gba](https://github.com/jamescook/ruby-gba).
+Wolfenstein 3D, built with [VBlank](https://github.com/jamescook/vblank).
 
 ## You need your own copy of the game
 
@@ -118,7 +118,7 @@ first N, because a cartridge boots on the first floor it holds and the only way 
 *later* floor costs is to build one that starts there:
 
 ```sh
-bundle exec ruby-gba profile wolf3d.rb --set from=1 --set floors=1
+bundle exec vblank profile wolf3d.rb --set from=1 --set floors=1
 ```
 
 The profiler takes the dials as `--set` settings, named without the `WOLF3D_`: `episodes`,

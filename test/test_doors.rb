@@ -35,7 +35,7 @@ class TestDoors < Minitest::Test
     doors = @doors
     pushwalls = @pushwalls
 
-    RubyGBA.game("DOORS") do
+    VBlank.game("DOORS", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
       game_loop { view.play }
@@ -228,7 +228,7 @@ class TestDoors < Minitest::Test
     pushwalls = Wolf3D::Pushwalls.new(level)
     atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, level, doors: doors)
 
-    RubyGBA.game("DOORS") do
+    VBlank.game("DOORS", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
       game_loop { view.update }

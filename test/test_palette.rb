@@ -37,7 +37,7 @@ class TestPalette < Minitest::Test
   def test_the_colours_are_widened_to_what_the_console_wants
     palette = Palette.game
 
-    color = RubyGBA::Graphics::Color
+    color = VBlank::Graphics::Color
 
     assert_equal color.rgb(0, 0, 21), palette[1], "0,0,42 in six bits is 0,0,21 in five"
     assert_equal color.rgb(19, 0, 17), palette[255]

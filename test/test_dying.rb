@@ -20,8 +20,8 @@ class TestDying < Minitest::Test
   FRAMES = Dying::MOST_TURNS + Dying::SETTLE + Dying::FRAMES + 8
 
   RED = Wolf3D::Palette.game[Dying::INK]
-  GROUND = RubyGBA::Graphics::Color.resolve(:blue)
-  BAR = RubyGBA::Graphics::Color.resolve(:green)
+  GROUND = VBlank::Graphics::Color.resolve(:blue)
+  BAR = VBlank::Graphics::Color.resolve(:green)
 
   # A killer standing +away+ cells north of a player who is facing east, so the turn has a
   # quarter of a circle to cover and a side to pick.
@@ -30,7 +30,7 @@ class TestDying < Minitest::Test
   # looks — to a save record, and puts the death on buttons: A saves, B loads and L strikes. A load
   # paints the background again, which is the picture a loaded game would draw.
   def dying_program(kill_x: 8.5, kill_y: 4.5, tear_free: true, saving: false)
-    RubyGBA.game("DYING") do
+    VBlank.game("DYING", consoles: %i[gba]) do
       screen :bitmap, tear_free: tear_free
       lasting = Wolf3D::LastingState.new(build: self)
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
@@ -205,9 +205,9 @@ class TestDying < Minitest::Test
       path = File.join(dir, "dying.gba")
       ROM.assemble(GBA.new.lower(dying_program), title: "DYING")
          .write(path)
-      probe = RubyGBA::Diagnostics::Emulator.probe(path)
+      probe = VBlank::Diagnostics::Emulator.probe(path)
       probe.step(Dying::MOST_TURNS + Dying::SETTLE + 6) # ...past the turn and into the dots
-      analyzer = RubyGBA::Diagnostics::Analyzer
+      analyzer = VBlank::Diagnostics::Analyzer
       busiest = 20.times.map { analyzer.frame_scanlines(probe.frame_cost) }.max
       probe.close
 

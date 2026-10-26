@@ -29,7 +29,7 @@ class TestFirstPerson < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, @level, doors: doors)
     level = @level
 
-    RubyGBA.game("VIEW") do
+    VBlank.game("VIEW", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
       game_loop { view.update }

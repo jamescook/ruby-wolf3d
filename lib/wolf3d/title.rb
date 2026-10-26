@@ -17,7 +17,7 @@ module Wolf3D
     def update
       @build.clear_screen :black
       @build.draw_text "WOLFENSTEIN 3D", 66, 56, :white
-      @build.draw_text "RUBY-GBA", 90, 72, :gray
+      @build.draw_text "VBLANK", 98, 72, :gray
 
       @blink.add! 1
       (@blink >= BLINK_OFF).then { @blink.set! 0 }

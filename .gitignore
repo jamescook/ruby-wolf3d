@@ -12,7 +12,7 @@ Gemfile.lock
 # reading is of one machine on one day, so it is yours and not the repository's.
 tmp/
 
-# `bundle config --local local.ruby-gba ../ruby-gba` lands here, and it is an absolute path on
+# `bundle config --local local.vblank ../vblank` lands here, and it is an absolute path on
 # whichever machine ran it. The Gemfile says how to set it; where yours lives is your business.
 .bundle/
 

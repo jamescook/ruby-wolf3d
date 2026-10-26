@@ -176,7 +176,7 @@ class TestDifficulty < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, guards.pictures)
 
-    RubyGBA.game("HOWTOUGH") do
+    VBlank.game("HOWTOUGH", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things)

@@ -245,7 +245,7 @@ class TestPickups < Minitest::Test
                                     (guards.pictures + scenery.pictures +
                                      Pickups.pictures(guards)).uniq.sort)
 
-    RubyGBA.game("PICKUP") do
+    VBlank.game("PICKUP", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
                     guards: guards, things: things, scenery: scenery)

@@ -425,7 +425,7 @@ class TestStatusBar < Minitest::Test
   def vswap = self.class.vswap
   def palette = Wolf3D::Palette.game
   def ground = palette[Bar::GROUND]
-  def font = RubyGBA::Graphics::Fonts.get(Bar::FONT)
+  def font = VBlank::Graphics::Fonts.get(Bar::FONT)
 
   def arena(player: [8, 8], facing: :east, guards: [], things: {})
     cells = Array.new(SIDE * SIDE, FLOOR)
@@ -450,7 +450,7 @@ class TestStatusBar < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("BAR") do
+    VBlank.game("BAR", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,

@@ -66,7 +66,7 @@ class TestKeepingTime < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game, guards.pictures)
 
-    RubyGBA.game("TIME") do
+    VBlank.game("TIME", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,

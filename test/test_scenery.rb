@@ -337,7 +337,7 @@ class TestScenery < Minitest::Test
     atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
     things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
 
-    RubyGBA.game("SCENERY") do
+    VBlank.game("SCENERY", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
                                      pushwalls: pushwalls, guards: guards, things: things,
