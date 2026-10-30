@@ -33,10 +33,16 @@ class TestSounds < Minitest::Test
   Clip = Struct.new(:pcm, :rate, :length)
 
   class Chunks
-    def initialize(count) = @count = count
+    def initialize(count, missing: [])
+      @count = count
+      @missing = missing
+    end
+
     def sound_count = @count
 
     def sound(index)
+      return Clip.new([], RATE, 0) if @missing.include?(index)
+
       pcm = Array.new(HALF_A_SECOND) { |i| (Math.sin(i * (index + 1) * 0.01) * 100).round }
       Clip.new(pcm, RATE, pcm.length)
     end
@@ -44,6 +50,8 @@ class TestSounds < Minitest::Test
 
   # Every chunk the game knows how to want.
   ALL = Sounds::DEATH_SCREAMS.max + 1
+
+  GUNS = [Sounds::PISTOL, Sounds::MACHINE_GUN, Sounds::CHAIN_GUN].freeze
 
   # ---------------------------------------------------------------- the player
 
@@ -141,6 +149,47 @@ class TestSounds < Minitest::Test
     assert_equal 1, pistols, "one pistol voice however fast you tap, got #{run.active_samples.inspect}"
   end
 
+  # ...AND THE THREE GUNS ARE ONE VOICE BETWEEN THEM, which is the original's own map (wl_main.cpp,
+  # wolfdigimap): the machine gun, the pistol and the gatling gun all name channel 0, the player's
+  # weapons. So the chain gun's last shot is still sounding when the pistol fires here, and the
+  # pistol's replaces it. Select walks from the chain gun round through the knife to the pistol.
+  def test_changing_guns_while_a_shot_is_sounding_leaves_one_gun_voice
+    run = play_it(frames: 48, guards: [[11, 8, :west]], armed_with: Wolf3D::Weapons::CHAIN_GUN) do |f|
+      next [:b] if [4, 34].include?(f)
+
+      [30, 32].include?(f) ? [:select] : []
+    end
+    guns = run.active_samples & GUNS.map { |n| name_of(n) }
+
+    assert_equal [name_of(Sounds::PISTOL)], guns, "the last gun fired, alone"
+  end
+
+  # The gun in your hands picks its own recording.
+  def test_each_gun_plays_its_own_recording
+    { Wolf3D::Weapons::MACHINE_GUN => Sounds::MACHINE_GUN, Wolf3D::Weapons::CHAIN_GUN => Sounds::CHAIN_GUN }
+      .each do |weapon, chunk|
+      heard = heard_during(40, guards: [[11, 8, :west]], armed_with: weapon) { |f| f == 4 ? [:b] : [] }
+
+      assert_equal [name_of(chunk)], heard & GUNS.map { |n| name_of(n) }
+    end
+  end
+
+  # THE ONE ROW ON THE MENU turns the guns off with everything else.
+  def test_the_guns_are_silent_with_sound_turned_off
+    heard = heard_during(40, guards: [[11, 8, :west]], sound: 0) { |f| f == 4 ? [:b] : [] }
+
+    assert_empty heard & GUNS.map { |n| name_of(n) }
+  end
+
+  # A COPY WITH A GAP IN ITS GUNS still gives each of the others its own recording: the sound of a
+  # gun is picked by number, and a missing one must not move the numbers after it.
+  def test_a_copy_missing_one_gun_still_plays_the_right_recording_for_the_others
+    heard = heard_during(40, guards: [[11, 8, :west]], chunks: Chunks.new(ALL, missing: [Sounds::PISTOL]),
+                             armed_with: Wolf3D::Weapons::CHAIN_GUN) { |f| f == 4 ? [:b] : [] }
+
+    assert_equal [name_of(Sounds::CHAIN_GUN)], heard & GUNS.map { |n| name_of(n) }
+  end
+
   # ---------------------------------------------------------------- and on the console
 
   # THE WHOLE ROAD ON A REAL FILE: the fixture's own VSWAP, read as a release, converted, built
@@ -180,7 +229,7 @@ class TestSounds < Minitest::Test
     Wolf3D::Level.new(name: "Sounds", width: SIDE, height: SIDE, walls: cells, things: standing)
   end
 
-  def view_of(level, chunks: Chunks.new(ALL), drawing: false)
+  def view_of(level, chunks: Chunks.new(ALL), drawing: false, armed_with: nil, sound: nil)
     doors = Wolf3D::Doors.new(level, vswap)
     pushwalls = Wolf3D::Pushwalls.new(level)
     guards = Guards.new(level)
@@ -193,7 +242,8 @@ class TestSounds < Minitest::Test
     VBlank.game("SOUND", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery, vswap: chunks)
+                    guards: guards, things: things, scenery: scenery, vswap: chunks,
+                    armed_with: armed_with, sound_on: sound && var(:sound_on, sound))
       game_loop { drawing ? view.update : view.play }
     end.program
   end
@@ -201,9 +251,10 @@ class TestSounds < Minitest::Test
   # A GUN IS HEARD WHETHER OR NOT IT HITS, so nothing here needs drawing except the question about
   # a man SCREAMING — that noise is made where the damage is done, and a shot only goes to a man
   # the renderer put on the screen. So one test draws and the rest stay cheap.
-  def play_it(frames:, guards: [], chunks: Chunks.new(ALL), drawn: false, &script)
+  def play_it(frames:, guards: [], chunks: Chunks.new(ALL), drawn: false, armed_with: nil, sound: nil, &script)
     Reference.new.input_each_frame(&script)
-             .run(view_of(arena(guards: guards), chunks: chunks, drawing: drawn), frames: frames)
+             .run(view_of(arena(guards: guards), chunks: chunks, drawing: drawn,
+                                                 armed_with: armed_with, sound: sound), frames: frames)
   end
 
   # WHAT SOUNDED AT ANY POINT over a run, rather than what happens to be sounding at the end.

@@ -29,7 +29,8 @@ module Wolf3D
     MACHINE_GUN = 4
     PISTOL = 5
     CHAIN_GUN = 6        # the gatling gun, as the original's own art calls it
-    NOTICES_YOU = 0      # "Halt!" — a guard the moment he sees you
+    GUNS = [PISTOL, MACHINE_GUN, CHAIN_GUN].freeze
+    NOTICES_YOU = 0     # "Halt!" — a guard the moment he sees you
     GUARD_FIRES = 21     # ...and his gun
     DOOR_OPENS = 3
     DOOR_SHUTS = 2
@@ -59,16 +60,14 @@ module Wolf3D
       declare
     end
 
-    # Is there anything to play at all? A floor built without the game's data has no sounds, and
-    # everything below is then a no-op rather than a missing method.
-    def any? = !@clips.empty?
+    # THE GUN GOES OFF, and the shot before it is cut off, whichever gun fired that one. +number+
+    # counts the guns from the pistol and the game works it out, so the gun in your hands picks
+    # its own recording without a branch per gun. See #declare_the_guns for how.
+    def gun(number)
+      return if @guns.nil?
 
-    # ONE PRESS, ONE SHOT, and the shot before it is cut off. The original reserves a mixer
-    # channel for the player's own weapon so a new shot always replaces the last — without that,
-    # tapping the trigger fills every voice with pistol and there is none left for anything else.
-    def pistol = retrigger(PISTOL)
-    def machine_gun = retrigger(MACHINE_GUN)
-    def chain_gun = retrigger(CHAIN_GUN)
+      when_sound_is_on { @guns.play @gun_effect[number] }
+    end
 
     def notices_you = play(NOTICES_YOU)
     def guard_fires = play(GUARD_FIRES)
@@ -111,10 +110,19 @@ module Wolf3D
       (@switch == 1).then(&)
     end
 
-    # Every chunk this game knows how to use. Named for the moment rather than the number, so a
-    # sound the player's copy does not hold simply never reaches the list.
-    WANTED = [PISTOL, MACHINE_GUN, CHAIN_GUN, NOTICES_YOU, GUARD_FIRES, DOOR_OPENS, DOOR_SHUTS,
-              SECRET_WALL, LEVEL_DONE, *DEATH_SCREAMS].freeze
+    # Every chunk this game plays as a sample. Named for the moment rather than the number, so a
+    # sound the player's copy does not hold simply never reaches the list. The guns are not here:
+    # see #declare_the_guns.
+    WANTED = [NOTICES_YOU, GUARD_FIRES, DOOR_OPENS, DOOR_SHUTS, SECRET_WALL, LEVEL_DONE,
+              *DEATH_SCREAMS].freeze
+
+    # At this tempo, and the twenty-four ticks to a beat a Score has unless it says otherwise, a
+    # tick is one frame.
+    FRAME_TICKS = 150
+
+    # The loudest a part can play, which is the level a sample plays at unless told otherwise, so
+    # a gun is no quieter for being an effect.
+    FULL = 15
 
     def declare
       @clips = {}
@@ -124,15 +132,61 @@ module Wolf3D
       return if @vswap.nil?
 
       WANTED.uniq.each do |chunk|
-        next unless chunk < @vswap.sound_count
-
-        sound = @vswap.sound(chunk)
-        next if sound.length.zero?
+        sound = recording(chunk) or next
 
         @clips_source[chunk] = sound
         @clips[chunk] = @b.sample(:"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate)
       end
       @which = @b.var :_which_scream, 0 unless @clips.empty?
+      declare_the_guns
+    end
+
+    # What this copy holds for a chunk, or nil when it holds nothing there.
+    def recording(chunk)
+      return unless chunk < @vswap.sound_count
+
+      sound = @vswap.sound(chunk)
+      sound unless sound.length.zero?
+    end
+
+    # THE ORIGINAL GIVES THE PLAYER'S WEAPONS ONE MIXER CHANNEL. Its map of digitised sounds
+    # (wl_main.cpp, wolfdigimap) says which channel each recording plays on, and all three guns
+    # name channel 0, kept for them alone. So a new shot from any gun cuts off the last shot from
+    # any gun, and the last one asked for wins. Without that, tapping the trigger fills every
+    # voice with pistol and there is none left for anything else.
+    #
+    # A GROUP OF SOUND EFFECTS IS THAT CHANNEL: its effects play one at a time, and at equal
+    # priority the one asked for last wins. An effect is a Score, and a Score plays notes, so each
+    # recording becomes an instrument and each shot one note at the recording's own pitch, long
+    # enough to let it run out. An effect also starts a frame after it is asked for, which nobody
+    # hears under a pass of several frames.
+    #
+    # THE PLAYER'S SHOT NOW OUTRANKS A GUARD'S SHOUT when the mixer runs out of voices, because the
+    # game's samples rank below every effect. That is right for a game whose original keeps a
+    # channel for that shot.
+    #
+    # A GUN THIS COPY DOES NOT HOLD IS LEFT OUT OF THE LIST, which moves the numbers of the guns
+    # after it, so the table says where each gun landed. One that is missing points just past the
+    # end, and a number naming no effect plays nothing.
+    def declare_the_guns
+      held = GUNS.select { |chunk| recording(chunk) }
+      return if held.empty?
+
+      @b.enable_sound
+      @guns =@b.sound_effects :guns, held.map { |chunk| shot_of(chunk) }
+      @gun_effect = @b.table :gun_effect, GUNS.map { |chunk| held.index(chunk) || held.length }, width: :byte
+    end
+
+    def shot_of(chunk)
+      sound = recording(chunk)
+      @b.instrument :"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate
+      frames = ((sound.pcm.length.to_f / sound.rate) * 60).ceil
+      note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames)
+
+      VBlank::Audio::Score.new(
+        tempo: FRAME_TICKS, group: :player_weapon,
+        parts: [VBlank::Audio::Score::Part.new(plays: :"sound_#{chunk}", volume: FULL, notes: [note])]
+      )
     end
 
     def play(chunk)
@@ -141,8 +195,8 @@ module Wolf3D
       when_sound_is_on { clip.play }
     end
 
-    # Cut whatever of this sound is still going and start it again, which is what the original's
-    # reserved channels amount to for the sounds one thing makes over and over.
+    # Cut whatever of this sound is still going and start it again, for the sounds one thing makes
+    # over and over.
     def retrigger(chunk)
       clip = @clips[chunk] or return
 

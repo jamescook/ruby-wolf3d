@@ -350,13 +350,9 @@ module Wolf3D
 
     # Each gun has its own recording, which is the one place a machine gun and a chain gun
     # differ to the ear. The knife's is an ADLIB effect and no copy of the game holds a
-    # recording of it, so the knife goes in quietly.
+    # recording of it, so the knife goes in quietly, and only a gun ever reaches here.
     def the_gun_is_heard
-      return if @sounds.nil? || !@sounds.any?
-
-      (@in_hand == PISTOL).then { @sounds.pistol }
-      (@in_hand == MACHINE_GUN).then { @sounds.machine_gun }
-      (@in_hand == CHAIN_GUN).then { @sounds.chain_gun }
+      @sounds&.gun(@in_hand - PISTOL)
     end
   end
 end
