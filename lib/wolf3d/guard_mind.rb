@@ -47,9 +47,9 @@ module Wolf3D
     # Nothing is a target.
     NOBODY = -1
 
-    def initialize(build:, guards:, pool:, level:, world:, player:, door_open:, walls:, things:,
-                   behaviour: nil, blocked: nil, dying: nil, pickups: nil, sounds: nil,
-                   rooms: nil, floors: nil, map_base: nil, difficulty: nil)
+    def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
+                   behaviour: nil, dying: nil, pickups: nil, sounds: nil,
+                   rooms: nil, floors: nil, difficulty: nil)
       @b = build
       # THE STATE TABLE OF EVERY KIND THIS CARTRIDGE HOLDS. A build that says nothing gets the
       # guard's alone, which is what every test of the guard himself wants.
@@ -63,16 +63,10 @@ module Wolf3D
       @level = level
       @floors = floors    # every floor the cartridge holds, or nil for a game with one
       @rooms = rooms      # which rooms are open to the player's, or nil where nothing shuts off
-      # WHERE THIS FLOOR'S SLICE OF EVERY TABLE BEGINS. The tables hold all the floors end to end,
-      # so every read of one adds this — the same number the view adds. Nought for a cartridge
-      # with a single floor, which is every test that builds one directly.
-      @base = map_base || 0
-      @world = world      # the flat map table the ray walk reads
+      @this_floor = this_floor
       @things = things    # the row of pictures everything standing in the level is drawn from
-      @blocked = blocked  # which cells hold scenery a foot cannot pass, or nil for a bare floor
       @player = player    # see Player
       @open = door_open   # how far each door has slid
-      @walls = walls      # where that table stops naming walls: { door: N, push: N }
       declare
     end
 
@@ -506,7 +500,7 @@ module Wolf3D
         @celly.set! @aty.to_i
 
         ((@cellx == @tx) & (@celly == @ty)).then { @done.set! 1 }.else do
-          @ahead.set!(@world[@base + (@celly * @width) + @cellx])
+          @ahead.set!(@this_floor.cell_at(@cellx, @celly))
           (@ahead > 0).then { blocked_by(@ahead) }
           (@clear == 0).then { @done.set! 1 }
         end
@@ -562,12 +556,10 @@ module Wolf3D
     # is still across the way. A cell a secret wall could reach counts as clear, because the
     # wall is usually not in it and a guard blinded by a wall that is not there would be odd.
     def blocked_by(cell)
-      (cell < @walls[:push]).then do
-        (cell >= @walls[:door]).then do
-          @slot.set!(cell - @walls[:door])
-          (@open[@slot] < FirstPerson::DOOR_WALKABLE).then { @clear.set! 0 }
-        end.else { @clear.set! 0 }
-      end
+      @this_floor.sort_out(cell, door: lambda {
+        @slot.set!(@this_floor.door_in(cell))
+        (@open[@slot] < FirstPerson::DOOR_WALKABLE).then { @clear.set! 0 }
+      }, wall: -> { @clear.set! 0 })
     end
 
     # --- walking a beat --------------------------------------------------------------
@@ -585,7 +577,7 @@ module Wolf3D
     # A turning point under his feet sends him a new way; without one he carries straight on.
     # Either way he only sets off if he can actually get there.
     def choose_a_patrol_way(guard)
-      @way.set!(@arrow[@base + (guard.y.to_i * @width) + guard.x.to_i])
+      @way.set!(@arrow[@this_floor.map_index(guard.x.to_i, guard.y.to_i)])
       (@way < Guards::NOWHERE).then { guard.dir.set! @way }
       @picked.set! 0
       try_this_way(guard, guard.dir)
@@ -711,17 +703,15 @@ module Wolf3D
     # way, and nothing standing in it that a body cannot pass. The same question the player's
     # feet ask, asked of a guard — and a guard is stopped by a barrel exactly as you are.
     def walkable
-      @spot.set!(@base + (@celly * @width) + @cellx)
-      @ahead.set!(@world[@spot])
+      @spot.set!((@celly * @width) + @cellx)
+      @ahead.set!(@this_floor.cell(@spot))
       @clear.set! 0
       (@ahead == 0).then { @clear.set! 1 }
-      (@ahead >= @walls[:door]).then do
-        (@ahead < @walls[:push]).then do
-          @slot.set!(@ahead - @walls[:door])
-          (@open[@slot] > FirstPerson::DOOR_WALKABLE).then { @clear.set! 1 }
-        end
-      end
-      (@blocked[@spot] == 1).then { @clear.set! 0 } if @blocked
+      @this_floor.sort_out(@ahead, door: lambda {
+        @slot.set!(@this_floor.door_in(@ahead))
+        (@open[@slot] > FirstPerson::DOOR_WALKABLE).then { @clear.set! 1 }
+      })
+      @this_floor.when_blocked(@spot) { @clear.set! 0 }
     end
 
     public

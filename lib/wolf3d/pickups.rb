@@ -73,15 +73,14 @@ module Wolf3D
     # may be left out, and then the floor is read for itself: a game with no drawing still has
     # things lying on it.
     # +floors+ is every floor the cartridge holds; a game with one may hand over its `level:` and
-    # `scenery:` loose instead, which is what the tests do. +bases+ is where this floor's slice of
-    # each table begins, as the view keeps it: { map:, piece: } — left out on a one-floor game,
-    # where every slice begins at nothing.
+    # `scenery:` loose instead, which is what the tests do. +this_floor+ says where the slice of
+    # each table for the floor being played begins.
     # +weapons+ is what the two guns on the floor are handed to, or nil on a game with no
     # weapons to hold — and then they give their rounds and nothing else, which is what this
     # did before there was a gun to pick up. +lasting+ is what a saved game holds (see
     # LastingState).
     def initialize(build:, player:, level: nil, lives: nil, scenery: nil, pool: nil,
-                   floors: nil, bases: {}, weapons: nil, lasting: LastingState.new(build:))
+                   floors: nil, this_floor:, weapons: nil, lasting: LastingState.new(build:))
       @b = build
       @lasting = lasting
       @weapons = weapons
@@ -96,7 +95,7 @@ module Wolf3D
       # still has a key lying on the floor, or its locked door could never be opened.
       @scenery_of = @floors.to_h { |floor| [floor.index, floor.scenery || Scenery.new(floor.level)] }
       @scenery = scenery_of(@floors.first_floor)
-      @bases = bases
+      @this_floor = this_floor
       @pool = pool
       declare
     end
@@ -194,8 +193,7 @@ module Wolf3D
     # asked where it is — a real floor holds a few hundred pieces, and walking that list every
     # frame to find the one you are standing on would be most of what the game does.
     def what_am_i_standing_on
-      @here.set!((@player.y.to_i * @level.width) + @player.x.to_i)
-      @here.add!(@bases[:map]) if @bases[:map]
+      @here.set!(@this_floor.map_index(@player.x.to_i, @player.y.to_i))
       @piece.set!(@lying_at[@here])
       (@piece > 0).then do
         # Counted from one in the table so that nought can mean an empty cell.
@@ -226,8 +224,8 @@ module Wolf3D
       # A table must hold something and a floor need hold nothing, so an empty game gets one
       # entry that nothing ever reads — the table above names no piece for it to be reached by.
       everything = @floors.flat_map { |floor| scenery_of(floor).pieces }
-      @gives_kind = b.table :gives_kind, at_least_one(everything.map { |p| kind_of(p) }), width: :byte
-      @gives_amount = b.table :gives_amount, at_least_one(everything.map { |p| amount_of(p) }),
+      @gives_kind = b.table :gives_kind, Floors.at_least_one(everything.map { |p| kind_of(p) }), width: :byte
+      @gives_amount = b.table :gives_amount, Floors.at_least_one(everything.map { |p| amount_of(p) }),
                               width: :half
 
       # WHAT HAS BEEN TAKEN, which is the only thing about a floor's things that ever changes.
@@ -265,8 +263,7 @@ module Wolf3D
     # you can hold what it offers, and only an arm that gave something says so — that is what
     # leaves a first aid box on the floor of a player who does not need it yet.
     def take_it
-      @slot.set!(@piece)
-      @slot.add!(@bases[:piece]) if @bases[:piece]
+      @slot.set!(@this_floor.piece(@piece))
       @kind.set!(@gives_kind[@slot])
       @amount.set!(@gives_amount[@slot])
       @took.set! 0
@@ -398,10 +395,7 @@ module Wolf3D
     # that was handed none is read for itself.
     def most_pieces = [@floors.map { |floor| scenery_of(floor).count }.max, 1].max
 
-    def guard_cell(guard)
-      cell = (guard.y.to_i * @level.width) + guard.x.to_i
-      @bases[:map] ? cell + @bases[:map] : cell
-    end
+    def guard_cell(guard) = @this_floor.map_index(guard.x.to_i, guard.y.to_i)
 
     # --- the tables, worked out while the cartridge is built --------------------------
 
@@ -413,8 +407,6 @@ module Wolf3D
       end
       cells
     end
-
-    def at_least_one(values) = values.empty? ? [0] : values
 
     def kind_of(piece) = piece.bonus ? KINDS.fetch(piece.bonus.first) : NOTHING
 

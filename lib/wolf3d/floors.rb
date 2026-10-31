@@ -115,6 +115,18 @@ module Wolf3D
     # ...and the most any one floor holds, which is what the lists played with are sized for.
     def most(kind) = counts_of(kind).max
 
+    # ...which is at least one, because a list must have room for something.
+    def room_for(kind) = [most(kind), 1].max
+
+    # Does no floor in the cartridge hold any of this at all? Then none of the code for it is
+    # emitted — a game with no doors anywhere pays nothing for doors.
+    def no_floor_has?(kind) = most(kind).zero?
+
+    # A table must hold something, and a floor need hold none of a kind of thing — there are
+    # levels with no doors and plenty with nothing secret in them. One unused entry keeps the
+    # table legal, and nothing ever reads it because nothing ever meets one of these.
+    def self.at_least_one(values) = values.empty? ? [0] : values
+
     KINDS = %i[doors pushwalls lifts guards pieces].freeze
 
     private

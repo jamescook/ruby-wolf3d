@@ -64,14 +64,12 @@ module Wolf3D
 
     # +lasting+ is what a saved game holds (see LastingState), and the room the player is in is in
     # it — see #where_the_player_stands.
-    def initialize(build:, floors:, map_base:, door_first:, door_count:, door_open:, player:,
+    def initialize(build:, floors:, this_floor:, door_open:, player:,
                    lasting: LastingState.new(build:))
       @b = build
       @lasting = lasting
       @floors = floors
-      @map_base = map_base
-      @door_first = door_first
-      @door_count = door_count
+      @this_floor = this_floor
       @open = door_open
       @player = player
       @width = floors.width
@@ -112,7 +110,7 @@ module Wolf3D
     # before the load. The original saves it for the same reason: the player's areanumber is
     # written with the rest of the player (SaveTheGame, wl_main.cpp).
     def where_the_player_stands
-      @stood.set!(@room_of[@map_base + (@player.y.to_i * @width) + @player.x.to_i])
+      @stood.set!(@room_of[@this_floor.map_index(@player.x.to_i, @player.y.to_i)])
       (@stood > NOWHERE).then { @player_room.set! @stood }
     end
 
@@ -132,7 +130,7 @@ module Wolf3D
     # Is the room at this cell open to the player's? +x+ and +y+ are where something stands, as
     # the game keeps them.
     def open_to_the_player?(x, y)
-      @room.set!(@room_of[@map_base + (y.to_i * @width) + x.to_i])
+      @room.set!(@room_of[@this_floor.map_index(x.to_i, y.to_i)])
       open?(@room)
     end
 
@@ -265,10 +263,10 @@ module Wolf3D
         @spread.set! 0
         # THE ROOMS THAT ARE ALWAYS JOINED, if this cartridge has any — see always_joined.
         @always.each { |near, far| join(near, far) }
-        b.repeat(@door_count) do |door|
+        b.repeat(@this_floor.door_count) do |door|
           (@open[door] > AJAR).then do
-            @near.set!(@side_a[@door_first + door])
-            @far.set!(@side_b[@door_first + door])
+            @near.set!(@side_a[@this_floor.door(door)])
+            @far.set!(@side_b[@this_floor.door(door)])
             join(@near, @far)
           end
         end

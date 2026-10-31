@@ -46,6 +46,7 @@ require_relative "wolf3d/bar_art"
 require_relative "wolf3d/menu_art"
 require_relative "wolf3d/status_bar"
 # ...and before every part of the game that declares state a saved game holds.
+require_relative "wolf3d/this_floor"
 require_relative "wolf3d/lasting_state"
 require_relative "wolf3d/player"
 require_relative "wolf3d/guard_pool"

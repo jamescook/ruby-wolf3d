@@ -57,7 +57,7 @@ module Wolf3D
 
     # Does any floor on this cartridge have anybody on it? A cartridge with nobody anywhere
     # declares none of this and pays for none of it.
-    def self.needed?(floors) = floors.most(:guards).positive?
+    def self.needed?(floors) = !floors.no_floor_has?(:guards)
 
     # +behaviour+ is every state of every kind this cartridge ships, which is what a guard's
     # starting state and toughness are read from. +difficulty+ is how tough the game is set,
@@ -143,7 +143,7 @@ module Wolf3D
       # it the moment he does see you, and from then on he is a guard like any other.
       @pool = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
                             hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0,
-                            capacity: [@floors.most(:guards), 1].max, widths: widths
+                            capacity: @floors.room_for(:guards), widths: widths
       stand_up_the_first_floor
       declare_where_they_start
     end
@@ -187,33 +187,32 @@ module Wolf3D
       b = @b
       everyone = @floors.flat_map { |floor| floor.guards&.guards || [] }
       starting = everyone.map { |guard| @behaviour.starting_state(guard) }
-      @home_x = b.table :guard_home_x, at_least_one(everyone.map { |g| g.x + 0.5 })
-      @home_y = b.table :guard_home_y, at_least_one(everyone.map { |g| g.y + 0.5 })
+      @home_x = b.table :guard_home_x, Floors.at_least_one(everyone.map { |g| g.x + 0.5 })
+      @home_y = b.table :guard_home_y, Floors.at_least_one(everyone.map { |g| g.y + 0.5 })
       @home_dir = b.table :guard_home_dir,
-                          at_least_one(everyone.map { |g| Guards.direction_of(g.facing) }),
+                          Floors.at_least_one(everyone.map { |g| Guards.direction_of(g.facing) }),
                           width: :byte
-      @home_state = b.table :guard_home_state, at_least_one(starting), width: :byte
+      @home_state = b.table :guard_home_state, Floors.at_least_one(starting), width: :byte
       @home_ticks = b.table :guard_home_ticks,
-                            at_least_one(starting.map { |s| @behaviour.state_at(s).ticks }),
+                            Floors.at_least_one(starting.map { |s| @behaviour.state_at(s).ticks }),
                             width: :byte
       @home_ambush = b.table :guard_home_ambush,
-                             at_least_one(everyone.map { |g| g.ambush ? 1 : 0 }), width: :byte
+                             Floors.at_least_one(everyone.map { |g| g.ambush ? 1 : 0 }), width: :byte
       # ...and the easiest setting each one turns up on, which is the whole of how a harder game
       # is a fuller floor. Every floor carries every guard it can ever hold; this is the column
       # that says which of them a given game stands up. See Guards::FROM.
-      @home_from = b.table :guard_home_from, at_least_one(everyone.map(&:from)), width: :byte
+      @home_from = b.table :guard_home_from, Floors.at_least_one(everyone.map(&:from)), width: :byte
       # HOW MUCH KILLING EACH ONE TAKES, which needs two tables and not one: the mutant is the
       # one kind a harder game toughens, and how hard the game is set is picked long after the
       # cartridge is built. So each one carries where ITS four numbers begin, and the floor's
       # start reads the one the setting names.
       @home_tough = b.table :guard_home_tough,
-                            at_least_one(everyone.map { |g| @behaviour.hit_points_at(g.kind) }),
+                            Floors.at_least_one(everyone.map { |g| @behaviour.hit_points_at(g.kind) }),
                             width: :byte
       @hit_points = b.table :guard_hit_points, @behaviour.hit_points, width: :half
     end
 
     # A table must hold something, and a floor may hold nobody; nothing ever reads the one
     # unused entry because nobody is ever spawned from it.
-    def at_least_one(values) = values.empty? ? [0] : values
   end
 end

@@ -59,19 +59,18 @@ module Wolf3D
     attr_reader :depth
 
     # +player+ is where the eye is and which way it points.
-    # +floors+ is every floor the cartridge holds, when there is more than one; +piece_first+ and
-    # +piece_count+ are where the floor being played begins in the tables of every floor's pieces
-    # and how many it has. A one-floor game leaves all three out.
+    # +floors+ is every floor the cartridge holds, when there is more than one, and +this_floor+
+    # says where the floor being played begins in the tables of every floor's pieces and how many
+    # it has.
     def initialize(build:, things:, player:, scenery: nil, guards: nil, pool: nil, mind: nil,
-                   pickups: nil, floors: nil, piece_first: nil, piece_count: nil,
+                   pickups: nil, floors: nil, this_floor: nil,
                    rooms: nil, piece_room: nil)
       @b = build
       @things = things
       @player = player
       @scenery = scenery
       @floors = floors
-      @piece_first = piece_first
-      @piece_count = piece_count
+      @this_floor = this_floor
       @rooms = rooms          # which rooms are open to the player's, or nil where nothing shuts off
       @piece_room = piece_room # ...and which room each piece stands in, settled while building
       @guards = guards
@@ -335,11 +334,7 @@ module Wolf3D
     def look_at_the_scenery
       return if @piece_x.nil?
 
-      if @piece_count
-        @b.repeat(@piece_count) { |piece| look_at_a_piece(piece) }
-      else
-        @b.repeat(@scenery.count) { |piece| look_at_a_piece(piece) }
-      end
+      @b.repeat(@this_floor.piece_count) { |piece| look_at_a_piece(piece) }
     end
 
     # One piece of scenery: the same billboard a guard is, with nothing to decide. Its picture
@@ -366,12 +361,12 @@ module Wolf3D
     def look_at_a_piece(piece)
       return look_closely_at_a_piece(piece) if @rooms.nil?
 
-      at = @piece_first ? @piece_first + piece : piece
+      at = @this_floor.piece(piece)
       @rooms.open?(@piece_room[at]).then { look_closely_at_a_piece(piece) }
     end
 
     def look_closely_at_a_piece(piece)
-      at = @piece_first ? @piece_first + piece : piece
+      at = @this_floor.piece(piece)
       place(@piece_x[at], @piece_y[at], SCENERY_NUDGE)
       (@fwd > NEAREST).then do
         # Asked here rather than first: a piece you have picked up is one of a few hundred, and
