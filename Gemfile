@@ -34,7 +34,7 @@ source "https://rubygems.org"
 # cartridge on a real console, so it needs it. Bundler builds its C extension on install, per
 # Ruby ABI — which is what makes changing Ruby version a rebuild rather than a library that
 # will not load. It needs libmgba: brew install mgba, or apt install libmgba-dev.
-git "https://github.com/jamescook/vblank.git",
+git "https://github.com/vblank-rb/vblank.git",
     branch: "main",
     glob: "{,ruby-gba-emulator/}*.gemspec" do
   gem "vblank"

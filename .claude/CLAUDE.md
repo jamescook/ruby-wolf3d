@@ -1,7 +1,7 @@
 # ruby-wolf3d
 
 Wolfenstein 3D for the Game Boy Advance, written in Ruby against
-[VBlank](https://github.com/jamescook/vblank). Pure Ruby: this repository builds a
+[VBlank](https://github.com/vblank-rb/vblank). Pure Ruby: this repository builds a
 cartridge, it does not implement one. It requires `vblank` as a gem, the way anyone else's
 game would.
 

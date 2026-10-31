@@ -1,6 +1,6 @@
 # Wolfenstein 3D
 
-Wolfenstein 3D, built with [VBlank](https://github.com/jamescook/vblank).
+Wolfenstein 3D, built with [VBlank](https://github.com/vblank-rb/vblank).
 
 ## You need your own copy of the game
 
