@@ -86,18 +86,17 @@ module Wolf3D
 
     # +atlas+ is the pictures, or nil on a build with no copy of the game to read them from —
     # and then everything below still works and simply draws nothing. +sounds+ is the recorded
-    # sounds, or nil where there are none. +ammo+ is what the guns spend, as the view keeps it.
-    # +noise+ is the flag a guard listens on, or nil on a game with nobody to hear.
+    # sounds, or nil where there are none. +player+ holds the rounds the guns spend and the noise
+    # a guard listens for.
     # +starting+ is what a new game puts in your hands, which is the pistol unless a cartridge
     # was built to hand you something else — a measuring and demoing dial, not a way to play.
     # See Wolf3D.armed_with. +lasting+ is what a saved game holds (see LastingState).
-    def initialize(build:, ammo:, atlas: nil, sounds: nil, noise: nil, starting: STARTING,
+    def initialize(build:, player:, atlas: nil, sounds: nil, starting: STARTING,
                    lasting: LastingState.new(build:))
       @b = build
-      @ammo = ammo
+      @player = player
       @atlas = atlas
       @sounds = sounds
-      @noise = noise
       @starting = starting
       @lasting = lasting
       declare
@@ -255,7 +254,7 @@ module Wolf3D
     # comparison for it.
     def put_back_what_you_chose
       (@in_hand == KNIFE).then do
-        ((@chosen != KNIFE) & (@ammo > 0)).then { @in_hand.set! @chosen }
+        ((@chosen != KNIFE) & (@player.ammo > 0)).then { @in_hand.set! @chosen }
       end
     end
 
@@ -277,7 +276,7 @@ module Wolf3D
     # It wraps at the end, so a cycle reaches everything you are carrying; there are four of
     # them at most, and the knife is one, so nothing is ever more than three presses away.
     def change_the_weapon
-      (@ammo > 0).then do
+      (@player.ammo > 0).then do
         @b.pressed(:select).then { take_the_next_one }
       end
     end
@@ -326,12 +325,12 @@ module Wolf3D
     # is the whole of the difference — a swing that meets nothing is silent, and one that lands
     # makes its noise where the man cries out (GuardMind#wound_a_guard).
     def fire_a_round
-      (@ammo > 0).then do
-        @ammo.sub! 1
+      (@player.ammo > 0).then do
+        @player.ammo.sub! 1
         @acted.set! 1
-        @noise&.set!(FP::HEARD_FOR)
+        @player.noise.set!(FP::HEARD_FOR)
         the_gun_is_heard
-        (@ammo == 0).then { @in_hand.set! KNIFE }
+        (@player.ammo == 0).then { @in_hand.set! KNIFE }
       end
     end
 
@@ -340,12 +339,12 @@ module Wolf3D
     # the time the machine gun puts out one.
     def the_automatics_carry_on
       (@in_hand == CHAIN_GUN).then { fire_a_round }
-      ((@in_hand >= MACHINE_GUN) & (@ammo > 0) & @b.held(:b)).then { @next.set! FIRES }
+      ((@in_hand >= MACHINE_GUN) & (@player.ammo > 0) & @b.held(:b)).then { @next.set! FIRES }
     end
 
     def finish_the_attack
       @stage.set! AT_REST
-      (@ammo > 0).then { @in_hand.set! @chosen }
+      (@player.ammo > 0).then { @in_hand.set! @chosen }
     end
 
     # Each gun has its own recording, which is the one place a machine gun and a chain gun

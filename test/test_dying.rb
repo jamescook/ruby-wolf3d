@@ -34,13 +34,11 @@ class TestDying < Minitest::Test
       screen :bitmap, tear_free: tear_free
       lasting = Wolf3D::LastingState.new(build: self)
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
-      px = var :px, 8.5
-      py = var :py, 8.5
-      angle = lasting.var :view, 0
+      player = Wolf3D::Player.declare(build: self, lasting: lasting, x: 8.5, y: 8.5, angle: 0)
       killer = Struct.new(:x, :y).new(var(:kx, kill_x), var(:ky, kill_y))
       settling = var :settling, 0
 
-      dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin }, lasting: lasting)
+      dying = Dying.new(build: self, player: player, sines: sin, lasting: lasting)
       game = saving && save_data(:game, copies: 1)
       lasting.keep_in(game) if game
 

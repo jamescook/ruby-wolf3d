@@ -201,6 +201,8 @@ are commented with what needs what).
 
 **Building the cartridge**, which is where the framework's DSL appears:
 
+- `player.rb` — the player as one record of named variables, handed whole to every part of the
+  game that touches them.
 - `first_person.rb` — the view down the corridor: the ray, the wall columns, the floor and
   ceiling. Most of a frame. `billboards.rb` — the things and enemies drawn into that view.
   `guard_mind.rb` — what a guard does about you. `weapons.rb`, `pickups.rb`, `dying.rb`,

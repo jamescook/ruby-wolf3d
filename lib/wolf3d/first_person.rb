@@ -150,7 +150,7 @@ module Wolf3D
 
     # HOW MANY PASSES A NOISE STANDS FOR: long enough for every guard on the floor to have
     # thought once, and no longer. Guards think on alternate passes, so that is two. See the note
-    # where @noise is declared.
+    # on the noise in Player.
     HEARD_FOR = 2
 
     CEILING = VBlank::Graphics::Color.rgb(7, 7, 9)
@@ -229,8 +229,8 @@ module Wolf3D
     # hands you when you have a life left (wl_game.cpp) and what NewGame starts you with
     # (wl_main.cpp).
     def reset_player
-      @health.set! START_HEALTH
-      @ammo.set! @start_ammo
+      @player.health.set! START_HEALTH
+      @player.ammo.set! @start_ammo
       @weapons.start_again
     end
 
@@ -264,9 +264,9 @@ module Wolf3D
     # WHERE THE FLOOR STARTS YOU, and which way it points you.
     def place_player
       on_each_floor do |floor, _|
-        @px.set!(floor.level.start.x + 0.5)
-        @py.set!(floor.level.start.y + 0.5)
-        @view.set! facing_angle(floor.level.start.facing)
+        @player.x.set!(floor.level.start.x + 0.5)
+        @player.y.set!(floor.level.start.y + 0.5)
+        @player.angle.set! facing_angle(floor.level.start.facing)
       end
     end
 
@@ -282,11 +282,11 @@ module Wolf3D
     # it. This is the same values written a second time — which is why the ones that are worked
     # out rather than written down (where each guard stands) are read from one place by both.
     def reset_floor
-      @keys.set! 0
+      @player.keys.set! 0
       # ...and none of the floor has been found yet, which is what makes these a share of it.
-      @kills.set! 0
-      @secrets.set! 0
-      @treasures.set! 0
+      @player.kills.set! 0
+      @player.secrets.set! 0
+      @player.treasures.set! 0
       # ...and how much there is to find on it. The kill total is counted as the guards stand up.
       on_each_floor do |floor, n|
         @secret_total.set! floor.pushwalls.count
@@ -360,7 +360,7 @@ module Wolf3D
     # you have walked out of the episode — winning stops the world exactly as dying does, so the
     # last picture of the game is what the words sit over.
     def still_playing
-      alive = @dying ? @dying.alive : (@health > 0)
+      alive = @dying ? @dying.alive : (@player.health > 0)
       @victory ? alive & (@victory.over == 0) : alive
     end
 
@@ -379,8 +379,8 @@ module Wolf3D
       if @standing
         # Which way the eye points, worked out once a move: the shot needs it and so does
         # everything the view draws standing in the room.
-        @vcos.set!(@sin[@view + QUARTER])
-        @vsin.set!(@sin[@view])
+        @player.cos.set!(@sin[@player.angle + QUARTER])
+        @player.sin.set!(@sin[@player.angle])
       end
       # WHICH ROOMS ARE OPEN TO THE PLAYER, worked out before anybody thinks and once for all of
       # them — the answer is the same for every guard on the floor, and it is what most of them
@@ -419,7 +419,7 @@ module Wolf3D
     # it up again, and a shot is heard on the pass AFTER it is fired. That is a thirtieth of a
     # second against a reaction time of up to a whole one.
     def fire
-      (@noise > 0).then { @noise.sub! 1 }
+      (@player.noise > 0).then { @player.noise.sub! 1 }
       @weapons.update
       return unless @mind
 
@@ -551,11 +551,6 @@ module Wolf3D
       @push_gone = @lasting.list :push_gone, capacity: room_for(:pushwalls)
       @push_wait = @lasting.list :push_wait, capacity: room_for(:pushwalls)
 
-      # Which keys the player is carrying, one bit each. A key is a thing lying on the floor like
-      # a clip of ammunition is, so picking one up belongs to Pickups; this is only what is
-      # carried, which is the one number a locked door asks about.
-      @keys = @lasting.var :keys, 0
-
       # THE LIFT, as three numbers, and all three are one-per-game rather than one-per-lift
       # because a floor ends the first time anybody pulls anything: there is never a second lift
       # on its way.
@@ -598,20 +593,16 @@ module Wolf3D
 
       b.image :walls, width: @atlas.width, height: @atlas.height, data: @atlas.pixels
 
-      @px = @lasting.var :px, start_x
-      @py = @lasting.var :py, start_y
-      @view = @lasting.var :view, start_view
-
-      # What the player has: what the bar along the bottom shows, and what the game is played by.
-      @health = @lasting.var :health, START_HEALTH
-      @ammo = @lasting.var :ammo, @start_ammo
-      @score = @lasting.var :score, 0
+      # THE PLAYER, all of them at once, handed whole to everything below that touches them.
+      @player = Player.declare(build: b, lasting: @lasting, x: start_x, y: start_y, angle: start_view,
+                               ammo: @start_ammo,
+                               looks: Billboards.needed?(scenery: @scenery, guards: @guards))
 
       # WHAT STARTS PLAY, and which floor is being played. Its steps are this view's own (see
       # #reset_game and the four after it), and it writes them into routine bodies, which the
       # framework builds only after this whole block has run. So it can be made here, before the
       # parts those steps reach.
-      @playthrough = Playthrough.new(build: b, floors: @floors, score: @score, world: self,
+      @playthrough = Playthrough.new(build: b, floors: @floors, score: @player.score, world: self,
                                      lasting: @lasting)
       @floor = @playthrough.floor
 
@@ -624,36 +615,6 @@ module Wolf3D
       # the button twice.
       @difficulty = @lasting.var :difficulty, Guards.number_of(Guards::DEFAULT_DIFFICULTY)
 
-      # HOW MUCH OF THE FLOOR HAS BEEN FOUND: how many of its guards are down, how many of its
-      # secret walls have been shoved, how many of its treasures are in your pocket. Three
-      # numbers the game keeps for the tally at the end of a floor, and they belong to the FLOOR
-      # rather than to the game — every one goes back to nothing when a floor starts, which is
-      # what makes them a percentage of something.
-      #
-      # The score is the opposite and is deliberately not here: it is kept across floors and
-      # comes back to nothing only when a whole game starts again.
-      #
-      # How much there was to find is declared with the things lying on the floor, which it
-      # counts — see #declare_what_there_is_to_find.
-      @kills = @lasting.var :kills, 0
-      @secrets = @lasting.var :secrets, 0
-      @treasures = @lasting.var :treasures, 0
-
-      # A NOISE THE PLAYER MADE. A gun going off is one, and so is a man crying out when you hit
-      # him — the original's own flag is commented "true when shooting or screaming". A guard who
-      # hears one looks your way without having to see you first, which is what turns a corridor
-      # round. See Weapons#fire_a_round and GuardMind#wound_a_guard for where it is made,
-      # GuardMind#look for who hears it, and #fire for where it runs out.
-      #
-      # IT IS A COUNT AND NOT A FLAG, which is a difference this game has to make and the
-      # original does not. There, every actor thinks on every tic, so a flag that stands for one
-      # tic is heard by all of them. Here a guard thinks on every OTHER pass — half the floor on
-      # one, half on the next, which is what makes a room of them affordable — so a noise that
-      # stood for one pass would be heard by half the room and missed by the other half, chosen
-      # by nothing anyone could see. It stands for HEARD_FOR passes instead, which is how long it
-      # takes every guard to have thought once.
-      @noise = b.var :noise, 0
-
       # DYING AND THE GOES YOU GET COME FIRST, because what stands in the level reaches both: the
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you
       # another go.
@@ -662,10 +623,6 @@ module Wolf3D
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
       # floor you can walk out of, which is a boss floor — see Level::EXIT.
       @victory = Victory.new(build: b, lives: @lives, lasting: @lasting) if any_floor_has_a_way_out?
-      # Which way the eye points, worked out once a move. The shot needs it, every standing thing
-      # needs it, and it is here rather than with the rest of the working room because a floor
-      # with nothing standing in it never wants it.
-      @vcos, @vsin = fraction(:vcos, :vsin) if Billboards.needed?(scenery: @scenery, guards: @guards)
 
       # ...then the guards, then what is lying on the floor (which every floor has whether
       # anything DRAWS it or not — a level with a locked door has a key on it), then the guards'
@@ -675,8 +632,8 @@ module Wolf3D
       @sounds = Sounds.new(build: b, vswap: @vswap, switch: @sound_on)
       # ...then the gun in your hands: after the sounds, because each of the three guns has one
       # of its own, and before the things lying on the floor, because two of those ARE guns.
-      @weapons = Weapons.new(build: b, ammo: @ammo, atlas: @gun_art, sounds: @sounds,
-                             noise: @noise, starting: @armed_with, lasting: @lasting)
+      @weapons = Weapons.new(build: b, player: @player, atlas: @gun_art, sounds: @sounds,
+                             starting: @armed_with, lasting: @lasting)
       # ...and before both of them, because a guard asks it whether to think and every piece of
       # scenery asks it whether to be looked at.
       declare_the_rooms
@@ -816,15 +773,15 @@ module Wolf3D
     # spacing, so the loop carries it along and adds the spacing at the end of a pass, rather than
     # multiplying the column number out and taking half the view off it every time.
     def where_the_eye_stands
-      @eyex.set! @px.to_i
-      @eyey.set! @py.to_i
-      @fracx.set!(@px - @eyex.to_f)
-      @fracy.set!(@py - @eyey.to_f)
+      @eyex.set! @player.x.to_i
+      @eyey.set! @player.y.to_i
+      @fracx.set!(@player.x - @eyex.to_f)
+      @fracy.set!(@player.y - @eyey.to_f)
       @backx.set!(1.0 - @fracx)
       @backy.set!(1.0 - @fracy)
       # The first ray points at the left edge of the view, half the fan round from where the
       # player is looking.
-      @ang.set! @view
+      @ang.set! @player.angle
       @ang.sub!((COLUMNS - 1) * SPREAD / 2)
     end
 
@@ -844,9 +801,8 @@ module Wolf3D
     def start_view = facing_angle(@level.start.facing)
 
     def declare_the_bar
-      @bar = StatusBar.new(build: @b, top: VIEW_H, art: @bar_art,
-                           shows: { score: @score, lives: @lives.left, health: @health,
-                                    ammo: @ammo, keys: @keys, weapon: @weapons.in_hand })
+      @bar = StatusBar.new(build: @b, top: VIEW_H, art: @bar_art, player: @player,
+                           lives: @lives.left, weapon: @weapons.in_hand)
     end
 
     # WORKING ROOM. Every one of these is scratch — set, read and finished with inside a single
@@ -949,8 +905,7 @@ module Wolf3D
                                  piece_count: (@piece_count if many),
                                  rooms: @rooms, piece_room: declare_the_pieces_rooms,
                                  guards: @guards, pool: @guard_pool&.pool, mind: @mind,
-                                 pickups: @pickups,
-                                 eye: { x: @px, y: @py, cos: @vcos, sin: @vsin, angle: @view })
+                                 pickups: @pickups, player: @player)
     end
 
     # WHICH ROOM EACH PIECE OF SCENERY STANDS IN, worked out while building because a lamp does not
@@ -977,8 +932,7 @@ module Wolf3D
     def declare_the_dying
       return if @guards.nil? || @guards.empty?
 
-      @dying = Dying.new(build: @b, eye: { x: @px, y: @py, angle: @view, sin: @sin },
-                         lasting: @lasting)
+      @dying = Dying.new(build: @b, player: @player, sines: @sin, lasting: @lasting)
     end
 
     # THINGS ON THE FLOOR YOU PICK UP BY WALKING OVER THEM. It sits between the guards and their
@@ -991,9 +945,7 @@ module Wolf3D
     def declare_the_pickups
       @pickups = Pickups.new(build: @b, floors: @floors, pool: @guard_pool&.pool, lives: @lives,
                              weapons: @weapons, lasting: @lasting,
-                             bases: { map: @map_base, piece: @piece_first },
-                             player: { x: @px, y: @py, health: @health, ammo: @ammo,
-                                       score: @score, keys: @keys, treasures: @treasures })
+                             bases: { map: @map_base, piece: @piece_first }, player: @player)
     end
 
     # HOW MUCH THERE IS TO FIND ON THE FLOOR BEING PLAYED: the men to kill, the walls that slide
@@ -1033,9 +985,7 @@ module Wolf3D
                             things: @things, blocked: @blocked, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
-                            floors: @floors, map_base: @map_base,
-                            player: { x: @px, y: @py, health: @health, score: @score,
-                                      kills: @kills, cos: @vcos, sin: @vsin, noise: @noise })
+                            floors: @floors, map_base: @map_base, player: @player)
     end
 
     # WHICH ROOMS ARE OPEN TO THE PLAYER'S, which is what stops a guard on the far side of the
@@ -1048,7 +998,7 @@ module Wolf3D
 
       @rooms = Rooms.new(build: @b, floors: @floors, map_base: @map_base,
                          door_first: @door_first, door_count: @door_count, door_open: @open,
-                         player: { x: @px, y: @py }, lasting: @lasting)
+                         player: @player, lasting: @lasting)
     end
 
     # WHERE THE WAY OUT OF EACH FLOOR IS, as the first and last cell of its run of exit tiles.
@@ -1169,11 +1119,11 @@ module Wolf3D
 
     def walk
       b = @b
-      b.held(:left).then { @view.sub! TURN_SPEED }
-      b.held(:right).then { @view.add! TURN_SPEED }
+      b.held(:left).then { @player.angle.sub! TURN_SPEED }
+      b.held(:right).then { @player.angle.add! TURN_SPEED }
 
-      @stepx.set!(@sin[@view + QUARTER] * WALK)
-      @stepy.set!(@sin[@view] * WALK)
+      @stepx.set!(@sin[@player.angle + QUARTER] * WALK)
+      @stepy.set!(@sin[@player.angle] * WALK)
       b.held(:down).then { @stepx.flip! }
       b.held(:down).then { @stepy.flip! }
 
@@ -1191,13 +1141,13 @@ module Wolf3D
     # still lands. A sideways step goes through exactly this, or strafing into a wall would put
     # you through it.
     def take_the_step
-      @nx.set! @px
+      @nx.set! @player.x
       @nx.add! @stepx
-      free?(@nx.to_i, @py.to_i).then { @px.set! @nx }
+      free?(@nx.to_i, @player.y.to_i).then { @player.x.set! @nx }
 
-      @ny.set! @py
+      @ny.set! @player.y
       @ny.add! @stepy
-      free?(@px.to_i, @ny.to_i).then { @py.set! @ny }
+      free?(@player.x.to_i, @ny.to_i).then { @player.y.set! @ny }
     end
 
     # STEPPING SIDEWAYS, which the shoulder buttons do.
@@ -1224,8 +1174,8 @@ module Wolf3D
     def step_sideways
       b = @b
       (b.held(:l) | b.held(:r)).then do
-        @stepx.set!(@sin[@view] * WALK)
-        @stepy.set!(@sin[@view + QUARTER] * WALK)
+        @stepx.set!(@sin[@player.angle] * WALK)
+        @stepy.set!(@sin[@player.angle + QUARTER] * WALK)
         b.held(:l).then { @stepy.flip! }
         b.held(:r).then { @stepx.flip! }
         take_the_step
@@ -1241,7 +1191,7 @@ module Wolf3D
     def reached_the_way_out
       return unless @victory
 
-      @here.set!((@py.to_i * @level.width) + @px.to_i)
+      @here.set!((@player.y.to_i * @level.width) + @player.x.to_i)
       ((@here >= @exit_first[@floor]) & (@here <= @exit_last[@floor])).then { @victory.won }
     end
 
@@ -1295,10 +1245,10 @@ module Wolf3D
     def open_a_door
       b = @b
       b.pressed(:a).then do
-        @nx.set! @px
-        @nx.add!(@sin[@view + QUARTER] * DOOR_REACH)
-        @ny.set! @py
-        @ny.add!(@sin[@view] * DOOR_REACH)
+        @nx.set! @player.x
+        @nx.add!(@sin[@player.angle + QUARTER] * DOOR_REACH)
+        @ny.set! @player.y
+        @ny.add!(@sin[@player.angle] * DOOR_REACH)
         @ahead.set!((@ny.to_i * @level.width) + @nx.to_i)
         @foot.set!(@world[@map_base + @ahead])
 
@@ -1324,7 +1274,7 @@ module Wolf3D
               @want.set!(@door_lock[@door_first + @slot])
               @can.set! 0
               (@want == 0).then { @can.set! 1 }
-              (@want > 0).then { ((@keys / @want) % 2 == 1).then { @can.set! 1 } }
+              (@want > 0).then { ((@player.keys / @want) % 2 == 1).then { @can.set! 1 } }
               (@can == 1).then do
                 # ...and it is heard only when it was SHUT. Pressing at a door already open tops
                 # its count back up, which is not a door opening and does not sound like one.
@@ -1355,8 +1305,8 @@ module Wolf3D
     #
     # A LEVER ALREADY PULLED IGNORES YOU, so leaning on the button does not restart the count.
     def pull_the_lever
-      @across.set!(@sin[@view + QUARTER].abs)
-      @along.set!(@sin[@view].abs)
+      @across.set!(@sin[@player.angle + QUARTER].abs)
+      @along.set!(@sin[@player.angle].abs)
       ((@across > @along) & (@pulled < 0)).then do
         @pulled.set! @ahead
         @lift_wait.set! lift_wait_frames
@@ -1368,7 +1318,7 @@ module Wolf3D
         # floor was settled when the floor started (see #select_floor), so there is no arm
         # per floor here and no table to read.
         if @floors.any? { |floor| floor.lifts && !floor.lifts.secret_cars.empty? }
-          @here.set!((@py.to_i * @level.width) + @px.to_i)
+          @here.set!((@player.y.to_i * @level.width) + @player.x.to_i)
           (@here == @secret_car).then { @lift_secret.set! 1 }
         end
         @sounds.level_done
@@ -1389,19 +1339,19 @@ module Wolf3D
       @slot.set!(@foot - PUSH)
       # Only from its own cell, and only once. A wall already on the move ignores you.
       ((@ahead == @push_home[@push_first + @slot]) & (@push_step[@slot] == 0)).then do
-        @across.set!(@sin[@view + QUARTER].abs)
-        @along.set!(@sin[@view].abs)
+        @across.set!(@sin[@player.angle + QUARTER].abs)
+        @along.set!(@sin[@player.angle].abs)
         (@across > @along).then do
-          (@sin[@view + QUARTER] > 0.0).then { @push_step[@slot] = 1 }
+          (@sin[@player.angle + QUARTER] > 0.0).then { @push_step[@slot] = 1 }
                                        .else { @push_step[@slot] = -1 }
         end.else do
-          (@sin[@view] > 0.0).then { @push_step[@slot] = @level.width }
+          (@sin[@player.angle] > 0.0).then { @push_step[@slot] = @level.width }
                              .else { @push_step[@slot] = -@level.width }
         end
         @push_wait[@slot] = Pushwalls::FRAMES_PER_CELL
         # Found, and counted once: this arm only runs for a wall standing in its own cell that
         # is not already moving, so leaning on the same wall again cannot count it twice.
-        @secrets.add! 1
+        @player.secrets.add! 1
         @sounds.secret_wall
       end
     end
@@ -1433,7 +1383,7 @@ module Wolf3D
       return if no_floor_has?(:doors)
 
       b = @b
-      @here.set!(@world[@map_base + (@py.to_i * @level.width) + @px.to_i])
+      @here.set!(@world[@map_base + (@player.y.to_i * @level.width) + @player.x.to_i])
       b.repeat(@door_count) do |door|
         (@here == DOOR + door).then { @linger[door] = DOOR_LINGER }
         @wait.set!(@linger[door])
@@ -1656,11 +1606,11 @@ module Wolf3D
 
       (@door_across[@door_first + @door] == 0).then do
         @mid.set!(@sidex - (@deltax / 2))         # half a cell back from the far side
-        @wallx.set!(@py + (@mid * @dy))           # ...and where the ray is by then
+        @wallx.set!(@player.y + (@mid * @dy))           # ...and where the ray is by then
         @edge.set!(@wallx.to_i - @mapy)
       end.else do
         @mid.set!(@sidey - (@deltay / 2))
-        @wallx.set!(@px + (@mid * @dx))
+        @wallx.set!(@player.x + (@mid * @dx))
         @edge.set!(@wallx.to_i - @mapx)
       end
 
@@ -1694,8 +1644,8 @@ module Wolf3D
       (@isdoor == 1).then do
         strip(col, (@wall * TEX) + texture_column)
       end.else do
-        (@side == 0).then { @wallx.set!(@py + (@dist * @dy)) }
-                    .else { @wallx.set!(@px + (@dist * @dx)) }
+        (@side == 0).then { @wallx.set!(@player.y + (@dist * @dy)) }
+                    .else { @wallx.set!(@player.x + (@dist * @dx)) }
         strip(col, (@wall * TEX) + texture_column)
       end
     end

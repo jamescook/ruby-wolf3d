@@ -70,7 +70,7 @@ module Wolf3D
       @world = world      # the flat map table the ray walk reads
       @things = things    # the row of pictures everything standing in the level is drawn from
       @blocked = blocked  # which cells hold scenery a foot cannot pass, or nil for a bare floor
-      @player = player    # { x:, y: } as the view keeps them
+      @player = player    # see Player
       @open = door_open   # how far each door has slid
       @walls = walls      # where that table stops naming walls: { door: N, push: N }
       declare
@@ -293,8 +293,8 @@ module Wolf3D
     # and what it takes is a byte of randomness shifted down four. Which is why a dog at your
     # feet is worse than a guard across the room, and why backing away from one works.
     def bite_the_player(guard)
-      @dx.set!(@player[:x] - guard.x)
-      @dy.set!(@player[:y] - guard.y)
+      @dx.set!(@player.x - guard.x)
+      @dy.set!(@player.y - guard.y)
       ((@dx.abs <= Guards::BITE_REACH) & (@dy.abs <= Guards::BITE_REACH)).then do
         (@b.rand(0..CHANCES - 1) < Guards::BITE_CHANCE).then do
           @wound.set!(@b.rand(0..CHANCES - 1) / Guards::BITE_SHIFT)
@@ -314,8 +314,8 @@ module Wolf3D
       # HEARD WHETHER OR NOT IT LANDS, and before either question is asked. A guard fires; the
       # chance and the line of sight decide what it does to you, not whether he pulled.
       @sounds&.guard_fires
-      @dx.set!(@player[:x] - guard.x)
-      @dy.set!(@player[:y] - guard.y)
+      @dx.set!(@player.x - guard.x)
+      @dy.set!(@player.y - guard.y)
       line_of_sight(guard)
       (@clear == 1).then do
         how_far_away(guard)
@@ -343,9 +343,9 @@ module Wolf3D
     # through it.
     def take_it_out_of_the_player(guard)
       gently
-      @player[:health].sub! @wound
-      (@player[:health] <= 0).then do
-        @player[:health].set! 0
+      @player.health.sub! @wound
+      (@player.health <= 0).then do
+        @player.health.set! 0
         @dying&.struck_by(guard)
       end
     end
@@ -403,10 +403,8 @@ module Wolf3D
     # wherever a side costs something: asking which room a guard is in is a table read and a list
     # read, and on the overwhelming majority of passes there is no noise to ask about.
     def heard_or_saw(guard)
-      return can_see(guard) if @player[:noise].nil?
-
       @clear.set! 0
-      ((@player[:noise] > 0) & (guard.ambush == 0)).then { a_noise_reaches(guard) }
+      ((@player.noise > 0) & (guard.ambush == 0)).then { a_noise_reaches(guard) }
       # ...and if it did not reach him, he is back to looking, which is what he was doing anyway.
       (@clear == 0).then { can_see(guard) }
     end
@@ -435,8 +433,8 @@ module Wolf3D
     # CAN HE SEE YOU? Three questions in order, cheapest first. Are you near enough that it does
     # not matter which way he faces. Are you in front of him at all. And is anything between you.
     def can_see(guard)
-      @dx.set!(@player[:x] - guard.x)
-      @dy.set!(@player[:y] - guard.y)
+      @dx.set!(@player.x - guard.x)
+      @dy.set!(@player.y - guard.y)
       near = Guards::AUTOMATIC_SIGHT
 
       ((@dx > -near) & (@dx < near) & (@dy > -near) & (@dy < near)).then { @clear.set! 1 }
@@ -496,8 +494,8 @@ module Wolf3D
     def walk_the_sight_line
       b = @b
       aim_along_the_line(@fromx, @fromy)
-      @tx.set!(@player[:x].to_i)
-      @ty.set!(@player[:y].to_i)
+      @tx.set!(@player.x.to_i)
+      @ty.set!(@player.y.to_i)
       @clear.set! 1
       @done.set! 0
 
@@ -624,14 +622,14 @@ module Wolf3D
     # Near enough on EACH axis on its own rather than as a distance, which is the original's own
     # test and is why a dog catches you round a corner it could not see you through.
     def near_enough_to_jump(guard)
-      @dx.set!(@player[:x] - guard.x)
-      @dy.set!(@player[:y] - guard.y)
+      @dx.set!(@player.x - guard.x)
+      @dy.set!(@player.y - guard.y)
       ((@dx.abs <= @jump_from) & (@dy.abs <= @jump_from)).then { start_attacking(guard) }
     end
 
     def take_a_shot(guard)
-      @dx.set!(@player[:x] - guard.x)
-      @dy.set!(@player[:y] - guard.y)
+      @dx.set!(@player.x - guard.x)
+      @dy.set!(@player.y - guard.y)
       line_of_sight(guard)
       (@clear == 1).then do
         how_far_away(guard)
@@ -642,9 +640,9 @@ module Wolf3D
     # How far away in whole cells, taken on whichever of the two axes is the bigger — which is
     # the distance the original's guards judge a shot by.
     def how_far_away(guard)
-      @cellx.set!(@player[:x].to_i - guard.x.to_i)
+      @cellx.set!(@player.x.to_i - guard.x.to_i)
       (@cellx < 0).then { @cellx.set!(0 - @cellx) }
-      @celly.set!(@player[:y].to_i - guard.y.to_i)
+      @celly.set!(@player.y.to_i - guard.y.to_i)
       (@celly < 0).then { @celly.set!(0 - @celly) }
       @away.set! @cellx
       (@celly > @away).then { @away.set! @celly }
@@ -662,8 +660,8 @@ module Wolf3D
 
     # Toward the player on the longer axis first, then the other, then on as before.
     def choose_a_chase_way(guard)
-      @dx.set!(@player[:x] - guard.x)
-      @dy.set!(@player[:y] - guard.y)
+      @dx.set!(@player.x - guard.x)
+      @dy.set!(@player.y - guard.y)
 
       @way.set! 4                                  # west
       (@dx > 0.0).then { @way.set! 0 }             # east
@@ -783,19 +781,19 @@ module Wolf3D
     def measure_him(guard)
       x = guard.x
       y = guard.y
-      @dx.set!(x - @player[:x])
-      @dy.set!(y - @player[:y])
+      @dx.set!(x - @player.x)
+      @dy.set!(y - @player.y)
 
-      @fwd.set!(@dx * @player[:cos])
-      @fwd.add!(@dy * @player[:sin])
-      @sideways.set!(@dy * @player[:cos])
-      @sideways.sub!(@dx * @player[:sin])
+      @fwd.set!(@dx * @player.cos)
+      @fwd.add!(@dy * @player.sin)
+      @sideways.set!(@dy * @player.cos)
+      @sideways.sub!(@dx * @player.sin)
 
       ((@fwd > 0.0) & (@fwd < @nearest) & (@sideways.abs < (@fwd * AIM))).then do
         # Only now is a line worth walking, and it is walked from him toward you — the same
         # line either way.
-        @dx.set!(@player[:x] - x)
-        @dy.set!(@player[:y] - y)
+        @dx.set!(@player.x - x)
+        @dy.set!(@player.y - y)
         walk_the_sight_line_from(x, y)
         (@clear == 1).then do
           @nearest.set! @fwd
@@ -810,9 +808,9 @@ module Wolf3D
     def hit_the_target(with_knife)
       x = @pool.field_ref(:x, @target)
       y = @pool.field_ref(:y, @target)
-      @cellx.set!((@player[:x].to_i - x.to_i))
+      @cellx.set!((@player.x.to_i - x.to_i))
       (@cellx < 0).then { @cellx.set!(0 - @cellx) }
-      @celly.set!((@player[:y].to_i - y.to_i))
+      @celly.set!((@player.y.to_i - y.to_i))
       (@celly < 0).then { @celly.set!(0 - @celly) }
       @away.set! @cellx
       (@celly > @away).then { @away.set! @celly }
@@ -860,7 +858,7 @@ module Wolf3D
       # is commented "true when shooting or screaming" and it is set here, where the damage is
       # done, rather than with the weapon. It is what makes a knife that LANDS bring the room
       # while one that misses does not.
-      @player[:noise]&.set!(FirstPerson::HEARD_FOR)
+      @player.noise.set!(FirstPerson::HEARD_FOR)
       (@roused_of[state] == 0).then { @wound.set!(@wound * 2) }
       hp.sub! @wound
 
@@ -868,14 +866,14 @@ module Wolf3D
         # WHAT KILLING HIM IS WORTH AND WHAT HE WAS CARRYING, both read BEFORE he starts falling
         # over — a state number is what says which kind he is, and in a moment it will say he is
         # a body instead.
-        @player[:score]&.add!(@points_of[state])
+        @player.score.add!(@points_of[state])
         @left.set!(@leaves_of[state])
         @blow.set!(@fall_of[state])
         state.set! @blow
         ticks.set!(@ticks_of[@blow])
         # ...and one off the floor's tally, which is a different thing from the score: the score
         # is kept across floors and this is how much of THIS floor has been cleared.
-        @player[:kills]&.add!(1)
+        @player.kills.add!(1)
         # ...and he leaves what he was carrying in the cell he fell in, which is the loop the
         # whole game runs on: shoot a guard, take what he was carrying, shoot the next one. Half
         # a clip from most of them, a machine gun from an SS, and nothing at all from a dog.

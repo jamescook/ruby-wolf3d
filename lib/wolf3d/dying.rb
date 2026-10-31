@@ -95,10 +95,13 @@ module Wolf3D
     SETTLE = 2
 
     # +lasting+ is what a saved game holds (see LastingState). Only whether you are dying is in
-    # it; the rest is working room that each death begins by putting back.
-    def initialize(build:, eye:, lasting: LastingState.new(build:))
+    # it; the rest is working room that each death begins by putting back. +sines+ is the view's
+    # table of sines, which the player's own +sin+ is one entry of: the view turns as you die, so
+    # this works the angle's sine out again from the table rather than waiting for a move to.
+    def initialize(build:, player:, sines:, lasting: LastingState.new(build:))
       @b = build
-      @eye = eye
+      @player = player
+      @sines = sines
       @lasting = lasting
       declare
     end
@@ -149,10 +152,10 @@ module Wolf3D
     # When the sign is not the one it was last frame, the turn has crossed him and is done.
     def turn
       (@state == TURNING).then do
-        @cos.set!(@eye[:sin][@eye[:angle] + FirstPerson::QUARTER])
-        @sin.set!(@eye[:sin][@eye[:angle]])
-        @to_x.set!(@kill_x - @eye[:x])
-        @to_y.set!(@kill_y - @eye[:y])
+        @cos.set!(@sines[@player.angle + FirstPerson::QUARTER])
+        @sin.set!(@sines[@player.angle])
+        @to_x.set!(@kill_x - @player.x)
+        @to_y.set!(@kill_y - @player.y)
         @side.set!((@cos * @to_y) - (@sin * @to_x))
 
         @now.set!(-1)
@@ -175,7 +178,7 @@ module Wolf3D
     private
 
     def swing
-      (@now == 1).then { @eye[:angle].add! STEP_ANGLE }.else { @eye[:angle].sub! STEP_ANGLE }
+      (@now == 1).then { @player.angle.add! STEP_ANGLE }.else { @player.angle.sub! STEP_ANGLE }
     end
 
     # He is in front of us. Draw the settled view a couple more times so both pages agree, then

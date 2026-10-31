@@ -76,6 +76,20 @@ class TestWeapons < Minitest::Test
     assert_equal 0, gun_frame_after(Weapons::CYCLE + 4), "and back to rest when it is over"
   end
 
+  # A GUN NEEDS A PLAYER AND NOT A VIEW: no floor, no walls, nothing drawn, and a round still goes.
+  def test_a_gun_fires_with_a_player_and_no_view
+    program = VBlank.game("GUN", consoles: %i[gba]) do
+      screen :bitmap
+      player = Wolf3D::Player.declare(build: self, x: 8.5, y: 8.5, angle: 0)
+      weapons = Weapons.new(build: self, player: player)
+      game_loop { weapons.update }
+    end.program
+    run = Reference.new.input_each_frame { |f| f == 2 ? [:b] : [] }
+                   .run(program, frames: (Weapons::STAGE_PASSES * 2) + 4)
+
+    assert_equal FP::START_AMMO - 1, run[:ammo]
+  end
+
   # A ROUND LEAVES ON THE SECOND STAGE, not on the press — which is the original's timing and is
   # what makes tapping the trigger faster than the gun cycles do nothing at all.
   def test_a_round_leaves_a_dozen_passes_after_the_press

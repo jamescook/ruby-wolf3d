@@ -112,7 +112,7 @@ module Wolf3D
     # before the load. The original saves it for the same reason: the player's areanumber is
     # written with the rest of the player (SaveTheGame, wl_main.cpp).
     def where_the_player_stands
-      @stood.set!(@room_of[@map_base + (@player[:y].to_i * @width) + @player[:x].to_i])
+      @stood.set!(@room_of[@map_base + (@player.y.to_i * @width) + @player.x.to_i])
       (@stood > NOWHERE).then { @player_room.set! @stood }
     end
 

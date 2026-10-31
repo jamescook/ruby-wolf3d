@@ -184,14 +184,16 @@ module Wolf3D
       end
     end
 
-    # +shows+ is what to put in each field, by name: a variable for the ones that change and a
-    # plain number for the ones that do not. +art+ is Wolfenstein's own pictures for the bar,
-    # or nil for a release whose pictures we cannot name — then the bar draws as it drew before
-    # there was any art to draw with.
-    def initialize(build:, top:, shows:, art: nil)
+    # +player+ is who the bar is about. +lives+ and +weapon+ are the two fields kept elsewhere: how
+    # many goes are left and which weapon is in hand. +art+ is Wolfenstein's own pictures for the
+    # bar, or nil for a release whose pictures we cannot name — then the bar draws as it drew
+    # before there was any art to draw with.
+    def initialize(build:, top:, player:, lives:, weapon:, art: nil)
       @b = build
       @top = top
-      @shows = shows
+      # What to put in each field, by name.
+      @shows = { score: player.score, lives: lives, health: player.health, ammo: player.ammo,
+                 keys: player.keys, weapon: weapon }
       @art = art
       @at = self.class.layout(art)
       declare

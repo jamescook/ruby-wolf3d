@@ -57,14 +57,12 @@ class TestLives < Minitest::Test
     VBlank.game("LIVES", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       sin = table :sin, (0...FP::TURN).map { |a| Math.sin(a * 2 * Math::PI / FP::TURN) }
-      px = var :px, 8.5
-      py = var :py, 8.5
-      angle = var :view, 0
+      player = Wolf3D::Player.declare(build: self, x: 8.5, y: 8.5, angle: 0)
       killer = Struct.new(:x, :y).new(var(:kx, 8.5), var(:ky, 4.5))
-      score = var :score, 0
+      score = player.score
       restarts = var :restarts, 0
 
-      dying = Dying.new(build: self, eye: { x: px, y: py, angle: angle, sin: sin })
+      dying = Dying.new(build: self, player: player, sines: sin)
       world = CountingWorld.new(restarts: restarts, dying: dying)
       play = Wolf3D::Playthrough.new(build: self, floors: floors, score: score, world: world)
       lives = Lives.new(build: self, playthrough: play, dying: dying)

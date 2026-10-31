@@ -67,8 +67,8 @@ module Wolf3D
             .map { |left| left == :machine_gun ? Scenery.machine_gun_picture : Scenery.clip_picture }
     end
 
-    # +player+ is what a pickup changes, as the view keeps it: { x:, y:, health:, ammo:, score:,
-    # keys: }. +lives+ is what hands out another go, or nil on a game that does not count them.
+    # +player+ is who a pickup changes. +lives+ is what hands out another go, or nil on a game that
+    # does not count them.
     # +pool+ is the guards, which is where a dropped clip is kept — see #a_guard_fell. +scenery+
     # may be left out, and then the floor is read for itself: a game with no drawing still has
     # things lying on it.
@@ -194,7 +194,7 @@ module Wolf3D
     # asked where it is — a real floor holds a few hundred pieces, and walking that list every
     # frame to find the one you are standing on would be most of what the game does.
     def what_am_i_standing_on
-      @here.set!((@player[:y].to_i * @level.width) + @player[:x].to_i)
+      @here.set!((@player.y.to_i * @level.width) + @player.x.to_i)
       @here.add!(@bases[:map]) if @bases[:map]
       @piece.set!(@lying_at[@here])
       (@piece > 0).then do
@@ -274,16 +274,16 @@ module Wolf3D
       (@kind == AMMUNITION).then { give_ammunition(@amount) }
       (@kind == HEALTH).then { give_health(@amount) }
       (@kind == TREASURE).then do
-        @player[:score].add! @amount
-        @player[:treasures]&.add!(1)
+        @player.score.add! @amount
+        @player.treasures.add!(1)
         @took.set! 1
       end
       # A KEY SETS ITS OWN BIT rather than being added on, which is the original's own `|=` and
       # matters the moment two of the same key can be had: a floor's key and the one a boss
       # leaves are both gold, and adding the gold bit twice would read as the silver one.
-      (@kind == KEY).then { @player[:keys].set!(@player[:keys] | @amount); @took.set! 1 }
+      (@kind == KEY).then { @player.keys.set!(@player.keys | @amount); @took.set! 1 }
       (@kind == SCRAPS).then do
-        (@player[:health] <= NEARLY_DEAD).then { give_health(@amount) }
+        (@player.health <= NEARLY_DEAD).then { give_health(@amount) }
       end
       (@kind == EXTRA_LIFE).then { give_another_go }
       (@kind == WEAPON).then { give_a_weapon }
@@ -303,17 +303,17 @@ module Wolf3D
     end
 
     def give_ammunition(rounds)
-      (@player[:ammo] < MOST_AMMO).then do
-        @player[:ammo].add! rounds
-        @player[:ammo].clamp! 0, MOST_AMMO
+      (@player.ammo < MOST_AMMO).then do
+        @player.ammo.add! rounds
+        @player.ammo.clamp! 0, MOST_AMMO
         @took.set! 1
       end
     end
 
     def give_health(points)
-      (@player[:health] < FULL_HEALTH).then do
-        @player[:health].add! points
-        @player[:health].clamp! 0, FULL_HEALTH
+      (@player.health < FULL_HEALTH).then do
+        @player.health.add! points
+        @player.health.clamp! 0, FULL_HEALTH
         @took.set! 1
       end
     end
@@ -326,10 +326,10 @@ module Wolf3D
     # so a floor that holds one needs it taken for a hundred per cent. Miss this and a player who
     # collected everything is told they found four fifths of it.
     def give_another_go
-      @player[:health].add! ONE_UP_HEAL
-      @player[:health].clamp! 0, FULL_HEALTH
+      @player.health.add! ONE_UP_HEAL
+      @player.health.clamp! 0, FULL_HEALTH
       @lives&.give_one
-      @player[:treasures]&.add!(1)
+      @player.treasures.add!(1)
       @took.set! 1
     end
 
@@ -373,7 +373,7 @@ module Wolf3D
       # too full of, and it is the way out of the floor he was standing in.
       if leaves_a_key?
         (guard.dropped == GOLD_KEY_LEFT).then do
-          @player[:keys].set!(@player[:keys] | FirstPerson::KEY_BITS.fetch(:gold))
+          @player.keys.set!(@player.keys | FirstPerson::KEY_BITS.fetch(:gold))
           @took.set! 1
         end
       end

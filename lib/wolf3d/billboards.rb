@@ -58,17 +58,16 @@ module Wolf3D
     # the kind, which is why the things sort themselves out among each other instead.
     attr_reader :depth
 
-    # +eye+ is where the player is and which way they are pointing, as the view keeps them:
-    # { x:, y:, cos:, sin:, angle: }.
+    # +player+ is where the eye is and which way it points.
     # +floors+ is every floor the cartridge holds, when there is more than one; +piece_first+ and
     # +piece_count+ are where the floor being played begins in the tables of every floor's pieces
     # and how many it has. A one-floor game leaves all three out.
-    def initialize(build:, things:, eye:, scenery: nil, guards: nil, pool: nil, mind: nil,
+    def initialize(build:, things:, player:, scenery: nil, guards: nil, pool: nil, mind: nil,
                    pickups: nil, floors: nil, piece_first: nil, piece_count: nil,
                    rooms: nil, piece_room: nil)
       @b = build
       @things = things
-      @eye = eye
+      @player = player
       @scenery = scenery
       @floors = floors
       @piece_first = piece_first
@@ -283,10 +282,10 @@ module Wolf3D
     # decides its size — the same perspective divide the walls do, against the same distance the
     # walls are measured by, which is why it sits among them properly.
     def place(x, y, nudge)
-      @rx.set!(x - @eye[:x])
-      @ry.set!(y - @eye[:y])
-      @fwd.set!(@rx * @eye[:cos])
-      @fwd.add!(@ry * @eye[:sin])
+      @rx.set!(x - @player.x)
+      @ry.set!(y - @player.y)
+      @fwd.set!(@rx * @player.cos)
+      @fwd.add!(@ry * @player.sin)
       @fwd.sub! nudge
     end
 
@@ -294,8 +293,8 @@ module Wolf3D
     # of the line you are looking down it is, divided by that same distance, is where it lands
     # across the screen. A standing thing is as wide as it is tall, so one size does for both.
     def size_it_on_screen
-      @sideways.set!(@ry * @eye[:cos])
-      @sideways.sub!(@rx * @eye[:sin])
+      @sideways.set!(@ry * @player.cos)
+      @sideways.sub!(@rx * @player.sin)
 
       @scale.set!(FP::WALL_SCALE / @fwd)
       @theight.set!((@scale + 0.5).to_i)
@@ -447,7 +446,7 @@ module Wolf3D
     # doing something you see the same way from wherever you stand — so the state says whether
     # the answer above counts for anything at all.
     def pick_a_pose(guard)
-      @pose.set!(@dir_angle[guard.dir] - @eye[:angle])
+      @pose.set!(@dir_angle[guard.dir] - @player.angle)
       @pose.sub!((@cx - (FP::ACROSS / 2)) / FP::COLUMN_W)
       @pose.add!((FP::TURN / 2) + (FP::TURN / (Enemy::POSES * 2)))
       @pose.set!(@pose % FP::TURN)
