@@ -144,15 +144,11 @@ module Wolf3D
     CEILING = VBlank::Graphics::Color.rgb(7, 7, 9)
     FLOOR_COLOR = VBlank::Graphics::Color.rgb(12, 11, 10)
 
-    # +floors+ is every floor the cartridge holds. A game with one floor may hand over its pieces
-    # loose instead — `level:`, `doors:` and the rest — which is what a test builds and what a
-    # cartridge with nowhere to go is; the two are the same thing with one floor in it.
+    # +floors+ is every floor the cartridge holds.
     # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
-    def initialize(build:, atlas:, level: nil, doors: nil, pushwalls: nil, guards: nil,
-                   things: nil, scenery: nil, vswap: nil, lifts: nil, floors: nil, bar_art: nil,
-                   gun_art: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING)
-      @floors = floors || Floors.of(level: level, doors: doors, pushwalls: pushwalls,
-                                    lifts: lifts, guards: guards, scenery: scenery)
+    def initialize(build:, atlas:, floors:, things: nil, vswap: nil, bar_art: nil, gun_art: nil,
+                   sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING)
+      @floors = floors
       here = @floors.first_floor
       @b = build
       @atlas = atlas

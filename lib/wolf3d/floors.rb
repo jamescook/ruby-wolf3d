@@ -44,8 +44,7 @@ module Wolf3D
       end, episodes_of_ten: maps.episodes_of_ten?)
     end
 
-    # ...and the one-floor case, which is what every test builds and what a cartridge with no
-    # progression is. Given the pieces already made rather than making them again.
+    # ...and the one-floor case, given the pieces already made rather than making them again.
     #
     # NOTHING IS MADE UP HERE. A piece left out was left out on purpose — a floor built with no
     # scenery is a game that draws nothing standing in the rooms, which is what the tests of the
