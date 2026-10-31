@@ -78,8 +78,8 @@ module Wolf3D
     # POINT AT FLOOR +n+'S SLICE of the tables of where everybody started. Written inside the
     # arm the view runs for that floor as it starts; see FirstPerson#select_floor.
     def select_floor(n)
-      @count.set! @floors.count_of(:guards, n)
-      @first.set! @floors.first_of(:guards, n)
+      @count = @floors.count_of(:guards, n)
+      @first = @floors.first_of(:guards, n)
     end
 
     # EVERYBODY OUT, THEN THIS FLOOR'S PEOPLE IN.
@@ -107,17 +107,17 @@ module Wolf3D
       # ...AND WHICH PASS HE THINKS ON is counted the same way, over the guards who really stand
       # up and not over the slots walked — otherwise an easier game, which spawns from scattered
       # slots, could land most of its floor on the same pass and pay for it twice over on that one.
-      kill_total.set! 0
+      kill_total = 0
       @b.repeat(@count) do |n|
-        slot.set!(@first + n)
-        (@difficulty >= @home_from[slot]).then do
+        slot = @first + n
+        if @difficulty >= @home_from[slot]
           @pool.spawn x: @home_x[slot], y: @home_y[slot],
                       dir: @home_dir[slot],
                       state: @home_state[slot], ticks: @home_ticks[slot],
                       hp: @hit_points[@home_tough[slot] + @difficulty],
                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
                       ambush: @home_ambush[slot], turn: kill_total % 2
-          kill_total.add! 1
+          kill_total += 1
         end
       end
     end

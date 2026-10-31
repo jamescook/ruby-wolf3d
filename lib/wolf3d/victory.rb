@@ -48,15 +48,15 @@ module Wolf3D
     # WALKED OUT OF THE EPISODE. Called from the walk, on the frame the player reaches the way
     # out. Once only, so that standing on the tile does not keep re-winning it.
     def won
-      (@won == 0).then do
-        @won.set! 1
+      if @won == 0
+        @won = 1
         # ...and the game has ended, which is the fact the menus and the restart both read.
         @lives.ended_by_winning
       end
     end
 
     # A NEW GAME PUTS THIS BACK, however it was started — see Playthrough.
-    def start_again = @won.set!(0)
+    def start_again = @won = 0
 
     # ONE PASS. Nothing at all until an episode has been won, and then the words, on every pass
     # until START.
@@ -75,7 +75,7 @@ module Wolf3D
 
     def declare
       @won = @lasting.var :episode_won, 0
-      @b.func(:after_a_victory, fast: false) { (@won == 1).then { paint } }
+      @b.func(:after_a_victory, fast: false) { paint if @won == 1 }
     end
 
     def paint

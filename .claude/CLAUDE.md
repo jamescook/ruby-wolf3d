@@ -201,6 +201,8 @@ are commented with what needs what).
 
 **Building the cartridge**, which is where the framework's DSL appears:
 
+- `this_floor.rb` — the floor being played: where its slice of each table begins, and what a
+  number in the map means.
 - `player.rb` — the player as one record of named variables, handed whole to every part of the
   game that touches them.
 - `first_person.rb` — the view down the corridor: the ray, the wall columns, the floor and
@@ -223,7 +225,9 @@ are commented with what needs what).
   while the game is still drawing it the player watches the picture arrive.
 - **A part of the game is a plain class constructed inside the build block**, taking `build:`
   and whatever it needs, with an `update` the game loop calls. That is the framework's
-  multi-file pattern; it is why these files are ordinary Ruby objects and not DSL blocks.
+  multi-file pattern; it is why these files are ordinary Ruby objects and not DSL blocks. A file
+  that holds game code comes in with `VBlank.require_game_file` rather than `require_relative`,
+  because that is what makes its `if`, `x = 1` and `&&` work on game variables and tests.
 - **A picture the game draws again only when it changes** goes through `keep_showing`, which
   the tear-free screen makes necessary: it keeps two pictures, so a single paint reaches one
   of them and the figure flickers between old and new.
@@ -271,7 +275,10 @@ The verb surface is VBlank's and is documented there, in `.claude/rules/dsl-refe
 the VBlank checkout. Read it there; do not copy it here. A few habits it establishes and this
 game follows:
 
-- `flip` (not `negate`) for reversing direction; `copy :dest, :src` for assignment.
+- Game code is normal Ruby: `if`, `x = 1`, `x += 1`, `&&`, `||`, not `.then` and `.add!`. One
+  catch: on a name that only stands for a variable, `state = other` moves the name, so storing
+  a bare variable there stays `state.set! other`.
+- `flip` (not `negate`) for reversing direction.
 - Underscore prefix (`_ray_x`) for scratch/temp variables.
 - `func` for subroutines, `scene` for game states, `case_var` for dispatch.
 - A helper written as a plain Ruby method is emitted at **every** call site; a `func` is

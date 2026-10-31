@@ -3,6 +3,9 @@
 require "minitest/autorun"
 require "minitest/ractor"
 require_relative "../lib/wolf3d"
+# AFTER THE GAME, so the game's own block is checked as any game's is. Past this line the blocks a
+# test writes are not, because a test names its own helpers and a game has no reason to.
+require "vblank/testing"
 require_relative "support/field"
 
 module Wolf3DTest

@@ -46,8 +46,8 @@ module Wolf3D
     # the lift.
     def start(reason, floor: nil, secret: nil)
       check_request!(reason, floor, secret)
-      @began_on.set! floor if floor
-      @secret.set! secret if secret && @secret
+      @began_on = floor if floor
+      @secret = secret if secret && @secret
       @b.call routine_for(reason)
     end
 
@@ -103,13 +103,13 @@ module Wolf3D
       once(:"start_#{reason}") do
         case reason
         when :new_game
-          @floor.set! @began_on
-          @score.set! 0
-          @floor_score.set! 0
-        when :another_life then @score.set! @floor_score
+          @floor = @began_on
+          @score = 0
+          @floor_score = 0
+        when :another_life then @score = @floor_score
         when :next_floor
           choose_next_floor
-          @floor_score.set! @score
+          @floor_score = @score
         end
         # ...and :resume changes nothing first: the save already said which floor, and the score.
         STEPS.fetch(reason).each { |step| @b.call step_routine(step) }
@@ -131,19 +131,21 @@ module Wolf3D
 
     def choose_next_floor
       if secret_floor?
-        (@back[@floor] >= 0).then { @floor.set! @back[@floor] }
-          .else do
-            ((@secret == 1) & (@to_secret[@floor] >= 0)).then { @floor.set! @to_secret[@floor] }
-              .else { advance_one_floor }
-          end
+        if @back[@floor] >= 0
+          @floor = @back[@floor]
+        elsif @secret == 1 && @to_secret[@floor] >= 0
+          @floor = @to_secret[@floor]
+        else
+          advance_one_floor
+        end
       elsif @floors.count > 1
         advance_one_floor
       end
     end
 
     def advance_one_floor
-      @floor.add! 1
-      (@floor > @floors.count - 1).then { @floor.set! 0 }
+      @floor += 1
+      @floor = 0 if @floor > @floors.count - 1
     end
 
     # Does any lever on this cartridge lead to a secret floor, or back from one? Worked out once,

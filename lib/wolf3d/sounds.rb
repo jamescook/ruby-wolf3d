@@ -95,8 +95,8 @@ module Wolf3D
       when_sound_is_on do
         next screams.first.play if screams.length == 1
 
-        @which.set!(@b.rand(0...screams.length))
-        screams.each_with_index { |clip, n| (@which == n).then { clip.play } }
+        @which = @b.rand(0...screams.length)
+        screams.each_with_index { |clip, n| clip.play if @which == n }
       end
     end
 
@@ -104,10 +104,10 @@ module Wolf3D
 
     # EVERY SOUND GOES THROUGH HERE, so the one row on the menu that turns sound off turns off
     # all of it. A cartridge with no such row has nothing to test and simply plays.
-    def when_sound_is_on(&)
+    def when_sound_is_on
       return yield if @switch.nil?
 
-      (@switch == 1).then(&)
+      yield if @switch == 1
     end
 
     # Every chunk this game plays as a sample. Named for the moment rather than the number, so a

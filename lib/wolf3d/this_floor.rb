@@ -52,16 +52,16 @@ module Wolf3D
     # POINT EVERYTHING AT FLOOR +n+, a number known while building: this writes that floor's own
     # numbers in. The caller picks which arm runs — see FirstPerson#select_floor.
     def go_to(n)
-      @map_base.set! @floors.map_base(n)
-      @door_first.set! @floors.first_of(:doors, n)
-      @door_count.set! @floors.count_of(:doors, n)
-      @push_first.set! @floors.first_of(:pushwalls, n)
-      @pushwall_count.set! @floors.count_of(:pushwalls, n)
-      @secret_car.set!(secret_car_of(@floors[n]))
+      @map_base = @floors.map_base(n)
+      @door_first = @floors.first_of(:doors, n)
+      @door_count = @floors.count_of(:doors, n)
+      @push_first = @floors.first_of(:pushwalls, n)
+      @pushwall_count = @floors.count_of(:pushwalls, n)
+      @secret_car = secret_car_of(@floors[n])
       return if @piece_first.nil?
 
-      @piece_first.set! @floors.first_of(:pieces, n)
-      @piece_count.set! @floors.count_of(:pieces, n)
+      @piece_first = @floors.first_of(:pieces, n)
+      @piece_count = @floors.count_of(:pieces, n)
     end
 
     # --- finding a slice -----------------------------------------------------------------
@@ -84,8 +84,10 @@ module Wolf3D
 
     # DOES SOMETHING STANDING IN THIS CELL STOP A FOOT? Runs the block if so. A cartridge with
     # nothing of the kind on any floor has no table and emits no test.
-    def when_blocked(cell, &)
-      (@blocked[map_index_of(cell)] == 1).then(&) if @blocked
+    def when_blocked(cell)
+      return unless @blocked
+
+      yield if @blocked[map_index_of(cell)] == 1
     end
 
     # --- what a number in the map means --------------------------------------------------
@@ -107,12 +109,32 @@ module Wolf3D
     # A caller that only wants doors, which is the commonest, tests for a door first: nearly every
     # number is neither, and then it pays the one comparison.
     def sort_out(cell, door: nil, pushwall: nil, wall: nil)
-      return (cell >= DOOR).then { (cell < PUSH).then(&door) } if pushwall.nil? && wall.nil?
+      if pushwall.nil? && wall.nil?
+        if cell >= DOOR
+          door.call if cell < PUSH
+        end
+        return
+      end
 
-      rest = -> { wall ? (cell >= DOOR).then(&door).else(&wall) : (cell >= DOOR).then(&door) }
-      return (cell < PUSH).then(&rest) if pushwall.nil?
+      rest = lambda do
+        if wall
+          if cell >= DOOR
+            door.call
+          else
+            wall.call
+          end
+        elsif cell >= DOOR
+          door.call
+        end
+      end
 
-      (cell >= PUSH).then(&pushwall).else(&rest)
+      if pushwall.nil?
+        rest.call if cell < PUSH
+      elsif cell >= PUSH
+        pushwall.call
+      else
+        rest.call
+      end
     end
 
     private

@@ -52,8 +52,8 @@ module Wolf3D
     # WHAT A NEW GAME PUTS BACK HERE: the goes back to three, and a game that is not over. Every
     # new game does this, however it was started — see Playthrough.
     def start_again
-      @left.set! START
-      @ended&.set! 0
+      @left = START
+      @ended = 0 if @ended
     end
 
     # A GAME CAN ALSO END BY BEING WON, and when it does the flag this keeps is the one that has
@@ -63,14 +63,16 @@ module Wolf3D
     #
     # It does NOT queue the words above — a won episode has its own, and they are drawn over the
     # last picture of the game rather than over the red a death leaves. See {Victory}.
-    def ended_by_winning = @ended&.set!(1)
+    def ended_by_winning
+      @ended = 1 if @ended
+    end
 
     # ANOTHER GO, which is what the one-up lying on the floor hands you. The original stops at
     # nine, and so does this: the bar keeps one figure for it.
     MOST = 9
 
     def give_one
-      @left.add! 1
+      @left += 1
       @left.clamp! 0, MOST
     end
 
@@ -102,12 +104,18 @@ module Wolf3D
     # Then the words, if the game is over, over the red the fizzle left. Nothing else is being
     # drawn by then.
     def count_a_death
-      (@ended == 0).then do
-        @dying.finished.then do
-          @left.sub! 1
-          (@left > 0).then { another_life }.else { end_the_game }
+      if @ended == 0
+        if @dying.finished
+          @left -= 1
+          if @left > 0
+            another_life
+          else
+            end_the_game
+          end
         end
-      end.else { start_another_game }
+      else
+        start_another_game
+      end
 
       @words.draw
     end
@@ -116,13 +124,13 @@ module Wolf3D
     def another_life = @playthrough.start(:another_life)
 
     def end_the_game
-      @ended.set! 1
+      @ended = 1
       @words.changed
     end
 
     # START BEGINS A NEW GAME, on the floor the last one began on.
     def start_another_game
-      @b.pressed(:start).then { @playthrough.start(:new_game) }
+      @playthrough.start(:new_game) if @b.pressed(:start)
     end
 
     def declare

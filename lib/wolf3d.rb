@@ -30,7 +30,7 @@ require_relative "wolf3d/doors"
 require_relative "wolf3d/pushwalls"
 require_relative "wolf3d/elevator"
 # ...after the doors, whose panels are the only thing that joins one room to the next.
-require_relative "wolf3d/rooms"
+VBlank.require_game_file "wolf3d/rooms"
 # WHAT THE FIVE KINDS OF ENEMY ARE, then how a cartridge lays their states out, then how a floor
 # is read for them. Each needs the one before it.
 require_relative "wolf3d/enemy"
@@ -44,37 +44,37 @@ require_relative "wolf3d/wall_atlas"
 require_relative "wolf3d/thing_atlas"
 require_relative "wolf3d/bar_art"
 require_relative "wolf3d/menu_art"
-require_relative "wolf3d/status_bar"
+VBlank.require_game_file "wolf3d/status_bar"
 # ...and before every part of the game that declares state a saved game holds.
-require_relative "wolf3d/this_floor"
+VBlank.require_game_file "wolf3d/this_floor"
 require_relative "wolf3d/lasting_state"
 require_relative "wolf3d/player"
-require_relative "wolf3d/guard_pool"
-require_relative "wolf3d/first_person"
+VBlank.require_game_file "wolf3d/guard_pool"
+VBlank.require_game_file "wolf3d/first_person"
 # ...after the view, whose height is what the gun's square is scaled to.
-require_relative "wolf3d/weapons"
+VBlank.require_game_file "wolf3d/weapons"
 # ...after the view, whose constants say how big the part of the screen that goes red is.
-require_relative "wolf3d/dying"
+VBlank.require_game_file "wolf3d/dying"
 # ...and after dying, which is the only thing that ever spends one.
-require_relative "wolf3d/lives"
+VBlank.require_game_file "wolf3d/lives"
 # ...and its sibling, the other way a game can stop. After lives, whose new game it begins.
-require_relative "wolf3d/victory"
+VBlank.require_game_file "wolf3d/victory"
 # ...and what starts play again after either of them, or at the bottom of a lift.
-require_relative "wolf3d/playthrough"
+VBlank.require_game_file "wolf3d/playthrough"
 # ...and after the view, whose START_HEALTH and KEY_BITS say what a full player is and what a key
 # is worth, and after lives, which a one-up on the floor hands another of.
-require_relative "wolf3d/pickups"
-require_relative "wolf3d/sounds"
+VBlank.require_game_file "wolf3d/pickups"
+VBlank.require_game_file "wolf3d/sounds"
 # ...after the view, whose constants they share: the three agree about how wide the lens is, and
 # where the middle of the screen falls is what a shot is aimed by.
-require_relative "wolf3d/billboards"
-require_relative "wolf3d/guard_mind"
+VBlank.require_game_file "wolf3d/billboards"
+VBlank.require_game_file "wolf3d/guard_mind"
 require_relative "wolf3d/map_view"
 require_relative "wolf3d/palette_view"
 require_relative "wolf3d/art_view"
 # ...after the view, which the menus put themselves in front of and hand a game back to.
-require_relative "wolf3d/menus"
-require_relative "wolf3d/title"
+VBlank.require_game_file "wolf3d/menus"
+VBlank.require_game_file "wolf3d/title"
 
 module Wolf3D
   # The name people see, and the only thing this cartridge says about itself. The four-character

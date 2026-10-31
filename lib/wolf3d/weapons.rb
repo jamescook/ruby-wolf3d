@@ -118,8 +118,12 @@ module Wolf3D
     # a late pass answered for would fire a bullet for every one of them, and would walk two
     # weapons along on one press. See FirstPerson::PACING.
     def update
-      @acted.set! 0
-      (@stage < 0).then { standing_ready }.else { carry_the_attack_on }
+      @acted = 0
+      if @stage < 0
+        standing_ready
+      else
+        carry_the_attack_on
+      end
     end
 
     # THE PICTURE, over the view, once the room behind it has been drawn.
@@ -133,10 +137,10 @@ module Wolf3D
     # switches you to it when it beats what you were already carrying — so walking back over a
     # machine gun while holding a chain gun does not put you a step backwards.
     def give(which)
-      (@best < which).then do
-        @best.set! which
-        @chosen.set! which
-        @in_hand.set! which
+      if @best < which
+        @best = which
+        @chosen = which
+        @in_hand = which
       end
     end
 
@@ -148,11 +152,11 @@ module Wolf3D
     # original (wl_game.cpp, Died) and what a new game starts you with. A lift does not: the
     # guns you found go down it with you.
     def start_again
-      @in_hand.set! @starting
-      @chosen.set! @starting
-      @best.set! @starting
-      @stage.set! AT_REST
-      @wait.set! 0
+      @in_hand = @starting
+      @chosen = @starting
+      @best = @starting
+      @stage = AT_REST
+      @wait = 0
     end
 
     private
@@ -215,19 +219,19 @@ module Wolf3D
     # WHICH OF THE TWENTY PICTURES: the weapon's own five, and then at rest or one of the four
     # it attacks with.
     def which_picture
-      @shape.set!(@in_hand * WeaponAtlas::FRAMES)
-      (@stage >= 0).then { @shape.add!(@stage + 1) }
+      @shape = @in_hand * WeaponAtlas::FRAMES
+      @shape += @stage + 1 if @stage >= 0
     end
 
     def draw_the_strips
       b = @b
-      @column.set!(@first_column[@shape])
-      @wide.set!(@last_column[@shape] - @column + 1)
+      @column = @first_column[@shape]
+      @wide = @last_column[@shape] - @column + 1
       # ...and where this frame's columns begin in the row of all twenty.
-      @shape.set!(@shape * SQUARE)
+      @shape = @shape * SQUARE
 
       b.repeat(@wide) do |step|
-        @at.set!(@column + step)
+        @at = @column + step
         # THE WHOLE SQUARE, from the top of the view to the bottom of it, which is what the
         # original scales a weapon to. Every row of it is walked in the writing and hardly any
         # in the running: the framework ships where each COLUMN of a see-through picture holds
@@ -253,8 +257,8 @@ module Wolf3D
     # which is false on nearly every pass of the game — so a player holding a gun pays one
     # comparison for it.
     def put_back_what_you_chose
-      (@in_hand == KNIFE).then do
-        ((@chosen != KNIFE) & (@player.ammo > 0)).then { @in_hand.set! @chosen }
+      if @in_hand == KNIFE
+        @in_hand = @chosen if @chosen != KNIFE && @player.ammo > 0
       end
     end
 
@@ -276,23 +280,23 @@ module Wolf3D
     # It wraps at the end, so a cycle reaches everything you are carrying; there are four of
     # them at most, and the knife is one, so nothing is ever more than three presses away.
     def change_the_weapon
-      (@player.ammo > 0).then do
-        @b.pressed(:select).then { take_the_next_one }
+      if @player.ammo > 0
+        take_the_next_one if @b.pressed(:select)
       end
     end
 
     def take_the_next_one
-      @chosen.set!(@in_hand + 1)
-      (@chosen > @best).then { @chosen.set! KNIFE }
-      @in_hand.set! @chosen
+      @chosen = @in_hand + 1
+      @chosen = KNIFE if @chosen > @best
+      @in_hand = @chosen
     end
 
     # THE TRIGGER, read on its edge, so holding it down does not start a second attack — the two
     # automatics repeat from inside the attack itself rather than from another press.
     def start_an_attack
-      @b.pressed(:b).then do
-        @stage.set! 0
-        @wait.set! STAGE_PASSES
+      if @b.pressed(:b)
+        @stage = 0
+        @wait = STAGE_PASSES
       end
     end
 
@@ -300,20 +304,24 @@ module Wolf3D
     # original's own arrangement and is what lets a stage send the attack backwards: the arm
     # that acts is also the arm that says where to go next.
     def carry_the_attack_on
-      @wait.sub! 1
-      (@wait <= 0).then do
-        @wait.set! STAGE_PASSES
-        @next.set!(@stage + 1)
-        (@stage == FIRES).then { the_weapon_acts }
-        (@stage == REPEATS).then { the_automatics_carry_on }
-        @stage.set! @next
-        (@stage >= STAGES).then { finish_the_attack }
+      @wait -= 1
+      if @wait <= 0
+        @wait = STAGE_PASSES
+        @next = @stage + 1
+        the_weapon_acts if @stage == FIRES
+        the_automatics_carry_on if @stage == REPEATS
+        @stage = @next
+        finish_the_attack if @stage >= STAGES
       end
     end
 
     # The weapon does its one thing: the knife goes in, and everything else fires a round.
     def the_weapon_acts
-      (@in_hand == KNIFE).then { @acted.set! 1 }.else { fire_a_round }
+      if @in_hand == KNIFE
+        @acted = 1
+      else
+        fire_a_round
+      end
     end
 
     # A ROUND LEAVES THE BARREL, and the gun goes quiet if that was the last one — a player with
@@ -325,12 +333,12 @@ module Wolf3D
     # is the whole of the difference — a swing that meets nothing is silent, and one that lands
     # makes its noise where the man cries out (GuardMind#wound_a_guard).
     def fire_a_round
-      (@player.ammo > 0).then do
-        @player.ammo.sub! 1
-        @acted.set! 1
-        @player.noise.set!(FP::HEARD_FOR)
+      if @player.ammo > 0
+        @player.ammo -= 1
+        @acted = 1
+        @player.noise = FP::HEARD_FOR
         the_gun_is_heard
-        (@player.ammo == 0).then { @in_hand.set! KNIFE }
+        @in_hand = KNIFE if @player.ammo == 0
       end
     end
 
@@ -338,13 +346,13 @@ module Wolf3D
     # button is held; the chain gun fires on the way past as well, so it puts out two rounds in
     # the time the machine gun puts out one.
     def the_automatics_carry_on
-      (@in_hand == CHAIN_GUN).then { fire_a_round }
-      ((@in_hand >= MACHINE_GUN) & (@player.ammo > 0) & @b.held(:b)).then { @next.set! FIRES }
+      fire_a_round if @in_hand == CHAIN_GUN
+      @next = FIRES if @in_hand >= MACHINE_GUN && @player.ammo > 0 && @b.held(:b)
     end
 
     def finish_the_attack
-      @stage.set! AT_REST
-      (@player.ammo > 0).then { @in_hand.set! @chosen }
+      @stage = AT_REST
+      @in_hand = @chosen if @player.ammo > 0
     end
 
     # Each gun has its own recording, which is the one place a machine gun and a chain gun

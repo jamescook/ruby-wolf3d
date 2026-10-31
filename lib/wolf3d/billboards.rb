@@ -95,7 +95,7 @@ module Wolf3D
     # way a wall does, because a lamp is its picture at the top of its square and its light at
     # the bottom with a hole between, and a guard standing in that hole is looked at THROUGH it.
     def draw
-      @seen.set! 0
+      @seen = 0
       look_at_the_scenery
       # Which way the eye is pointing was worked out once for the frame already, before the
       # guards thought — the shot needed it too.
@@ -168,7 +168,7 @@ module Wolf3D
       b.func(:draw_a_standing_thing, fast: true) do
         b.inside 0, 0, FP::ACROSS, FP::VIEW_H do
           read_the_shape
-          any_of_it_on_screen.then { draw_the_strips }
+          draw_the_strips if any_of_it_on_screen
         end
       end
 
@@ -281,34 +281,34 @@ module Wolf3D
     # decides its size — the same perspective divide the walls do, against the same distance the
     # walls are measured by, which is why it sits among them properly.
     def place(x, y, nudge)
-      @rx.set!(x - @player.x)
-      @ry.set!(y - @player.y)
-      @fwd.set!(@rx * @player.cos)
-      @fwd.add!(@ry * @player.sin)
-      @fwd.sub! nudge
+      @rx = x - @player.x
+      @ry = y - @player.y
+      @fwd = @rx * @player.cos
+      @fwd += @ry * @player.sin
+      @fwd -= nudge
     end
 
     # ...and the second half, once something is known to be in front of you: how far to the SIDE
     # of the line you are looking down it is, divided by that same distance, is where it lands
     # across the screen. A standing thing is as wide as it is tall, so one size does for both.
     def size_it_on_screen
-      @sideways.set!(@ry * @player.cos)
-      @sideways.sub!(@rx * @player.sin)
+      @sideways = @ry * @player.cos
+      @sideways -= @rx * @player.sin
 
-      @scale.set!(FP::WALL_SCALE / @fwd)
-      @theight.set!((@scale + 0.5).to_i)
-      @cx.set!((@sideways * @scale).to_i + (FP::ACROSS / 2))
-      @ttop.set!(FP::HORIZON - (@theight / 2))
+      @scale = FP::WALL_SCALE / @fwd
+      @theight = (@scale + 0.5).to_i
+      @cx = (@sideways * @scale).to_i + (FP::ACROSS / 2)
+      @ttop = FP::HORIZON - (@theight / 2)
     end
 
     # Where a picture starts and stops holding anything, both ways, and where its columns begin
     # in the row of them.
     def read_the_shape
-      @pfirst.set!(@first_column[@shape])
-      @plast.set!(@last_column[@shape])
-      @ptop.set!(@first_row[@shape])
-      @pbottom.set!(@last_row[@shape])
-      @shape.set!(@shape * FP::TEX)
+      @pfirst = @first_column[@shape]
+      @plast = @last_column[@shape]
+      @ptop = @first_row[@shape]
+      @pbottom = @last_row[@shape]
+      @shape = @shape * FP::TEX
     end
 
     # IS ANY OF IT ON THE SCREEN AT ALL, asked of the art rather than of the square it sits in.
@@ -320,9 +320,9 @@ module Wolf3D
     # the clip is invisible AND it costs about what the whole room costs. This is one
     # multiplication and two comparisons, once for the thing rather than once for each strip.
     def any_of_it_on_screen
-      @band_top.set!(@ttop + ((@theight * @ptop) / FP::TEX))
-      @band_bottom.set!(@ttop + ((@theight * (@pbottom + 1)) / FP::TEX))
-      (@band_top < 160) & (@band_bottom > 0)
+      @band_top = @ttop + ((@theight * @ptop) / FP::TEX)
+      @band_bottom = @ttop + ((@theight * (@pbottom + 1)) / FP::TEX)
+      @band_top < 160 && @band_bottom > 0
     end
 
     # --- the scenery -----------------------------------------------------------------
@@ -362,18 +362,18 @@ module Wolf3D
       return look_closely_at_a_piece(piece) if @rooms.nil?
 
       at = @this_floor.piece(piece)
-      @rooms.open?(@piece_room[at]).then { look_closely_at_a_piece(piece) }
+      look_closely_at_a_piece(piece) if @rooms.open?(@piece_room[at])
     end
 
     def look_closely_at_a_piece(piece)
       at = @this_floor.piece(piece)
       place(@piece_x[at], @piece_y[at], SCENERY_NUDGE)
-      (@fwd > NEAREST).then do
+      if @fwd > NEAREST
         # Asked here rather than first: a piece you have picked up is one of a few hundred, and
         # this way only the ones you could see pay for the question at all.
-        @pickups.still_there(piece).then do
+        if @pickups.still_there(piece)
           size_it_on_screen
-          @shape.set!(@piece_shape[at])
+          @shape = @piece_shape[at]
           @b.call :remember_a_standing_thing
         end
       end
@@ -396,22 +396,22 @@ module Wolf3D
     # for exactly the same reason.
     def look_at_a_guard(guard)
       place(guard.x, guard.y, NUDGE)
-      guard.shown.set! 0
+      guard.shown = 0
 
       # Behind the eye, or all but touching it. Everything below costs something, and this one
       # comparison is what a guard on the far side of the floor pays.
-      (@fwd > NEAREST).then do
+      if @fwd > NEAREST
         size_it_on_screen
         pick_a_pose(guard)
         @b.call :remember_a_standing_thing
-        (@shows == 1).then do
-          guard.shown.set! 1
+        if @shows == 1
+          guard.shown = 1
           # HE HAS BEEN SEEN, and from here he thinks wherever he stands rather than only while
           # his room is open to yours. The original hangs this off the same fact and in the same
           # place — the drawing is the only thing that knows an actor was on the screen
           # (wl_draw.cpp sets `obj->active = ac_yes` where it decides to draw him). Without it a
           # guard across a courtyard you cannot walk into would stand frozen while you watched him.
-          guard.awake.set! 1
+          guard.awake = 1
         end
         # ...AND THE CLIP HE LEFT, if he is lying beside one, which costs almost nothing to put
         # here: a body never moves again, so the clip stands exactly where he does and the place
@@ -423,8 +423,8 @@ module Wolf3D
     def leave_his_clip_on_the_floor(guard)
       return if @drop_shape.nil?
 
-      @pickups.still_dropped(guard).then do
-        @shape.set! @drop_shape[guard.dropped]
+      if @pickups.still_dropped(guard)
+        @shape = @drop_shape[guard.dropped]
         @b.call :remember_a_standing_thing
       end
     end
@@ -441,13 +441,13 @@ module Wolf3D
     # doing something you see the same way from wherever you stand — so the state says whether
     # the answer above counts for anything at all.
     def pick_a_pose(guard)
-      @pose.set!(@dir_angle[guard.dir] - @player.angle)
-      @pose.sub!((@cx - (FP::ACROSS / 2)) / FP::COLUMN_W)
-      @pose.add!((FP::TURN / 2) + (FP::TURN / (Enemy::POSES * 2)))
-      @pose.set!(@pose % FP::TURN)
-      @pose.set!(@pose / (FP::TURN / Enemy::POSES))
+      @pose = @dir_angle[guard.dir] - @player.angle
+      @pose -= (@cx - (FP::ACROSS / 2)) / FP::COLUMN_W
+      @pose += (FP::TURN / 2) + (FP::TURN / (Enemy::POSES * 2))
+      @pose = @pose % FP::TURN
+      @pose = @pose / (FP::TURN / Enemy::POSES)
 
-      @shape.set!(@mind.picture_of[guard.state] + (@pose * @mind.turns_of[guard.state]))
+      @shape = @mind.picture_of[guard.state] + (@pose * @mind.turns_of[guard.state])
     end
 
     # --- what is on screen, furthest first -------------------------------------------
@@ -460,9 +460,9 @@ module Wolf3D
     # side, or behind a wall, and it is nought. A guard reads it to know he has been seen.
     def remember_a_standing_thing
       b = @b
-      @shows.set! 0
-      covers_any_strips.then do
-        in_front_of_the_walls.then do
+      @shows = 0
+      if covers_any_strips
+        if in_front_of_the_walls
           add_it_to_the_queue
         end
       end
@@ -483,7 +483,7 @@ module Wolf3D
     # wall moves between here and the drawing.
     def in_front_of_the_walls
       @b.repeat(@s1 - @s0, stop_when: @shows == 1) do |step|
-        (@theight > @depth[@s0 + step]).then { @shows.set! 1 }
+        @shows = 1 if @theight > @depth[@s0 + step]
       end
       @shows == 1
     end
@@ -496,19 +496,19 @@ module Wolf3D
     # A FULL QUEUE TURNS THE NEXT ONE AWAY, which is what the original does too.
     def add_it_to_the_queue
       b = @b
-      (@seen < MOST_AT_ONCE).then do
-        @at.set!(@seen - 1)
+      if @seen < MOST_AT_ONCE
+        @at = @seen - 1
         b.repeat(@seen, stop_when: @seen_height[@at] <= @theight) do
           @seen_height[@at + 1] = @seen_height[@at]
           @seen_across[@at + 1] = @seen_across[@at]
           @seen_shape[@at + 1] = @seen_shape[@at]
-          @at.sub! 1
+          @at -= 1
         end
 
         @seen_height[@at + 1] = @theight
         @seen_across[@at + 1] = @cx
         @seen_shape[@at + 1] = @shape
-        @seen.add! 1
+        @seen += 1
       end
     end
 
@@ -517,10 +517,10 @@ module Wolf3D
     # the screen follows from its height, which is cheaper to work out again than to carry.
     def draw_the_queue
       @b.repeat(@seen) do |n|
-        @theight.set! @seen_height[n]
-        @cx.set! @seen_across[n]
-        @shape.set! @seen_shape[n]
-        @ttop.set!(FP::HORIZON - (@theight / 2))
+        @theight = @seen_height[n]
+        @cx = @seen_across[n]
+        @shape = @seen_shape[n]
+        @ttop = FP::HORIZON - (@theight / 2)
         @b.call :draw_a_standing_thing
       end
     end
@@ -537,26 +537,26 @@ module Wolf3D
     # are left there is nothing to draw, and that is the test a thing off to the side of the view
     # is thrown out by before it ever reaches the queue.
     def covers_any_strips
-      @lstrip.set!((@cx - (@theight / 2)) / FP::COLUMN_W)
-      @s0.set! @lstrip
+      @lstrip = (@cx - (@theight / 2)) / FP::COLUMN_W
+      @s0 = @lstrip
       @s0.clamp! 0, FP::COLUMNS
-      @s1.set!(@lstrip + (@theight / FP::COLUMN_W))
+      @s1 = @lstrip + (@theight / FP::COLUMN_W)
       @s1.clamp! 0, FP::COLUMNS
       @s1 > @s0
     end
 
     def draw_the_strips
       b = @b
-      covers_any_strips.then do
+      if covers_any_strips
         # How far along the picture one strip carries, and where the first strip that shows
         # starts. One divide for the whole thing rather than one per strip.
-        @tstep.set!((FP::TEX * FP::COLUMN_W).to_f / @theight.to_f)
-        @tex.set!((@s0 - @lstrip).to_f * @tstep)
+        @tstep = (FP::TEX * FP::COLUMN_W).to_f / @theight.to_f
+        @tex = (@s0 - @lstrip).to_f * @tstep
 
         b.repeat(@s1 - @s0) do |step|
-          @tstrip.set!(@s0 + step)
-          @tcol.set!(@tex.to_i)
-          @tex.add! @tstep
+          @tstrip = @s0 + step
+          @tcol = @tex.to_i
+          @tex += @tstep
           draw_a_strip
         end
       end
@@ -572,9 +572,9 @@ module Wolf3D
     # it, so it settles nothing about the strip for whatever comes next — and nothing needs it
     # to, because whatever comes next is nearer and paints over.
     def draw_a_strip
-      (@tcol >= @pfirst).then do
-        (@tcol <= @plast).then do
-          (@theight > @depth[@tstrip]).then do
+      if @tcol >= @pfirst
+        if @tcol <= @plast
+          if @theight > @depth[@tstrip]
             @b.draw_column_at :things, slice: @shape + @tcol, x: @tstrip * FP::COLUMN_W,
                                        top: @ttop, height: @theight, width: FP::COLUMN_W
           end

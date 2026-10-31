@@ -159,8 +159,8 @@ module Wolf3D
       # an SS is worth killing twice: the first one arms you and every one after it feeds the gun.
       return if @weapons.nil?
 
-      (left == MACHINE_GUN_LEFT).then do
-        @weapons.already_has(Weapons::MACHINE_GUN).then { left.set! CLIP_LEFT }
+      if left == MACHINE_GUN_LEFT
+        left = CLIP_LEFT if @weapons.already_has(Weapons::MACHINE_GUN)
       end
     end
 
@@ -193,12 +193,12 @@ module Wolf3D
     # asked where it is — a real floor holds a few hundred pieces, and walking that list every
     # frame to find the one you are standing on would be most of what the game does.
     def what_am_i_standing_on
-      @here.set!(@this_floor.map_index(@player.x.to_i, @player.y.to_i))
-      @piece.set!(@lying_at[@here])
-      (@piece > 0).then do
+      @here = @this_floor.map_index(@player.x.to_i, @player.y.to_i)
+      @piece = @lying_at[@here]
+      if @piece > 0
         # Counted from one in the table so that nought can mean an empty cell.
-        @piece.sub! 1
-        still_there(@piece).then { take_it }
+        @piece -= 1
+        take_it if still_there(@piece)
       end
       @b.call :look_where_the_guards_fell if @pool
     end
@@ -263,29 +263,32 @@ module Wolf3D
     # you can hold what it offers, and only an arm that gave something says so — that is what
     # leaves a first aid box on the floor of a player who does not need it yet.
     def take_it
-      @slot.set!(@this_floor.piece(@piece))
-      @kind.set!(@gives_kind[@slot])
-      @amount.set!(@gives_amount[@slot])
-      @took.set! 0
+      @slot = @this_floor.piece(@piece)
+      @kind = @gives_kind[@slot]
+      @amount = @gives_amount[@slot]
+      @took = 0
 
-      (@kind == AMMUNITION).then { give_ammunition(@amount) }
-      (@kind == HEALTH).then { give_health(@amount) }
-      (@kind == TREASURE).then do
-        @player.score.add! @amount
-        @player.treasures.add!(1)
-        @took.set! 1
+      give_ammunition(@amount) if @kind == AMMUNITION
+      give_health(@amount) if @kind == HEALTH
+      if @kind == TREASURE
+        @player.score += @amount
+        @player.treasures += 1
+        @took = 1
       end
       # A KEY SETS ITS OWN BIT rather than being added on, which is the original's own `|=` and
       # matters the moment two of the same key can be had: a floor's key and the one a boss
       # leaves are both gold, and adding the gold bit twice would read as the silver one.
-      (@kind == KEY).then { @player.keys.set!(@player.keys | @amount); @took.set! 1 }
-      (@kind == SCRAPS).then do
-        (@player.health <= NEARLY_DEAD).then { give_health(@amount) }
+      if @kind == KEY
+        @player.keys = @player.keys | @amount
+        @took = 1
       end
-      (@kind == EXTRA_LIFE).then { give_another_go }
-      (@kind == WEAPON).then { give_a_weapon }
+      if @kind == SCRAPS
+        give_health(@amount) if @player.health <= NEARLY_DEAD
+      end
+      give_another_go if @kind == EXTRA_LIFE
+      give_a_weapon if @kind == WEAPON
 
-      (@took == 1).then { @taken[@piece] = 1 }
+      @taken[@piece] = 1 if @took == 1
     end
 
     # A GUN ON THE FLOOR: six rounds and then the gun itself, in that order and always taken —
@@ -296,22 +299,22 @@ module Wolf3D
       return if @weapons.nil?
 
       @weapons.give(@amount)
-      @took.set! 1
+      @took = 1
     end
 
     def give_ammunition(rounds)
-      (@player.ammo < MOST_AMMO).then do
-        @player.ammo.add! rounds
+      if @player.ammo < MOST_AMMO
+        @player.ammo += rounds
         @player.ammo.clamp! 0, MOST_AMMO
-        @took.set! 1
+        @took = 1
       end
     end
 
     def give_health(points)
-      (@player.health < FULL_HEALTH).then do
-        @player.health.add! points
+      if @player.health < FULL_HEALTH
+        @player.health += points
         @player.health.clamp! 0, FULL_HEALTH
-        @took.set! 1
+        @took = 1
       end
     end
 
@@ -323,11 +326,11 @@ module Wolf3D
     # so a floor that holds one needs it taken for a hundred per cent. Miss this and a player who
     # collected everything is told they found four fifths of it.
     def give_another_go
-      @player.health.add! ONE_UP_HEAL
+      @player.health += ONE_UP_HEAL
       @player.health.clamp! 0, FULL_HEALTH
       @lives&.give_one
-      @player.treasures.add!(1)
-      @took.set! 1
+      @player.treasures += 1
+      @took = 1
     end
 
     # THE CLIPS GUARDS LEFT, walked over rather than looked up, and this is the one that has to
@@ -341,8 +344,8 @@ module Wolf3D
       # on a cartridge holding more than one floor means this floor's slice of the map, not the
       # first floor's. Compare them as different numbers and a clip is never found.
       @pool.each do |guard|
-        still_dropped(guard).then do
-          (guard_cell(guard) == @here).then { @b.call :take_what_he_left }
+        if still_dropped(guard)
+          @b.call :take_what_he_left if guard_cell(guard) == @here
         end
       end
     end
@@ -350,31 +353,32 @@ module Wolf3D
     # HALF A CLIP, OR A MACHINE GUN AND SIX ROUNDS, and which is what he was carrying. A cartridge
     # with no SS on any floor emits only the first arm and pays nothing for the second.
     def take_what_he_left(guard)
-      @took.set! 0
+      @took = 0
       unless (@weapons && leaves_a_gun?) || leaves_a_key?
         give_ammunition(DROPPED_ROUNDS)
-        return (@took == 1).then { guard.dropped.set! NOTHING_LEFT }
+        guard.dropped = NOTHING_LEFT if @took == 1
+        return
       end
 
-      (guard.dropped == CLIP_LEFT).then { give_ammunition(DROPPED_ROUNDS) }
+      give_ammunition(DROPPED_ROUNDS) if guard.dropped == CLIP_LEFT
       if @weapons && leaves_a_gun?
-        (guard.dropped == MACHINE_GUN_LEFT).then do
+        if guard.dropped == MACHINE_GUN_LEFT
           # A gun off the floor is always taken, rounds or no rounds — the same rule as one the
           # level put there.
           give_ammunition(WEAPON_ROUNDS)
           @weapons.give(Weapons::MACHINE_GUN)
-          @took.set! 1
+          @took = 1
         end
       end
       # THE GOLD KEY OFF A BOSS, which is always taken — a key is the one thing you can never be
       # too full of, and it is the way out of the floor he was standing in.
       if leaves_a_key?
-        (guard.dropped == GOLD_KEY_LEFT).then do
-          @player.keys.set!(@player.keys | FirstPerson::KEY_BITS.fetch(:gold))
-          @took.set! 1
+        if guard.dropped == GOLD_KEY_LEFT
+          @player.keys = @player.keys | FirstPerson::KEY_BITS.fetch(:gold)
+          @took = 1
         end
       end
-      (@took == 1).then { guard.dropped.set! NOTHING_LEFT }
+      guard.dropped = NOTHING_LEFT if @took == 1
     end
 
     # Does anything on this cartridge leave a gun behind at all?
