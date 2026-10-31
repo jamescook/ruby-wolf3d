@@ -29,9 +29,6 @@ class TestPickups < Minitest::Test
   ONE_UP = 33
   SCRAPS = 34
 
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
-
   # How many frames a whole cell of walking takes, and a little over so a walk of N cells really
   # arrives. A step is FP::WALK of a cell.
   def cells(n) = ((n / FP::WALK).ceil + 4)
@@ -199,10 +196,6 @@ class TestPickups < Minitest::Test
 
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-
   def code(index) = Scenery::FIRST_CODE + index
   def gone(run, piece) = run.list(:thing_gone)[piece]
   def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]
@@ -216,42 +209,13 @@ class TestPickups < Minitest::Test
   end
 
   # A WALLED FIELD with the player on the left of the middle row facing east, and whatever you
-  # name laid out on the cells in front of them.
-  def arena(ahead: [], side: 16, guards: [], on_the_spot: nil)
-    cells = Array.new(side * side, FLOOR)
-    standing = Array.new(side * side, 0)
-    side.times do |y|
-      side.times do |x|
-        cells[(y * side) + x] = WALL if x.zero? || y.zero? || x == side - 1 || y == side - 1
-      end
-    end
-    row = side / 2
-    start = 4
-    standing[(row * side) + start] = Wolf3D::Level::FACINGS.key(:east)
-    ahead.each_with_index { |piece, n| standing[(row * side) + start + 1 + n] = code(piece) }
-    standing[(row * side) + start + 1] = code(on_the_spot) if on_the_spot
-    guards.each { |x, y, way| standing[(y * side) + x] = Guards::STANDING + Guards::FACINGS.index(way) }
-
-    Wolf3D::Level.new(name: "Pickups", width: side, height: side, walls: cells, things: standing)
+  # name laid out on the cells in front of them. +on_the_spot+ is the thing on the first of those.
+  def arena(side: SIDE, on_the_spot: nil, **)
+    super(side: side, player: [4, side / 2],
+          things: on_the_spot ? { [5, side / 2] => code(on_the_spot) } : {}, **)
   end
 
-  def view_of(level, drawing: false)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette,
-                                    (guards.pictures + scenery.pictures +
-                                     Pickups.pictures(guards)).uniq.sort)
-
-    VBlank.game("PICKUP", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
+  def view_of(level, drawing: false) = super
 
   def walking_program(ahead, side: 16) = view_of(arena(ahead: ahead, side: side))
 

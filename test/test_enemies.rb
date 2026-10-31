@@ -24,8 +24,6 @@ class TestEnemies < Minitest::Test
   Release = Wolf3D::Fixture::Release
 
   SIDE = 24
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
 
   # The player stands here looking east, and everything put down for it to meet stands on this
   # row, further east — so how far a thing has got is a single number.
@@ -307,8 +305,6 @@ class TestEnemies < Minitest::Test
   SPRITES = Enemy::ALL.flat_map(&:pictures).max + 1 + Wolf3D::WeaponAtlas::COUNT
 
   def fixture = @fixture ||= Release.new(sprites: SPRITES)
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
 
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
@@ -378,7 +374,7 @@ class TestEnemies < Minitest::Test
       code = Enemy[:ss].standing + Guards::FACINGS.index(:west)
       level = with_things({ [12, ROW] => code,
                             [3, ROW] => Wolf3D::Scenery::FIRST_CODE + MACHINE_GUN_ON_THE_FLOOR })
-      program = build(level) { |b, view| b.game_loop { view.update } }
+      program = view_of(level) { |b, view| b.game_loop { view.update } }
       firing = ->(f) { f < WALKING_BACK_FOR ? [:down] : (f.even? ? [:b] : []) }
       play(firing, program, 500)
     end
@@ -417,7 +413,7 @@ class TestEnemies < Minitest::Test
     level = with_things({ [14, ROW] => code, [6, ROW] => Wolf3D::Scenery::FIRST_CODE + BARREL },
                         corridor: true)
     @corridors ||= {}
-    @corridors[name] ||= build(level) { |b, view| b.game_loop { view.play } }
+    @corridors[name] ||= view_of(level) { |b, view| b.game_loop { view.play } }
   end
 
   # A piece of scenery a body cannot walk through, read off the original's own list.
@@ -435,7 +431,7 @@ class TestEnemies < Minitest::Test
   def program_for(name, at, facing, count, tag = nil, &loop_body)
     @programs ||= {}
     @programs[[name, at, facing, count, tag, loop_body.source_location]] ||=
-      build(a_level_with(name, at, facing, count), &loop_body)
+      view_of(a_level_with(name, at, facing, count), &loop_body)
   end
 
   # One of them on the player's row, or several in a line — which the questions about what is
@@ -446,38 +442,11 @@ class TestEnemies < Minitest::Test
     with_things((0...count).to_h { |n| [[at + (n * 4), ROW], code] })
   end
 
-  def build(level, &loop_body)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette,
-                                    (guards.pictures + scenery.pictures +
-                                     Wolf3D::Pickups.pictures(guards)).uniq.sort)
-
-    VBlank.game("ENEMIES", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery)
-      loop_body.call(self, view)
-    end.program
-  end
-
   # A walled field with the player on ROW looking east, and whatever else you name. +corridor+
   # walls off every row but the player's, so nothing can walk round what is put in the way.
   def with_things(things, corridor: false)
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        edge = x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-        cells[(y * SIDE) + x] = WALL if edge || (corridor && y != ROW)
-      end
-    end
-    standing[(ROW * SIDE) + PLAYER_X] = Wolf3D::Level::FACINGS.key(:east)
-    things.each { |(x, y), code| standing[(y * SIDE) + x] = code }
-
-    Wolf3D::Level.new(name: "Enemies", width: SIDE, height: SIDE, walls: cells, things: standing)
+    rows = corridor ? (0...SIDE).to_a - [ROW] : []
+    arena(side: SIDE, player: [PLAYER_X, ROW], things: things,
+          walls: (0...SIDE).to_a.product(rows))
   end
 end

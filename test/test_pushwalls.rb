@@ -15,11 +15,7 @@ class TestPushwalls < Minitest::Test
   FP = Wolf3D::FirstPerson
 
   def setup
-    @fixture = Wolf3D::Fixture::Release.new
-    @level = Wolf3D::Maps.new(maphead: @fixture.files["MAPHEAD"],
-                              gamemaps: @fixture.files["GAMEMAPS"])[0]
-    @vswap = Wolf3D::Vswap.new(@fixture.files["VSWAP"])
-    @doors = Wolf3D::Doors.new(@level, @vswap)
+    @level = fixture_level
     @pushwalls = Wolf3D::Pushwalls.new(@level)
   end
 
@@ -27,19 +23,7 @@ class TestPushwalls < Minitest::Test
   # player is; none of it reads a pixel. Drawing costs about a hundred times what the game does,
   # so leaving it in means casting eighty rays a frame for two hundred frames to read a counter.
   # What the wall LOOKS like is a question of its own, and it is asked once, further down.
-  def program(drawing: false)
-    atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, @level, doors: @doors)
-    level = @level
-    doors = @doors
-    pushwalls = @pushwalls
-
-    VBlank.game("PUSH", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas,
-                                     doors: doors, pushwalls: pushwalls)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
+  def program(drawing: false) = view_of(@level, standing: false, drawing: drawing)
 
   def slot(run, list, index) = run.list(list)[index]
 
@@ -113,37 +97,16 @@ class TestPushwalls < Minitest::Test
   # Standing right in front of it: shut in, the wall fills the view. Once it has slid two cells
   # away, the same look down the same corridor shows it much smaller, and the cells it passed
   # through are seen straight past.
-  SIDE = 16
   WALL_AT = 12
   BESIDE_IT = 11
 
   # A corridor east with a secret wall across it and floor for it to slide into.
   def secret_corridor
-    cells = Array.new(SIDE * SIDE, Wolf3D::Level::FLOOR)
-    things = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        edge = x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-        cells[(y * SIDE) + x] = Wolf3D::Fixture::Release::WALL if edge || x == WALL_AT
-      end
-    end
-    things[(8 * SIDE) + WALL_AT] = Wolf3D::Level::PUSHWALL
-    things[(8 * SIDE) + BESIDE_IT] = Wolf3D::Level::FACINGS.key(:east)
-    Wolf3D::Level.new(name: "Secret", width: SIDE, height: SIDE, walls: cells, things: things)
+    arena(player: [BESIDE_IT, 8], walls: (0...SIDE).map { |y| [WALL_AT, y] },
+          things: { [WALL_AT, 8] => Wolf3D::Level::PUSHWALL })
   end
 
-  def secret_program(level)
-    doors = Wolf3D::Doors.new(level, @vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, level, doors: doors)
-
-    VBlank.game("PUSH", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas,
-                                     doors: doors, pushwalls: pushwalls)
-      game_loop { view.update }
-    end.program
-  end
+  def secret_program(level) = view_of(level, standing: false)
 
   # How far down the screen the wall ahead starts, at the middle of the view.
   def wall_top(run)

@@ -18,7 +18,6 @@ class TestMenus < Minitest::Test
   Floors = Wolf3D::Floors
   Names = Wolf3D::Vgagraph::WL6_NAMES
 
-  SIDE = 16
   ROW = Menus::ROW_STEP
 
   # Where the main menu's own pictures can be, which is under its heading plate: the plate is
@@ -439,9 +438,6 @@ class TestMenus < Minitest::Test
     found&.last
   end
 
-  def palette = Wolf3D::Palette.game
-
-
   # --- WALKING THE SCREENS ---------------------------------------------------------------------
 
   def play(frames:, program: self.class.program, &script)
@@ -485,6 +481,8 @@ class TestMenus < Minitest::Test
   # Kept per Ractor rather than on the class, because the suite runs in several and a worker may
   # not write to a class. Each worker that runs a test from this file builds them once.
   class << self
+    include Wolf3DTest::Field
+
     def release = Ractor.current[:menus_release] ||= Release.new(set: "WL6")
     def pictures = Ractor.current[:menus_pictures] ||= release.pictures
     def art = Ractor.current[:menus_art] ||= Wolf3D::MenuArt.of(pictures)
@@ -501,52 +499,20 @@ class TestMenus < Minitest::Test
       Ractor.current[:menus_on_the_credits] ||= cartridge(episodes: 1, starting_on: Menus::CREDITS)
     end
 
-    # A room with walls round it and the player in the middle. The menus care about none of
-    # this; a game has to be here for them to hand you into.
-    def arena
-      cells = Array.new(SIDE * SIDE, Wolf3D::Level::FLOOR)
-      SIDE.times do |y|
-        SIDE.times do |x|
-          cells[(y * SIDE) + x] = Release::WALL if [x, y].any? { |n| n.zero? || n == SIDE - 1 }
-        end
-      end
-      standing = Array.new(SIDE * SIDE, 0)
-      standing[(8 * SIDE) + 8] = Wolf3D::Level::FACINGS.key(:east)
-      Wolf3D::Level.new(name: "Arena", width: SIDE, height: SIDE, walls: cells, things: standing)
-    end
-
     # +episodes+ floors, one at the START of each episode — which is what makes the episode
     # list offer that many, since an episode is only offered when its first floor is here.
-    def floors_of(episodes)
+    def floors_for(episodes)
       level = arena
-      Floors.new(Array.new(episodes) do |n|
-        Floors::Floor.new(index: n * Floors::PER_EPISODE, level: level,
-                          doors: Wolf3D::Doors.new(level, vswap),
-                          pushwalls: Wolf3D::Pushwalls.new(level),
-                          lifts: Wolf3D::Elevator.new(level),
-                          guards: Wolf3D::Guards.new(level),
-                          scenery: Wolf3D::Scenery.new(level))
-      end)
+      Floors.new(Array.new(episodes) { |n| floor_of(level, index: n * Floors::PER_EPISODE) })
     end
 
     def cartridge(episodes:, starting_on: Menus::NOTICE)
-      floors = floors_of(episodes)
-      palette = Wolf3D::Palette.game
       menu_art = art
-      atlas = Wolf3D::WallAtlas.new(vswap, palette, floors.map(&:level),
-                                    doors: floors.map(&:doors), lifts: floors.map(&:lifts))
-      things = Wolf3D::ThingAtlas.new(vswap, palette,
-                                      floors.flat_map { |f| f.guards.pictures + f.scenery.pictures }
-                                            .uniq.sort)
-      VBlank.game("MENU", consoles: %i[gba]) do
-        screen :bitmap, tear_free: true
-        sound_on = var :sound_on, 1
-        view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
-                                       sound_on: sound_on)
-        menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art, palette: palette,
+      cartridge_of(floors_for(episodes), sound: 1) do |b, view, sound_on|
+        menus = Wolf3D::Menus.new(build: b, view: view, art: menu_art, palette: Wolf3D::Palette.game,
                                   sound_on: sound_on, starting_on: starting_on)
-        game_loop { menus.update }
-      end.program
+        b.game_loop { menus.update }
+      end
     end
   end
 end

@@ -232,24 +232,20 @@ class TestLastingState < Minitest::Test
   # handed to a save record, and test buttons to start a new game on the second floor, to save
   # and to load.
   def saving_cartridge
-    floors = two_floors
-    atlas, things = atlases_of(floors)
-    @saving_cartridge ||= VBlank.game("SAVED", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things)
-      game = save_data :game, copies: 1
+    @saving_cartridge ||= cartridge_of(two_floors) do |b, view|
+      game = b.save_data :game, copies: 1
       view.lasting.keep_in(game)
-      game_loop do
-        (held(:l) & held(:r)).then do
-          pressed(:a).then { view.playthrough.start(:new_game, floor: 1) }
-          pressed(:b).then { game[0].save }
-          pressed(:select).then do
+      b.game_loop do
+        (b.held(:l) & b.held(:r)).then do
+          b.pressed(:a).then { view.playthrough.start(:new_game, floor: 1) }
+          b.pressed(:b).then { game[0].save }
+          b.pressed(:select).then do
             game[0].load
             view.playthrough.start(:resume)
           end
         end.else { view.update }
       end
-    end.program
+    end
   end
 
   # WHAT A SAVE IS MEANT TO HOLD, read off everything the game declared: less its working room,
@@ -276,54 +272,25 @@ class TestLastingState < Minitest::Test
   # THE WHOLE GAME, wired the way the real cartridge wires it, with a save record that keeps what
   # its LastingState holds and the framework's check that nothing else is left out by accident.
   def whole_game
-    floors = two_floors
-    art = Wolf3D::MenuArt.of(release.pictures)
-    atlas, things = atlases_of(floors)
-    VBlank.game("SAVED", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      sound_on = var :sound_on, 1
-      view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
-                                     sound_on: sound_on)
-      menus = Wolf3D::Menus.new(build: self, view: view, art: art, palette: Wolf3D::Palette.game,
+    art = Wolf3D::MenuArt.of(fixture.pictures)
+    cartridge_of(two_floors, sound: 1) do |b, view, sound_on|
+      menus = Wolf3D::Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game,
                                 sound_on: sound_on)
-      view.lasting.keep_in(save_data(:game, copies: 1))
-      saves_keep_everything except: Wolf3D::LastingState::LEFT_OUT.keys
-      game_loop { menus.update }
-    end.program
+      view.lasting.keep_in(b.save_data(:game, copies: 1))
+      b.saves_keep_everything except: Wolf3D::LastingState::LEFT_OUT.keys
+      b.game_loop { menus.update }
+    end
   end
 
   # A release whose walls reach as far as the lift's lever, pulled and not, and which has the
   # menus' pictures.
-  def release
-    @release ||= Wolf3D::Fixture::Release.new(set: "WL6", walls: (Wolf3D::Elevator::PULLED * 2) + 2)
+  def fixture
+    @fixture ||= Wolf3D::Fixture::Release.new(set: "WL6", walls: (Wolf3D::Elevator::PULLED * 2) + 2)
   end
-
-  def vswap = @vswap ||= Wolf3D::Vswap.new(release.files["VSWAP"])
 
   # The floor with a lift and a way out, and then the fixture's floor: a door, a locked door and
   # its key, a wall that slides, and a guard.
-  def two_floors
-    @two_floors ||= Wolf3D::Floors.new(
-      [lift_floor, fixture_level].each_with_index.map do |level, n|
-        Wolf3D::Floors::Floor.new(index: n, level: level, doors: Wolf3D::Doors.new(level, vswap),
-                                  pushwalls: Wolf3D::Pushwalls.new(level),
-                                  lifts: Wolf3D::Elevator.new(level), guards: Wolf3D::Guards.new(level),
-                                  scenery: Wolf3D::Scenery.new(level))
-      end
-    )
-  end
-
-  def atlases_of(floors)
-    palette = Wolf3D::Palette.game
-    [Wolf3D::WallAtlas.new(vswap, palette, floors.map(&:level), doors: floors.map(&:doors),
-                                                                lifts: floors.map(&:lifts)),
-     Wolf3D::ThingAtlas.new(vswap, palette,
-                            floors.flat_map { |f| f.guards.pictures + f.scenery.pictures }.uniq.sort)]
-  end
-
-  def fixture_level
-    Wolf3D::Maps.new(maphead: release.files["MAPHEAD"], gamemaps: release.files["GAMEMAPS"])[0]
-  end
+  def two_floors = @two_floors ||= floors_of(lift_floor, fixture_level)
 
   # Every floor of a cartridge is the same size, so this one is the fixture's.
   GRID = Wolf3D::Fixture::Release::GRID
@@ -334,18 +301,15 @@ class TestLastingState < Minitest::Test
   # the way out on its floor, the player, and a guard: dying needs something that can kill you on
   # the floor a cartridge boots on.
   def lift_floor
-    cells = Array.new(GRID * GRID, Wolf3D::Fixture::Release::WALL)
-    things = Array.new(GRID * GRID, 0)
+    map = Array.new(GRID * GRID, WALL)
     at = ->(x, y) { (y * GRID) + x }
     (1..ROOM).each do |x|
-      (1..ROOM).each { |y| cells[at.call(x, y)] = Wolf3D::Level::FLOOR }
-      (ROOM + 2..(2 * ROOM) + 1).each { |y| cells[at.call(x, y)] = Wolf3D::Level::FLOOR + 1 }
+      (1..ROOM).each { |y| map[at.call(x, y)] = FLOOR }
+      (ROOM + 2..(2 * ROOM) + 1).each { |y| map[at.call(x, y)] = FLOOR + 1 }
     end
-    cells[at.call(3, ROOM + 1)] = Wolf3D::Level::DOORS.first
-    cells[at.call(ROOM + 1, 2)] = Wolf3D::Elevator::SWITCH
-    things[at.call(3, 2)] = Wolf3D::Level::FACINGS.key(:east)
-    things[at.call(1, 2)] = Wolf3D::Level::EXIT
-    things[at.call(5, 5)] = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
-    Wolf3D::Level.new(name: "Lift", width: GRID, height: GRID, walls: cells, things: things)
+    map[at.call(3, ROOM + 1)] = Wolf3D::Level::DOORS.first
+    map[at.call(ROOM + 1, 2)] = Wolf3D::Elevator::SWITCH
+    level_of(map, GRID, name: "Lift", player: [3, 2], guards: [[5, 5, :south]],
+                        things: { [1, 2] => Wolf3D::Level::EXIT })
   end
 end

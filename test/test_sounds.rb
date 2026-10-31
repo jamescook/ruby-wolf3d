@@ -22,9 +22,6 @@ class TestSounds < Minitest::Test
   Guards = Wolf3D::Guards
   Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
   RATE = 7000
   HALF_A_SECOND = RATE / 2
 
@@ -209,43 +206,11 @@ class TestSounds < Minitest::Test
 
   private
 
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-
   def name_of(chunk) = :"sound_#{chunk}"
   def sounding(run) = run.active_samples.uniq
 
-  def arena(guards: [])
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    standing[(8 * SIDE) + 8] = Wolf3D::Level::FACINGS.key(:east)
-    guards.each { |x, y, way| standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way) }
-    Wolf3D::Level.new(name: "Sounds", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
-
-  def view_of(level, chunks: Chunks.new(ALL), drawing: false, armed_with: nil, sound: nil)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette,
-                                    (guards.pictures + scenery.pictures +
-                                     Wolf3D::Pickups.pictures(guards)).uniq.sort)
-
-    VBlank.game("SOUND", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery, vswap: chunks,
-                    armed_with: armed_with, sound_on: sound && var(:sound_on, sound))
-      game_loop { drawing ? view.update : view.play }
-    end.program
+  def view_of(level, chunks: Chunks.new(ALL), drawing: false, **)
+    super(level, vswap: chunks, drawing: drawing, **)
   end
 
   # A GUN IS HEARD WHETHER OR NOT IT HITS, so nothing here needs drawing except the question about
@@ -269,13 +234,6 @@ class TestSounds < Minitest::Test
   def heard_during(frames, **opts, &script)
     (LOOK_EVERY..frames).step(LOOK_EVERY)
                         .flat_map { |n| play_it(frames: n, **opts, &script).active_samples }.uniq
-  end
-
-  # --- the fixture floor, which is the one with a door on it -----------------------
-
-  def fixture_level
-    @fixture_level ||= Wolf3D::Maps.new(maphead: fixture.files["MAPHEAD"],
-                                        gamemaps: fixture.files["GAMEMAPS"])[0]
   end
 
   def about_turn = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil

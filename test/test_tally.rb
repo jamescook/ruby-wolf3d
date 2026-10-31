@@ -17,13 +17,8 @@ class TestTally < Minitest::Test
 
   FP = Wolf3D::FirstPerson
   Scenery = Wolf3D::Scenery
-  Pickups = Wolf3D::Pickups
   Guards = Wolf3D::Guards
-  Release = Wolf3D::Fixture::Release
 
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
-  SIDE = 16
   ROW = SIDE / 2
   START = 4
 
@@ -35,49 +30,18 @@ class TestTally < Minitest::Test
 
   def cells(n) = ((n / FP::WALK).ceil + 4)
 
-  def vswap = @vswap ||= Wolf3D::Vswap.new(Wolf3D::Fixture::Release.new.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-  def code(index) = Scenery::FIRST_CODE + index
-
   # A walled field with the player on the left of the middle row facing east, whatever you name
   # laid out in front of them, and optionally a secret wall to lean on.
-  def arena(ahead: [], guards: [], secret: nil)
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    standing[(ROW * SIDE) + START] = Wolf3D::Level::FACINGS.key(:east)
-    ahead.each_with_index { |piece, n| standing[(ROW * SIDE) + START + 1 + n] = code(piece) }
-    guards.each { |x, y, way| standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way) }
-    if secret
-      cells[(ROW * SIDE) + secret] = WALL
-      standing[(ROW * SIDE) + secret] = Wolf3D::Level::PUSHWALL
-    end
-    Wolf3D::Level.new(name: "Tally", width: SIDE, height: SIDE, walls: cells, things: standing)
+  def arena(secret: nil, **)
+    wall = secret ? [[secret, ROW]] : []
+    super(player: [START, ROW], walls: wall,
+          things: wall.to_h { |cell| [cell, Wolf3D::Level::PUSHWALL] }, **)
   end
 
   # +drawn+ is what anything that SHOOTS needs, and only that: a shot goes to a man the renderer
   # put on the screen, so with nothing drawn nobody is ever on it and nothing can be shot. Walking
   # over a secret or a treasure needs none of it, and drawing costs about a hundred times playing.
-  def view_of(level, drawn: false)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette,
-                                    (guards.pictures + scenery.pictures +
-                                     Pickups.pictures(guards)).uniq.sort)
-    VBlank.game("TALLY", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery)
-      game_loop { drawn ? view.update : view.play }
-    end.program
-  end
+  def view_of(level, drawn: false) = super(level, drawing: drawn)
 
   def walk_east(level, cells:)
     Reference.new.input_each_frame { [:up] }.run(view_of(level), frames: cells(cells))

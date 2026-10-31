@@ -15,10 +15,6 @@ class TestScenery < Minitest::Test
   Guards = Wolf3D::Guards
   Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
-
   # The pieces this file uses, by the name the original gives them. The codes run in one order
   # from 23, so a piece is its place in that order.
   PUDDLE = Scenery::FIRST_CODE
@@ -304,47 +300,6 @@ class TestScenery < Minitest::Test
 
   def picture_of(code) = Scenery::FIRST_PICTURE + Scenery::PICTURES.fetch(code - Scenery::FIRST_CODE)
   def blocks?(code) = Scenery.new(arena(things: { [12, 8] => code })).blocks?(12, 8)
-
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-
-  # A walled field with a floor inside it, the player where you put them, and whatever else you
-  # name. The same arena the guards are tested in.
-  def arena(player: [8, 8], facing: :east, guards: [], walls: [], things: {})
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    walls.each { |x, y| cells[(y * SIDE) + x] = WALL }
-    standing[(player[1] * SIDE) + player[0]] = Wolf3D::Level::FACINGS.key(facing)
-    guards.each do |x, y, way|
-      standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way)
-    end
-    things.each { |(x, y), code| standing[(y * SIDE) + x] = code }
-
-    Wolf3D::Level.new(name: "Arena", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
-
-  def view_of(level, drawing: true)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
-
-    VBlank.game("SCENERY", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things,
-                                     scenery: scenery)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
 
   # Stand where the level says and look. Nothing moves, so two frames settle it.
   def look_at(**) = Reference.new.run(view_of(arena(**)), frames: 2)

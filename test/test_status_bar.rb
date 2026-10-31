@@ -16,9 +16,6 @@ class TestStatusBar < Minitest::Test
   Weapons = Wolf3D::Weapons
   Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
   GOLD_KEY = Wolf3D::Level::KEYS.key(:gold)
 
   def test_the_bar_takes_the_bottom_of_the_screen_and_the_view_takes_the_rest
@@ -423,41 +420,10 @@ class TestStatusBar < Minitest::Test
   def pictures = self.class.pictures
   def art = self.class.art
   def vswap = self.class.vswap
-  def palette = Wolf3D::Palette.game
   def ground = palette[Bar::GROUND]
   def font = VBlank::Graphics::Fonts.get(Bar::FONT)
 
-  def arena(player: [8, 8], facing: :east, guards: [], things: {})
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    standing[(player[1] * SIDE) + player[0]] = Wolf3D::Level::FACINGS.key(facing)
-    guards.each { |x, y, way| standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way) }
-    things.each { |(x, y), code| standing[(y * SIDE) + x] = code }
-
-    Wolf3D::Level.new(name: "Arena", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
-
-  def view_of(level, art: nil)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
-
-    VBlank.game("BAR", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things,
-                                     scenery: scenery, bar_art: art)
-      game_loop { view.update }
-    end.program
-  end
+  def view_of(level, art: nil) = super(level, bar_art: art)
 
   def look = Reference.new.run(view_of(arena), frames: 2)
 

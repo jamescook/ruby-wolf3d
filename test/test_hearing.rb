@@ -14,11 +14,7 @@ class TestHearing < Minitest::Test
   FP = Wolf3D::FirstPerson
   Guards = Wolf3D::Guards
   Weapons = Wolf3D::Weapons
-  Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
   AMBUSH = Wolf3D::Level::AMBUSH
 
   STANDING = Guards.state_number(:stand)
@@ -155,10 +151,6 @@ class TestHearing < Minitest::Test
 
   private
 
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-
   # Which pass a round leaves the barrel on, counting from the tap: the gun comes up for one
   # stage and fires at the end of the second. See Weapons.
   def shot_lands_on = (Weapons::STAGE_PASSES * 2) + 1
@@ -219,24 +211,10 @@ class TestHearing < Minitest::Test
   # A WALLED FIELD, all one room, with the player facing east and whatever you name standing in
   # it. +ambush+ marks the cells that are ambush tiles, which is a thing about the FLOOR rather
   # than about the man on it.
-  def arena(guards: [], ambush: [])
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    things = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    ambush.each { |x, y| cells[(y * SIDE) + x] = AMBUSH }
-    things[(PLAYER[1] * SIDE) + PLAYER[0]] = Wolf3D::Level::FACINGS.key(:east)
-    guards.each { |x, y, way| things[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way) }
+  def arena(ambush: [], **) = super(cells: ambush.to_h { |cell| [cell, AMBUSH] }, **)
 
-    Wolf3D::Level.new(name: "Hearing", width: SIDE, height: SIDE, walls: cells, things: things)
-  end
-
-  # TWO ROOMS SIDE BY SIDE with a wall between them, which is how the game says two places are
-  # different rooms: a floor cell's code is 107 plus the room it belongs to. A guard with his
-  # back turned in each, and the player facing straight down the archway at the far one.
+  # THE TWO ROOMS, with a guard with his back turned in each and the player facing straight down
+  # the archway at the far one.
   #
   # THE DOOR IS UP IN A CORNER AND SHUT, so the rooms are never joined. THE ARCHWAY is a hole in
   # the wall on the eye line — you can see through it and walk through it, and it joins nothing,
@@ -252,38 +230,13 @@ class TestHearing < Minitest::Test
   BEHIND_THE_WALL = [10, 11].freeze
 
   def two_rooms
-    cells = Array.new(SIDE * SIDE, WALL)
-    things = Array.new(SIDE * SIDE, 0)
-    (1..SIDE - 2).each do |y|
-      (1..6).each { |x| cells[(y * SIDE) + x] = FLOOR }
-      (8..SIDE - 2).each { |x| cells[(y * SIDE) + x] = FLOOR + 1 }
-    end
-    cells[(SHUT_DOOR[1] * SIDE) + SHUT_DOOR[0]] = Wolf3D::Level::DOORS.first
-    ARCHWAY.each { |y| cells[(y * SIDE) + 7] = FLOOR }
-
-    things[(8 * SIDE) + 3] = Wolf3D::Level::FACINGS.key(:east)
-    [IN_YOUR_ROOM, BEHIND_THE_WALL].each do |x, y|
-      things[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(:east)
-    end
-    Wolf3D::Level.new(name: "Two rooms", width: SIDE, height: SIDE, walls: cells, things: things)
+    super(door: SHUT_DOOR, openings: ARCHWAY.map { |y| [7, y] },
+          guards: [[*IN_YOUR_ROOM, :east], [*BEHIND_THE_WALL, :east]])
   end
 
   # +drawing+ off is the whole picture skipped, and that is load-bearing rather than a saving: a
   # guard is woken by being ON THE SCREEN, so a game that draws nothing can wake nobody, and what
   # is left to rouse him is what these tests are about. The one test that builds a cartridge
   # turns it on, because a screen that is never drawn never names the colours it would have used.
-  def game(level, drawing: false)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette, guards.pictures)
-
-    VBlank.game("NOISE", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors,
-                    pushwalls: pushwalls, guards: guards, things: things)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
+  def game(level, drawing: false) = view_of(level, drawing: drawing)
 end

@@ -10,30 +10,13 @@ class TestFirstPerson < Minitest::Test
   FP = Wolf3D::FirstPerson
 
   def setup
-    @level = Wolf3D::Maps.new(maphead: fixture.files["MAPHEAD"],
-                              gamemaps: fixture.files["GAMEMAPS"])[0]
+    @level = fixture_level
   end
-
-  def fixture = @fixture ||= Wolf3D::Fixture::Release.new
 
   # A view built from our own one-room level, so it needs nobody's copy of the game. On the
   # tear-free screen, which is the one the game itself draws on.
   def view_program
-    @view_program ||= build_the_view
-  end
-
-  def build_the_view
-    vswap = Wolf3D::Vswap.new(fixture.files["VSWAP"])
-    doors = Wolf3D::Doors.new(@level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(@level)
-    atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, @level, doors: doors)
-    level = @level
-
-    VBlank.game("VIEW", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
-      game_loop { view.update }
-    end.program
+    @view_program ||= view_of(@level, standing: false)
   end
 
   def test_the_atlas_holds_only_the_walls_the_level_builds_with

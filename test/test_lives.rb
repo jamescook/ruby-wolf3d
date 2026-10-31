@@ -150,21 +150,9 @@ class TestLives < Minitest::Test
   # THE ONE THAT HAS TO DRAW is the one that SHOOTS: a shot goes to a man the renderer put on the
   # screen, so with nothing drawn nobody is ever on it and nothing can be shot.
   def floor_program(restart_at:, drawn: false)
-    level = fixture_level
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Wolf3D::Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
-
-    VBlank.game("FLOOR", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things,
-                                     scenery: scenery)
-      passes = var :passes, 0
-      game_loop do
+    view_of(fixture_level) do |b, view|
+      passes = b.var :passes, 0
+      b.game_loop do
         drawn ? view.update : view.play
         passes.add! 1
         # Another life, asked for straight away, which is what a spent life asks for. Driving it
@@ -172,7 +160,7 @@ class TestLives < Minitest::Test
         # keeps these quick: a real death is several hundred frames away.
         (passes == restart_at).then { view.playthrough.start(:another_life) }
       end
-    end.program
+    end
   end
 
   # Play +script+ and take two readings: the pass before the floor is started again, and the pass
@@ -316,15 +304,6 @@ class TestLives < Minitest::Test
     Wolf3D::Floors.of(level: empty, doors: nil, pushwalls: nil)
   end
 
-  def fixture = @fixture ||= Wolf3D::Fixture::Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-
-  def fixture_level
-    @fixture_level ||= Wolf3D::Maps.new(maphead: fixture.files["MAPHEAD"],
-                                        gamemaps: fixture.files["GAMEMAPS"])[0]
-  end
-
   def guard_zero = Wolf3D::Guards.new(fixture_level).guards.first
 
   # The room's own door, the one the player can reach; the other is in the outer border.
@@ -359,39 +338,6 @@ class TestLives < Minitest::Test
   # of that.
   RING = [[9, 8, :west], [7, 8, :east], [8, 9, :north], [8, 7, :south],
           [9, 9, :west], [7, 7, :east]].freeze
-  SIDE = 16
 
-  def ringed_program
-    level = ringed_level
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Wolf3D::Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette, (guards.pictures + scenery.pictures).uniq.sort)
-
-    VBlank.game("RING", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things,
-                                     scenery: scenery)
-      game_loop { view.update }
-    end.program
-  end
-
-  def ringed_level
-    wall = Wolf3D::Fixture::Release::WALL
-    cells = Array.new(SIDE * SIDE, Wolf3D::Level::FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = wall if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    standing[(8 * SIDE) + 8] = Wolf3D::Level::FACINGS.key(:east)
-    RING.each do |x, y, way|
-      standing[(y * SIDE) + x] = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(way)
-    end
-    Wolf3D::Level.new(name: "Ring", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
+  def ringed_program = view_of(arena(guards: RING))
 end

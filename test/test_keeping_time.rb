@@ -28,52 +28,16 @@ class TestKeepingTime < Minitest::Test
 
   FP = Wolf3D::FirstPerson
   Guards = Wolf3D::Guards
-  Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
-  # A walled field with the player in it, facing east — so walking forward raises px and the
-  # wall down the east side is what eventually stops them.
-  def arena(player: [8, 8], facing: :east, guards: [])
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    standing[(player[1] * SIDE) + player[0]] = Wolf3D::Level::FACINGS.key(facing)
-    guards.each do |x, y, way|
-      standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way)
-    end
-
-    Wolf3D::Level.new(name: "Arena", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
-
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-
+  # The player starts facing east, so walking forward raises px and the wall down the east side
+  # is what eventually stops them.
+  #
   # The game with no picture at all, which is what every test here wants: they read where the
   # player got to, not what they saw on the way. Which way the world is paced is settled while
   # the game is BUILT, so it is handed to the view rather than to the run.
-  def game(level, pacing: :by_the_frame)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game, guards.pictures)
-
-    VBlank.game("TIME", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things,
-                                     pacing: pacing)
-      game_loop { view.play }
-    end.program
-  end
+  def game(level, pacing: :by_the_frame) = view_of(level, drawing: false, pacing: pacing)
 
   # Hold forward for +passes+ passes of the game loop, each of which answered for +late+ frames.
   def walk_forward(passes:, late: 1, pacing: :by_the_frame, **arena_args)

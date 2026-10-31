@@ -28,8 +28,6 @@ class TestBosses < Minitest::Test
   Release = Wolf3D::Fixture::Release
 
   SIDE = 24
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
   ROW = 12
   PLAYER_X = 4
 
@@ -300,25 +298,7 @@ class TestBosses < Minitest::Test
   # ONE BOSS DOWN THE ROOM, facing you.
   def a_floor_with_a_boss(at:)
     @programs ||= {}
-    @programs[at] ||= program_of(with_things({ [at, ROW] => Enemy[:hans].standing }))
-  end
-
-  def program_of(level)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette,
-                                    (guards.pictures + scenery.pictures +
-                                     Wolf3D::Pickups.pictures(guards)).uniq.sort)
-
-    VBlank.game("BOSSES", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery)
-      game_loop { view.update }
-    end.program
+    @programs[at] ||= view_of(with_things({ [at, ROW] => Enemy[:hans].standing }))
   end
 
   # Stand and empty the pistol into him. +then_walk+ walks forward afterwards, over whatever he
@@ -331,8 +311,6 @@ class TestBosses < Minitest::Test
   SPRITES = Enemy::ALL.flat_map(&:pictures).max + 1 + Wolf3D::WeaponAtlas::COUNT
 
   def fixture = @fixture ||= Release.new(sprites: SPRITES)
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
 
   def pool_field(run, field, slot = 0)
     run.pool(:guard, field)[slot]
@@ -349,17 +327,5 @@ class TestBosses < Minitest::Test
   def where(run) = pool_field(run, :x, nearest(run)) / ONE
   def dropped(run) = live_slots(run).map { |slot| pool_field(run, :dropped, slot) }
 
-  def with_things(things)
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    standing[(ROW * SIDE) + PLAYER_X] = Wolf3D::Level::FACINGS.key(:east)
-    things.each { |(x, y), code| standing[(y * SIDE) + x] = code }
-
-    Wolf3D::Level.new(name: "Bosses", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
+  def with_things(things) = arena(side: SIDE, player: [PLAYER_X, ROW], things: things)
 end

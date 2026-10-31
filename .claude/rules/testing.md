@@ -223,10 +223,19 @@ with a comment saying it has moved before and to re-measure it rather than suspe
 
 ## Building the program under test
 
-- **A cartridge of its own**, for a test about one part: `VBlank.game("VIEW", consoles: %i[gba])
-  { … }.program`, constructing that part inside the block over a fixture level. This is the
-  common shape — see `test_first_person.rb#build_the_view`. Memoize it; building is the slow
+- **The view over a floor of its own**, for nearly every test of how the game plays: the helpers
+  in `test/support/field.rb`, which `Wolf3DTest` includes. `arena(guards: [[11, 8, :west]])` is a
+  walled field with what you name standing in it, `two_rooms` is two rooms joined only by a door,
+  and `view_of(level)` is the whole view over one floor, ready for `Reference`. `drawing: false`
+  skips the picture, `standing: false` leaves out guards and scenery, any other keyword goes to
+  `FirstPerson`, and a block writes the game loop itself. `cartridge_of(floors)` is the same over
+  several floors. A file says what is particular to it by defining its own `arena`, `view_of` or
+  `fixture` and calling `super`. See `test_hearing.rb`. Memoize a program; building is the slow
   part of these tests, not running them.
+
+- **A cartridge of its own**, for a test about one part that needs no view:
+  `VBlank.game("LIVES", consoles: %i[gba]) { … }.program`, constructing that part inside the
+  block. See `test_lives.rb`.
 
 - **The real game**, for the two tests that check the whole wiring:
   `a_small_cartridge`. It passes `StringIO` for both streams so the build's report does not

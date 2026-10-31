@@ -17,11 +17,6 @@ class TestDifficulty < Minitest::Test
 
   FP = Wolf3D::FirstPerson
   Guards = Wolf3D::Guards
-  Release = Wolf3D::Fixture::Release
-
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
 
   # THREE GUARDS, ONE FROM EACH BLOCK, standing in a row so which of them stood up is a list of
   # places rather than a count. The one at 10 is on every game, the one at 12 from the middle
@@ -120,10 +115,6 @@ class TestDifficulty < Minitest::Test
 
   private
 
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # HOW LONG TO PLAY BEFORE READING, for the program that walks the four settings in turn: far
@@ -164,38 +155,5 @@ class TestDifficulty < Minitest::Test
       b.game_loop { view.play }
     end
     FP::START_HEALTH - Reference.new.run(program, frames: 400)[:health]
-  end
-
-  # A GAME OF ONE FLOOR, with the loop left to the caller so a test can set the difficulty and
-  # start the floor over. Nothing is drawn: every question here is about who is standing on the
-  # floor and what they have done to you, and drawing costs about a hundred times playing.
-  def view_of(level, &loop_body)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette, guards.pictures)
-
-    VBlank.game("HOWTOUGH", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things)
-      loop_body.call(self, view)
-    end.program
-  end
-
-  def arena(player: [8, 8], facing: :east, guards: [], things: {})
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    standing[(player[1] * SIDE) + player[0]] = Wolf3D::Level::FACINGS.key(facing)
-    guards.each { |x, y, way| standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way) }
-    things.each { |(x, y), code| standing[(y * SIDE) + x] = code }
-
-    Wolf3D::Level.new(name: "Arena", width: SIDE, height: SIDE, walls: cells, things: standing)
   end
 end

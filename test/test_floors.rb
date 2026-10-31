@@ -16,19 +16,13 @@ class TestFloors < Minitest::Test
   EL = Wolf3D::Elevator
   Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
-
   WALLS = (EL::PULLED * 2) + 2
 
   # The cross, in the original's own list of pieces. Scenery::BONUSES says what it is worth.
   CROSS = 29
   GOLD_KEY = Wolf3D::Scenery::GOLD_KEY
 
-  def setup
-    @vswap = Wolf3D::Vswap.new(Release.new(walls: WALLS).files["VSWAP"])
-  end
+  def fixture = @fixture ||= Release.new(walls: WALLS)
 
   # A room with a lift, and the player standing in the car facing east at the lever. +start+ says
   # where the player stands, so two floors can be told apart by where you arrive.
@@ -41,30 +35,21 @@ class TestFloors < Minitest::Test
   # +harder+ adds that many guards who turn up only on the hardest setting.
   def a_floor(name:, start_x:, start_y:, secret_car: false, lift: true, door_at: nil,
               in_the_car: nil, guards: 0, harder: 0, crosses: 0, secrets: 0)
-    cells = Array.new(SIDE * SIDE, FLOOR + 1)
-    things = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        edge = x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-        cells[(y * SIDE) + x] = WALL if edge
-      end
-    end
+    cells = {}
     if lift
-      cells[(start_y * SIDE) + start_x + 1] = EL::SWITCH
-      cells[(start_y * SIDE) + start_x] = secret_car ? EL::SECRET_CAR : FLOOR + 1
+      cells[[start_x + 1, start_y]] = EL::SWITCH
+      cells[[start_x, start_y]] = secret_car ? EL::SECRET_CAR : FLOOR + 1
     end
-    cells[(door_at[1] * SIDE) + door_at[0]] = Wolf3D::Level::DOORS.first if door_at
-    player = in_the_car ? start_x - 1 : start_x
-    things[(start_y * SIDE) + player] = Wolf3D::Level::FACINGS.key(:east)
-    things[(start_y * SIDE) + start_x] = Wolf3D::Scenery::FIRST_CODE + in_the_car if in_the_car
-    guards.times { |n| things[(13 * SIDE) + 2 + (2 * n)] = FACING_THE_WALL }
-    harder.times { |n| things[(13 * SIDE) + 2 + (2 * (guards + n))] = ONLY_ON_HARD }
-    crosses.times { |n| things[(11 * SIDE) + 2 + (2 * n)] = Wolf3D::Scenery::FIRST_CODE + CROSS }
-    secrets.times do |n|
-      cells[(14 * SIDE) + 9 + (2 * n)] = WALL
-      things[(14 * SIDE) + 9 + (2 * n)] = Wolf3D::Level::PUSHWALL
-    end
-    Wolf3D::Level.new(name: name, width: SIDE, height: SIDE, walls: cells, things: things)
+    cells[door_at] = Wolf3D::Level::DOORS.first if door_at
+    things = {}
+    things[[start_x, start_y]] = Wolf3D::Scenery::FIRST_CODE + in_the_car if in_the_car
+    guards.times { |n| things[[2 + (2 * n), 13]] = FACING_THE_WALL }
+    harder.times { |n| things[[2 + (2 * (guards + n)), 13]] = ONLY_ON_HARD }
+    crosses.times { |n| things[[2 + (2 * n), 11]] = Wolf3D::Scenery::FIRST_CODE + CROSS }
+    sliding = Array.new(secrets) { |n| [9 + (2 * n), 14] }
+    sliding.each { |cell| things[cell] = Wolf3D::Level::PUSHWALL }
+    arena(name: name, floor: FLOOR + 1, player: [in_the_car ? start_x - 1 : start_x, start_y],
+          walls: sliding, cells: cells, things: things)
   end
 
   FACING_THE_WALL = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
@@ -73,39 +58,9 @@ class TestFloors < Minitest::Test
 
   # +standing+ reads each floor's guards and scenery too, which most of these leave out: a floor
   # with nobody on it is a quicker game to play, and the lift does not care.
-  def floors_of(*levels, standing: false)
-    Wolf3D::Floors.new(levels.each_with_index.map do |level, index|
-      Wolf3D::Floors::Floor.new(index: index, level: level,
-                                doors: Wolf3D::Doors.new(level, @vswap),
-                                pushwalls: Wolf3D::Pushwalls.new(level),
-                                lifts: EL.new(level),
-                                guards: (Wolf3D::Guards.new(level) if standing),
-                                scenery: (Wolf3D::Scenery.new(level) if standing))
-    end)
-  end
+  def floors_of(*levels, standing: false) = super
 
-  def program(floors, drawing: false)
-    atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, floors.map(&:level),
-                                  doors: floors.map(&:doors), lifts: floors.map(&:lifts))
-    things = things_of(floors)
-    VBlank.game("FLOORS", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, floors: floors, atlas: atlas, things: things)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
-
-  # The pictures of whatever stands on the floors, or nothing where nothing does.
-  def things_of(floors)
-    standing = floors.select(&:guards)
-    return nil if standing.empty?
-
-    Wolf3D::ThingAtlas.new(@vswap, Wolf3D::Palette.game,
-                           standing.flat_map { |floor|
-                             floor.guards.pictures + floor.scenery.pictures +
-                               Wolf3D::Pickups.pictures(floor.guards)
-                           }.uniq.sort)
-  end
+  def program(floors, drawing: false) = cartridge_of(floors, drawing: drawing)
 
   # Pull the lever and run on long enough for the lift to arrive.
   def take_the_lift(floors, frames: FP::LIFT_WAIT + 10, press: 2)

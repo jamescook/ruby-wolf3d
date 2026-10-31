@@ -3,8 +3,11 @@
 require "minitest/autorun"
 require "minitest/ractor"
 require_relative "../lib/wolf3d"
+require_relative "support/field"
 
 module Wolf3DTest
+  include Field
+
   # THE FRAMEWORK'S NAMES, SAID ONCE. Each of these lives a module or two down in VBlank, and
   # a test that spelled the whole path every time would wrap at every call. Naming them here
   # also means the next time the framework moves one, one line moves with it.

@@ -21,9 +21,6 @@ class TestGuards < Minitest::Test
   Release = Wolf3D::Fixture::Release
 
   # A small field, so a ray meets its edge quickly and the tests stay quick with it.
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
 
   # WHERE TO LOOK FOR A GUARD, and there is only one row that always works. A guard is drawn in
   # a square the size of a wall at his distance, and the fixture fills the middle band of that
@@ -483,46 +480,7 @@ class TestGuards < Minitest::Test
 
   private
 
-  def fixture = @fixture ||= Release.new
   def opposite(facing) = { east: :west, west: :east, north: :south, south: :north }.fetch(facing)
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
-
-  # A LEVEL MADE FOR ONE QUESTION: a walled field with a floor inside it, the player where you
-  # put them, and whatever else you name. Built straight rather than written out as a release
-  # and read back, because what each of these tests needs is one exact arrangement.
-  def arena(player: [8, 8], facing: :east, guards: [], walls: [], things: {})
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    walls.each { |x, y| cells[(y * SIDE) + x] = WALL }
-    standing[(player[1] * SIDE) + player[0]] = Wolf3D::Level::FACINGS.key(facing)
-    guards.each do |x, y, way|
-      standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way)
-    end
-    things.each { |(x, y), code| standing[(y * SIDE) + x] = code }
-
-    Wolf3D::Level.new(name: "Arena", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
-
-  def view_of(level, drawing: true)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette, guards.pictures)
-
-    VBlank.game("GUARDS", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, guards: guards, things: things)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
 
   # Run the game without drawing it, for the tests that watch what a guard does rather than
   # what he looks like.

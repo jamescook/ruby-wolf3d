@@ -15,10 +15,6 @@ class TestWeapons < Minitest::Test
   Pickups = Wolf3D::Pickups
   Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Release::FIRST_FLOOR
-  WALL = Release::WALL
-
   # Where the level lays them down, as Wolfenstein numbers the things standing in a room.
   MACHINE_GUN = 27
   CHAIN_GUN = 28
@@ -224,9 +220,6 @@ class TestWeapons < Minitest::Test
 
   private
 
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
-  def palette = Wolf3D::Palette.game
   def atlas = @atlas ||= Atlas.new(vswap, palette)
 
   # The flat colour the fixture gave one of the twenty pictures: which weapon, and which of its
@@ -312,46 +305,14 @@ class TestWeapons < Minitest::Test
 
   # A WALLED FIELD with the player on the left of the middle row facing east, and whatever you
   # name laid out on the cells in front of them.
-  def arena(ahead: [], guards: [])
-    cells = Array.new(SIDE * SIDE, FLOOR)
-    standing = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        cells[(y * SIDE) + x] = WALL if x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-      end
-    end
-    row = SIDE / 2
-    standing[(row * SIDE) + 4] = Wolf3D::Level::FACINGS.key(:east)
-    ahead.each_with_index { |piece, n| standing[(row * SIDE) + 5 + n] = Scenery::FIRST_CODE + piece }
-    guards.each { |x, y, way| standing[(y * SIDE) + x] = Guards::STANDING + Guards::FACINGS.index(way) }
-
-    Wolf3D::Level.new(name: "Weapons", width: SIDE, height: SIDE, walls: cells, things: standing)
-  end
+  def arena(**) = super(player: [4, SIDE / 2], **)
 
   # Built once for each shape of level, since building one takes far longer than running it.
   # +drawing+ off is the whole view skipped, which every test that reads a variable rather than a
   # pixel can have for nothing.
   def program(ahead: [], guards: [], drawing: false)
     @programs ||= {}
-    @programs[[ahead, guards, drawing]] ||= build(arena(ahead: ahead, guards: guards), drawing)
-  end
-
-  def build(level, drawing)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Scenery.new(level)
-    walls = Wolf3D::WallAtlas.new(vswap, palette, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, palette,
-                                    (guards.pictures + scenery.pictures +
-                                     Pickups.pictures(guards)).uniq.sort)
-    guns = atlas
-
-    VBlank.game("WEAPON", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: walls, doors: doors, pushwalls: pushwalls,
-                    guards: guards, things: things, scenery: scenery, gun_art: guns)
-      game_loop { drawing ? view.update : view.play }
-    end.program
+    @programs[[ahead, guards, drawing]] ||= view_of(arena(ahead: ahead, guards: guards),
+                                                    drawing: drawing, gun_art: atlas)
   end
 end

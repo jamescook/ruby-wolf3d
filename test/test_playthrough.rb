@@ -279,8 +279,6 @@ class TestPlaythrough < Minitest::Test
     one.flat_map { |part, values| values.keys.reject { |name| values[name] == other[part][name] } }
   end
 
-  FP = Wolf3D::FirstPerson
-
   # EVERYTHING THE GAME DECLARED, as the framework reads it: every variable, list and pool, and
   # whatever is declared after this test was written.
   def state_of(run) = run.game_state
@@ -295,70 +293,30 @@ class TestPlaythrough < Minitest::Test
   # loop plays and draws the floor, or with +only_new_game+ does nothing but begin a new game on A.
   def program_of(level, only_new_game: false)
     @programs ||= {}
-    @programs[[level.name, only_new_game]] ||= begin
-      doors = Wolf3D::Doors.new(level, vswap)
-      lifts = Wolf3D::Elevator.new(level)
-      guards = Wolf3D::Guards.new(level)
-      scenery = Wolf3D::Scenery.new(level)
-      atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors, lifts: lifts)
-      things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
-                                      (guards.pictures + scenery.pictures).uniq.sort)
-      VBlank.game("VIEW", consoles: %i[gba]) do
-        screen :bitmap, tear_free: true
-        view = FP.new(build: self, level: level, atlas: atlas, doors: doors, lifts: lifts,
-                      pushwalls: Wolf3D::Pushwalls.new(level), guards: guards, things: things,
-                      scenery: scenery)
-        game_loop do
-          if only_new_game
-            pressed(:a).then { view.playthrough.start(:new_game, floor: 0) }
-          else
-            view.update
-          end
+    @programs[[level.name, only_new_game]] ||= view_of(level) do |b, view|
+      b.game_loop do
+        if only_new_game
+          b.pressed(:a).then { view.playthrough.start(:new_game, floor: 0) }
+        else
+          view.update
         end
-      end.program
+      end
     end
   end
 
   # The player stands facing east, and the way out is the cell behind them.
   START_X = 4
-  ROW = 4
-  SIDE = 16
   WON_BY = 20 # passes of walking backwards, which is further than one cell
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # A release whose walls reach as far as the lift's lever, pulled and not.
   def fixture = @fixture ||= Wolf3D::Fixture::Release.new(walls: (Wolf3D::Elevator::PULLED * 2) + 2)
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
 
-  def fixture_level
-    @fixture_level ||= Wolf3D::Maps.new(maphead: fixture.files["MAPHEAD"],
-                                        gamemaps: fixture.files["GAMEMAPS"])[0]
-  end
-
-  # A room with the way out behind the player and a lift's lever in the far wall, and a guard shut
-  # in a room of his own below it. The guard is there because a game needs something that can kill
-  # you before it counts lives at all, and it is the count of lives that answers START.
-  def way_out_level
-    @way_out_level ||= begin
-      cells = Array.new(SIDE * SIDE, Wolf3D::Level::FLOOR)
-      things = Array.new(SIDE * SIDE, 0)
-      SIDE.times do |y|
-        SIDE.times do |x|
-          wall = x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1 || y == SIDE / 2
-          cells[(y * SIDE) + x] = Wolf3D::Fixture::Release::WALL if wall
-        end
-      end
-      cells[(2 * SIDE) + SIDE - 1] = Wolf3D::Elevator::SWITCH
-      things[(ROW * SIDE) + START_X] = Wolf3D::Level::FACINGS.key(:east)
-      things[(ROW * SIDE) + START_X - 1] = Wolf3D::Level::EXIT
-      things[(12 * SIDE) + 10] = Wolf3D::Guards::STANDING + Wolf3D::Guards::FACINGS.index(:south)
-      Wolf3D::Level.new(name: "Way out", width: SIDE, height: SIDE, walls: cells, things: things)
-    end
-  end
+  def way_out_level = @way_out_level ||= super(lever: true)
 
   # The error building a cartridge raises when +asking+ is what it asks of the playthrough.
   def refused(count: 1, &asking)
-    floors = floors_of(count)
+    floors = empty_floors(count)
     assert_raises(ArgumentError) do
       VBlank.game("PLAY", consoles: %i[gba]) do
         screen :bitmap
@@ -395,7 +353,7 @@ class TestPlaythrough < Minitest::Test
   end
 
   def counting_program(count, on, from, tens)
-    floors = floors_of(count, from: from, tens: tens)
+    floors = empty_floors(count, from: from, tens: tens)
     @counting_programs ||= {}
     @counting_programs[[count, on, from, tens]] ||= VBlank.game("PLAY", consoles: %i[gba]) do
       screen :bitmap
@@ -417,7 +375,7 @@ class TestPlaythrough < Minitest::Test
   # +count+ floors with nothing on them, the release's maps from +from+ on. The playthrough asks a
   # cartridge's floors only how many there are and which map of the release each one is, so an
   # empty room will do for every one.
-  def floors_of(count, from: 0, tens: true)
+  def empty_floors(count, from: 0, tens: true)
     Wolf3D::Floors.new(Array.new(count) do |n|
       Wolf3D::Floors::Floor.new(index: from + n, level: empty, doors: nil, pushwalls: nil,
                                 lifts: nil, guards: nil, scenery: nil)

@@ -13,7 +13,6 @@ class TestElevator < Minitest::Test
   FP = Wolf3D::FirstPerson
   EL = Wolf3D::Elevator
 
-  SIDE = 16
   # The car, and the lever on the wall to its east — which is the only side of a car you can
   # actually use a lever on. See the facing test below.
   CAR_X = 8
@@ -25,42 +24,18 @@ class TestElevator < Minitest::Test
   # high.
   WALLS = (EL::PULLED * 2) + 2
 
-  def setup
-    @fixture = Wolf3D::Fixture::Release.new(walls: WALLS)
-    @vswap = Wolf3D::Vswap.new(@fixture.files["VSWAP"])
-  end
+  def fixture = @fixture ||= Wolf3D::Fixture::Release.new(walls: WALLS)
 
   # A room with a lift car in it, a lever on the car's east wall, and the player standing in the
   # car looking east at the lever. +secret+ puts the car on the code the original reserves for
   # the lift that goes somewhere other than the next floor.
   def room_with_a_lift(secret: false, facing: :east)
-    cells = Array.new(SIDE * SIDE, Wolf3D::Level::FLOOR + 1)
-    things = Array.new(SIDE * SIDE, 0)
-    SIDE.times do |y|
-      SIDE.times do |x|
-        edge = x.zero? || y.zero? || x == SIDE - 1 || y == SIDE - 1
-        cells[(y * SIDE) + x] = Wolf3D::Fixture::Release::WALL if edge
-      end
-    end
-    cells[(CAR_Y * SIDE) + LEVER_X] = EL::SWITCH
-    cells[(CAR_Y * SIDE) + CAR_X] = secret ? EL::SECRET_CAR : Wolf3D::Level::FLOOR + 1
-    things[(CAR_Y * SIDE) + CAR_X] = Wolf3D::Level::FACINGS.key(facing)
-    Wolf3D::Level.new(name: "Lift", width: SIDE, height: SIDE, walls: cells, things: things)
+    arena(floor: FLOOR + 1, player: [CAR_X, CAR_Y], facing: facing,
+          cells: { [LEVER_X, CAR_Y] => EL::SWITCH,
+                   [CAR_X, CAR_Y] => secret ? EL::SECRET_CAR : FLOOR + 1 })
   end
 
-  def program(level, drawing: true)
-    doors = Wolf3D::Doors.new(level, @vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    lifts = Wolf3D::Elevator.new(level)
-    atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, level, doors: doors, lifts: lifts)
-
-    VBlank.game("LIFT", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors,
-                                     pushwalls: pushwalls, lifts: lifts)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
+  def program(level, drawing: true) = view_of(level, standing: false, drawing: drawing)
 
   # Press the use button on frame +press+ and run on for +frames+.
   def pull(level, frames:, press: 2, drawing: false)

@@ -18,9 +18,6 @@ class TestRooms < Minitest::Test
   Rooms = Wolf3D::Rooms
   Release = Wolf3D::Fixture::Release
 
-  SIDE = 16
-  FLOOR = Wolf3D::Level::FLOOR
-  WALL = Release::WALL
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # Long enough for a patrolling guard to have gone somewhere.
@@ -31,55 +28,19 @@ class TestRooms < Minitest::Test
   ARCHWAY = [7, 8].freeze
   FAR_DOOR = [7, 3].freeze
 
-  # TWO ROOMS SIDE BY SIDE with a wall between them, and the wall has a door in it. The rooms
-  # carry different floor codes, which is how the game says they are different rooms: a floor
-  # cell's code is 107 plus the room it belongs to.
+  # THE TWO ROOMS, with a door in the wall between them.
   #
   # +archway+ knocks a hole in the wall that is NOT a door. You can walk through it and see
   # through it, and the two rooms are still not joined — rooms are joined by doors and by nothing
   # else. That is the case the "he has been seen" half exists for.
-  def two_rooms(player: [3, 8], guards: [], archway: nil, door: [7, 8], scenery: {})
-    cells = Array.new(SIDE * SIDE, WALL)
-    things = Array.new(SIDE * SIDE, 0)
-    (1..SIDE - 2).each do |y|
-      (1..6).each { |x| cells[(y * SIDE) + x] = FLOOR }
-      (8..SIDE - 2).each { |x| cells[(y * SIDE) + x] = FLOOR + 1 }
-    end
-    cells[(door[1] * SIDE) + door[0]] = Wolf3D::Level::DOORS.first if door
-    # An archway belongs to the room the player is in, so the far room stays a room of its own.
-    cells[(archway[1] * SIDE) + archway[0]] = FLOOR if archway
-
-    things[(player[1] * SIDE) + player[0]] = Wolf3D::Level::FACINGS.key(:east)
-    guards.each do |x, y, way|
-      things[(y * SIDE) + x] = Guards::PATROLLING + Guards::FACINGS.index(way)
-    end
-    scenery.each { |(x, y), code| things[(y * SIDE) + x] = code }
-
-    Wolf3D::Level.new(name: "Two rooms", width: SIDE, height: SIDE, walls: cells, things: things)
+  def two_rooms(guards: [], archway: nil, scenery: {}, **)
+    super(patrols: guards, openings: [archway].compact, things: scenery, **)
   end
-
-  def fixture = @fixture ||= Release.new
-  def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
 
   # +drawing+ decides whether the picture is made at all, and it is the whole of what separates
   # the two halves: a guard is only ever woken by being drawn, so a game that draws nothing can
   # wake nobody and shows the room rule on its own.
-  def game(level, drawing: false)
-    doors = Wolf3D::Doors.new(level, vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    guards = Guards.new(level)
-    scenery = Wolf3D::Scenery.new(level)
-    atlas = Wolf3D::WallAtlas.new(vswap, Wolf3D::Palette.game, level, doors: doors)
-    things = Wolf3D::ThingAtlas.new(vswap, Wolf3D::Palette.game,
-                                    (guards.pictures + scenery.pictures).uniq.sort)
-
-    VBlank.game("ROOMS", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, scenery: scenery,
-                    pushwalls: pushwalls, guards: guards, things: things)
-      game_loop { drawing ? view.update : view.play }
-    end.program
-  end
+  def game(level, drawing: false) = view_of(level, drawing: drawing)
 
   # Which strips across the eye line are showing a piece of scenery's own flat colour. The
   # fixture paints each picture one flat colour of its own, so this is "is it on the screen".

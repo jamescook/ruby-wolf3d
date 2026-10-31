@@ -14,12 +14,8 @@ class TestDoors < Minitest::Test
   FP = Wolf3D::FirstPerson
 
   def setup
-    @fixture = Wolf3D::Fixture::Release.new
-    @level = Wolf3D::Maps.new(maphead: @fixture.files["MAPHEAD"],
-                              gamemaps: @fixture.files["GAMEMAPS"])[0]
-    @vswap = Wolf3D::Vswap.new(@fixture.files["VSWAP"])
-    @doors = Wolf3D::Doors.new(@level, @vswap)
-    @pushwalls = Wolf3D::Pushwalls.new(@level)
+    @level = fixture_level
+    @doors = Wolf3D::Doors.new(@level, vswap)
   end
 
   # The room's own door, the one the player can reach. The other is in the outer border.
@@ -29,18 +25,7 @@ class TestDoors < Minitest::Test
   # ask how far a door has slid and where the player got to; not one of them reads a pixel. The
   # drawing costs about a hundred times what the game does, so running it would mean walking a
   # player across a room eighty rays at a time to look at a variable.
-  def program
-    atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, @level, doors: @doors)
-    level = @level
-    doors = @doors
-    pushwalls = @pushwalls
-
-    VBlank.game("DOORS", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = Wolf3D::FirstPerson.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
-      game_loop { view.play }
-    end.program
-  end
+  def program = view_of(@level, standing: false, drawing: false)
 
   # Half a turn, so the player faces the door in the room's south wall.
   def about_turn = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil
@@ -77,9 +62,9 @@ class TestDoors < Minitest::Test
 
   def test_a_doors_picture_is_one_of_the_last_eight_walls
     door = @doors.doors.fetch(room_door)
-    first = @vswap.wall_count - Wolf3D::Doors::DOOR_PICTURES
+    first = vswap.wall_count - Wolf3D::Doors::DOOR_PICTURES
 
-    assert_includes (first...@vswap.wall_count), @doors.picture_for(door)
+    assert_includes (first...vswap.wall_count), @doors.picture_for(door)
   end
 
   # --- what a door does ---
@@ -201,39 +186,18 @@ class TestDoors < Minitest::Test
   #
   # Due east has no such problem: the sideways step is exactly zero, so the player stands in the
   # doorway however long the door takes and however fast the cartridge happens to run.
-  CORRIDOR = 16       # a small field, so a ray meets its edge quickly
-  DOOR_AT = 12        # ...with a wall across it here, and a door in that wall
+  DOOR_AT = 12        # a small field with a wall across it here, and a door in that wall
   START_AT = 8
   CONSOLE_FRAMES = 300
 
   # A corridor running east with a door across it. The even door code is the panel that runs
   # north-south, which is the one you walk through going east.
   def corridor(start: START_AT)
-    side = CORRIDOR
-    cells = Array.new(side * side, Wolf3D::Level::FLOOR)
-    things = Array.new(side * side, 0)
-    side.times do |y|
-      side.times do |x|
-        edge = x.zero? || y.zero? || x == side - 1 || y == side - 1
-        cells[(y * side) + x] = Wolf3D::Fixture::Release::WALL if edge || x == DOOR_AT
-      end
-    end
-    cells[(START_AT * side) + DOOR_AT] = Wolf3D::Level::DOORS.first
-    things[(START_AT * side) + start] = Wolf3D::Level::FACINGS.key(:east)
-    Wolf3D::Level.new(name: "Corridor", width: side, height: side, walls: cells, things: things)
+    arena(player: [start, START_AT], walls: (0...SIDE).map { |y| [DOOR_AT, y] },
+          cells: { [DOOR_AT, START_AT] => Wolf3D::Level::DOORS.first })
   end
 
-  def corridor_program(level)
-    doors = Wolf3D::Doors.new(level, @vswap)
-    pushwalls = Wolf3D::Pushwalls.new(level)
-    atlas = Wolf3D::WallAtlas.new(@vswap, Wolf3D::Palette.game, level, doors: doors)
-
-    VBlank.game("DOORS", consoles: %i[gba]) do
-      screen :bitmap, tear_free: true
-      view = FP.new(build: self, level: level, atlas: atlas, doors: doors, pushwalls: pushwalls)
-      game_loop { view.update }
-    end.program
-  end
+  def corridor_program(level) = view_of(level, standing: false)
 
   # A DOOR IS SOMETHING YOU SEE, not only something you walk through, and the ray that meets one
   # does the most delicate thing in this renderer. A panel stands across the MIDDLE of its cell,
