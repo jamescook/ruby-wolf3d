@@ -168,6 +168,25 @@ class TestFloors < Minitest::Test
     assert_equal [4.5, 8.5], at(run)
   end
 
+  # THE LEVER STOPS THE WORLD, not the screen after it: Cmd_Use plays the lift's sound and waits for
+  # it to finish (wl_agent.cpp) before anything else in the game runs. A world left running is a
+  # guard shooting you dead in a lift that then carries the body down.
+  def lever_then_down(pacing)
+    Reference.new.input_each_frame { |f| f == 2 ? [:a] : (f > 2 ? [:down] : []) }
+             .run(cartridge_of(two_floors_with_a_lift, drawing: false, pacing: pacing), frames: FP::LIFT_WAIT / 2)
+  end
+
+  def test_nothing_moves_while_the_lift_is_on_its_way
+    run = lever_then_down(:by_the_pass)
+
+    assert_operator run[:lift_wait], :>, 0, "the lift is still on its way"
+    assert_equal [4.5, 8.5], at(run)
+  end
+
+  def test_nothing_moves_while_the_lift_is_on_its_way_on_the_clock_either
+    assert_equal [4.5, 8.5], at(lever_then_down(:by_the_frame))
+  end
+
   # The secret lever still goes where it went: the screen is in between and forgets nothing.
   def test_the_screen_remembers_which_lever_called_the_lift
     assert_equal 9, take_the_lift(an_episode(secret_car_on_first: true))[:floor]

@@ -17,6 +17,10 @@ class TestEndOfFloor < Minitest::Test
 
   LIFT_ARRIVES = 2
 
+  # What the counting world's trail reads once the next floor has been started: its third, fourth
+  # and fifth steps, which are all the lift asks for.
+  NEXT_FLOOR_STEPS = 345
+
   def one_empty_floor
     empty = Wolf3D::Level.new(name: "empty", width: 4, height: 4,
                               walls: Array.new(16, Wolf3D::Level::FLOOR), things: Array.new(16, 0))
@@ -125,7 +129,7 @@ class TestEndOfFloor < Minitest::Test
       run = finish_floor(pressing: ->(f) { f == 5 ? [button] : [] })
 
       assert_equal 0, run[:_tally_showing], "#{button} leaves the screen"
-      assert_equal 345, run[:trail], "and the next floor starts, once"
+      assert_equal NEXT_FLOOR_STEPS, run[:trail], "and the next floor starts, once"
     end
   end
 

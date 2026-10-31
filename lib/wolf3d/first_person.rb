@@ -324,13 +324,17 @@ module Wolf3D
     # so. The guards go on about their business around the body, which is what the original does
     # too while the death is playing out.
     #
-    # THE SCREEN BETWEEN TWO FLOORS STOPS ALL OF IT, and is the only thing a pass does while it is
-    # up. See Tally.
+    # PULLING THE LEVER STOPS ALL OF IT, until the screen between two floors has been pressed on
+    # from. The lift's wait, and then that screen, are the only things a pass does. The original
+    # waits for the lift's sound inside the code that pulled the lever (wl_agent.cpp, Cmd_Use), so
+    # nothing else in the game runs, and nobody can shoot you on your way out. See Tally.
     def play
       return take_a_turn unless @tally
 
       if @tally.showing == 1
         @tally.wait_for_a_press
+      elsif @lift_wait > 0
+        @b.call :the_lift_runs
       else
         take_a_turn
       end
@@ -342,9 +346,6 @@ module Wolf3D
         @b.call :a_door_opens
         @b.call :the_player_fires
       end
-      # ...and outside that, because a lift already on its way does not stop because the thing
-      # that pulled it has since been shot.
-      @b.call :the_lift_runs if lifts?
     end
 
     # Is the game still the player's to play? Not once something has killed you, and not once
@@ -395,7 +396,7 @@ module Wolf3D
       @b.once_a_frame(:the_world_moves) do
         next move_the_world unless @tally
 
-        move_the_world if @tally.showing == 0
+        move_the_world if @tally.showing == 0 && @lift_wait == 0
       end
     end
 

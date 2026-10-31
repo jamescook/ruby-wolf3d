@@ -20,8 +20,9 @@ module Wolf3D
   # nowhere to put its figure. Saying RATIO three times is what goes.
   #
   # WHAT THIS LEAVES OUT of the original's screen: the time taken and the par time beside it, with
-  # the bonus they earn; the figures counting up from nothing; and BJ breathing at the side, who
-  # is as wide as a third of this screen. All of that sits on top of these rules.
+  # the bonus they earn; the figures counting up from nothing, and the sounds that go with them;
+  # the music; and BJ breathing at the side, who is as wide as a third of this screen. All of that
+  # sits on top of these rules.
   #
   # THE SCORE IS PAID WHEN THE SCREEN APPEARS, which the original does when its figures finish
   # counting. With nothing counting up the two moments are the same one to a player.
@@ -42,7 +43,7 @@ module Wolf3D
     # counting from nought within an episode.
     NO_PERCENTAGES_FROM = 8
 
-    FIGURES = { kill: "KILL", secret: "SECRET", treasure: "TREASURE" }.freeze
+    RATIOS = { kill: "KILL", secret: "SECRET", treasure: "TREASURE" }.freeze
     HEADING = "COMPLETED"
     FLOOR = "FLOOR "
     SECRET_HEADING = "SECRET FLOOR"
@@ -50,7 +51,7 @@ module Wolf3D
 
     # Every character on this screen, so only those pictures go on the cartridge.
     PRINTED = Ractor.make_shareable(
-      (FIGURES.values + [HEADING, FLOOR, SECRET_HEADING, BONUS, "!%", "0123456789"]).join.delete(" ").chars.uniq
+      (RATIOS.values + [HEADING, FLOOR, SECRET_HEADING, BONUS, "!%", "0123456789"]).join.delete(" ").chars.uniq
     )
 
     # EVERY POSITION IS EVEN, because a picture on this screen has to start on an even column.
@@ -97,29 +98,24 @@ module Wolf3D
     # the finger already on the trigger as the lift arrived does not skip the screen unread.
     def wait_for_a_press = @b.call(:tally_waits)
 
-    # THE WHOLE PICTURE, every pass. The view has stopped being drawn, and on this screen a picture
-    # painted once would reach only one of the two pages it keeps.
-    def draw
-      @b.dma_fill_rect 0, 0, FirstPerson::ACROSS, FirstPerson::VIEW_H, colour(GROUND)
-      if @no_percentages[@floor] == 1
-        draw_a_secret_floor
-      else
-        draw_the_percentages
-      end
-    end
+    # The picture, which is painted as the floor ends and then left alone.
+    def draw = @picture.draw
 
     private
 
-    # NONE OF THESE IS IN A SAVED GAME, which is what the underscores say. A save is made from the
-    # menu, and the menu cannot be opened while this screen is up.
+    # NONE OF THESE IS IN A SAVED GAME, which is what the underscores say. The game cannot be saved
+    # with this screen up, because the menu cannot be opened over it.
     def declare
       @showing = @b.var :_tally_showing, 0
       @bonus = @b.var :_tally_bonus, 0
-      @ratios = FIGURES.keys.to_h { |name| [name, @b.var(:"_#{name}_ratio", 0)] }
-      @floor_number = @b.table :tally_floor_number, @floors.map { |floor| map_of(floor) + 1 }, width: :byte
+      @ratios = RATIOS.keys.to_h { |name| [name, @b.var(:"_#{name}_ratio", 0)] }
+      numbers = @floors.map { |floor| map_of(floor) + 1 }
+      @floor_digits = numbers.max.to_s.length
+      @floor_number = @b.table :tally_floor_number, numbers, width: :byte
       @no_percentages = @b.table :tally_no_percentages, @floors.map { |floor| percentages?(floor) ? 0 : 1 },
                                  width: :byte
       declare_the_lettering if @art
+      @picture = @b.keep_showing(:tally_picture) { paint }
       @b.func(:tally_the_floor, fast: false) { tally_the_floor }
       @b.func(:tally_waits, fast: false) { wait }
     end
@@ -144,6 +140,7 @@ module Wolf3D
       # The original takes your keys before this screen, so the bar is already empty on it.
       @player.keys = 0
       @showing = 1
+      @picture.changed
     end
 
     def wait
@@ -153,13 +150,22 @@ module Wolf3D
       end
     end
 
+    def paint
+      @b.dma_fill_rect 0, 0, FirstPerson::ACROSS, FirstPerson::VIEW_H, colour(GROUND)
+      if @no_percentages[@floor] == 1
+        draw_a_secret_floor
+      else
+        draw_the_percentages
+      end
+    end
+
     def draw_the_percentages
-      left = centred(FLOOR + "0")
+      left = centred(FLOOR + ("0" * @floor_digits))
       write FLOOR, left, FLOOR_Y
-      draw_a_figure @floor_number[@floor], left + width_of(FLOOR), FLOOR_Y, digits: 1
+      draw_a_figure @floor_number[@floor], left + width_of(FLOOR), FLOOR_Y, digits: @floor_digits
       write HEADING, centred(HEADING), COMPLETED_Y
       draw_the_bonus
-      FIGURES.each_with_index { |(name, label), row| draw_a_percentage(name, label, RATIOS_Y + (row * LETTER)) }
+      RATIOS.each_with_index { |(name, label), row| draw_a_percentage(name, label, RATIOS_Y + (row * LETTER)) }
     end
 
     def draw_a_percentage(name, label, y)

@@ -201,14 +201,14 @@ class TestMenus < Minitest::Test
     assert_equal 1, run[:_in_game], "and the menu knows there is a game behind it"
   end
 
-  # THE LAST ROW GOES BACK TO WHAT YOU CAME FROM: the attract loop from the title, and the game
-  # from a pause. One row, two meanings, which is exactly what the original's pause menu is.
+  # The lever on frame 2, and by this frame the lift is in and the screen between floors is up.
+  LIFT_IN = 2 + Wolf3D::FirstPerson::LIFT_WAIT + 4
+
   # THE SCREEN AT THE BOTTOM OF A LIFT IS NOT A PAUSE. Ending the game from a menu opened over it
   # would leave it up, with nothing to take it down.
   def test_start_does_nothing_on_the_screen_between_floors
-    lift_in = 2 + Wolf3D::FirstPerson::LIFT_WAIT + 4
-    run = play(frames: lift_in + 6, program: self.class.with_a_lift) do |f|
-      { 2 => [:a], lift_in + 2 => [:start] }.fetch(f, [])
+    run = play(frames: LIFT_IN + 6, program: self.class.with_a_lift) do |f|
+      { 2 => [:a], LIFT_IN + 2 => [:start] }.fetch(f, [])
     end
 
     assert_equal 1, run[:_tally_showing], "the screen is up"
@@ -218,8 +218,7 @@ class TestMenus < Minitest::Test
   # THE GAME'S OWN LETTERING, pixel for pixel: each fixture picture is different all over, so one
   # read at the wrong number, or drawn in the wrong place, does not match.
   def test_the_screen_between_floors_is_written_in_the_games_own_lettering
-    lift_in = 2 + Wolf3D::FirstPerson::LIFT_WAIT + 4
-    run = play(frames: lift_in + 6, program: self.class.with_a_lift) { |f| f == 2 ? [:a] : [] }
+    run = play(frames: LIFT_IN + 6, program: self.class.with_a_lift) { |f| f == 2 ? [:a] : [] }
     tally = Wolf3D::Tally
     ones = tally::FIGURES_X + (2 * tally::LETTER)
 
@@ -237,6 +236,8 @@ class TestMenus < Minitest::Test
     end
   end
 
+  # THE LAST ROW GOES BACK TO WHAT YOU CAME FROM: the attract loop from the title, and the game
+  # from a pause. One row, two meanings, which is exactly what the original's pause menu is.
   def test_the_last_row_goes_back_to_the_game_when_there_is_one
     run = playing(frames: 180) do |f|
       next [:start] if f == 95
