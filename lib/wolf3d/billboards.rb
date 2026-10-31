@@ -196,7 +196,8 @@ module Wolf3D
       @pose, @pfirst, @plast, @shape, @tcol = whole(:pose, :pfirst, :plast, :shape, :tcol)
       @cx, @theight, @ttop = whole(:cx, :theight, :ttop)
       @ptop, @pbottom, @band_top, @band_bottom = whole(:ptop, :pbottom, :bandtop, :bandbot)
-      @lstrip, @s0, @s1, @tstrip = whole(:lstrip, :s0, :s1, :tstrip)
+      @lstrip, @s1, @tstrip = whole(:lstrip, :s1, :tstrip)
+      @s0 = @b.var :_s0, 0 # on a line of its own, since a list would move this name to @lstrip
       @seen, @at, @shows = whole(:seen, :at, :shows)
     end
 
@@ -536,7 +537,7 @@ module Wolf3D
     # is thrown out by before it ever reaches the queue.
     def covers_any_strips
       @lstrip = (@cx - (@theight / 2)) / FP::COLUMN_W
-      @s0.set! @lstrip
+      @s0 = @lstrip
       @s0.clamp! 0, FP::COLUMNS
       @s1 = @lstrip + (@theight / FP::COLUMN_W)
       @s1.clamp! 0, FP::COLUMNS

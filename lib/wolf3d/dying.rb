@@ -130,8 +130,8 @@ module Wolf3D
     # nothing all the same, or it would draw no red at all.
     def struck_by(guard)
       if @state == ALIVE
-        @kill_x.set! guard.x
-        @kill_y.set! guard.y
+        @kill_x = guard.x
+        @kill_y = guard.y
         @state = TURNING
         @was = 0
         @turned = 0
@@ -161,7 +161,7 @@ module Wolf3D
         @now = -1
         @now = 1 if @side > 0.0
         # The first frame has nothing to compare against, so it only takes a bearing.
-        @was.set! @now if @was == 0
+        @was = @now if @was == 0
         if @now == @was
           swing
         else
@@ -209,13 +209,14 @@ module Wolf3D
       # numbers, and the handles came back holding whole numbers with nothing said.
       @to_x, @to_y, @side, @cos, @sin =
         %i[to_x to_y side cos sin].map { |n| b.var(:"_dying_#{n}", 0.0) }
-      @now, @was, @turned, @held, @spot =
-        %i[now was turned held spot].map { |n| b.var(:"_dying_#{n}", 0) }
+      @now, @turned, @held, @spot = %i[now turned held spot].map { |n| b.var(:"_dying_#{n}", 0) }
+      @was = b.var :_dying_was, 0 # on a line of its own, since a list would move this name to @now
 
       # The two walkers, one a frame behind the other, and how far each has got. They start at 1
       # because nought is the one number this kind of step can never leave.
       @lead = b.var :_dying_lead, 1
       @lag = b.var :_dying_lag, 1
+      @walkers = { lead: @lead, lag: @lag } # a Hash, so that #scatter can change either
       @lead_done = b.var :_dying_lead_done, 0
       @lag_done = b.var :_dying_lag_done, 0
 
@@ -242,12 +243,12 @@ module Wolf3D
 
     def scatter_the_next_dots
       if @lead_done < MODULUS - 1
-        scatter(@lead)
+        scatter(:lead)
         @lead_done += PER_FRAME
       end
       # ...and last frame's dots again, onto the page that missed them.
       if @lead_done > PER_FRAME
-        scatter(@lag)
+        scatter(:lag)
         @lag_done += PER_FRAME
       end
       @state = GONE if @lag_done >= MODULUS - 1
@@ -259,11 +260,11 @@ module Wolf3D
     # `inside` could not clip until the framework learned to hold it to the area (it used to
     # wrap onto the next row on the console instead of stopping, a framework bug that lived here
     # as a worked-around comment for a while).
-    def scatter(walker)
+    def scatter(which)
       @b.inside(0, 0, ACROSS, DOWN) do
         @b.repeat(PER_FRAME) do
-          walker.set!((walker * STEP) % MODULUS)
-          @spot = walker - 1
+          @walkers[which] = (@walkers[which] * STEP) % MODULUS
+          @spot = @walkers[which] - 1
           @b.draw_rect_at @spot % ACROSS, @spot / ACROSS, 1, 1, Palette.game[INK]
         end
       end

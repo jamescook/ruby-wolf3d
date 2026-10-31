@@ -153,13 +153,13 @@ module Wolf3D
     # +leaving+ is WHAT he left, as Enemy::LEAVES numbers it — half a clip from most of them, a
     # machine gun from an SS, and nothing at all from a dog, which carried none.
     def a_guard_fell(slot, leaving:)
-      left = @pool.field_ref(:dropped, slot)
-      left.set!(leaving)
+      guard = { left: @pool.field_ref(:dropped, slot) } # a Hash, since a name holds a value
+      guard[:left] = leaving
       # A GUN YOU ALREADY HAVE IS A CLIP INSTEAD, which is the original's own line and the reason
       # an SS is worth killing twice: the first one arms you and every one after it feeds the gun.
       return if @weapons.nil?
 
-      left.set! CLIP_LEFT if left == MACHINE_GUN_LEFT && @weapons.already_has(Weapons::MACHINE_GUN)
+      guard[:left] = CLIP_LEFT if guard[:left] == MACHINE_GUN_LEFT && @weapons.already_has(Weapons::MACHINE_GUN)
     end
 
     # --- what the drawing asks -------------------------------------------------------
@@ -253,15 +253,18 @@ module Wolf3D
       # +slot+ is the piece's place in the tables of every floor's pieces, which is its own number
       # plus where this floor's begin. Kept apart from +piece+, which stays this floor's own
       # number because that is what says whether it has been taken.
-      @here, @piece, @slot, @kind, @amount, @took =
-        %i[here piece slot kind amount took].map { |name| @b.var(:"_pick_#{name}", 0) }
+      @here, @piece, @kind, @amount, @took =
+        %i[here piece kind amount took].map { |name| @b.var(:"_pick_#{name}", 0) }
+      # On a line of its own: on a one-floor cartridge it is given @piece itself, and a name made in
+      # a list would move to @piece, where this one has to stay apart from it.
+      @slot = @b.var :_pick_slot, 0
     end
 
     # WHAT THE PIECE UNDER YOUR FEET GIVES, one arm per kind. Each arm decides for itself whether
     # you can hold what it offers, and only an arm that gave something says so — that is what
     # leaves a first aid box on the floor of a player who does not need it yet.
     def take_it
-      @slot.set!(@this_floor.piece(@piece))
+      @slot = @this_floor.piece(@piece)
       @kind = @gives_kind[@slot]
       @amount = @gives_amount[@slot]
       @took = 0

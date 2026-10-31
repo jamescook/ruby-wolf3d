@@ -238,7 +238,7 @@ module Wolf3D
         value = @shows.fetch(name)
         if value != last
           @parts[name] ? @parts[name].changed : @changed = 1
-          last.set! value
+          @remembered[name] = value
         end
       end
       @bar.changed if @changed == 1
@@ -406,18 +406,19 @@ module Wolf3D
       value = @shows.fetch(field.name)
       wide = @art.digit_width
       left = centred(field, field.digits * wide)
-      slot = (@digit_slots ||= {})[field.name] ||= @b.var(:"_bar_digit_#{field.name}", 0)
+      slots = (@digit_slots ||= {})
+      slots[field.name] ||= @b.var(:"_bar_digit_#{field.name}", 0)
 
       field.digits.times do |i|
         place = 10**(field.digits - 1 - i)
         digit = place == 1 ? value % 10 : (value / place) % 10
         if place == 1
-          slot.set!(digit + 1)
+          slots[field.name] = digit + 1
         else
-          slot.set! BarArt::BLANK
-          slot.set!(digit + 1) if value >= place
+          slots[field.name] = BarArt::BLANK
+          slots[field.name] = digit + 1 if value >= place
         end
-        draw_from_strip(:_bar_numeral, slot, left + (i * wide), @top + FIGURE_ROW)
+        draw_from_strip(:_bar_numeral, slots[field.name], left + (i * wide), @top + FIGURE_ROW)
       end
     end
 
@@ -432,9 +433,9 @@ module Wolf3D
     # and the bar's painting routine measured 57K. Emitted once per strip and called instead, it
     # is forty. The cost at run time is the same walk either way.
     def draw_from_strip(routine, slot, x, top)
-      @col_slot.set! slot
-      @col_x.set! x
-      @col_y.set! top
+      @col_slot = slot
+      @col_x = x
+      @col_y = top
       @b.call routine
     end
 
@@ -557,8 +558,8 @@ module Wolf3D
 
       METALS.each_key.with_index do |name, n|
         slot = @b.var :"_bar_key_#{name}", 0
-        slot.set! BarArt::BLANK
-        slot.set! @art.key_slot(name) if carrying(keys, name)
+        slot = BarArt::BLANK
+        slot = @art.key_slot(name) if carrying(keys, name)
         draw_from_strip(:_bar_key, slot, at(field), top + (n * @art.key_height))
       end
     end

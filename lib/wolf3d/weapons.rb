@@ -138,9 +138,9 @@ module Wolf3D
     # machine gun while holding a chain gun does not put you a step backwards.
     def give(which)
       if @best < which
-        @best.set! which
-        @chosen.set! which
-        @in_hand.set! which
+        @best = which
+        @chosen = which
+        @in_hand = which
       end
     end
 
@@ -152,9 +152,9 @@ module Wolf3D
     # original (wl_game.cpp, Died) and what a new game starts you with. A lift does not: the
     # guns you found go down it with you.
     def start_again
-      @in_hand.set! @starting
-      @chosen.set! @starting
-      @best.set! @starting
+      @in_hand = @starting
+      @chosen = @starting
+      @best = @starting
       @stage = AT_REST
       @wait = 0
     end
@@ -257,7 +257,7 @@ module Wolf3D
     # which is false on nearly every pass of the game — so a player holding a gun pays one
     # comparison for it.
     def put_back_what_you_chose
-      @in_hand.set! @chosen if @in_hand == KNIFE && @chosen != KNIFE && @player.ammo > 0
+      @in_hand = @chosen if @in_hand == KNIFE && @chosen != KNIFE && @player.ammo > 0
     end
 
     # THE SHOULDER BUTTONS WALK THE LIST, which is what is left once the original's four number
@@ -284,7 +284,7 @@ module Wolf3D
     def take_the_next_one
       @chosen = @in_hand + 1
       @chosen = KNIFE if @chosen > @best
-      @in_hand.set! @chosen
+      @in_hand = @chosen
     end
 
     # THE TRIGGER, read on its edge, so holding it down does not start a second attack — the two
@@ -306,7 +306,7 @@ module Wolf3D
         @next = @stage + 1
         the_weapon_acts if @stage == FIRES
         the_automatics_carry_on if @stage == REPEATS
-        @stage.set! @next
+        @stage = @next
         finish_the_attack if @stage >= STAGES
       end
     end
@@ -348,7 +348,7 @@ module Wolf3D
 
     def finish_the_attack
       @stage = AT_REST
-      @in_hand.set! @chosen if @player.ammo > 0
+      @in_hand = @chosen if @player.ammo > 0
     end
 
     # Each gun has its own recording, which is the one place a machine gun and a chain gun

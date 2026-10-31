@@ -266,7 +266,7 @@ module Wolf3D
       @player.treasures = 0
       # ...and how much there is to find on it. The kill total is counted as the guards stand up.
       on_each_floor do |floor, n|
-        @secret_total.set! floor.pushwalls.count
+        @secret_total = floor.pushwalls.count
         @treasure_total = @pickups.treasure_total(n)
       end
       # The lever comes back up and the lift forgets it was ever called.
@@ -712,7 +712,7 @@ module Wolf3D
       @backy = 1.0 - @fracy
       # The first ray points at the left edge of the view, half the fan round from where the
       # player is looking.
-      @ang.set! @player.angle
+      @ang = @player.angle
       @ang -= (COLUMNS - 1) * SPREAD / 2
     end
 
@@ -745,10 +745,20 @@ module Wolf3D
     def declare_the_scratch
       # THE RAY WALK. Where it points, how far along it from one grid line to the next, which
       # cell it is in, and what it met.
-      @ang, @hit, @wall, @cell, @colh, @top = whole(:ang, :hit, :wall, :cell, :colh, :top)
-      @mapx, @mapy, @stepmx, @stepmy, @side = whole(:mapx, :mapy, :stepmx, :stepmy, :side)
+      @hit, @wall, @cell, @colh, @top = whole(:hit, :wall, :cell, :colh, :top)
+      @stepmx, @stepmy, @side = whole(:stepmx, :stepmy, :side)
       @dx, @dy, @deltax, @deltay = fraction(:dx, :dy, :deltax, :deltay)
-      @sidex, @sidey, @dist, @depth, @wallx = fraction(:sidex, :sidey, :dist, :depth, :wallx)
+      @sidex, @sidey, @depth, @wallx = fraction(:sidex, :sidey, :depth, :wallx)
+
+      # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
+      # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
+      # would move the name to @b, and nothing would say so.
+      @ang = @b.var :_ang, 0
+      @mapx = @b.var :_mapx, 0
+      @mapy = @b.var :_mapy, 0
+      @dist = @b.var :_dist, 0.0
+      @nx = @b.var :_nx, 0.0
+      @ny = @b.var :_ny, 0.0
 
       # ...AND WHERE THE EYE STANDS, which every ray needs and none of them can change: the cell
       # the player is in, how far through it they are, and how far it is to the far side. Worked
@@ -758,7 +768,7 @@ module Wolf3D
 
       # THE PLAYER'S FEET: what is under them, where a step would land, and whether it may.
       @foot, @here, @can, @spot = whole(:foot, :here, :can, :spot)
-      @nx, @ny, @stepx, @stepy = fraction(:nx, :ny, :stepx, :stepy)
+      @stepx, @stepy = fraction(:stepx, :stepy)
 
       # DOORS. Which one, how far along its panel the ray landed, and how far it has slid.
       # +slot+ and +wait+ are shared with the walls that move and with the keys — each is
@@ -1011,11 +1021,11 @@ module Wolf3D
     # still lands. A sideways step goes through exactly this, or strafing into a wall would put
     # you through it.
     def take_the_step
-      @nx.set! @player.x
+      @nx = @player.x
       @nx += @stepx
       @player.x = @nx if free?(@nx.to_i, @player.y.to_i)
 
-      @ny.set! @player.y
+      @ny = @player.y
       @ny += @stepy
       @player.y = @ny if free?(@player.x.to_i, @ny.to_i)
     end
@@ -1113,9 +1123,9 @@ module Wolf3D
     def open_a_door
       b = @b
       if b.pressed(:a)
-        @nx.set! @player.x
+        @nx = @player.x
         @nx += @sin[@player.angle + QUARTER] * DOOR_REACH
-        @ny.set! @player.y
+        @ny = @player.y
         @ny += @sin[@player.angle] * DOOR_REACH
         @ahead = (@ny.to_i * @level.width) + @nx.to_i
         @foot = @this_floor.cell(@ahead)
@@ -1176,8 +1186,8 @@ module Wolf3D
       @across = @sin[@player.angle + QUARTER].abs
       @along = @sin[@player.angle].abs
       if @across > @along && @pulled < 0
-        @pulled.set! @ahead
-        @lift_wait.set! lift_wait_frames
+        @pulled = @ahead
+        @lift_wait = lift_wait_frames
         # WHERE THE LIFT GOES is decided by the cell the player is standing on, not by the lever
         # — which is the original's own test, and is why nothing here has to model a car. A floor
         # has one such cell or none, so this is a comparison against a number settled at build
@@ -1299,8 +1309,8 @@ module Wolf3D
       @deltax = @reach[@ang + QUARTER]
       @deltay = @reach[@ang]
 
-      @mapx.set! @eyex
-      @mapy.set! @eyey
+      @mapx = @eyex
+      @mapy = @eyey
       # Nothing else is cleared here. The walk always takes at least one step, and every step
       # says which side of a cell it crossed, so `side` is written before anything reads it — and
       # `wall` is read only to work out a picture for a strip that a ray which met nothing does
@@ -1504,7 +1514,7 @@ module Wolf3D
         if @wallx > @slid
           @hit = 1
           @isdoor = 1
-          @dist.set! @mid
+          @dist = @mid
           @wall = @door_picture[@this_floor.door(@door)]
           @wallx -= @slid
         end

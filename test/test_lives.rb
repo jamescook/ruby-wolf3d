@@ -27,28 +27,7 @@ class TestLives < Minitest::Test
 
   # ---------------------------------------------------------------- counting the goes
 
-  # THE REST OF THE GAME, as far as a death reaches it. Putting the floor back is stood in for by
-  # a counter, because what it really does belongs to the view and is tested against the real
-  # thing further down — all this needs of it is that it is asked for. A new game puts the goes
-  # back, which is the one step that is Lives' own.
-  class CountingWorld
-    attr_writer :lives
-
-    def initialize(restarts:, dying:)
-      @restarts = restarts
-      @dying = dying
-    end
-
-    def reset_game = @lives.start_again
-    def reset_player = nil
-    def select_floor = nil
-    def place_player = nil
-
-    def reset_floor
-      @restarts.add! 1
-      @dying.start_again
-    end
-  end
+  CountingWorld = Wolf3DTest::RestartCountingWorld
 
   # A death and nothing else, over and over, started again by the real playthrough over the
   # counting world. R scores a few points, so a test can see what a death does to them.
@@ -73,7 +52,7 @@ class TestLives < Minitest::Test
         # STRUCK ON A BUTTON rather than whenever there is a go going spare, so the test says how
         # many deaths it wants instead of working out how many frames one takes.
         dying.struck_by(killer) if pressed(:b)
-        score.add! POINTS if pressed(:r)
+        player.score += POINTS if pressed(:r)
         dying.draw
         lives.update
       end
@@ -154,7 +133,7 @@ class TestLives < Minitest::Test
       passes = b.var :passes, 0
       b.game_loop do
         drawn ? view.update : view.play
-        passes.add! 1
+        passes += 1
         # Another life, asked for straight away, which is what a spent life asks for. Driving it
         # this way rather than by standing in front of a guard until he finishes you off is what
         # keeps these quick: a real death is several hundred frames away.

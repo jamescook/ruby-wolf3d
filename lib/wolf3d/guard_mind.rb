@@ -195,14 +195,29 @@ module Wolf3D
 
     def declare_the_scratch
       b = @b
-      @state, @dir, @job, @try, @slot, @cellx, @celly, @clear, @done, @ahead, @way, @picked,
-        @tx, @ty, @away, @target, @odds, @wound, @spot, @blow, @left =
-        %i[gstate gdir gjob gtry gslot gcellx gcelly gclear gdone gahead gway gpicked
-           gtx gty gaway gtarget godds gwound gspot gblow gleft].map { |name| b.var(:"_#{name}", 0) }
-      @dx, @dy, @absx, @absy, @stepx, @stepy, @far, @atx, @aty, @pace, @fwd, @sideways, @nearest,
-        @fromx, @fromy =
-        %i[gdx gdy gabsx gabsy gstepx gstepy gfar gatx gaty gpace gfwd gsideways gnearest
-           gfromx gfromy].map { |name| b.var(:"_#{name}", 0.0) }
+      @job, @slot, @celly, @clear, @done, @ahead, @picked, @tx, @ty, @odds, @wound, @spot, @blow, @left =
+        %i[gjob gslot gcelly gclear gdone gahead gpicked gtx gty godds gwound gspot gblow gleft]
+        .map { |name| b.var(:"_#{name}", 0) }
+      @dx, @dy, @absx, @absy, @far, @pace, @fwd, @sideways =
+        %i[gdx gdy gabsx gabsy gfar gpace gfwd gsideways].map { |name| b.var(:"_#{name}", 0.0) }
+
+      # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
+      # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
+      # would move the name to @b, and nothing would say so.
+      @state = b.var :_gstate, 0
+      @dir = b.var :_gdir, 0
+      @try = b.var :_gtry, 0
+      @cellx = b.var :_gcellx, 0
+      @way = b.var :_gway, 0
+      @away = b.var :_gaway, 0
+      @target = b.var :_gtarget, 0
+      @stepx = b.var :_gstepx, 0.0
+      @stepy = b.var :_gstepy, 0.0
+      @atx = b.var :_gatx, 0.0
+      @aty = b.var :_gaty, 0.0
+      @nearest = b.var :_gnearest, 0.0
+      @fromx = b.var :_gfromx, 0.0
+      @fromy = b.var :_gfromy, 0.0
     end
 
     # ONE GUARD, ONE FRAME. Count his state down, move him on when it runs out, then let him
@@ -226,7 +241,7 @@ module Wolf3D
     end
 
     def thinks_it_through(guard)
-      @state.set! guard.state
+      @state = guard.state
       step_the_state(guard)
 
       # EXACTLY ONE OF THESE RUNS. They are the arms of one choice — a guard is standing, or
@@ -450,7 +465,7 @@ module Wolf3D
     # takes the two halves together.
     def in_front(guard)
       @clear = 1
-      @dir.set! guard.dir
+      @dir = guard.dir
       @clear = 0 if @dir == 2 && @dy > 0.0   # north
       @clear = 0 if @dir == 0 && @dx < 0.0   # east
       @clear = 0 if @dir == 6 && @dy < 0.0   # south
@@ -481,8 +496,8 @@ module Wolf3D
     # Every one of its inputs is working room already, so all a caller has to hand over is where
     # the line starts.
     def walk_the_sight_line_from(fromx, fromy)
-      @fromx.set! fromx
-      @fromy.set! fromy
+      @fromx = fromx
+      @fromy = fromy
       @b.call :walk_the_sight_line
     end
 
@@ -541,8 +556,8 @@ module Wolf3D
       @absx = @dx.abs
       @absy = @dy.abs
 
-      @stepx.set! @dx
-      @stepy.set! @dy
+      @stepx = @dx
+      @stepy = @dy
       if @absx > @absy
         if @absx > 1.0
           @stepx = 1.0
@@ -555,8 +570,8 @@ module Wolf3D
         @stepx = @dx / @absy
       end
 
-      @atx.set! fromx
-      @aty.set! fromy
+      @atx = fromx
+      @aty = fromy
     end
 
     # Something is in this cell. A wall stops the line; a doorway stops it only while its panel
@@ -643,8 +658,8 @@ module Wolf3D
       @cellx = 0 - @cellx if @cellx < 0
       @celly = @player.y.to_i - guard.y.to_i
       @celly = 0 - @celly if @celly < 0
-      @away.set! @cellx
-      @away.set! @celly if @celly > @away
+      @away = @cellx
+      @away = @celly if @celly > @away
       @away.clamp! 0, @reach
     end
 
@@ -668,9 +683,9 @@ module Wolf3D
       @try = 6 if @dy > 0.0             # south
       # The longer way is tried first, so swap them when the up-and-down one is longer.
       if @dy.abs > @dx.abs
-        @cellx.set! @way
-        @way.set! @try
-        @try.set! @cellx
+        @cellx = @way
+        @way = @try
+        @try = @cellx
       end
 
       @picked = 0
@@ -683,7 +698,7 @@ module Wolf3D
     # Can he walk one cell that way? If so he sets off, and from here he is between two cells
     # until he arrives.
     def try_this_way(guard, way)
-      @try.set! way
+      @try = way
       if @try < Guards::NOWHERE
         @cellx = guard.x.to_i + @step_x[@try]
         @celly = guard.y.to_i + @step_y[@try]
@@ -791,8 +806,8 @@ module Wolf3D
         @dy = @player.y - y
         walk_the_sight_line_from(x, y)
         if @clear == 1
-          @nearest.set! @fwd
-          @target.set! guard.index
+          @nearest = @fwd
+          @target = guard.index
         end
       end
     end
@@ -807,8 +822,8 @@ module Wolf3D
       @cellx = 0 - @cellx if @cellx < 0
       @celly = (@player.y.to_i - y.to_i)
       @celly = 0 - @celly if @celly < 0
-      @away.set! @cellx
-      @away.set! @celly if @celly > @away
+      @away = @cellx
+      @away = @celly if @celly > @away
 
       if with_knife
         what_a_knife_does
@@ -845,30 +860,28 @@ module Wolf3D
     # for getting the first one in. Then he either falls over or flinches and comes for you —
     # and a guard who was not already coming starts now, however little the shot took off him.
     #
-    # THESE THREE NAMES ONLY STAND FOR HIS FIELDS, which is why they are written with `set!` and
-    # `sub!` below. A name holds a value, so `hp -= @wound` would leave the guard as he was.
+    # HIS FIELDS ARE KEPT IN A HASH because a name holds a value, so `hp -= @wound` on a local would
+    # leave the guard as he was. A write to a slot of the Hash reaches the field.
     def wound_a_guard
-      hp = @pool.field_ref(:hp, @target)
-      state = @pool.field_ref(:state, @target)
-      ticks = @pool.field_ref(:ticks, @target)
+      hit = %i[hp state ticks togo].to_h { |field| [field, @pool.field_ref(field, @target)] }
 
       # A MAN WHO IS HIT CRIES OUT, and that is a noise like a gunshot — the original's own flag
       # is commented "true when shooting or screaming" and it is set here, where the damage is
       # done, rather than with the weapon. It is what makes a knife that LANDS bring the room
       # while one that misses does not.
       @player.noise = FirstPerson::HEARD_FOR
-      @wound = @wound * 2 if @roused_of[state] == 0
-      hp.sub! @wound
+      @wound = @wound * 2 if @roused_of[hit[:state]] == 0
+      hit[:hp] -= @wound
 
-      if hp <= 0
+      if hit[:hp] <= 0
         # WHAT KILLING HIM IS WORTH AND WHAT HE WAS CARRYING, both read BEFORE he starts falling
         # over — a state number is what says which kind he is, and in a moment it will say he is
         # a body instead.
-        @player.score += @points_of[state]
-        @left = @leaves_of[state]
-        @blow = @fall_of[state]
-        state.set! @blow
-        ticks.set!(@ticks_of[@blow])
+        @player.score += @points_of[hit[:state]]
+        @left = @leaves_of[hit[:state]]
+        @blow = @fall_of[hit[:state]]
+        hit[:state] = @blow
+        hit[:ticks] = @ticks_of[@blow]
         # ...and one off the floor's tally, which is a different thing from the score: the score
         # is kept across floors and this is how much of THIS floor has been cleared.
         @player.kills += 1
@@ -883,11 +896,11 @@ module Wolf3D
         # BEING SHOT AT COUNTS AS BEING SEEN, whatever the thing does about the wound itself —
         # the original rouses one that had not noticed you BEFORE it asks which kind it is. So
         # this comes first and reaches everything, a boss included.
-        if @roused_of[state] == 0
-          @blow = @chase_of[state]
-          state.set! @blow
-          ticks.set!(@ticks_of[@blow])
-          @pool.field_ref(:togo, @target).set! 0.0
+        if @roused_of[hit[:state]] == 0
+          @blow = @chase_of[hit[:state]]
+          hit[:state] = @blow
+          hit[:ticks] = @ticks_of[@blow]
+          hit[:togo] = 0.0
           @sounds&.notices_you
         end
         # ...and then the flinch, for a kind that has one. Odd or even decides which of the two
@@ -898,11 +911,11 @@ module Wolf3D
         # rounds landing on him. Writing the same state back would restart its count and rob him
         # of the rest of the picture he was in, so the whole block is skipped rather than made
         # to write over itself. See Behaviour#flinch_from.
-        if @flinches_of[state] == 1
-          @blow = @hurt_of[state]
-          @blow = @hurt2_of[state] if (hp % 2) == 0
-          state.set! @blow
-          ticks.set!(@ticks_of[@blow])
+        if @flinches_of[hit[:state]] == 1
+          @blow = @hurt_of[hit[:state]]
+          @blow = @hurt2_of[hit[:state]] if (hit[:hp] % 2) == 0
+          hit[:state] = @blow
+          hit[:ticks] = @ticks_of[@blow]
         end
       end
     end

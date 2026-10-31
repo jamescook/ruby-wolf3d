@@ -399,7 +399,7 @@ class TestEnemies < Minitest::Test
   def standing_hp_at(how)
     program = program_for(:mutant, 10, :west, 1, how) do |b, view|
       b.game_loop do
-        view.difficulty.set! Guards.number_of(how)
+        view.difficulty = Guards.number_of(how)
         view.playthrough.start(:new_game)
       end
     end

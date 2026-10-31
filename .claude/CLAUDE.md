@@ -275,11 +275,12 @@ The verb surface is VBlank's and is documented there, in `.claude/rules/dsl-refe
 the VBlank checkout. Read it there; do not copy it here. A few habits it establishes and this
 game follows:
 
-- Game code is normal Ruby: `if`, `x = 1`, `x += 1`, `&&`, `||`. A name holds a value, so two
-  things stay spelled out in a part of the game. `@a = @b` moves the name to `@b`, so copying one
-  variable into another is `@a.set! @b`. A local or an argument holding a variable is its own
-  copy, so changing the variable through it is `hp.sub! 1`. `@a = @b + 1` and `hero.x = @b` are
-  fine as they are, and a game block itself refuses `set!`.
+- Game code is normal Ruby: `if`, `x = 1`, `x += 1`, `&&`, `||`. `set!`, `add!` and `sub!` raise.
+  A name holds a value, and two things follow from that. `@a = @b` copies the number only if `@a`
+  was made on its own line, `@a = build.var :a, 0`. Made in a list, or handed in, the name moves
+  to `@b` with no error, so a variable that is copied into gets a line of its own. And a local or
+  an argument cannot reach the variable it was given, so a write that must goes through a Hash
+  (`hit[:hp] -= 1`) or an attribute (`@player.x = 1`), read through the same place each time.
 - `flip` (not `negate`) for reversing direction.
 - Underscore prefix (`_ray_x`) for scratch/temp variables.
 - `func` for subroutines, `scene` for game states, `case_var` for dispatch.

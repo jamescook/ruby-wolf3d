@@ -167,8 +167,8 @@ class TestLastingState < Minitest::Test
       2.times { doors << 0 }
       game_loop do
         if pressed(EVENTS[:change])
-          before.set! CHANGED_BEFORE
-          after.set! CHANGED_AFTER
+          before = CHANGED_BEFORE
+          after = CHANGED_AFTER
           doors[1] = CHANGED_AFTER
           men.spawn(hp: CHANGED_BEFORE)
         end

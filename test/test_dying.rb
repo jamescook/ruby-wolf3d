@@ -49,7 +49,7 @@ class TestDying < Minitest::Test
         if settling < 2
           clear_screen GROUND
           dma_fill_rect 0, FP::VIEW_H, FP::ACROSS, Wolf3D::StatusBar::HEIGHT, BAR
-          settling.add! 1
+          settling += 1
         elsif !game
           dying.struck_by(killer)
         end
@@ -57,7 +57,7 @@ class TestDying < Minitest::Test
           game[0].save if pressed(:a)
           if pressed(:b)
             game[0].load
-            settling.set! 0
+            settling = 0
           end
           dying.struck_by(killer) if pressed(:l)
         end

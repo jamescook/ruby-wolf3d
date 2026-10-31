@@ -15,25 +15,7 @@ class TestPlaythrough < Minitest::Test
 
   Playthrough = Wolf3D::Playthrough
 
-  # THE SECOND WORLD, beside the real view. Each step appends its number, one to five, to the
-  # trail: another life that ran steps two and four and nothing else reads 24.
-  class CountingWorld
-    STEPS = %i[reset_game reset_player select_floor place_player reset_floor].freeze
-
-    def initialize(build)
-      @trail = build.var :trail, 0
-    end
-
-    def reset_game = step(:reset_game)
-    def reset_player = step(:reset_player)
-    def select_floor = step(:select_floor)
-    def place_player = step(:place_player)
-    def reset_floor = step(:reset_floor)
-
-    private
-
-    def step(name) = @trail.set!((@trail * 10) + STEPS.index(name) + 1)
-  end
+  CountingWorld = Wolf3DTest::StepCountingWorld
 
   # --- which steps each reason runs, and in what order ---
 
@@ -362,16 +344,16 @@ class TestPlaythrough < Minitest::Test
       secret = var :secret, 0
       play = Playthrough.new(build: self, floors: floors, score: score, world: CountingWorld.new(self))
       game_loop do
-        score.add! POINTS if pressed(EVENTS[:score])
+        score += POINTS if pressed(EVENTS[:score])
         play.start(:new_game, floor: picked) if pressed(EVENTS[:new_game])
         play.start(:new_game) if pressed(EVENTS[:again])
         play.start(:another_life) if pressed(EVENTS[:death])
         if pressed(EVENTS[:lift])
-          secret.set! 0
+          secret = 0
           play.start(:next_floor, secret: secret)
         end
         if pressed(EVENTS[:secret_lift])
-          secret.set! 1
+          secret = 1
           play.start(:next_floor, secret: secret)
         end
       end

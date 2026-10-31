@@ -97,9 +97,10 @@ module Wolf3D
     # guard it can ever hold; the ones a game set this way does not have are walked over and
     # never spawned, so they cost this routine one comparison each and the frame nothing.
     #
-    # +slot+ is working room the view already has, borrowed for the length of this. +kill_total+
-    # is the floor's count of men to kill, and this is what fills it.
-    def refill(slot:, kill_total:)
+    # +counts+ is a Hash, so that this reaches the variables in it. Its :slot is working room the
+    # view already has, borrowed for the length of this, and its :kill_total is the floor's count of
+    # men to kill, which this is what fills.
+    def refill(counts)
       @pool.each(&:remove)
       # EACH ONE WHO STANDS UP IS ONE MORE TO KILL, which is the floor's kill total: the original
       # adds one in every Spawn (wl_act2.cpp).
@@ -107,17 +108,18 @@ module Wolf3D
       # ...AND WHICH PASS HE THINKS ON is counted the same way, over the guards who really stand
       # up and not over the slots walked — otherwise an easier game, which spawns from scattered
       # slots, could land most of its floor on the same pass and pay for it twice over on that one.
-      kill_total.set! 0
+      counts[:kill_total] = 0
       @b.repeat(@count) do |n|
-        slot.set!(@first + n)
-        if @difficulty >= @home_from[slot]
-          @pool.spawn x: @home_x[slot], y: @home_y[slot],
-                      dir: @home_dir[slot],
-                      state: @home_state[slot], ticks: @home_ticks[slot],
-                      hp: @hit_points[@home_tough[slot] + @difficulty],
+        counts[:slot] = @first + n
+        if @difficulty >= @home_from[counts[:slot]]
+          at = counts[:slot]
+          @pool.spawn x: @home_x[at], y: @home_y[at],
+                      dir: @home_dir[at],
+                      state: @home_state[at], ticks: @home_ticks[at],
+                      hp: @hit_points[@home_tough[at] + @difficulty],
                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
-                      ambush: @home_ambush[slot], turn: kill_total % 2
-          kill_total.add! 1
+                      ambush: @home_ambush[at], turn: counts[:kill_total] % 2
+          counts[:kill_total] += 1
         end
       end
     end
