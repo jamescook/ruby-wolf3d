@@ -203,6 +203,40 @@ class TestMenus < Minitest::Test
 
   # THE LAST ROW GOES BACK TO WHAT YOU CAME FROM: the attract loop from the title, and the game
   # from a pause. One row, two meanings, which is exactly what the original's pause menu is.
+  # THE SCREEN AT THE BOTTOM OF A LIFT IS NOT A PAUSE. Ending the game from a menu opened over it
+  # would leave it up, with nothing to take it down.
+  def test_start_does_nothing_on_the_screen_between_floors
+    lift_in = 2 + Wolf3D::FirstPerson::LIFT_WAIT + 4
+    run = play(frames: lift_in + 6, program: self.class.with_a_lift) do |f|
+      { 2 => [:a], lift_in + 2 => [:start] }.fetch(f, [])
+    end
+
+    assert_equal 1, run[:_tally_showing], "the screen is up"
+    assert_equal Menus::PLAYING, run[:screen], "and START left it there"
+  end
+
+  # THE GAME'S OWN LETTERING, pixel for pixel: each fixture picture is different all over, so one
+  # read at the wrong number, or drawn in the wrong place, does not match.
+  def test_the_screen_between_floors_is_written_in_the_games_own_lettering
+    lift_in = 2 + Wolf3D::FirstPerson::LIFT_WAIT + 4
+    run = play(frames: lift_in + 6, program: self.class.with_a_lift) { |f| f == 2 ? [:a] : [] }
+    tally = Wolf3D::Tally
+    ones = tally::FIGURES_X + (2 * tally::LETTER)
+
+    assert_equal lettering(:tally_percent), picture_at(run, tally::PERCENT_X, tally::RATIOS_Y)
+    assert_equal lettering(:tally_0), picture_at(run, ones, tally::RATIOS_Y), "the ones place of nought per cent"
+    # "FLOOR 1" is seven letters, so 112 across and starting at 64, and the number is the seventh.
+    assert_equal lettering(:tally_1), picture_at(run, 160, tally::FLOOR_Y), "the floor's number"
+  end
+
+  def lettering(name) = self.class.art.picture(name, palette)[:data]
+
+  def picture_at(run, left, top)
+    (0...Wolf3D::Tally::LETTER).flat_map do |y|
+      (0...Wolf3D::Tally::LETTER).map { |x| run.screen.pixel(left + x, top + y) }
+    end
+  end
+
   def test_the_last_row_goes_back_to_the_game_when_there_is_one
     run = playing(frames: 180) do |f|
       next [:start] if f == 95
@@ -483,7 +517,12 @@ class TestMenus < Minitest::Test
   class << self
     include Wolf3DTest::Field
 
-    def release = Ractor.current[:menus_release] ||= Release.new(set: "WL6")
+    # Enough walls for the lever's pictures, which sit near the end of a release's list of them.
+    def release
+      Ractor.current[:menus_release] ||= Release.new(set: "WL6", walls: (Wolf3D::Elevator::PULLED * 2) + 2)
+    end
+
+    def fixture = release
     def pictures = Ractor.current[:menus_pictures] ||= release.pictures
     def art = Ractor.current[:menus_art] ||= Wolf3D::MenuArt.of(pictures)
     def vswap = Ractor.current[:menus_vswap] ||= Wolf3D::Vswap.new(release.files["VSWAP"])
@@ -506,9 +545,17 @@ class TestMenus < Minitest::Test
       Floors.new(Array.new(episodes) { |n| floor_of(level, index: n * Floors::PER_EPISODE) })
     end
 
-    def cartridge(episodes:, starting_on: Menus::NOTICE)
+    # A floor you start on facing a lever, already in the game: what a test of a floor's end wants.
+    def with_a_lift
+      Ractor.current[:menus_with_a_lift] ||= begin
+        level = arena(player: [4, 8], cells: { [5, 8] => Wolf3D::Elevator::SWITCH })
+        cartridge(floors: Floors.new([floor_of(level, index: 0)]), starting_on: Menus::PLAYING)
+      end
+    end
+
+    def cartridge(episodes: 1, floors: floors_for(episodes), starting_on: Menus::NOTICE)
       menu_art = art
-      cartridge_of(floors_for(episodes), sound: 1) do |b, view, sound_on|
+      cartridge_of(floors, sound: 1, lettering: menu_art) do |b, view, sound_on|
         menus = Wolf3D::Menus.new(build: b, view: view, art: menu_art, palette: Wolf3D::Palette.game,
                                   sound_on: sound_on, starting_on: starting_on)
         b.game_loop { menus.update }

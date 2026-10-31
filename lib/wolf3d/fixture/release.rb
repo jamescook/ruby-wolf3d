@@ -304,6 +304,8 @@ module Wolf3D
       # episode's name. A difficulty portrait is a FACE, the same shape as the bar's.
       HEADING = [152, 48].freeze
       GUN = [24, 16].freeze
+      # A letter of the screen between floors. The exclamation mark is half of one, a SLOT.
+      LETTER = [16, 16].freeze
 
       # ...and everything else is the smallest picture that can be stored, since a width has
       # to divide by four. They are there to hold their places in the picture table, which is
@@ -340,6 +342,7 @@ module Wolf3D
       def other_size_of(name)
         return FACE if name.start_with?("face_", "difficulty_")
         return WEAPON if name.start_with?("episode_")
+        return LETTER if name.start_with?("tally_") && name != :tally_exclamation
 
         SLOT
       end

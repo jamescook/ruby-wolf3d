@@ -61,6 +61,8 @@ VBlank.require_game_file "wolf3d/lives"
 VBlank.require_game_file "wolf3d/victory"
 # ...and what starts play again after either of them, or at the bottom of a lift.
 VBlank.require_game_file "wolf3d/playthrough"
+# ...and the screen a lift arrives at, which hands on to the playthrough.
+VBlank.require_game_file "wolf3d/tally"
 # ...and after the view, whose START_HEALTH and KEY_BITS say what a full player is and what a key
 # is worth, and after lives, which a one-up on the floor hands another of.
 VBlank.require_game_file "wolf3d/pickups"
@@ -295,7 +297,7 @@ module Wolf3D
                                       }.uniq.sort)
       # WOLFENSTEIN'S OWN MENU ART, or nil for a release whose pictures we cannot name — and
       # then the cartridge boots straight into the game, because there is nothing to write a
-      # menu with.
+      # menu with. The same pictures hold the lettering of the screen between floors.
       menu_art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
       # WHETHER SOUND IS ON, which the menu's own row moves and every one of the game's sounds
       # is played under. Declared here rather than inside either of them because both need it
@@ -308,6 +310,7 @@ module Wolf3D
                                      vswap: Wolf3D.vswap,
                                      bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph),
                                      gun_art: Wolf3D.gun_art,
+                                     lettering: menu_art,
                                      sound_on: sound_on,
                                      armed_with: Wolf3D.armed_with(armed),
                                      ammo: Wolf3D.starting_ammo(ammo))

@@ -4,6 +4,7 @@ module Wolf3D
   # WOLFENSTEIN'S OWN ART FOR EVERYTHING YOU MEET BEFORE YOU PLAY, out of VGAGRAPH and ready
   # to hand to the framework: the title screen, the credits, the rating box, the plate over
   # the menu's rows, the gun it points with, and the four portraits of the difficulty screen.
+  # The big lettering of the screen between floors comes out of here too (see Tally).
   #
   # NOTHING HERE IS SEE-THROUGH, and that is not an accident of this file — Wolfenstein has no
   # see-through pictures at all, which is why its menus erase the gun with a filled bar rather

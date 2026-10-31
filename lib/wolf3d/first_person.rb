@@ -147,7 +147,7 @@ module Wolf3D
     # +floors+ is every floor the cartridge holds.
     # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
     def initialize(build:, atlas:, floors:, things: nil, vswap: nil, bar_art: nil, gun_art: nil,
-                   sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING)
+                   lettering: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING)
       @floors = floors
       here = @floors.first_floor
       @b = build
@@ -179,6 +179,7 @@ module Wolf3D
       @vswap = vswap # the player's own copy of the recorded sounds, or nil for a silent build
       @bar_art = bar_art # Wolfenstein's own art for the bar, or nil to draw it plainly
       @gun_art = gun_art # ...and for the gun in your hands, or nil to hold one you cannot see
+      @lettering = lettering # ...and the big letters between floors, or nil for the plain font
       @sound_on = sound_on
       declare
     end
@@ -322,7 +323,20 @@ module Wolf3D
     # A DEAD PLAYER DOES NOT SHOOT, which is the whole of dying until there is a screen to say
     # so. The guards go on about their business around the body, which is what the original does
     # too while the death is playing out.
+    #
+    # THE SCREEN BETWEEN TWO FLOORS STOPS ALL OF IT, and is the only thing a pass does while it is
+    # up. See Tally.
     def play
+      return take_a_turn unless @tally
+
+      if @tally.showing == 1
+        @tally.wait_for_a_press
+      else
+        take_a_turn
+      end
+    end
+
+    def take_a_turn
       @b.call :the_world_takes_a_step if @pacing == :by_the_pass
       if still_playing
         @b.call :a_door_opens
@@ -378,7 +392,11 @@ module Wolf3D
     def declare_the_clock
       return unless @pacing == :by_the_frame
 
-      @b.once_a_frame(:the_world_moves) { move_the_world }
+      @b.once_a_frame(:the_world_moves) do
+        next move_the_world unless @tally
+
+        move_the_world if @tally.showing == 0
+      end
     end
 
     # THE WEAPON RUNS ITSELF and says when it acted; what a shot does to a MAN is the guards'
@@ -418,6 +436,16 @@ module Wolf3D
     # already there, so anything painting over it would rub them out — and the whole of what the
     # fizzle costs is affordable precisely because none of this is being done underneath it.
     def draw
+      return draw_the_game unless @tally
+
+      if @tally.showing == 1
+        @b.call :the_end_of_a_floor
+      else
+        draw_the_game
+      end
+    end
+
+    def draw_the_game
       return draw_it_all unless @dying
 
       draw_it_all if @dying.showing_the_world
@@ -440,13 +468,9 @@ module Wolf3D
       @bar.draw
     end
 
-    # HOW MUCH OF THE FLOOR HAS BEEN FOUND, and how much there was to find on it. A percentage is
-    # one over the other, and the original gives a bonus for a hundred per cent of any of them.
-    #
-    # PUBLIC because the tally at the end of a floor is the whole reason they exist, and that
-    # screen is not written yet — it wants the game's own lettering, which is a piece of work of
-    # its own. Counting them is not, so they are counted, and the screen will find them here.
-    attr_reader :kills, :secrets, :treasures, :kill_total, :secret_total, :treasure_total
+    # WHETHER THE SCREEN BETWEEN TWO FLOORS IS UP, or nil on a cartridge with no lift to reach it
+    # by. The menus read it, because START does not pause a game that has stopped for it.
+    def between_floors = @tally&.showing
 
     private
 
@@ -571,6 +595,8 @@ module Wolf3D
       declare_the_guards
       declare_the_pickups
       declare_what_there_is_to_find
+      # ...which is what the screen at the bottom of a lift reads.
+      declare_the_tally if lifts?
       declare_the_guards_minds
       declare_the_standing
       declare_the_scratch
@@ -871,6 +897,19 @@ module Wolf3D
       @kill_total = @lasting.var :kill_total, first.guards&.at(Guards::DEFAULT_DIFFICULTY)&.length || 0
       @secret_total = @lasting.var :secret_total, first.pushwalls.count
       @treasure_total = @lasting.var :treasure_total, @pickups.treasure_total(0)
+    end
+
+    # THE SCREEN AT THE BOTTOM OF THE LIFT, and the bar stays under it as it does in the original.
+    # A routine, because this picture costs nothing in a frame that matters and the game loop
+    # keeps its quick memory for the ones that do.
+    def declare_the_tally
+      @tally = Tally.new(build: @b, player: @player, floors: @floors, floor: @floor,
+                         playthrough: @playthrough, secret_lift: @lift_secret, lettering: @lettering,
+                         totals: { kill: @kill_total, secret: @secret_total, treasure: @treasure_total })
+      @b.func(:the_end_of_a_floor, fast: false) do
+        @tally.draw
+        @bar.draw
+      end
     end
 
     # THE GUARDS THEMSELVES: where each stands and what state he is in. See GuardPool. Their minds
@@ -1203,11 +1242,12 @@ module Wolf3D
       end
     end
 
-    # The floor ends when that count runs out, and the playthrough decides where the lift goes.
+    # The floor ends when that count runs out, with the screen that adds it up. Pressing on from
+    # there is what takes you down, and the playthrough decides where to.
     def run_the_lift
       if @lift_wait > 0
         @lift_wait -= 1
-        @playthrough.start(:next_floor, secret: @lift_secret) if @lift_wait == 0
+        @tally.floor_finished if @lift_wait == 0
       end
     end
 

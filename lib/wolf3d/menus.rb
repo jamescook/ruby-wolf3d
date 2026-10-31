@@ -442,18 +442,22 @@ module Wolf3D
     # UNLESS THE GAME IS OVER, and then START means the other thing it has always meant here:
     # begin another game on the floor the last one began on. The two never overlap, so one button
     # does both.
+    #
+    # NOR ON THE SCREEN BETWEEN TWO FLOORS. The game has stopped for that one already, and a game
+    # ended from the menu behind it would leave the screen up over the title.
     def pausing
-      pause = lambda do
+      pause_unless([@view.over, @view.between_floors].compact)
+    end
+
+    # Each of +flags+ is 1 while START must not pause. A cartridge may hold neither of them.
+    def pause_unless(flags)
+      if flags.empty?
         if @b.pressed(:start)
           @in_game = 1
           go_to MENU
         end
-      end
-      over = @view.over
-      if over
-        pause.call if over == 0
-      else
-        pause.call
+      elsif flags.first == 0
+        pause_unless(flags.drop(1))
       end
     end
 

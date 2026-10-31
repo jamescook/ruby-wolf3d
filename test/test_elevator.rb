@@ -123,11 +123,13 @@ class TestElevator < Minitest::Test
   # this build falls back to the stated number — which is what that recording comes to anyway.
   def test_the_lift_takes_as_long_as_it_says_and_then_the_floor_starts_again
     during = pull(room_with_a_lift, frames: FP::LIFT_WAIT)
-    after = pull(room_with_a_lift, frames: FP::LIFT_WAIT + 6)
+    arrived = pull(room_with_a_lift, frames: FP::LIFT_WAIT + 6)
+    pressed_on = Reference.new.input_each_frame { |f| [2, FP::LIFT_WAIT + 6].include?(f) ? [:a] : [] }
+                          .run(program(room_with_a_lift), frames: FP::LIFT_WAIT + 10)
 
     assert_operator during[:lift_wait], :>, 0, "still on its way"
-    assert_equal(-1, after[:lift_pulled], "and then the floor has started again")
-    assert_equal 0, after[:lift_wait]
+    assert_equal 0, arrived[:lift_wait], "then it is in, and the screen between floors is up"
+    assert_equal(-1, pressed_on[:lift_pulled], "and pressing on starts the floor again")
   end
 
   # THE PICTURE CHANGES, which is the half no counter can show. The lever and the pulled lever
