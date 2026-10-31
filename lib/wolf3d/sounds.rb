@@ -85,19 +85,11 @@ module Wolf3D
       ((sound.pcm.length.to_f / sound.rate) * 60).round
     end
 
-    # ...and one of his death screams, chosen as the game runs. Written out as one arm per scream
-    # because a sample is played by name: which clip a `play` means is settled while the cartridge
-    # is built, so a choice made as the game runs has to be a choice between plays.
+    # ...and one of his death screams, picked by a number the game rolls. See #declare_the_screams.
     def a_guard_dies
-      screams = DEATH_SCREAMS.filter_map { |n| @clips[n] }
-      return if screams.empty?
+      return if @screams.nil?
 
-      when_sound_is_on do
-        next screams.first.play if screams.length == 1
-
-        @which = @b.rand(0...screams.length)
-        screams.each_with_index { |clip, n| clip.play if @which == n }
-      end
+      when_sound_is_on { @screams.play(@scream_count == 1 ? 0 : @b.rand(0...@scream_count)) }
     end
 
     private
@@ -111,10 +103,9 @@ module Wolf3D
     end
 
     # Every chunk this game plays as a sample. Named for the moment rather than the number, so a
-    # sound the player's copy does not hold simply never reaches the list. The guns are not here:
-    # see #declare_the_guns.
-    WANTED = [NOTICES_YOU, GUARD_FIRES, DOOR_OPENS, DOOR_SHUTS, SECRET_WALL, LEVEL_DONE,
-              *DEATH_SCREAMS].freeze
+    # sound the player's copy does not hold simply never reaches the list. The guns and the screams
+    # are not here: see #declare_the_guns and #declare_the_screams.
+    WANTED = [NOTICES_YOU, GUARD_FIRES, DOOR_OPENS, DOOR_SHUTS, SECRET_WALL, LEVEL_DONE].freeze
 
     # At this tempo, and the twenty-four ticks to a beat a Score has unless it says otherwise, a
     # tick is one frame.
@@ -137,8 +128,9 @@ module Wolf3D
         @clips_source[chunk] = sound
         @clips[chunk] = @b.sample(:"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate)
       end
-      @which = @b.var :_which_scream, 0 unless @clips.empty?
+      @b.enable_sound if (GUNS + DEATH_SCREAMS).any? { |chunk| recording(chunk) }
       declare_the_guns
+      declare_the_screams
     end
 
     # What this copy holds for a chunk, or nil when it holds nothing there.
@@ -172,19 +164,38 @@ module Wolf3D
       held = GUNS.select { |chunk| recording(chunk) }
       return if held.empty?
 
-      @b.enable_sound
-      @guns =@b.sound_effects :guns, held.map { |chunk| shot_of(chunk) }
+      @guns = @b.sound_effects :guns, held.map { |chunk| recording_as_effect(chunk, group: :player_weapon) }
       @gun_effect = @b.table :gun_effect, GUNS.map { |chunk| held.index(chunk) || held.length }, width: :byte
     end
 
-    def shot_of(chunk)
+    # THE SCREAMS ARE A LIST OF THE ONES THIS COPY HOLDS, so a rolled number names one directly and
+    # there is no test per scream. A copy with none has no list, and a guard falls silently.
+    #
+    # THE ORIGINAL STACKS THESE: every scream in its map is channel -1, any free one. Here they are
+    # in no group, so two different screams overlap as they do there. The one difference is the
+    # same scream twice at once: an effect asked for again while it sounds starts again, so the
+    # first is cut off, where the original would sound both. We take that, because the second
+    # scream covers the first anyway and two copies of one recording only read as a louder one. It
+    # is a judgement from how the two work, and nobody has listened to a firefight to check it.
+    #
+    # A SCREAM NOW OUTRANKS A GUARD'S SHOUT OR SHOT when the mixer runs out of voices, because the
+    # game's samples rank below every effect. It also starts a frame after it is asked for.
+    def declare_the_screams
+      held = DEATH_SCREAMS.select { |chunk| recording(chunk) }
+      return if held.empty?
+
+      @screams = @b.sound_effects :screams, held.map { |chunk| recording_as_effect(chunk) }
+      @scream_count = held.length
+    end
+
+    def recording_as_effect(chunk, group: nil)
       sound = recording(chunk)
       @b.instrument :"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate
       frames = ((sound.pcm.length.to_f / sound.rate) * 60).ceil
       note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames)
 
       VBlank::Audio::Score.new(
-        tempo: FRAME_TICKS, group: :player_weapon,
+        tempo: FRAME_TICKS, group: group,
         parts: [VBlank::Audio::Score::Part.new(plays: :"sound_#{chunk}", volume: FULL, notes: [note])]
       )
     end

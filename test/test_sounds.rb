@@ -101,6 +101,27 @@ class TestSounds < Minitest::Test
     refute_empty heard & screams, "expected one of #{screams.inspect}, heard #{heard.inspect}"
   end
 
+  # A COPY WITH TWO SCREAMS picks between those two, which is every shareware copy: the number the
+  # game rolls names a place in the list of what this copy holds, so it can name nothing else.
+  def test_a_copy_holding_two_screams_plays_one_of_the_two
+    two, others = Sounds::DEATH_SCREAMS.partition { |n| n < 20 }
+    heard = screams_heard(chunks: Chunks.new(ALL, missing: others))
+
+    refute_empty heard, "he still cries out"
+    assert_empty heard - two.map { |n| name_of(n) }
+  end
+
+  def test_a_copy_holding_no_screams_builds_and_stays_quiet
+    heard = screams_heard(chunks: Chunks.new(ALL, missing: Sounds::DEATH_SCREAMS))
+
+    assert_empty heard
+  end
+
+  # THE ONE ROW ON THE MENU reaches the screams too.
+  def test_the_screams_are_silent_with_sound_turned_off
+    assert_empty screams_heard(sound: 0)
+  end
+
   # ---------------------------------------------------------------- the level
 
   # The fixture floor has a door in the wall the player starts with their back to.
@@ -234,6 +255,12 @@ class TestSounds < Minitest::Test
   def heard_during(frames, **opts, &script)
     (LOOK_EVERY..frames).step(LOOK_EVERY)
                         .flat_map { |n| play_it(frames: n, **opts, &script).active_samples }.uniq
+  end
+
+  # Which screams sounded while a guard was shot down.
+  def screams_heard(**)
+    heard_during(120, guards: [[11, 8, :west]], drawn: true, **) { |f| f.even? ? [:b] : [] } &
+      Sounds::DEATH_SCREAMS.map { |n| name_of(n) }
   end
 
   def about_turn = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil
