@@ -107,9 +107,9 @@ module Wolf3D
       # ...AND WHICH PASS HE THINKS ON is counted the same way, over the guards who really stand
       # up and not over the slots walked — otherwise an easier game, which spawns from scattered
       # slots, could land most of its floor on the same pass and pay for it twice over on that one.
-      kill_total = 0
+      kill_total.set! 0
       @b.repeat(@count) do |n|
-        slot = @first + n
+        slot.set!(@first + n)
         if @difficulty >= @home_from[slot]
           @pool.spawn x: @home_x[slot], y: @home_y[slot],
                       dir: @home_dir[slot],
@@ -117,7 +117,7 @@ module Wolf3D
                       hp: @hit_points[@home_tough[slot] + @difficulty],
                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
                       ambush: @home_ambush[slot], turn: kill_total % 2
-          kill_total += 1
+          kill_total.add! 1
         end
       end
     end

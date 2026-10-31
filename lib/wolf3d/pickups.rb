@@ -159,9 +159,7 @@ module Wolf3D
       # an SS is worth killing twice: the first one arms you and every one after it feeds the gun.
       return if @weapons.nil?
 
-      if left == MACHINE_GUN_LEFT
-        left = CLIP_LEFT if @weapons.already_has(Weapons::MACHINE_GUN)
-      end
+      left.set! CLIP_LEFT if left == MACHINE_GUN_LEFT && @weapons.already_has(Weapons::MACHINE_GUN)
     end
 
     # --- what the drawing asks -------------------------------------------------------
@@ -263,7 +261,7 @@ module Wolf3D
     # you can hold what it offers, and only an arm that gave something says so — that is what
     # leaves a first aid box on the floor of a player who does not need it yet.
     def take_it
-      @slot = @this_floor.piece(@piece)
+      @slot.set!(@this_floor.piece(@piece))
       @kind = @gives_kind[@slot]
       @amount = @gives_amount[@slot]
       @took = 0
@@ -282,9 +280,7 @@ module Wolf3D
         @player.keys = @player.keys | @amount
         @took = 1
       end
-      if @kind == SCRAPS
-        give_health(@amount) if @player.health <= NEARLY_DEAD
-      end
+      give_health(@amount) if @kind == SCRAPS && @player.health <= NEARLY_DEAD
       give_another_go if @kind == EXTRA_LIFE
       give_a_weapon if @kind == WEAPON
 
@@ -344,9 +340,7 @@ module Wolf3D
       # on a cartridge holding more than one floor means this floor's slice of the map, not the
       # first floor's. Compare them as different numbers and a clip is never found.
       @pool.each do |guard|
-        if still_dropped(guard)
-          @b.call :take_what_he_left if guard_cell(guard) == @here
-        end
+        @b.call :take_what_he_left if still_dropped(guard) && guard_cell(guard) == @here
       end
     end
 
@@ -361,22 +355,18 @@ module Wolf3D
       end
 
       give_ammunition(DROPPED_ROUNDS) if guard.dropped == CLIP_LEFT
-      if @weapons && leaves_a_gun?
-        if guard.dropped == MACHINE_GUN_LEFT
-          # A gun off the floor is always taken, rounds or no rounds — the same rule as one the
-          # level put there.
-          give_ammunition(WEAPON_ROUNDS)
-          @weapons.give(Weapons::MACHINE_GUN)
-          @took = 1
-        end
+      if @weapons && leaves_a_gun? && guard.dropped == MACHINE_GUN_LEFT
+        # A gun off the floor is always taken, rounds or no rounds — the same rule as one the
+        # level put there.
+        give_ammunition(WEAPON_ROUNDS)
+        @weapons.give(Weapons::MACHINE_GUN)
+        @took = 1
       end
       # THE GOLD KEY OFF A BOSS, which is always taken — a key is the one thing you can never be
       # too full of, and it is the way out of the floor he was standing in.
-      if leaves_a_key?
-        if guard.dropped == GOLD_KEY_LEFT
-          @player.keys = @player.keys | FirstPerson::KEY_BITS.fetch(:gold)
-          @took = 1
-        end
+      if leaves_a_key? && guard.dropped == GOLD_KEY_LEFT
+        @player.keys = @player.keys | FirstPerson::KEY_BITS.fetch(:gold)
+        @took = 1
       end
       guard.dropped = NOTHING_LEFT if @took == 1
     end

@@ -296,7 +296,7 @@ class TestPlaythrough < Minitest::Test
     @programs[[level.name, only_new_game]] ||= view_of(level) do |b, view|
       b.game_loop do
         if only_new_game
-          b.pressed(:a).then { view.playthrough.start(:new_game, floor: 0) }
+          view.playthrough.start(:new_game, floor: 0) if b.pressed(:a)
         else
           view.update
         end
@@ -362,12 +362,18 @@ class TestPlaythrough < Minitest::Test
       secret = var :secret, 0
       play = Playthrough.new(build: self, floors: floors, score: score, world: CountingWorld.new(self))
       game_loop do
-        pressed(EVENTS[:score]).then { score.add! POINTS }
-        pressed(EVENTS[:new_game]).then { play.start(:new_game, floor: picked) }
-        pressed(EVENTS[:again]).then { play.start(:new_game) }
-        pressed(EVENTS[:death]).then { play.start(:another_life) }
-        pressed(EVENTS[:lift]).then { secret.set! 0; play.start(:next_floor, secret: secret) }
-        pressed(EVENTS[:secret_lift]).then { secret.set! 1; play.start(:next_floor, secret: secret) }
+        score.add! POINTS if pressed(EVENTS[:score])
+        play.start(:new_game, floor: picked) if pressed(EVENTS[:new_game])
+        play.start(:new_game) if pressed(EVENTS[:again])
+        play.start(:another_life) if pressed(EVENTS[:death])
+        if pressed(EVENTS[:lift])
+          secret.set! 0
+          play.start(:next_floor, secret: secret)
+        end
+        if pressed(EVENTS[:secret_lift])
+          secret.set! 1
+          play.start(:next_floor, secret: secret)
+        end
       end
     end.program
   end

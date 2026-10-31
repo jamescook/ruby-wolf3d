@@ -130,8 +130,8 @@ module Wolf3D
     # nothing all the same, or it would draw no red at all.
     def struck_by(guard)
       if @state == ALIVE
-        @kill_x = guard.x
-        @kill_y = guard.y
+        @kill_x.set! guard.x
+        @kill_y.set! guard.y
         @state = TURNING
         @was = 0
         @turned = 0
@@ -161,7 +161,7 @@ module Wolf3D
         @now = -1
         @now = 1 if @side > 0.0
         # The first frame has nothing to compare against, so it only takes a bearing.
-        @was = @now if @was == 0
+        @was.set! @now if @was == 0
         if @now == @was
           swing
         else
@@ -262,7 +262,7 @@ module Wolf3D
     def scatter(walker)
       @b.inside(0, 0, ACROSS, DOWN) do
         @b.repeat(PER_FRAME) do
-          walker = (walker * STEP) % MODULUS
+          walker.set!((walker * STEP) % MODULUS)
           @spot = walker - 1
           @b.draw_rect_at @spot % ACROSS, @spot / ACROSS, 1, 1, Palette.game[INK]
         end

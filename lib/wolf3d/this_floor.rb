@@ -110,9 +110,7 @@ module Wolf3D
     # number is neither, and then it pays the one comparison.
     def sort_out(cell, door: nil, pushwall: nil, wall: nil)
       if pushwall.nil? && wall.nil?
-        if cell >= DOOR
-          door.call if cell < PUSH
-        end
+        door.call if cell >= DOOR && cell < PUSH
         return
       end
 

@@ -138,7 +138,7 @@ class TestDifficulty < Minitest::Test
         view.play
         passes.add! 1
         Guards::SETTINGS.each_with_index do |_, n|
-          (passes == (n + 1) * APART).then do
+          if passes == (n + 1) * APART
             view.difficulty.set! n
             view.playthrough.start(:new_game)
           end

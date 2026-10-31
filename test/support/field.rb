@@ -130,7 +130,8 @@ module Wolf3DTest
         view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
                                        sound_on: sound_on, **options)
         if loop_body
-          loop_body.call(self, view, sound_on)
+          # With `instance_exec`, because that is what reads a test's block as a game's is read.
+          instance_exec(self, view, sound_on, &loop_body)
         else
           game_loop { drawing ? view.update : view.play }
         end

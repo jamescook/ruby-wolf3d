@@ -382,7 +382,7 @@ module Wolf3D
             # picked, so it has nothing to do either.
             next m.item(name, enabled: false) if slot.nil?
 
-            m.item(name) { @start_floor = slot; leaving_for DIFFICULTY }
+            m.item(name) { @start_floor.set! slot; leaving_for DIFFICULTY }
           end
         end
         the_gun(at, y, picked)
@@ -400,7 +400,7 @@ module Wolf3D
         @b.draw_text HOW_TOUGH, :center, HEADING_Y, colour(TEXT), font: HEADING
         picked = the_rows(:difficulty, at, y) do |m|
           DIFFICULTIES.each do |(setting, words, _)|
-            m.item(words) { @difficulty = Guards.number_of(setting); start_the_game }
+            m.item(words) { @difficulty.set!(Guards.number_of(setting)); start_the_game }
           end
         end
         the_portrait(y, picked)
@@ -526,7 +526,7 @@ module Wolf3D
 
     # STRAIGHT TO ANOTHER SCREEN, with the clock on the new one started from nothing.
     def go_to(screen)
-      @screen = screen
+      @screen.set! screen
       @waited = 0
     end
 
@@ -535,7 +535,7 @@ module Wolf3D
     # ignored, which is what the guard is for — the original simply stops reading the pad.
     def leaving_for(screen)
       if @going_to == NOWHERE
-        @going_to = screen
+        @going_to.set! screen
         @b.call :_menu_fade_out
       end
     end
@@ -547,12 +547,10 @@ module Wolf3D
     # to come back is still at its darkest on the frame after it started, so a screen watching
     # the darkness alone would arrive twice.
     def arriving
-      if @going_to != NOWHERE
-        if @b.fade_level == 100
-          go_to @going_to
-          @going_to = NOWHERE
-          @b.call :_menu_fade_in
-        end
+      if @going_to != NOWHERE && @b.fade_level == 100
+        go_to @going_to
+        @going_to = NOWHERE
+        @b.call :_menu_fade_in
       end
     end
 

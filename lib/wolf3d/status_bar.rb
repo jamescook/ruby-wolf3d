@@ -412,10 +412,10 @@ module Wolf3D
         place = 10**(field.digits - 1 - i)
         digit = place == 1 ? value % 10 : (value / place) % 10
         if place == 1
-          slot = digit + 1
+          slot.set!(digit + 1)
         else
-          slot = BarArt::BLANK
-          slot = digit + 1 if value >= place
+          slot.set! BarArt::BLANK
+          slot.set!(digit + 1) if value >= place
         end
         draw_from_strip(:_bar_numeral, slot, left + (i * wide), @top + FIGURE_ROW)
       end
@@ -432,9 +432,9 @@ module Wolf3D
     # and the bar's painting routine measured 57K. Emitted once per strip and called instead, it
     # is forty. The cost at run time is the same walk either way.
     def draw_from_strip(routine, slot, x, top)
-      @col_slot = slot
-      @col_x = x
-      @col_y = top
+      @col_slot.set! slot
+      @col_x.set! x
+      @col_y.set! top
       @b.call routine
     end
 
@@ -557,7 +557,7 @@ module Wolf3D
 
       METALS.each_key.with_index do |name, n|
         slot = @b.var :"_bar_key_#{name}", 0
-        slot = BarArt::BLANK
+        slot.set! BarArt::BLANK
         slot.set! @art.key_slot(name) if carrying(keys, name)
         draw_from_strip(:_bar_key, slot, at(field), top + (n * @art.key_height))
       end

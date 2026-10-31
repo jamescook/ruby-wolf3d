@@ -166,14 +166,14 @@ class TestLastingState < Minitest::Test
       men = lasting.pool :men, hp: 0, capacity: 2
       2.times { doors << 0 }
       game_loop do
-        pressed(EVENTS[:change]).then do
+        if pressed(EVENTS[:change])
           before.set! CHANGED_BEFORE
           after.set! CHANGED_AFTER
           doors[1] = CHANGED_AFTER
           men.spawn(hp: CHANGED_BEFORE)
         end
-        pressed(EVENTS[:save]).then { game[0].save }
-        pressed(EVENTS[:load]).then { game[0].load }
+        game[0].save if pressed(EVENTS[:save])
+        game[0].load if pressed(EVENTS[:load])
       end
     end.program
   end
@@ -236,14 +236,16 @@ class TestLastingState < Minitest::Test
       game = b.save_data :game, copies: 1
       view.lasting.keep_in(game)
       b.game_loop do
-        (b.held(:l) & b.held(:r)).then do
-          b.pressed(:a).then { view.playthrough.start(:new_game, floor: 1) }
-          b.pressed(:b).then { game[0].save }
-          b.pressed(:select).then do
+        if b.held(:l) && b.held(:r)
+          view.playthrough.start(:new_game, floor: 1) if b.pressed(:a)
+          game[0].save if b.pressed(:b)
+          if b.pressed(:select)
             game[0].load
             view.playthrough.start(:resume)
           end
-        end.else { view.update }
+        else
+          view.update
+        end
       end
     end
   end

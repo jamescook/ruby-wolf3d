@@ -92,7 +92,7 @@ module Wolf3D
     def refresh
       where_the_player_stands
       if @player_room != @worked_out_for || @changed == 1
-        @worked_out_for = @player_room
+        @worked_out_for.set! @player_room
         @changed = 0
         @b.call(:which_rooms_are_open)
       end
@@ -111,7 +111,7 @@ module Wolf3D
     # written with the rest of the player (SaveTheGame, wl_main.cpp).
     def where_the_player_stands
       @stood = @room_of[@this_floor.map_index(@player.x.to_i, @player.y.to_i)]
-      @player_room = @stood if @stood > NOWHERE
+      @player_room.set! @stood if @stood > NOWHERE
     end
 
     # A DOOR MOVED, so the walk has to be done again. Said by the doors rather than worked out

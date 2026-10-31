@@ -266,7 +266,7 @@ module Wolf3D
       @player.treasures = 0
       # ...and how much there is to find on it. The kill total is counted as the guards stand up.
       on_each_floor do |floor, n|
-        @secret_total = floor.pushwalls.count
+        @secret_total.set! floor.pushwalls.count
         @treasure_total = @pickups.treasure_total(n)
       end
       # The lever comes back up and the lift forgets it was ever called.
@@ -712,7 +712,7 @@ module Wolf3D
       @backy = 1.0 - @fracy
       # The first ray points at the left edge of the view, half the fan round from where the
       # player is looking.
-      @ang = @player.angle
+      @ang.set! @player.angle
       @ang -= (COLUMNS - 1) * SPREAD / 2
     end
 
@@ -1011,11 +1011,11 @@ module Wolf3D
     # still lands. A sideways step goes through exactly this, or strafing into a wall would put
     # you through it.
     def take_the_step
-      @nx = @player.x
+      @nx.set! @player.x
       @nx += @stepx
       @player.x = @nx if free?(@nx.to_i, @player.y.to_i)
 
-      @ny = @player.y
+      @ny.set! @player.y
       @ny += @stepy
       @player.y = @ny if free?(@player.x.to_i, @ny.to_i)
     end
@@ -1113,9 +1113,9 @@ module Wolf3D
     def open_a_door
       b = @b
       if b.pressed(:a)
-        @nx = @player.x
+        @nx.set! @player.x
         @nx += @sin[@player.angle + QUARTER] * DOOR_REACH
-        @ny = @player.y
+        @ny.set! @player.y
         @ny += @sin[@player.angle] * DOOR_REACH
         @ahead = (@ny.to_i * @level.width) + @nx.to_i
         @foot = @this_floor.cell(@ahead)
@@ -1143,9 +1143,7 @@ module Wolf3D
         @want = @door_lock[@this_floor.door(@slot)]
         @can = 0
         @can = 1 if @want == 0
-        if @want > 0
-          @can = 1 if (@player.keys / @want) % 2 == 1
-        end
+        @can = 1 if @want > 0 && (@player.keys / @want) % 2 == 1
         if @can == 1
           # ...and it is heard only when it was SHUT. Pressing at a door already open tops its
           # count back up, which is not a door opening and does not sound like one.
@@ -1178,8 +1176,8 @@ module Wolf3D
       @across = @sin[@player.angle + QUARTER].abs
       @along = @sin[@player.angle].abs
       if @across > @along && @pulled < 0
-        @pulled = @ahead
-        @lift_wait = lift_wait_frames
+        @pulled.set! @ahead
+        @lift_wait.set! lift_wait_frames
         # WHERE THE LIFT GOES is decided by the cell the player is standing on, not by the lever
         # — which is the original's own test, and is why nothing here has to model a car. A floor
         # has one such cell or none, so this is a comparison against a number settled at build
@@ -1301,8 +1299,8 @@ module Wolf3D
       @deltax = @reach[@ang + QUARTER]
       @deltay = @reach[@ang]
 
-      @mapx = @eyex
-      @mapy = @eyey
+      @mapx.set! @eyex
+      @mapy.set! @eyey
       # Nothing else is cleared here. The walk always takes at least one step, and every step
       # says which side of a cell it crossed, so `side` is written before anything reads it — and
       # `wall` is read only to work out a picture for a strip that a ray which met nothing does
@@ -1506,7 +1504,7 @@ module Wolf3D
         if @wallx > @slid
           @hit = 1
           @isdoor = 1
-          @dist = @mid
+          @dist.set! @mid
           @wall = @door_picture[@this_floor.door(@door)]
           @wallx -= @slid
         end

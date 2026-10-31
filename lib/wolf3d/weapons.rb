@@ -138,9 +138,9 @@ module Wolf3D
     # machine gun while holding a chain gun does not put you a step backwards.
     def give(which)
       if @best < which
-        @best = which
-        @chosen = which
-        @in_hand = which
+        @best.set! which
+        @chosen.set! which
+        @in_hand.set! which
       end
     end
 
@@ -152,9 +152,9 @@ module Wolf3D
     # original (wl_game.cpp, Died) and what a new game starts you with. A lift does not: the
     # guns you found go down it with you.
     def start_again
-      @in_hand = @starting
-      @chosen = @starting
-      @best = @starting
+      @in_hand.set! @starting
+      @chosen.set! @starting
+      @best.set! @starting
       @stage = AT_REST
       @wait = 0
     end
@@ -257,9 +257,7 @@ module Wolf3D
     # which is false on nearly every pass of the game — so a player holding a gun pays one
     # comparison for it.
     def put_back_what_you_chose
-      if @in_hand == KNIFE
-        @in_hand = @chosen if @chosen != KNIFE && @player.ammo > 0
-      end
+      @in_hand.set! @chosen if @in_hand == KNIFE && @chosen != KNIFE && @player.ammo > 0
     end
 
     # THE SHOULDER BUTTONS WALK THE LIST, which is what is left once the original's four number
@@ -280,15 +278,13 @@ module Wolf3D
     # It wraps at the end, so a cycle reaches everything you are carrying; there are four of
     # them at most, and the knife is one, so nothing is ever more than three presses away.
     def change_the_weapon
-      if @player.ammo > 0
-        take_the_next_one if @b.pressed(:select)
-      end
+      take_the_next_one if @player.ammo > 0 && @b.pressed(:select)
     end
 
     def take_the_next_one
       @chosen = @in_hand + 1
       @chosen = KNIFE if @chosen > @best
-      @in_hand = @chosen
+      @in_hand.set! @chosen
     end
 
     # THE TRIGGER, read on its edge, so holding it down does not start a second attack — the two
@@ -310,7 +306,7 @@ module Wolf3D
         @next = @stage + 1
         the_weapon_acts if @stage == FIRES
         the_automatics_carry_on if @stage == REPEATS
-        @stage = @next
+        @stage.set! @next
         finish_the_attack if @stage >= STAGES
       end
     end
@@ -352,7 +348,7 @@ module Wolf3D
 
     def finish_the_attack
       @stage = AT_REST
-      @in_hand = @chosen if @player.ammo > 0
+      @in_hand.set! @chosen if @player.ammo > 0
     end
 
     # Each gun has its own recording, which is the one place a machine gun and a chain gun

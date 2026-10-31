@@ -72,8 +72,8 @@ class TestLives < Minitest::Test
         dying.turn
         # STRUCK ON A BUTTON rather than whenever there is a go going spare, so the test says how
         # many deaths it wants instead of working out how many frames one takes.
-        pressed(:b).then { dying.struck_by(killer) }
-        pressed(:r).then { score.add! POINTS }
+        dying.struck_by(killer) if pressed(:b)
+        score.add! POINTS if pressed(:r)
         dying.draw
         lives.update
       end
@@ -158,7 +158,7 @@ class TestLives < Minitest::Test
         # Another life, asked for straight away, which is what a spent life asks for. Driving it
         # this way rather than by standing in front of a guard until he finishes you off is what
         # keeps these quick: a real death is several hundred frames away.
-        (passes == restart_at).then { view.playthrough.start(:another_life) }
+        view.playthrough.start(:another_life) if passes == restart_at
       end
     end
   end

@@ -461,10 +461,8 @@ module Wolf3D
     def remember_a_standing_thing
       b = @b
       @shows = 0
-      if covers_any_strips
-        if in_front_of_the_walls
-          add_it_to_the_queue
-        end
+      if covers_any_strips && in_front_of_the_walls
+        add_it_to_the_queue
       end
     end
 
@@ -538,7 +536,7 @@ module Wolf3D
     # is thrown out by before it ever reaches the queue.
     def covers_any_strips
       @lstrip = (@cx - (@theight / 2)) / FP::COLUMN_W
-      @s0 = @lstrip
+      @s0.set! @lstrip
       @s0.clamp! 0, FP::COLUMNS
       @s1 = @lstrip + (@theight / FP::COLUMN_W)
       @s1.clamp! 0, FP::COLUMNS
@@ -572,13 +570,9 @@ module Wolf3D
     # it, so it settles nothing about the strip for whatever comes next — and nothing needs it
     # to, because whatever comes next is nearer and paints over.
     def draw_a_strip
-      if @tcol >= @pfirst
-        if @tcol <= @plast
-          if @theight > @depth[@tstrip]
-            @b.draw_column_at :things, slice: @shape + @tcol, x: @tstrip * FP::COLUMN_W,
-                                       top: @ttop, height: @theight, width: FP::COLUMN_W
-          end
-        end
+      if @tcol >= @pfirst && @tcol <= @plast && @theight > @depth[@tstrip]
+        @b.draw_column_at :things, slice: @shape + @tcol, x: @tstrip * FP::COLUMN_W,
+                                   top: @ttop, height: @theight, width: FP::COLUMN_W
       end
     end
   end

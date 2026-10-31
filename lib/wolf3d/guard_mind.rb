@@ -219,11 +219,14 @@ module Wolf3D
       # next door or on the far side of the floor. The second floor of the first episode has
       # twenty-nine guards and, wherever you stand on it, about one and a half of them are in the
       # room with you.
-      thinks_it_through(guard) if guard.awake == 1 || @rooms.open_to_the_player?(guard.x, guard.y)
+      #
+      # `|` AND NOT `||`, because this runs for half the guards every pass. The right side reads a
+      # list, so `||` would keep its answer in a variable of its own to skip it. `|` is one test.
+      thinks_it_through(guard) if (guard.awake == 1) | @rooms.open_to_the_player?(guard.x, guard.y)
     end
 
     def thinks_it_through(guard)
-      @state = guard.state
+      @state.set! guard.state
       step_the_state(guard)
 
       # EXACTLY ONE OF THESE RUNS. They are the arms of one choice — a guard is standing, or
@@ -447,31 +450,15 @@ module Wolf3D
     # takes the two halves together.
     def in_front(guard)
       @clear = 1
-      @dir = guard.dir
-      if @dir == 2
-        @clear = 0 if @dy > 0.0
-      end   # north
-      if @dir == 0
-        @clear = 0 if @dx < 0.0
-      end   # east
-      if @dir == 6
-        @clear = 0 if @dy < 0.0
-      end   # south
-      if @dir == 4
-        @clear = 0 if @dx > 0.0
-      end   # west
-      if @dir == 3
-        @clear = 0 if @dy > -@dx
-      end  # northwest
-      if @dir == 1
-        @clear = 0 if @dy > @dx
-      end   # northeast
-      if @dir == 5
-        @clear = 0 if @dx > @dy
-      end   # southwest
-      if @dir == 7
-        @clear = 0 if -@dx > @dy
-      end  # southeast
+      @dir.set! guard.dir
+      @clear = 0 if @dir == 2 && @dy > 0.0   # north
+      @clear = 0 if @dir == 0 && @dx < 0.0   # east
+      @clear = 0 if @dir == 6 && @dy < 0.0   # south
+      @clear = 0 if @dir == 4 && @dx > 0.0   # west
+      @clear = 0 if @dir == 3 && @dy > -@dx  # northwest
+      @clear = 0 if @dir == 1 && @dy > @dx   # northeast
+      @clear = 0 if @dir == 5 && @dx > @dy   # southwest
+      @clear = 0 if @dir == 7 && -@dx > @dy  # southeast
     end
 
     # IS ANYTHING BETWEEN THEM: a step at a time from the guard toward the player, stopping at
@@ -494,8 +481,8 @@ module Wolf3D
     # Every one of its inputs is working room already, so all a caller has to hand over is where
     # the line starts.
     def walk_the_sight_line_from(fromx, fromy)
-      @fromx = fromx
-      @fromy = fromy
+      @fromx.set! fromx
+      @fromy.set! fromy
       @b.call :walk_the_sight_line
     end
 
@@ -554,8 +541,8 @@ module Wolf3D
       @absx = @dx.abs
       @absy = @dy.abs
 
-      @stepx = @dx
-      @stepy = @dy
+      @stepx.set! @dx
+      @stepy.set! @dy
       if @absx > @absy
         if @absx > 1.0
           @stepx = 1.0
@@ -568,8 +555,8 @@ module Wolf3D
         @stepx = @dx / @absy
       end
 
-      @atx = fromx
-      @aty = fromy
+      @atx.set! fromx
+      @aty.set! fromy
     end
 
     # Something is in this cell. A wall stops the line; a doorway stops it only while its panel
@@ -656,8 +643,8 @@ module Wolf3D
       @cellx = 0 - @cellx if @cellx < 0
       @celly = @player.y.to_i - guard.y.to_i
       @celly = 0 - @celly if @celly < 0
-      @away = @cellx
-      @away = @celly if @celly > @away
+      @away.set! @cellx
+      @away.set! @celly if @celly > @away
       @away.clamp! 0, @reach
     end
 
@@ -681,9 +668,9 @@ module Wolf3D
       @try = 6 if @dy > 0.0             # south
       # The longer way is tried first, so swap them when the up-and-down one is longer.
       if @dy.abs > @dx.abs
-        @cellx = @way
-        @way = @try
-        @try = @cellx
+        @cellx.set! @way
+        @way.set! @try
+        @try.set! @cellx
       end
 
       @picked = 0
@@ -696,7 +683,7 @@ module Wolf3D
     # Can he walk one cell that way? If so he sets off, and from here he is between two cells
     # until he arrives.
     def try_this_way(guard, way)
-      @try = way
+      @try.set! way
       if @try < Guards::NOWHERE
         @cellx = guard.x.to_i + @step_x[@try]
         @celly = guard.y.to_i + @step_y[@try]
@@ -781,9 +768,7 @@ module Wolf3D
     # away costs one list read instead of two: most of a floor is men who are alive and not on
     # the screen, and the bodies are the few.
     def consider_as_a_target(guard)
-      if guard.shown == 1
-        measure_him(guard) if guard.hp > 0
-      end
+      measure_him(guard) if guard.shown == 1 && guard.hp > 0
     end
 
     # Where he is in front of the eye and to the side of it, and — if that puts him in the sights
@@ -806,8 +791,8 @@ module Wolf3D
         @dy = @player.y - y
         walk_the_sight_line_from(x, y)
         if @clear == 1
-          @nearest = @fwd
-          @target = guard.index
+          @nearest.set! @fwd
+          @target.set! guard.index
         end
       end
     end
@@ -822,8 +807,8 @@ module Wolf3D
       @cellx = 0 - @cellx if @cellx < 0
       @celly = (@player.y.to_i - y.to_i)
       @celly = 0 - @celly if @celly < 0
-      @away = @cellx
-      @away = @celly if @celly > @away
+      @away.set! @cellx
+      @away.set! @celly if @celly > @away
 
       if with_knife
         what_a_knife_does
@@ -860,8 +845,8 @@ module Wolf3D
     # for getting the first one in. Then he either falls over or flinches and comes for you —
     # and a guard who was not already coming starts now, however little the shot took off him.
     #
-    # THESE THREE NAMES ONLY STAND FOR HIS FIELDS, which is why they are written with `set!` below.
-    # `state = @blow` would point the name at @blow and leave the guard as he was.
+    # THESE THREE NAMES ONLY STAND FOR HIS FIELDS, which is why they are written with `set!` and
+    # `sub!` below. A name holds a value, so `hp -= @wound` would leave the guard as he was.
     def wound_a_guard
       hp = @pool.field_ref(:hp, @target)
       state = @pool.field_ref(:state, @target)
@@ -873,7 +858,7 @@ module Wolf3D
       # while one that misses does not.
       @player.noise = FirstPerson::HEARD_FOR
       @wound = @wound * 2 if @roused_of[state] == 0
-      hp -= @wound
+      hp.sub! @wound
 
       if hp <= 0
         # WHAT KILLING HIM IS WORTH AND WHAT HE WAS CARRYING, both read BEFORE he starts falling

@@ -46,8 +46,8 @@ module Wolf3D
     # the lift.
     def start(reason, floor: nil, secret: nil)
       check_request!(reason, floor, secret)
-      @began_on = floor if floor
-      @secret = secret if secret && @secret
+      @began_on.set! floor if floor
+      @secret.set! secret if secret && @secret
       @b.call routine_for(reason)
     end
 
@@ -103,13 +103,13 @@ module Wolf3D
       once(:"start_#{reason}") do
         case reason
         when :new_game
-          @floor = @began_on
+          @floor.set! @began_on
           @score = 0
           @floor_score = 0
-        when :another_life then @score = @floor_score
+        when :another_life then @score.set! @floor_score
         when :next_floor
           choose_next_floor
-          @floor_score = @score
+          @floor_score.set! @score
         end
         # ...and :resume changes nothing first: the save already said which floor, and the score.
         STEPS.fetch(reason).each { |step| @b.call step_routine(step) }

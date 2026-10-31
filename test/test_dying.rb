@@ -46,20 +46,20 @@ class TestDying < Minitest::Test
       game_loop do
         # Both pages want the background before anything is added to it, and a frame paints one
         # of them — so it goes on twice, and only then is the player struck.
-        painting = (settling < 2).then do
+        if settling < 2
           clear_screen GROUND
           dma_fill_rect 0, FP::VIEW_H, FP::ACROSS, Wolf3D::StatusBar::HEIGHT, BAR
           settling.add! 1
+        elsif !game
+          dying.struck_by(killer)
         end
         if game
-          pressed(:a).then { game[0].save }
-          pressed(:b).then do
+          game[0].save if pressed(:a)
+          if pressed(:b)
             game[0].load
             settling.set! 0
           end
-          pressed(:l).then { dying.struck_by(killer) }
-        else
-          painting.else { dying.struck_by(killer) }
+          dying.struck_by(killer) if pressed(:l)
         end
         dying.draw
       end
