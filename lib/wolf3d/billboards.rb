@@ -100,6 +100,7 @@ module Wolf3D
       # Which way the eye is pointing was worked out once for the frame already, before the
       # guards thought — the shot needed it too.
       @pool&.each { |guard| look_at_a_guard(guard) }
+      @mind&.thrown&.pool&.each { |shot| look_at_something_thrown(shot) }
       @b.call :draw_what_is_on_screen
     end
 
@@ -395,7 +396,27 @@ module Wolf3D
     #
     # IT IS A PASS BEHIND, since the drawing runs after the shooting, and so is the original's
     # for exactly the same reason.
+    #
+    # THE MAN INSIDE THE MACHINE IS NOT LOOKED AT, on the one cartridge that has him.
     def look_at_a_guard(guard)
+      return look_closely_at_a_guard(guard) unless @mind.behaviour.man_inside?
+
+      look_closely_at_a_guard(guard) if guard.state != @mind.behaviour.inside
+    end
+
+    # WHAT IS THROWN IS PUT ON THE SCREEN LIKE ANYTHING ELSE STANDING IN THE ROOM. A rocket shows the
+    # side it is flying toward or away from you, by the same arithmetic as a guard's eight poses.
+    def look_at_something_thrown(shot)
+      place(shot.x, shot.y, NUDGE)
+      if @fwd > NEAREST
+        size_it_on_screen
+        pick_which_of_eight(shot.dir)
+        @shape = @mind.thrown.shape_of[shot.row] + (@pose * @mind.thrown.turns_of[shot.row])
+        @b.call :remember_a_standing_thing
+      end
+    end
+
+    def look_closely_at_a_guard(guard)
       place(guard.x, guard.y, NUDGE)
       guard.shown = 0
 
@@ -442,13 +463,16 @@ module Wolf3D
     # doing something you see the same way from wherever you stand — so the state says whether
     # the answer above counts for anything at all.
     def pick_a_pose(guard)
-      @pose = @dir_angle[guard.dir] - @player.angle
+      pick_which_of_eight(guard.dir)
+      @shape = @mind.picture_of[guard.state] + (@pose * @mind.turns_of[guard.state])
+    end
+
+    def pick_which_of_eight(dir)
+      @pose = @dir_angle[dir] - @player.angle
       @pose -= (@cx - (FP::ACROSS / 2)) / FP::COLUMN_W
       @pose += (FP::TURN / 2) + (FP::TURN / (Enemy::POSES * 2))
       @pose = @pose % FP::TURN
       @pose = @pose / (FP::TURN / Enemy::POSES)
-
-      @shape = @mind.picture_of[guard.state] + (@pose * @mind.turns_of[guard.state])
     end
 
     # --- what is on screen, furthest first -------------------------------------------

@@ -35,14 +35,14 @@ class TestEnemies < Minitest::Test
   # EACH KIND HAS ITS OWN EIGHT CODES, and the only way to be sure which eight is to put one of
   # each down and read them back.
   def test_each_kind_is_read_from_its_own_codes
-    standing = Enemy::ALL.reject { |kind| kind.name == :dog }
+    standing = Enemy::ALL.select(&:stands)
     level = with_things(standing.each_with_index.to_h { |kind, n| [[8 + n, ROW], kind.standing] })
 
-    assert_equal standing.map(&:name), Guards.new(level).guards.map(&:kind)
+    assert_equal standing.map(&:name), Guards.new(level).guards.map(&:kind) - [:hitler]
   end
 
-  # THE RANK AND FILE, which is every kind but the two bosses: those are one code each rather
-  # than eight, so the three tests below are about the eight-code layout and not about them.
+  # THE RANK AND FILE, which is every kind but the bosses: those are one code each rather than
+  # eight, so the three tests below are about the eight-code layout and not about them.
   RANKS = Enemy::ALL.reject(&:boss?)
 
   def test_the_four_patrolling_codes_come_after_the_four_standing_ones
@@ -206,8 +206,9 @@ class TestEnemies < Minitest::Test
   # WHAT KILLING ONE IS WORTH, which is not the same for the five and is the original's own
   # scale: a dog is worth twice a guard and a mutant seven times.
   def test_killing_each_kind_is_worth_the_originals_own_score
-    assert_equal({ guard: 100, dog: 200, officer: 400, ss: 500, mutant: 700,
-                   hans: 5000, gretel: 5000 },
+    assert_equal({ guard: 100, dog: 200, officer: 400, ss: 500, mutant: 700, fake: 2000,
+                   hans: 5000, gretel: 5000, schabbs: 5000, mecha: 5000, hitler: 5000, gift: 5000,
+                   fat: 5000 },
                  Enemy::ALL.to_h { |kind| [kind.name, kind.points] }
                            .sort_by { |_, points| points }.to_h)
 

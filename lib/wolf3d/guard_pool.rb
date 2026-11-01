@@ -27,7 +27,7 @@ module Wolf3D
     # framework's `list`), which the first two fit inside a byte:
     #
     #   dir      0..7      which way he faces
-    #   ticks    -7..60    the longest state, less one think
+    #   ticks    -7..90    the longest state, less one think
     #   turn     0..1      which half of the guards think on this frame
     #   dropped  0..3      nothing, a clip, a machine gun, or the gold key
     #   shown, awake, ambush   yes or no
@@ -119,7 +119,7 @@ module Wolf3D
                       hp: @hit_points[@home_tough[at] + @difficulty],
                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
                       ambush: @home_ambush[at], turn: counts[:kill_total] % 2
-          counts[:kill_total] += 1
+          counts[:kill_total] += @home_counted[at]
         end
       end
     end
@@ -194,7 +194,11 @@ module Wolf3D
       @home_dir = b.table :guard_home_dir,
                           Floors.at_least_one(everyone.map { |g| Guards.direction_of(g.facing) }),
                           width: :byte
-      @home_state = b.table :guard_home_state, Floors.at_least_one(starting), width: :byte
+      @home_state = b.table :guard_home_state, Floors.at_least_one(starting), width: @behaviour.width
+      # ...and whether he is one of the men to kill. All of them are but the man inside the machine.
+      @home_counted = b.table :guard_home_counted,
+                              Floors.at_least_one(everyone.map { |g| Enemy[g.kind].counted? ? 1 : 0 }),
+                              width: :byte
       @home_ticks = b.table :guard_home_ticks,
                             Floors.at_least_one(starting.map { |s| @behaviour.state_at(s).ticks }),
                             width: :byte

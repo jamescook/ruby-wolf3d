@@ -130,7 +130,7 @@ module Wolf3D
 
     def initialize(level)
       @level = level
-      @guards = level.each_cell.filter_map { |x, y| guard_at(x, y) }
+      @guards = with_the_man_inside(level.each_cell.filter_map { |x, y| guard_at(x, y) })
     end
 
     # ...and the ones a game set THIS way really has.
@@ -138,6 +138,9 @@ module Wolf3D
       wanted = self.class.number_of(difficulty)
       @guards.select { |guard| guard.from <= wanted }
     end
+
+    # ...and how many of those count as men to kill.
+    def to_kill(difficulty) = at(difficulty).count { |guard| Enemy[guard.kind].counted? }
 
     def self.number_of(difficulty)
       SETTINGS.index(difficulty) ||
@@ -194,6 +197,14 @@ module Wolf3D
     end
 
     private
+
+    # THE MAN COMES OUT OF THE MACHINE, and the original makes him there and then (A_HitlerMorph). A
+    # pool slot cannot turn into something that leaves a wreck behind it, so he stands on the floor
+    # from the start in the same cell, waiting and not drawn. He is a slot of the pool like any other,
+    # which is what keeps the wreck lying where the machine fell.
+    def with_the_man_inside(guards)
+      guards.flat_map { |guard| guard.kind == :mecha ? [guard, guard.with(kind: :hitler)] : [guard] }
+    end
 
     def guard_at(x, y)
       kind, within, step = spawn_code(x, y)

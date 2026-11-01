@@ -27,10 +27,24 @@ module Wolf3D
     PATROL = Enemy::THINKING.fetch(:patrol)
     CHASE = Enemy::THINKING.fetch(:chase)
     HUNT = Enemy::THINKING.fetch(:hunt)
+    THROW = Enemy::THINKING.fetch(:throw)
+    FLAME = Enemy::THINKING.fetch(:flame)
 
-    # ...and the two ways of attacking, the same way.
+    # ...and the ways of attacking, the same way.
     WITH_A_GUN = Enemy::ATTACKS.fetch(:gun)
     WITH_TEETH = Enemy::ATTACKS.fetch(:teeth)
+    MORPHS = Enemy::ATTACKS.fetch(:morph)
+    FIRST_THROWN = Enemy::ATTACKS.fetch(Enemy::THROWN.first)
+
+    # HOW OFTEN ONE WHO THROWS DOES, out of 256 for each think it has a clear line, and distance has
+    # nothing to do with it where it has everything to do with a guard's. The original's chance is
+    # eight per unit of its time for the throwers and two for a fake Hitler (T_Schabb, T_Fake).
+    THROW_CHANCE = 8 * Enemy::TICKS_PER_THINK / Enemy::SCALE
+    FLAME_CHANCE = 2 * Enemy::TICKS_PER_THINK / Enemy::SCALE
+
+    # INSIDE THIS MANY CELLS A THROWER BACKS OFF, and that is the whole of why these fights are not
+    # like Hans's: come close and he runs (T_Schabb, `dist < 4`, SelectRunDir).
+    TOO_CLOSE = 4
 
     # WHETHER HE FIRES is a chance against distance, taken every frame he has a clear line —
     # which is why a guard sometimes just stands there aiming. The original's number is sixteen
@@ -49,8 +63,9 @@ module Wolf3D
 
     def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
-                   rooms: nil, floors: nil, difficulty: nil)
+                   rooms: nil, floors: nil, difficulty: nil, lasting: nil)
       @b = build
+      @lasting = lasting # what a saved game holds, which what is in the air is part of
       # THE STATE TABLE OF EVERY KIND THIS CARTRIDGE HOLDS. A build that says nothing gets the
       # guard's alone, which is what every test of the guard himself wants.
       @behaviour = behaviour || Behaviour.for([:guard])
@@ -76,6 +91,9 @@ module Wolf3D
     # ...and which kinds this cartridge holds, for anything that has to ship their pictures.
     attr_reader :behaviour
 
+    # ...and what they have thrown, or nil on a cartridge where nobody throws anything.
+    attr_reader :thrown
+
     # One frame of thinking, for every guard on the floor.
     #
     # KEPT IN A ROUTINE OF ITS OWN, so it is placed on its own merits. The framework gives the
@@ -95,6 +113,8 @@ module Wolf3D
       b = @b
       states = @behaviour.states
       rows = (0...states.length)
+      # A STATE NUMBER IS ITS OWN WIDTH, because every kind together runs past a byte.
+      wide = @behaviour.width
 
       # THE STATE TABLE, as tables the game reads by state number. Kept apart rather than as one
       # row per state because each is read on its own.
@@ -105,7 +125,7 @@ module Wolf3D
                             rows.map { |n| @things.position_of(@behaviour.picture_of(n)) }, width: :half
       @turns_of = b.table :guard_turns, states.map { |s| s.turns ? 1 : 0 }, width: :byte
       @ticks_of = b.table :guard_ticks, states.map(&:ticks), width: :byte
-      @becomes_of = b.table :guard_becomes, rows.map { |n| @behaviour.becomes_from(n) }, width: :byte
+      @becomes_of = b.table :guard_becomes, rows.map { |n| @behaviour.becomes_from(n) }, width: wide
       @think_of = b.table :guard_think, states.map { |s| Enemy::THINKING.fetch(s.think) }, width: :byte
       @attacks_of = b.table :guard_attacks, states.map { |s| Enemy::ATTACKS.fetch(s.fires) },
                             width: :byte
@@ -115,16 +135,16 @@ module Wolf3D
       # of these used to be one number, because there was one kind and one answer; now the state
       # a thing is in says which kind it is, so the answer is a column read by the number the
       # mind is already holding. Nothing branches on a kind and nothing remembers one.
-      @chase_of = b.table :guard_chase, rows.map { |n| @behaviour.chase_from(n) }, width: :byte
-      @attack_of = b.table :guard_attack, rows.map { |n| @behaviour.attack_from(n) }, width: :byte
-      @hurt_of = b.table :guard_hurt, rows.map { |n| @behaviour.flinch_from(n) }, width: :byte
+      @chase_of = b.table :guard_chase, rows.map { |n| @behaviour.chase_from(n) }, width: wide
+      @attack_of = b.table :guard_attack, rows.map { |n| @behaviour.attack_from(n) }, width: wide
+      @hurt_of = b.table :guard_hurt, rows.map { |n| @behaviour.flinch_from(n) }, width: wide
       @hurt2_of = b.table :guard_hurt2,
-                          rows.map { |n| @behaviour.flinch_from(n, second: true) }, width: :byte
+                          rows.map { |n| @behaviour.flinch_from(n, second: true) }, width: wide
       # ...and whether it flinches at all, because one that does not is left exactly where it
       # was rather than being written back over itself. See Behaviour#flinches_from.
       @flinches_of = b.table :guard_flinches, rows.map { |n| @behaviour.flinches_from(n) },
                              width: :byte
-      @fall_of = b.table :guard_fall, rows.map { |n| @behaviour.fall_from(n) }, width: :byte
+      @fall_of = b.table :guard_fall, rows.map { |n| @behaviour.fall_from(n) }, width: wide
       # ...and how far it walks each think, which is how an officer runs you down and a dog is
       # quicker than either. Written as a fraction, so it ships as a word.
       @step_of = b.table :guard_step, rows.map { |n| @behaviour.step_from(n) }
@@ -157,6 +177,7 @@ module Wolf3D
       # for what that is worth and why it can be done at all.
       declare_the_line_walk
       declare_the_walkable_test
+      declare_what_is_thrown
       declare_the_jobs
 
       # WHOSE TURN IT IS. Flipped each time this routine runs, and a guard thinks on the turns
@@ -253,6 +274,8 @@ module Wolf3D
       @b.call :guard_patrols if @job == PATROL
       @b.call :guard_chases if @job == CHASE if hunts?(:chase)
       @b.call :guard_hunts if @job == HUNT if hunts?(:hunt)
+      @b.call :guard_throws if @job == THROW if hunts?(:throw)
+      @b.call :guard_breathes_fire if @job == FLAME if hunts?(:flame)
     end
 
     # EACH JOB A ROUTINE OF THE POOL'S OWN, run on whichever guard the walk is on. Written into
@@ -264,6 +287,19 @@ module Wolf3D
       @pool.func(:guard_patrols) { |guard| patrol(guard) }
       @pool.func(:guard_chases) { |guard| chase(guard) } if hunts?(:chase)
       @pool.func(:guard_hunts) { |guard| hunt(guard) } if hunts?(:hunt)
+      if hunts?(:throw)
+        @pool.func(:guard_picks_a_way_off) { |guard| choose_a_way_off(guard) }
+        @pool.func(:guard_throws) { |guard| throw_or_back_off(guard) }
+      end
+      @pool.func(:guard_breathes_fire) { |guard| breathe_fire_or_walk(guard) } if hunts?(:flame)
+    end
+
+    # WHAT IS IN THE AIR IS DECLARED HERE, between the tests it borrows and the jobs that throw it. A
+    # cartridge where nobody throws anything has none of it.
+    def declare_what_is_thrown
+      return unless @behaviour.throws?
+
+      @thrown = Thrown.new(build: @b, mind: self, player: @player, things: @things, lasting: @lasting)
     end
 
     # Does anything on this cartridge think this way at all?
@@ -286,18 +322,53 @@ module Wolf3D
       end
     end
 
-    # A GUN OR A SET OF TEETH, and which is a column of the state table like everything else. A
-    # cartridge with no dogs on it has only the one answer, so it asks only the one question.
+    # A GUN OR A SET OF TEETH, OR SOMETHING THROWN, and which is a column of the state table like
+    # everything else. A cartridge with no dogs on it asks nothing about teeth, and one with nobody
+    # to throw anything asks nothing about that.
     def attack_the_player(guard)
-      unless @behaviour.any?(:teeth)
-        fire_at_the_player(guard) if @attacks_of[@state] == WITH_A_GUN
-        return
-      end
-
       @blow = @attacks_of[@state]
       fire_at_the_player(guard) if @blow == WITH_A_GUN
-      bite_the_player(guard) if @blow == WITH_TEETH
+      bite_the_player(guard) if @blow == WITH_TEETH if @behaviour.any?(:teeth)
+      @thrown.throw_from(guard, @blow - FIRST_THROWN) if @blow >= FIRST_THROWN if @thrown
+      let_the_man_out(guard) if @blow == MORPHS if @behaviour.man_inside?
     end
+
+    # THE MACHINE IS DOWN AND THE MAN GETS OUT, where it stands and going the way it was going
+    # (A_HitlerMorph). He has been on the floor all along, so nothing is made: he is found by the
+    # state he waits in. His own hit points were set when the floor started.
+    def let_the_man_out(machine)
+      @pool.each do |man|
+        if man.state == @behaviour.inside
+          man.x = machine.x
+          man.y = machine.y
+          man.dir = machine.dir
+          man.togo = machine.togo
+          man.state = @behaviour.out_of_the_machine
+          man.ticks = @ticks_of[@behaviour.out_of_the_machine]
+          man.awake = 1
+        end
+      end
+    end
+
+    public
+
+    # CAN NOTHING FLY THROUGH HERE? The same question a guard's feet ask, of the cell holding a place
+    # rather than one he is walking to. Asked for Thrown, which has no map of its own.
+    def cannot_fly_through(x, y)
+      @cellx = x.to_i
+      @celly = y.to_i
+      free_to_walk
+      @clear == 0
+    end
+
+    # A THROWN THING HAS REACHED YOU. +shot+ stands where a guard stands in what follows, so a death
+    # by rocket turns to face the rocket, as the original's does.
+    def hit_the_player(shot, blow)
+      @wound = blow
+      take_it_out_of_the_player(shot)
+    end
+
+    private
 
     # A DOG HAS NO GUN, so the only way it can hurt you is to reach you — and its jaws close at
     # the end of the second picture of the jump, whether or not anything is in the way. There is
@@ -633,6 +704,61 @@ module Wolf3D
       end
     end
 
+    # ONE WHO THROWS COMES AT YOU UNTIL IT IS NEAR AND THEN BACKS OFF, and with a clear line it may
+    # stop to throw. Distance has nothing to do with whether it does (T_Schabb, T_Gift, T_Fat). The
+    # original also has it sidestep while it has a clear line, which guards here do not do either.
+    def throw_or_back_off(guard)
+      throw_if_it_will(guard, THROW_CHANCE)
+      if @think_of[guard.state] == THROW
+        @b.call :guard_picks_a_way_off if guard.togo <= 0.0
+        walk(guard, patrolling: false, backing_off: true)
+      end
+    end
+
+    # A FAKE HITLER DOES NOT BACK OFF and does not throw often, and he comes on (T_Fake).
+    def breathe_fire_or_walk(guard)
+      throw_if_it_will(guard, FLAME_CHANCE)
+      if @think_of[guard.state] == FLAME
+        choose_a_chase_way(guard) if guard.togo <= 0.0
+        walk(guard, patrolling: false)
+      end
+    end
+
+    # WITH NO ROOM IN THE AIR IT DOES NOT TRY, which is the original's `objfreelist`.
+    def throw_if_it_will(guard, chance)
+      @dx = @player.x - guard.x
+      @dy = @player.y - guard.y
+      line_of_sight(guard)
+      if @clear == 1
+        unless @thrown.full?
+          start_attacking(guard) if @b.rand(0..CHANCES - 1) < chance
+        end
+      end
+    end
+
+    # Too close, and it goes the other way. Otherwise it comes on as a guard does.
+    def choose_a_way_off(guard)
+      how_far_away(guard)
+      if @away < TOO_CLOSE
+        run_from_the_player(guard)
+      else
+        choose_a_chase_way(guard)
+      end
+    end
+
+    # AWAY FROM THE PLAYER on the longer axis first, then the other, then on as before: a chase with
+    # its two ways turned round (SelectRunDir).
+    def run_from_the_player(guard)
+      @dx = @player.x - guard.x
+      @dy = @player.y - guard.y
+
+      @way = 0                                  # east
+      @way = 4 if @dx > 0.0             # west
+      @try = 6                                  # south
+      @try = 2 if @dy > 0.0             # north
+      set_off_one_of_two_ways(guard)
+    end
+
     # Near enough on EACH axis on its own rather than as a distance, which is the original's own
     # test and is why a dog catches you round a corner it could not see you through.
     def near_enough_to_jump(guard)
@@ -681,6 +807,10 @@ module Wolf3D
       @way = 0 if @dx > 0.0             # east
       @try = 2                                  # north
       @try = 6 if @dy > 0.0             # south
+      set_off_one_of_two_ways(guard)
+    end
+
+    def set_off_one_of_two_ways(guard)
       # The longer way is tried first, so swap them when the up-and-down one is longer.
       if @dy.abs > @dx.abs
         @cellx = @way
@@ -926,7 +1056,7 @@ module Wolf3D
     # that differs between the kinds and between the beat and the chase — and the state he is in
     # already says both. So an officer running you down and a dog trotting past cost the same
     # here as a guard did.
-    def walk(guard, patrolling:)
+    def walk(guard, patrolling:, backing_off: false)
       if guard.dir < Guards::NOWHERE
         @pace = @step_of[guard.state]
         guard.x += @pace * @step_x[guard.dir].to_f
@@ -939,7 +1069,13 @@ module Wolf3D
           guard.x = guard.x.to_i.to_f + 0.5
           guard.y = guard.y.to_i.to_f + 0.5
           guard.togo = 0.0
-          patrolling ? choose_a_patrol_way(guard) : choose_a_chase_way(guard)
+          if patrolling
+            choose_a_patrol_way(guard)
+          elsif backing_off
+            @b.call :guard_picks_a_way_off
+          else
+            choose_a_chase_way(guard)
+          end
         end
       end
     end

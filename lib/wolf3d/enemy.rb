@@ -153,9 +153,18 @@ module Wolf3D
     # stays there until he sees you, so the four patrolling states have nothing to run them and
     # the original gives him none at all. The chase itself is the same six pictures at the same
     # lengths every other kind chases at; only the turning differs, and his do not.
-    def self.chasing_only(poses)
-      walking(poses).reject { |s| s.name.to_s.start_with?("path") }
-                    .map { |s| State.new(**s.to_h, turns: false) }
+    #
+    # +closing+ is what he thinks about on the way, and +lengths+ how long each picture holds, which
+    # is the one place the machine and the man inside it differ from the rest.
+    def self.chasing_only(poses, closing: :chase, lengths: [10, 3, 8])
+      long, pause, short = lengths
+      w = poses.walk
+      [state(:chase1,  w[0], long,  closing, :chase1s, turns: false),
+       state(:chase1s, w[0], pause, nil,     :chase2,  turns: false),
+       state(:chase2,  w[1], short, closing, :chase3,  turns: false),
+       state(:chase3,  w[2], long,  closing, :chase3s, turns: false),
+       state(:chase3s, w[2], pause, nil,     :chase4,  turns: false),
+       state(:chase4,  w[3], short, closing, :chase1,  turns: false)]
     end
 
     # Hurt but not finished: it flinches and comes straight back at you. Which of the two
@@ -168,11 +177,13 @@ module Wolf3D
     end
 
     # ...and finished: a few pictures of falling and then a body on the floor, which lasts for
-    # good because its length is nought.
-    def self.falling(poses, ticks)
+    # good because its length is nought. +first+ is the first picture's length where that differs
+    # from the rest, and +last_does+ is an attack hung on the last of them.
+    def self.falling(poses, ticks, first: ticks, last_does: nil)
+      last = poses.fall.length - 1
       poses.fall.each_with_index.map { |picture, n|
-        state(:"fall#{n + 1}", picture, ticks, nil,
-              n + 1 < poses.fall.length ? :"fall#{n + 2}" : :dead, turns: false)
+        state(:"fall#{n + 1}", picture, n.zero? ? first : ticks, nil,
+              n < last ? :"fall#{n + 2}" : :dead, turns: false, fires: n == last ? last_does : nil)
       } + [state(:dead, poses.dead, 0, nil, :dead, turns: false)]
     end
 
@@ -280,7 +291,89 @@ module Wolf3D
       *falling(BOSS_POSES, 15)
     ].freeze
 
-    # --- the seven of them ------------------------------------------------------------------
+    # SCHABBS AND GIFTMACHER, who keep their distance and throw. Ten pictures each: four walking,
+    # two throwing, three falling and the body. What falls is first a man in his walking picture,
+    # held while he cries out, and only then does he go down.
+    THROWER_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: [0, 1, 2, 3], hurt: [],
+                                                    fall: [0, 0, 6, 7, 8], dead: 9, attack: [4, 5]))
+
+    # ...and the same two states of throwing for each, but for what leaves the hand: thirty units
+    # of winding up and ten of follow-through, which is one throw and then back to walking.
+    def self.a_thrower(what)
+      [*standing_still(THROWER_POSES, turns: false),
+       *chasing_only(THROWER_POSES, closing: :throw),
+       state(:shoot1, THROWER_POSES.attack[0], 30, nil, :shoot2, turns: false),
+       state(:shoot2, THROWER_POSES.attack[1], 10, nil, :chase1, turns: false, fires: what)]
+    end
+
+    SCHABBS_STATES = [*a_thrower(:needle), *falling(THROWER_POSES, 10)].freeze
+    GIFT_STATES = [*a_thrower(:rocket), *falling(THROWER_POSES, 10, first: 1)].freeze
+
+    # FETTGESICHT THROWS AND SHOOTS: a rocket, and then four rounds of the chaingun before he walks
+    # on, which is the one burst in the game that hurts you twice over. He has a picture more of
+    # throwing than Giftmacher has and the same keeping away.
+    FAT_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: [0, 1, 2, 3], hurt: [],
+                                                fall: [0, 0, 8, 9, 10], dead: 11, attack: [4, 5, 6, 7]))
+    FAT_STATES = [
+      *standing_still(FAT_POSES, turns: false),
+      *chasing_only(FAT_POSES, closing: :throw),
+      state(:shoot1, FAT_POSES.attack[0], 30, nil, :shoot2, turns: false),
+      state(:shoot2, FAT_POSES.attack[1], 10, nil, :shoot3, turns: false, fires: :rocket),
+      state(:shoot3, FAT_POSES.attack[2], 10, nil, :shoot4, turns: false, fires: :gun),
+      state(:shoot4, FAT_POSES.attack[3], 10, nil, :shoot5, turns: false, fires: :gun),
+      state(:shoot5, FAT_POSES.attack[2], 10, nil, :shoot6, turns: false, fires: :gun),
+      state(:shoot6, FAT_POSES.attack[3], 10, nil, :chase1, turns: false, fires: :gun),
+      *falling(FAT_POSES, 10, first: 1)
+    ].freeze
+
+    # A FAKE HITLER BREATHES FIRE, eight flames to a burst from one picture held nine times. He has
+    # no gun and no key, he does not run from you, and there are several of him. The two pictures of
+    # his fire sit inside his own run, between his breath and his falling.
+    FAKE_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: [0, 1, 2, 3], hurt: [],
+                                                 fall: [7, 8, 9, 10, 11], dead: 12, attack: [4]))
+    FAKE_STATES = [
+      *standing_still(FAKE_POSES, turns: false),
+      *chasing_only(FAKE_POSES, closing: :flame),
+      *(1..8).map { |n| state(:"shoot#{n}", FAKE_POSES.attack[0], 8, nil, :"shoot#{n + 1}", turns: false, fires: :flame) },
+      state(:shoot9, FAKE_POSES.attack[0], 8, nil, :chase1, turns: false),
+      *falling(FAKE_POSES, 10)
+    ].freeze
+
+    # THE MACHINE AND THE MAN are laid out as Hans is, and fire as he does but for the last round:
+    # thirty units up and then five shots. Neither chases at the common lengths: the machine pauses
+    # twice as long between its strides, and the man hardly at all.
+    def self.a_burst_of_five(poses)
+      a = poses.attack
+      [state(:shoot1, a[0], 30, nil, :shoot2, turns: false),
+       state(:shoot2, a[1], 10, nil, :shoot3, turns: false, fires: :gun),
+       state(:shoot3, a[2], 10, nil, :shoot4, turns: false, fires: :gun),
+       state(:shoot4, a[1], 10, nil, :shoot5, turns: false, fires: :gun),
+       state(:shoot5, a[2], 10, nil, :shoot6, turns: false, fires: :gun),
+       state(:shoot6, a[1], 10, nil, :chase1, turns: false, fires: :gun)]
+    end
+
+    # WHEN THE MACHINE FALLS THE MAN COMES OUT, which is the attack hung on the last picture of its
+    # falling: the wreck stays where it fell and he walks away from it.
+    MECHA_STATES = [
+      *standing_still(BOSS_POSES, turns: false),
+      *chasing_only(BOSS_POSES, lengths: [10, 6, 8]),
+      *a_burst_of_five(BOSS_POSES),
+      *falling(BOSS_POSES, 10, last_does: :morph)
+    ].freeze
+
+    HITLER_POSES = Ractor.make_shareable(Poses.new(still: nil, walk: [0, 1, 2, 3], hurt: [],
+                                                   fall: [0, 0, 8, 9, 10, 11, 12, 13, 14], dead: 7,
+                                                   attack: [4, 5, 6]))
+    # +inside+ IS WHERE HE WAITS, on the floor with nothing to do and no picture to be seen in, until
+    # the machine falls. It lasts for ever because its length is nought.
+    HITLER_STATES = [
+      state(:inside, HITLER_POSES.walk[0], 0, nil, :inside, turns: false),
+      *chasing_only(HITLER_POSES, lengths: [6, 4, 2]),
+      *a_burst_of_five(HITLER_POSES),
+      *falling(HITLER_POSES, 10, first: 1)
+    ].freeze
+
+    # --- all of them ------------------------------------------------------------------------
 
     # WHERE EACH KIND'S CODES AND PICTURES ARE.
     #
@@ -318,10 +411,14 @@ module Wolf3D
     BOSS_HIT_POINTS = [850, 950, 1050, 1200].freeze
     BOSS_POINTS = 5000
 
+    # WHAT THE MAN INSIDE THE MACHINE IS ON THE FLOOR: no code of his own, because the map never
+    # puts him down. See Guards#with_the_man_inside.
+    NO_CODE = { codes: 0, blocks: 0, harder: 0 }.freeze
+
     # WHERE THE BOSS PICTURES SIT. Checked against a real VSWAP rather than counted off the
     # source, the same way the rank-and-file numbers were: the four Pac-Man ghosts sit between
     # the officer and Hans, and between Hans and Gretel sit Schabbs, the syringes he throws,
-    # both Hitlers, Giftmacher, and the rockets — none of which this cartridge builds yet.
+    # both Hitlers, Giftmacher, and the rockets. Fettgesicht comes after Gretel.
     ALL = Ractor.make_shareable([
       new(name: :guard, standing: 108, harder: HARDER_STEP, first_picture: 50,
           hit_points: [25] * 4, points: 100, patrol_speed: 512, chase_times: 3,
@@ -346,7 +443,26 @@ module Wolf3D
           leaves: :gold_key, states: BOSS_STATES, stands: true, **BOSS),
       new(name: :gretel, standing: 197, first_picture: 385,
           hit_points: BOSS_HIT_POINTS, points: BOSS_POINTS, patrol_speed: 512, chase_times: 3,
-          leaves: :gold_key, states: BOSS_STATES, stands: true, **BOSS)
+          leaves: :gold_key, states: BOSS_STATES, stands: true, **BOSS),
+      # THE ONES WHO LEAVE NOTHING. Their floors have no key to win and no way out to walk through.
+      new(name: :schabbs, standing: 196, first_picture: 307,
+          hit_points: [850, 950, 1550, 2400], points: BOSS_POINTS, patrol_speed: 512, chase_times: 3,
+          leaves: nil, states: SCHABBS_STATES, stands: true, **BOSS),
+      new(name: :fake, standing: 160, first_picture: 321,
+          hit_points: [200, 300, 400, 500], points: 2000, patrol_speed: 512, chase_times: 3,
+          leaves: nil, states: FAKE_STATES, stands: true, **BOSS),
+      new(name: :mecha, standing: 178, first_picture: 334,
+          hit_points: [800, 950, 1050, 1200], points: BOSS_POINTS, patrol_speed: 512, chase_times: 3,
+          leaves: nil, states: MECHA_STATES, stands: true, **BOSS),
+      new(name: :hitler, standing: nil, first_picture: 345,
+          hit_points: [500, 700, 800, 900], points: BOSS_POINTS, patrol_speed: 512, chase_times: 5,
+          leaves: nil, states: HITLER_STATES, stands: false, **NO_CODE),
+      new(name: :gift, standing: 215, first_picture: 360,
+          hit_points: BOSS_HIT_POINTS, points: BOSS_POINTS, patrol_speed: 512, chase_times: 3,
+          leaves: nil, states: GIFT_STATES, stands: true, **BOSS),
+      new(name: :fat, standing: 179, first_picture: 396,
+          hit_points: BOSS_HIT_POINTS, points: BOSS_POINTS, patrol_speed: 512, chase_times: 3,
+          leaves: nil, states: FAT_STATES, stands: true, **BOSS)
     ])
 
     BY_NAME = Ractor.make_shareable(ALL.to_h { |kind| [kind.name, kind] })
@@ -357,10 +473,13 @@ module Wolf3D
 
     # What each of the thinking jobs is numbered, so one table can say which to do. A dog HUNTS
     # where everything else chases: it closes on you instead of stopping for a shot.
-    THINKING = { nil => 0, look: 1, patrol: 2, chase: 3, hunt: 4 }.freeze
+    # A thrower keeps its distance where a chaser closes, and a fake Hitler does neither.
+    THINKING = { nil => 0, look: 1, patrol: 2, chase: 3, hunt: 4, throw: 5, flame: 6 }.freeze
 
-    # ...and what each attack is numbered, the same way.
-    ATTACKS = { nil => 0, gun: 1, teeth: 2 }.freeze
+    # ...and what each attack is numbered, the same way. The three things thrown come last and in
+    # this order, so what is thrown is the number less the first of them. See Thrown.
+    ATTACKS = { nil => 0, gun: 1, teeth: 2, morph: 3, needle: 4, rocket: 5, flame: 6 }.freeze
+    THROWN = %i[needle rocket flame].freeze
 
     # WHAT EACH ONE LEAVES WHERE IT FALLS, numbered so a table can say it. Nought is nothing,
     # which is a dog: it carries no ammunition and drops none. A boss leaves the GOLD KEY, and
@@ -374,23 +493,38 @@ module Wolf3D
 
     def self.roused?(state) = !UNROUSED.include?(state.name)
 
+    # WHAT IS THROWN IS PICTURES IN THE SAME LIST: the four syringes after Schabbs, the two flames
+    # inside the fake's run, and eight rockets, four of smoke and three of the burst after Giftmacher.
+    # By VSWAP's numbers, as a real copy holds them.
+    THROWN_PICTURES = Ractor.make_shareable({ needle: (317..320).to_a, flame: [326, 327],
+                                              rocket: (370..384).to_a })
+
     # --- one kind, asked about itself -------------------------------------------------------
 
     # The four patrolling codes come straight after the four standing ones.
     def patrolling = standing + (codes / 2)
 
-    # Is this one of the two who guard the way out of an episode? Asked where the difference
-    # shows: a boss is one code rather than eight, and has no facing to be put down with.
-    def boss? = codes == 1
+    # Is this one of the bosses? Asked where the difference shows: a boss is one code rather than
+    # eight, or none at all for the man inside the machine, and has no facing to be put down with.
+    def boss? = codes <= 1
 
     # The pictures this kind needs: every one any of its states can wear. A state that turns
     # needs all eight of its own, because which one shows depends on where the player is standing
     # — a guard facing east still has his back to you from the other side of the room. A state
-    # that does not turn needs the one.
+    # that does not turn needs the one. What it throws comes with it, because they are pictures too.
     def pictures
       states.flat_map { |s| s.turns ? (0...POSES).map { |n| s.picture + n } : [s.picture] }
-            .uniq.sort.map { |offset| first_picture + offset }
+            .uniq.sort.map { |offset| first_picture + offset } + pictures_of_what_it_throws
     end
+
+    def pictures_of_what_it_throws = states.filter_map(&:fires).uniq.flat_map { |what| THROWN_PICTURES.fetch(what, []) }
+
+    # Is this one of the men a floor is counted by? The man inside the machine is not: killing him
+    # adds to the kills, but the floor's total never counted him.
+    def counted? = !has?(:inside)
+
+    # Which state one of these starts a floor in.
+    def first_state(patrolling) = has?(:inside) ? :inside : (patrolling ? :path1 : :stand)
 
     # Which picture a state wears, as VSWAP numbers sprites.
     def picture_of(state) = first_picture + state.picture

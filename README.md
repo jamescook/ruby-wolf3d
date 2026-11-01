@@ -255,9 +255,13 @@ kind and nothing branches on one. Measured on the same floor with the same ten m
 and after, a frame went from 421.3 scanlines to 423.0. What a floor really costs is how many
 enemies stand on it, which is the game rather than the machinery.
 
-Not yet there: **the bosses** — Hans, Schabbs, Gretel, Gift, Fat and both Hitlers — which is why
-the boss floor at the end of each episode is empty; and the AdLib music and the effects
-Wolfenstein never recorded to raw PCM.
+**The bosses stand on their floors**: Hans and Gretel with their chainguns, Schabbs with his
+syringes, Giftmacher and Fettgesicht with their rockets, the fake Hitlers with their fire, and the
+machine with the man inside it.
+
+Not yet there: **the death cam**, which is how every boss floor but Hans's and Gretel's ends, so you
+can kill Schabbs, Giftmacher, Fettgesicht and Hitler but cannot yet leave their floors; and the
+AdLib music and the effects Wolfenstein never recorded to raw PCM.
 
 **All six episodes fit on one cartridge**, which is sixty floors and 16MB. It nearly did not: five
 kinds of enemy took the pool the floor's enemies stand in from 78 slots to 145, and a list used to

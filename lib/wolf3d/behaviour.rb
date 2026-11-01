@@ -107,7 +107,16 @@ module Wolf3D
     def hit_points = @kinds.flat_map(&:hit_points)
     def hit_points_at(kind) = @kinds.index(Enemy[kind]) * Guards::SETTINGS.length
 
-    def starting_state(guard) = number_of(guard.kind, guard.patrolling ? :path1 : :stand)
+    def starting_state(guard) = number_of(guard.kind, Enemy[guard.kind].first_state(guard.patrolling))
+
+    # WHETHER THE MAN IS ON THIS CARTRIDGE, and the state he waits in and the one he comes out to.
+    def man_inside? = @kinds.any? { |kind| kind.name == :hitler }
+    def inside = number_of(:hitler, :inside)
+    def out_of_the_machine = number_of(:hitler, :chase1)
+
+    # HOW WIDE A TABLE OF STATE NUMBERS HAS TO BE. Every kind on one cartridge goes past a byte, and
+    # one with fewer keeps the byte.
+    def width = length > 255 ? :half : :byte
 
     # Every picture the cartridge needs for the kinds it holds.
     def pictures = @kinds.flat_map(&:pictures).uniq.sort
@@ -115,6 +124,9 @@ module Wolf3D
     # Does anything on this cartridge do this at all? A game with no dogs emits no hunting and
     # no biting, so neither costs a comparison.
     def any?(job) = @states.any? { |s| s.think == job || s.fires == job }
+
+    # Does anything on this cartridge throw something?
+    def throws? = Enemy::THROWN.any? { |what| any?(what) }
 
     # ...and how many arms the one choice a think makes really has, which is what the report
     # needs to be told: exactly one of them runs, and nothing at build time can see that.

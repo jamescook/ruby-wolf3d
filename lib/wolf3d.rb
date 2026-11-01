@@ -71,6 +71,7 @@ VBlank.require_game_file "wolf3d/sounds"
 # ...after the view, whose constants they share: the three agree about how wide the lens is, and
 # where the middle of the screen falls is what a shot is aimed by.
 VBlank.require_game_file "wolf3d/billboards"
+VBlank.require_game_file "wolf3d/thrown"
 VBlank.require_game_file "wolf3d/guard_mind"
 require_relative "wolf3d/map_view"
 require_relative "wolf3d/palette_view"

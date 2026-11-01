@@ -280,6 +280,7 @@ module Wolf3D
       put_the_secret_walls_back
       @pickups&.put_them_all_back
       @guard_pool&.refill(slot: @slot, kill_total: @kill_total)
+      @mind&.thrown&.clear
       @dying&.start_again
     end
 
@@ -379,6 +380,7 @@ module Wolf3D
       # are about to be told they need not think at all.
       @rooms.refresh if still_playing if @rooms
       @mind.update if still_playing if @mind
+      @mind.thrown.update if still_playing if @mind&.thrown
     end
 
     # ...and the other way of pacing it: once for each frame that really passed, so the world
@@ -903,7 +905,7 @@ module Wolf3D
     # power-on the game simply begins there with nothing having set it up.
     def declare_what_there_is_to_find
       first = @floors.first_floor
-      @kill_total = @lasting.var :kill_total, first.guards&.at(Guards::DEFAULT_DIFFICULTY)&.length || 0
+      @kill_total = @lasting.var :kill_total, first.guards&.to_kill(Guards::DEFAULT_DIFFICULTY) || 0
       @secret_total = @lasting.var :secret_total, first.pushwalls.count
       @treasure_total = @lasting.var :treasure_total, @pickups.treasure_total(0)
     end
@@ -939,7 +941,7 @@ module Wolf3D
                             things: @things, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
-                            floors: @floors, player: @player)
+                            floors: @floors, player: @player, lasting: @lasting)
     end
 
     # WHICH ROOMS ARE OPEN TO THE PLAYER'S, which is what stops a guard on the far side of the

@@ -208,7 +208,7 @@ are commented with what needs what).
   game that touches them.
 - `first_person.rb` — the view down the corridor: the ray, the wall columns, the floor and
   ceiling. Most of a frame. `billboards.rb` — the things and enemies drawn into that view.
-  `guard_mind.rb` — what a guard does about you. `weapons.rb`, `pickups.rb`, `dying.rb`,
+  `guard_mind.rb` — what a guard does about you. `thrown.rb` — what the bosses throw. `weapons.rb`, `pickups.rb`, `dying.rb`,
   `lives.rb`, `victory.rb`, `tally.rb`, `status_bar.rb`, `sounds.rb` — the rest of playing.
 - `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
   around the game.

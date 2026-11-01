@@ -74,10 +74,10 @@ class TestBosses < Minitest::Test
   # A CODE ONE ABOVE HIS IS NOT HIM, which is what having a block of one means and is the thing
   # that would break quietly if the block size were ever read as eight again.
   def test_the_codes_either_side_of_a_boss_are_not_him
-    hans = Enemy[:hans].standing
+    fake = Enemy[:fake].standing
 
-    assert_equal [:hans], Guards.new(with_things({ [8, ROW] => hans })).guards.map(&:kind)
-    assert_empty Guards.new(with_things({ [8, ROW] => hans + 1 })).guards,
+    assert_equal [:fake], Guards.new(with_things({ [8, ROW] => fake })).guards.map(&:kind)
+    assert_empty Guards.new(with_things({ [8, ROW] => fake + 1 })).guards,
                  "the code above his belongs to nobody"
   end
 
