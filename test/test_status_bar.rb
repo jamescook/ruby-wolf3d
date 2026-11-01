@@ -160,7 +160,7 @@ class TestStatusBar < Minitest::Test
   def test_a_bar_that_did_not_change_is_not_painted_again
     still = Reference.new.run(view_of(arena), frames: 90)
 
-    assert_equal 0, still[:_bar_todo],
+    assert_equal 0, still[:__shown_status_bar_todo],
                  "nothing on the bar moved, so nothing should still be waiting to be painted"
   end
 

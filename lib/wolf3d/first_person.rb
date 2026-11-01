@@ -473,6 +473,14 @@ module Wolf3D
     # by. The menus read it, because START does not pause a game that has stopped for it.
     def between_floors = @tally&.showing
 
+    # HOW FAR THROUGH A DEATH YOU ARE, nought while you are alive, or nil where nothing can kill
+    # you. The menus read this too. See {Dying#state}.
+    def dying = @dying&.state
+
+    # A SCREEN THAT IS NOT THE GAME HAS BEEN UP. The view repaints itself every pass, so the bar
+    # is the only thing here left to put back.
+    def painted_over = @bar.painted_over
+
     private
 
     def declare

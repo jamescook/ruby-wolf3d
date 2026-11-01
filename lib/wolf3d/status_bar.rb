@@ -23,9 +23,10 @@ module Wolf3D
   #
   # IT IS PAINTED WHEN A FIELD CHANGES, AND NOT OTHERWISE, which is two decisions.
   #
-  # Nothing paints over it, so a picture left there stays: the view above is drawn `inside` its
-  # own rows, and a wall column near enough to fill the screen is clipped at the line where the
-  # bar starts rather than running down through it.
+  # Nothing in the game paints over it, so a picture left there stays: the view above is drawn
+  # `inside` its own rows, and a wall column near enough to fill the screen is clipped at the line
+  # where the bar starts rather than running down through it. A menu is the one thing that does,
+  # and every field still holds what it last showed, so the bar is told. See #painted_over.
   #
   # And a change reaching the whole screen takes more than one paint, because the screen keeps
   # more than one picture and shows them in turn. How many is `keep_showing`'s business (see
@@ -216,6 +217,10 @@ module Wolf3D
       @bar.draw
       @parts.each_value(&:draw)
     end
+
+    # SOMETHING ELSE HAS HAD THE SCREEN. What is out of date is the picture rather than any field,
+    # so no comparison could notice.
+    def painted_over = @bar.changed
 
     # THE FIGURES A FIGHT MOVES, each painted on its own rather than with the whole bar. A chain
     # gun puts out a round every few passes, and repainting the plate, every label and every

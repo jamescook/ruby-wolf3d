@@ -14,6 +14,7 @@ class TestMenus < Minitest::Test
   include Wolf3DTest
 
   Menus = Wolf3D::Menus
+  FirstPerson = Wolf3D::FirstPerson
   Release = Wolf3D::Fixture::Release
   Floors = Wolf3D::Floors
   Names = Wolf3D::Vgagraph::WL6_NAMES
@@ -228,6 +229,23 @@ class TestMenus < Minitest::Test
     assert_equal lettering(:tally_1), picture_at(run, 160, tally::FLOOR_Y), "the floor's number"
   end
 
+  # NOR IS A DEATH. It stops drawing the view so the red can build up on what is there, so a menu
+  # opened over it would stay on screen with the dots landing on it. The original reads no keys
+  # until a death is over (Died, wl_game.cpp).
+  MID_DEATH = 140
+
+  def test_start_does_nothing_while_you_are_dying
+    dying = play(frames: MID_DEATH, program: self.class.in_a_ring_of_guards)
+
+    assert_operator dying[:dying], :>, Wolf3D::Dying::ALIVE, "the ring has killed you by now"
+
+    run = play(frames: MID_DEATH + 2, program: self.class.in_a_ring_of_guards) do |f|
+      f == MID_DEATH ? [:start] : []
+    end
+
+    assert_equal Menus::PLAYING, run[:screen]
+  end
+
   def lettering(name) = self.class.art.picture(name, palette)[:data]
 
   def picture_at(run, left, top)
@@ -248,6 +266,62 @@ class TestMenus < Minitest::Test
 
     assert_equal 3, run[:__menu_main], "the last row"
     assert_equal Menus::PLAYING, run[:screen], "and it puts you back in the game"
+  end
+
+  # THE MENU PAINTS OVER THE BAR'S ROWS AND NOTHING ON THE BAR HAS CHANGED, so the bar cannot notice
+  # for itself. Standing still in an empty room, the bar after the pause is the bar before it.
+  def test_coming_back_from_the_menu_puts_the_bar_back
+    before = playing(frames: 90)
+    back = playing(frames: 180) do |f|
+      next [:start] if f == 95
+      next [:down] if [110, 120].include?(f)
+
+      f == 140 ? [:a] : []
+    end
+
+    assert_equal Menus::PLAYING, back[:screen]
+    assert_equal 0, pixels_of_the_bar_changed(before, back)
+    assert_equal 0, back[:__shown_status_bar_todo], "and with both pages painted it is left alone"
+  end
+
+  # BOTH PAGES, which is the half only the console can answer: the interpreter keeps one picture,
+  # so a bar painted once reads right there and shows the menu's leftovers every other frame here.
+  # The script is START, down twice to the last row, A, and the fade back.
+  def test_the_console_shows_the_bar_on_both_pages_after_the_menu
+    backend = GBA.new
+    rom = ROM.assemble(backend.lower(self.class.booting_into_the_game), title: "MENU")
+    keys = { 20 => Constants::KEY_START, 30 => Constants::KEY_DOWN, 36 => Constants::KEY_DOWN,
+             44 => Constants::KEY_A }
+    script = ->(frame) { keys.fetch(frame, 0) }
+
+    bars = [90, 91].map do |frames|
+      gba = Verifier.new(rom, frames: frames, vars: backend.var_addresses, keys: script)
+
+      assert_equal Menus::PLAYING, gba.var(:screen), "frame #{frames} should be back in the game"
+      (0...FirstPerson::ACROSS).step(2).sum do |x|
+        (FirstPerson::VIEW_H...FirstPerson::DOWN).step(2).count do |y|
+          gba.pixel_gba(x, y) == Wolf3D::Palette.game[Wolf3D::StatusBar::GROUND]
+        end
+      end
+    end
+
+    assert_operator bars.first, :>, 0, "the bar's ground should be on screen"
+    assert_equal bars.first, bars.last, "and on both pages, or it flickers with what the menu left"
+  end
+
+  # ...and the same again for a new game after an ended one, which starts on the same figures.
+  def test_a_new_game_after_ending_one_has_a_bar
+    before = playing(frames: 90)
+    again = playing(frames: 280) { |f| [95, 120, 170, 180, 220].include?(f) ? [f == 95 ? :start : :a] : [] }
+
+    assert_equal Menus::PLAYING, again[:screen]
+    assert_equal 0, pixels_of_the_bar_changed(before, again)
+  end
+
+  def pixels_of_the_bar_changed(one, other)
+    (FirstPerson::VIEW_H...FirstPerson::DOWN).sum do |y|
+      (0...FirstPerson::ACROSS).count { |x| one.screen.pixel(x, y) != other.screen.pixel(x, y) }
+    end
   end
 
   def test_the_first_row_ends_the_game_and_leaves_you_at_the_title
@@ -551,6 +625,18 @@ class TestMenus < Minitest::Test
       Ractor.current[:menus_with_a_lift] ||= begin
         level = arena(player: [4, 8], cells: { [5, 8] => Wolf3D::Elevator::SWITCH })
         cartridge(floors: Floors.new([floor_of(level, index: 0)]), starting_on: Menus::PLAYING)
+      end
+    end
+
+    def booting_into_the_game
+      Ractor.current[:menus_booting_into_the_game] ||= cartridge(episodes: 1, starting_on: Menus::PLAYING)
+    end
+
+    # Six guards standing round you, which is the quick way to a death.
+    def in_a_ring_of_guards
+      Ractor.current[:menus_in_a_ring_of_guards] ||= begin
+        ring = [[9, 8, :west], [7, 8, :east], [8, 9, :north], [8, 7, :south], [9, 9, :west], [7, 7, :east]]
+        cartridge(floors: Floors.new([floor_of(arena(guards: ring), index: 0)]), starting_on: Menus::PLAYING)
       end
     end
 

@@ -106,6 +106,10 @@ module Wolf3D
       declare
     end
 
+    # Which of the four above you are at, for a menu that must not open over a death: the view is
+    # not redrawn once the dots start, so nothing would ever paint over the menu.
+    attr_reader :state
+
     # What the rest of the game asks before it moves or draws.
     def alive = @state == ALIVE
     def showing_the_world = @state <= TURNING

@@ -445,8 +445,11 @@ module Wolf3D
     #
     # NOR ON THE SCREEN BETWEEN TWO FLOORS. The game has stopped for that one already, and a game
     # ended from the menu behind it would leave the screen up over the title.
+    #
+    # NOR WHILE YOU ARE DYING. The original reads no keys until a death is over (Died, wl_game.cpp),
+    # and here the fizzle adds to the picture already there, which would be the menu.
     def pausing
-      pause_unless([@view.over, @view.between_floors].compact)
+      pause_unless([@view.over, @view.dying, @view.between_floors].compact)
     end
 
     # Each of +flags+ is 1 while START must not pause. A cartridge may hold neither of them.
@@ -550,10 +553,15 @@ module Wolf3D
     # THE TEST IS ON THE ERRAND AND NOT ONLY ON THE DARKNESS. A fade that has just been asked
     # to come back is still at its darkest on the frame after it started, so a screen watching
     # the darkness alone would arrive twice.
+    #
+    # EVERY MENU HAS PAINTED THE WHOLE SCREEN, so the game is told on any arrival rather than only
+    # on one at the game, which is reached this way and no other. Told on the way to the title it
+    # is told early, and the next game starts by painting a bar it wanted anyway.
     def arriving
       if @going_to != NOWHERE && @b.fade_level == 100
         go_to @going_to
         @going_to = NOWHERE
+        @view.painted_over
         @b.call :_menu_fade_in
       end
     end
