@@ -570,7 +570,7 @@ module Wolf3D
       # SIZED FOR THE WORST FLOOR, not for all of them added together, because only one floor is
       # ever being played. Every list below is the state of the floor under your feet.
       @open = @lasting.list :door_open, capacity: @floors.room_for(:doors), holds: 0.0
-      @linger = @lasting.list :door_linger, capacity: @floors.room_for(:doors)
+      @linger = @lasting.list :door_linger, capacity: @floors.room_for(:doors), width: :half
 
       # Which picture each door wears, worked out while building — a door's panel does not
       # turn, so unlike a wall it needs no choosing as the game runs.
@@ -592,9 +592,10 @@ module Wolf3D
       # against cells the game works out while playing that floor and those are local too.
       @push_home = b.table :push_home, Floors.at_least_one(over_floors { |f| f.pushwalls.homes })
       @push_face = b.table :push_face, Floors.at_least_one(over_floors { |f| push_pictures(f) }), width: :byte
-      @push_step = @lasting.list :push_step, capacity: @floors.room_for(:pushwalls)
-      @push_gone = @lasting.list :push_gone, capacity: @floors.room_for(:pushwalls)
-      @push_wait = @lasting.list :push_wait, capacity: @floors.room_for(:pushwalls)
+      # A BYTE EACH, which a saved game is the reason for: a step is one row of a map at most.
+      @push_step = @lasting.list :push_step, capacity: @floors.room_for(:pushwalls), width: :byte
+      @push_gone = @lasting.list :push_gone, capacity: @floors.room_for(:pushwalls), width: :byte
+      @push_wait = @lasting.list :push_wait, capacity: @floors.room_for(:pushwalls), width: :byte
 
       # THE LIFT, as three numbers, and all three are one-per-game rather than one-per-lift
       # because a floor ends the first time anybody pulls anything: there is never a second lift

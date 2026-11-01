@@ -278,8 +278,6 @@ class TestLastingState < Minitest::Test
     cartridge_of(two_floors, sound: 1) do |b, view, sound_on|
       menus = Wolf3D::Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game,
                                 sound_on: sound_on)
-      view.lasting.keep_in(b.save_data(:game, copies: 1))
-      b.saves_keep_everything except: Wolf3D::LastingState::LEFT_OUT.keys
       b.game_loop { menus.update }
     end
   end

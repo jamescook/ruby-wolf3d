@@ -81,13 +81,13 @@ class TestMenus < Minitest::Test
     refute_nil gun_row(run), "the gun should be beside it"
   end
 
-  # A ROW THAT CANNOT BE PICKED IS STEPPED OVER, not landed on. LOAD GAME is that row until
-  # there is somewhere to keep a game, so one press down moves the gun TWO rows.
+  # A ROW THAT CANNOT BE PICKED IS STEPPED OVER, not landed on. SAVE GAME is that row until a game
+  # is on, so the press down from LOAD GAME moves the gun TWO rows.
   def test_the_row_that_cannot_be_picked_is_stepped_over
-    before = at_the_menu
-    after = at_the_menu { |f| f == 4 ? [:down] : [] }
+    before = at_the_menu { |f| f == 4 ? [:down] : [] }
+    after = at_the_menu(frames: 10) { |f| [4, 8].include?(f) ? [:down] : [] }
 
-    assert_equal 2, after[:__menu_main], "the second row cannot be picked, so this is the third"
+    assert_equal 3, after[:__menu_main], "the third row cannot be picked, so this is the fourth"
     assert_equal (2 * ROW), gun_row(after) - gun_row(before), "and the gun moved two rows with it"
   end
 
@@ -125,13 +125,13 @@ class TestMenus < Minitest::Test
   # ONE ROW THAT TURNS SOUND OFF, which is the whole of what the original's twelve-row sound
   # menu means on hardware that is none of the three sound cards it offered.
   def test_the_sound_row_turns_sound_off_and_on_again
-    off = at_the_menu(frames: 30) { |f| [4, 5].include?(f) ? [:down] : (f == 20 ? [:a] : []) }
+    off = at_the_menu(frames: 30) { |f| [4, 8].include?(f) ? [:down] : (f == 20 ? [:a] : []) }
 
-    assert_equal 2, off[:__menu_main], "the third row is SOUND"
+    assert_equal 3, off[:__menu_main], "the fourth row is SOUND"
     assert_equal 0, off[:sound_on], "and picking it turns sound off"
 
     on = at_the_menu(frames: 40) do |f|
-      next [:down] if [4, 5].include?(f)
+      next [:down] if [4, 8].include?(f)
 
       [20, 30].include?(f) ? [:a] : []
     end
@@ -259,12 +259,12 @@ class TestMenus < Minitest::Test
   def test_the_last_row_goes_back_to_the_game_when_there_is_one
     run = playing(frames: 180) do |f|
       next [:start] if f == 95
-      next [:down] if [110, 120].include?(f)
+      next [:down] if [105, 110, 115, 120].include?(f)
 
       f == 140 ? [:a] : []
     end
 
-    assert_equal 3, run[:__menu_main], "the last row"
+    assert_equal 4, run[:__menu_main], "the last row"
     assert_equal Menus::PLAYING, run[:screen], "and it puts you back in the game"
   end
 
@@ -274,7 +274,7 @@ class TestMenus < Minitest::Test
     before = playing(frames: 90)
     back = playing(frames: 180) do |f|
       next [:start] if f == 95
-      next [:down] if [110, 120].include?(f)
+      next [:down] if [105, 110, 115, 120].include?(f)
 
       f == 140 ? [:a] : []
     end
@@ -286,12 +286,12 @@ class TestMenus < Minitest::Test
 
   # BOTH PAGES, which is the half only the console can answer: the interpreter keeps one picture,
   # so a bar painted once reads right there and shows the menu's leftovers every other frame here.
-  # The script is START, down twice to the last row, A, and the fade back.
+  # The script is START, down four times to the last row, A, and the fade back.
   def test_the_console_shows_the_bar_on_both_pages_after_the_menu
     backend = GBA.new
     rom = ROM.assemble(backend.lower(self.class.booting_into_the_game), title: "MENU")
-    keys = { 20 => Constants::KEY_START, 30 => Constants::KEY_DOWN, 36 => Constants::KEY_DOWN,
-             44 => Constants::KEY_A }
+    keys = { 20 => Constants::KEY_START, 26 => Constants::KEY_DOWN, 30 => Constants::KEY_DOWN,
+             34 => Constants::KEY_DOWN, 38 => Constants::KEY_DOWN, 44 => Constants::KEY_A }
     script = ->(frame) { keys.fetch(frame, 0) }
 
     bars = [90, 91].map do |frames|

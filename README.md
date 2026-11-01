@@ -192,7 +192,7 @@ measuring dial, not a way to play:
 WOLF3D_SCREEN=credits ruby wolf3d.rb
 ```
 
-The names are `notice`, `title`, `credits`, `menu`, `episodes`, `difficulty` and `playing`.
+The names are `notice`, `title`, `credits`, `menu`, `episodes`, `difficulty`, `playing` and `load`.
 Asking for `episodes` on a cartridge holding one is a build error that says so.
 
 **The title and the credits drift.** Both were painted 320×200 for a screen this console does
@@ -209,10 +209,15 @@ are pickable; a build trimmed with `WOLF3D_EPISODES` shows the rest greyed out. 
 holding only one episode does not ask at all — a list with one pickable row is a question with
 one answer — so NEW GAME goes straight to the difficulty screen.
 
-What the menu offers, and what it does not: NEW GAME (END GAME once a game is on), LOAD GAME
-greyed until there is somewhere to keep a game, SOUND on or off, and BACK TO DEMO (BACK TO GAME
-from a pause). The original's Read This!, View Scores and Control screens are not offered — the
-first two have nothing to show yet and the third calibrates a mouse and a joystick.
+What the menu offers, and what it does not: NEW GAME (END GAME once a game is on), LOAD GAME,
+SAVE GAME greyed until a game is on, SOUND on or off, and BACK TO DEMO (BACK TO GAME from a pause).
+The original's Read This!, View Scores and Control screens are not offered — the first two have
+nothing to show yet and the third calibrates a mouse and a joystick.
+
+**A save is the whole game at that moment**, every guard and door, and nothing is saved unless you
+ask, as in the original. There are seven slots where the original has ten, because that is all the
+largest save memory a cartridge can have will hold. Each slot says its episode and floor, since a
+console has no keyboard to type a name on, and F8 and F9's quick save has no spare button to live on.
 
 **How tough you say you are changes the game.** Wolfenstein's four settings decide two things and
 this does both. They decide **which enemies are there**: plane 1 holds each kind's eight spawn codes

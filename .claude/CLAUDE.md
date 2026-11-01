@@ -211,7 +211,7 @@ are commented with what needs what).
   `guard_mind.rb` — what a guard does about you. `thrown.rb` — what the bosses throw. `screen_flash.rb` — red and gold. `death_cam.rb` — how most episodes end. `big_lettering.rb` — the
   game's big letters. `fizzle.rb` — the view dotting over to one colour. `weapons.rb`, `pickups.rb`, `dying.rb`,
   `lives.rb`, `scoring.rb`, `victory.rb`, `tally.rb`, `status_bar.rb`, `sounds.rb` — the rest of playing.
-- `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
+- `saved_games.rb` — the save slots, which the menus reach. `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
   around the game.
 - `lib/wolf3d.rb` — the dials (`WOLF3D_EPISODES`, `WOLF3D_FLOORS`, `WOLF3D_FROM`,
   `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`) and `GAME`, the one `VBlank.game` block.

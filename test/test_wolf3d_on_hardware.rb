@@ -11,11 +11,11 @@ class TestWolf3DOnHardware < Minitest::Test
   # Read after the tear-free screen has a picture to show. This screen draws out of sight
   # and shows the page whole, so nothing at all is on screen until the first pass finishes
   # — and a pass of this view takes several frames. Before that the player sees the page
-  # nobody has drawn on, which is black. Measured: black through frame 6, the picture
-  # from frame 7 on, and steady from there. (It was frame 5 once; the first pass has
-  # grown with the game, and this only runs where a copy of the game is, so it can go
-  # stale unnoticed — re-measure it before suspecting the build.)
-  FIRST_DRAWN_FRAME = 8
+  # nobody has drawn on, which is black. Measured: black at frame 8, the picture by frame
+  # 12, and steady from there. (The line has moved as the first pass grew and when the
+  # cartridge began reading its saved games at power-on, and this only runs where a copy
+  # of the game is, so it can go stale unnoticed — re-measure it before suspecting the build.)
+  FIRST_DRAWN_FRAME = 12
 
   def test_the_cartridge_boots_and_draws_something
     rom = a_small_cartridge

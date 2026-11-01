@@ -62,6 +62,7 @@ module Wolf3D
       # same gun with its muzzle flashing, which is what makes the selector blink.
       menu_heading: 7,
       menu_gun: 8, menu_gun_firing: 9,
+      load_game_heading: 25, save_game_heading: 26, # the plates over those two screens
       status_bar: 83,   # the steel plate along the bottom
       title: 84,        # the title screen
       notice: 85,       # the rating box shown before the title

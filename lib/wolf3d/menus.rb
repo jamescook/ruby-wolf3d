@@ -35,6 +35,9 @@ module Wolf3D
     EPISODES = 4
     DIFFICULTY = 5
     PLAYING = 6
+    LOADING = 7     # the list of saved games, to load one
+    SAVING = 8      # the same list, to save into
+    OVERWRITING = 9 # whether to save over the game already in a slot
 
     ACROSS = FirstPerson::ACROSS
     DOWN = FirstPerson::DOWN
@@ -103,11 +106,14 @@ module Wolf3D
     WINDOW_PAD_X = 8
     WINDOW_PAD_Y = 6
 
-    # WHAT THE MAIN MENU SAYS, and two of its four rows say something else once a game is on —
+    # WHAT THE MAIN MENU SAYS, and two of its five rows say something else once a game is on —
     # which is exactly what the original does with its pause menu. It does not open a second
-    # menu; the same list changes what two of its rows mean, in place.
+    # menu; the same list changes what two of its rows mean, in place. Save Game is dim until there
+    # is a game to save (MainMenu[savegame].active, wl_menu.cpp).
     NEW_GAME = ["NEW GAME", "END GAME"].freeze
     LOAD_GAME = "LOAD GAME"
+    SAVE_GAME = "SAVE GAME"
+    MENU_ROWS = 5
     SOUND = ["SOUND: OFF", "SOUND: ON"].freeze
     BACK = ["BACK TO DEMO", "BACK TO GAME"].freeze
 
@@ -126,6 +132,14 @@ module Wolf3D
       [:hard, "I am Death incarnate!", :difficulty_hard]
     ])
 
+    # WHAT THE ORIGINAL ASKS BEFORE SAVING OVER A GAME (GAMESVD, foreign.h), and how a pad answers.
+    OVERWRITE_QUESTION = ["There's already a game", "saved at this position.", "Overwrite?"].freeze
+    OVERWRITE_ANSWERS = "A: yes   B: no"
+    QUESTION_TOP = 50
+
+    # The gap between a slot's words and the number of its floor.
+    NUMBER_GAP = 4
+
     HOW_TOUGH = "How tough are you?"
     WHICH_EPISODE = "Which episode to play?"
 
@@ -142,7 +156,8 @@ module Wolf3D
 
     # THE SCREENS BY NAME, so a cartridge can be built to boot on one of them. See +starting_on+.
     BY_NAME = { "notice" => NOTICE, "title" => TITLE, "credits" => CREDITS, "menu" => MENU,
-                "episodes" => EPISODES, "difficulty" => DIFFICULTY, "playing" => PLAYING }.freeze
+                "episodes" => EPISODES, "difficulty" => DIFFICULTY, "playing" => PLAYING,
+                "load" => LOADING }.freeze
 
     # Which screen a name means, or nothing said, which means the beginning.
     def self.screen_named(name)
@@ -185,7 +200,8 @@ module Wolf3D
     # more than one episode on the cartridge to choose between.
     def screens
       list = { NOTICE => :the_notice, TITLE => :the_title, CREDITS => :the_credits,
-               MENU => :the_menu, DIFFICULTY => :the_difficulty, PLAYING => :playing }
+               MENU => :the_menu, DIFFICULTY => :the_difficulty, PLAYING => :playing,
+               LOADING => :load_game, SAVING => :save_game, OVERWRITING => :confirm_overwrite }
       list[EPISODES] = :the_episodes if offers_episodes?
       list
     end
@@ -218,6 +234,7 @@ module Wolf3D
       # which guards a floor stands up and what a shot takes off you both read it — so the view
       # declares it and this asks the view for it.
       @difficulty = @view.difficulty
+      @saved = SavedGames.new(build: @b, view: @view)
       declare_the_fades
       declare_the_screens
     end
@@ -241,7 +258,8 @@ module Wolf3D
     end
 
     def declare_the_art
-      %i[notice title credits menu_heading menu_gun menu_gun_firing].each { |name| picture(name) }
+      %i[notice title credits menu_heading menu_gun menu_gun_firing load_game_heading save_game_heading]
+        .each { |name| picture(name) }
       DIFFICULTIES.each { |(_, _, portrait)| picture(portrait) }
     end
 
@@ -267,6 +285,9 @@ module Wolf3D
       declare_the_episodes if offers_episodes?
       declare_the_difficulty
       declare_the_game
+      declare_slot_screen(:load_game, :load_game_heading) { |n| load_slot(n) }
+      declare_slot_screen(:save_game, :save_game_heading) { |n| save_to_slot(n) }
+      declare_overwrite_question
     end
 
     # --- THE ATTRACT LOOP ------------------------------------------------------------------
@@ -323,17 +344,18 @@ module Wolf3D
     # --- THE MAIN MENU, WHICH IS ALSO THE PAUSE MENU -----------------------------------------
 
     def declare_the_menu
-      rows = NEW_GAME + [LOAD_GAME] + SOUND + BACK
+      rows = NEW_GAME + [LOAD_GAME, SAVE_GAME] + SOUND + BACK
       at = layout_for(rows)
-      y = rows_top(@art.height(:menu_heading) + HEADING_GAP, 4)
+      y = rows_top(@art.height(:menu_heading) + HEADING_GAP, MENU_ROWS)
       @b.scene(:the_menu) do
         the_ground
         the_stripes
         @b.blit :menu_menu_heading, even((ACROSS - @art.width(:menu_heading)) / 2), 0
-        the_window(at, y, 4)
+        the_window(at, y, MENU_ROWS)
         picked = the_rows(:main, at, y) do |m|
           m.item(NEW_GAME, showing: @in_game) { new_game_or_end_it }
-          m.item(LOAD_GAME, enabled: false)
+          m.item(LOAD_GAME) { leaving_for LOADING }
+          m.item(SAVE_GAME, enabled: @in_game) { leaving_for SAVING }
           m.item(SOUND, showing: @sound_on) { @sound_on = 1 - @sound_on }
           m.item(BACK, showing: @in_game) { leave_the_menu }
         end
@@ -359,6 +381,88 @@ module Wolf3D
         leaving_for PLAYING
       else
         leaving_for TITLE
+      end
+    end
+
+    # --- LOAD GAME AND SAVE GAME ----------------------------------------------------------------
+
+    # ONE LIST OF SLOTS, under its own plate, for both (DrawLoadSaveScreen). B goes back to the main
+    # menu. The block says what picking slot +n+ does.
+    def declare_slot_screen(scene_name, heading, &pick)
+      words = SavedGames::LABELS
+      at = layout_for(words.map { |label| "#{label} 10" })
+      y = rows_top(@art.height(heading) + HEADING_GAP, SavedGames::SLOTS)
+      episode_x = at.rows_x + widest([SavedGames::EPISODE]) + NUMBER_GAP
+      number_x = at.rows_x + widest(words) + NUMBER_GAP
+      @b.scene(scene_name) do
+        the_ground
+        the_stripes
+        @b.blit :"menu_#{heading}", even((ACROSS - @art.width(heading)) / 2), 0
+        @saved.refresh_labels
+        picked = the_rows(scene_name, at, y) do |m|
+          (0...SavedGames::SLOTS).each do |n|
+            m.item(words, showing: @saved.label_variable(n)) { pick.call(n) }
+          end
+        end
+        (0...SavedGames::SLOTS).each do |n|
+          if @saved.occupied?(n)
+            draw_slot_number(@saved.episode_variable(n), n, episode_x, y, picked, digits: 1)
+            draw_slot_number(@saved.number_variable(n), n, number_x, y, picked, digits: 2)
+          end
+        end
+        the_gun(at, y, picked)
+        leaving_for MENU if @b.pressed(:b)
+        arriving
+      end
+    end
+
+    # A number in a slot is not part of the row, so it lights up with the row by hand.
+    def draw_slot_number(number, n, x, top, picked, digits:)
+      if picked == n
+        @b.draw_number number, x, top + (n * ROW_STEP), colour(HIGHLIGHT), digits: digits, font: LETTERING
+      else
+        @b.draw_number number, x, top + (n * ROW_STEP), colour(TEXT), digits: digits, font: LETTERING
+      end
+    end
+
+    # A LOAD GOES STRAIGHT INTO THE GAME (CP_LoadGame sets StartGame). An empty slot does nothing.
+    # Asked once, because a press during the fade would load it again.
+    def load_slot(n)
+      if @going_to == NOWHERE && @saved.occupied?(n)
+        @saved.load_slot(n)
+        @in_game = 1
+        leaving_for PLAYING
+      end
+    end
+
+    # A SAVE OVER A GAME ASKS FIRST, and either way ends at the main menu, not in the game
+    # (CP_SaveGame).
+    def save_to_slot(n)
+      if @going_to == NOWHERE
+        @saved.choose_slot(n)
+        if @saved.occupied?(n)
+          go_to OVERWRITING
+        else
+          write_save
+        end
+      end
+    end
+
+    def write_save
+      @saved.write_chosen_slot
+      leaving_for MENU
+    end
+
+    def declare_overwrite_question
+      @b.scene(:confirm_overwrite) do
+        the_ground
+        OVERWRITE_QUESTION.each_with_index do |line, n|
+          @b.draw_text line, :center, QUESTION_TOP + (n * ROW_STEP), colour(TEXT), font: LETTERING
+        end
+        @b.draw_text OVERWRITE_ANSWERS, :center, QUESTION_TOP + (4 * ROW_STEP), colour(HIGHLIGHT), font: LETTERING
+        write_save if @b.pressed(:a)
+        go_to SAVING if @b.pressed(:b)
+        arriving
       end
     end
 

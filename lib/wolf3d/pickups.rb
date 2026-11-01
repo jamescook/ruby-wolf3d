@@ -232,7 +232,7 @@ module Wolf3D
       # WHAT HAS BEEN TAKEN, which is the only thing about a floor's things that ever changes.
       # One floor's worth, since only one is ever being played.
       room = most_pieces
-      @taken = @lasting.list :thing_gone, capacity: room
+      @taken = @lasting.list :thing_gone, capacity: room, width: :byte
       room.times { @taken << 0 }
 
       declare_the_scratch
