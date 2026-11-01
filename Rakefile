@@ -36,6 +36,20 @@ Rake::TestTask.new(:test) do |t|
                   'TESTOPTS="--name=/pattern/")'
 end
 
+# THE CHECK BEFORE A COMMIT: the files test/golden.txt names, on the same run as the suite. Past five
+# minutes it fails however well the tests did, and the framework holds that limit, so every game
+# built on it has the same one and this run cannot grow into one nobody bothers with.
+namespace :test do
+  desc "Run the golden path, the files test/golden.txt names, and fail past five minutes"
+  task :golden do
+    require "vblank/testing/golden_limit"
+
+    list = "test/golden.txt"
+    ENV["TEST"] = File.readlines(list, chomp: true).grep(/\Atest/).join(",")
+    VBlank::Testing::GoldenLimit.hold(list: list) { Rake::Task["test"].invoke }
+  end
+end
+
 desc "Build wolf3d.gba"
 task :build do
   ruby "wolf3d.rb"

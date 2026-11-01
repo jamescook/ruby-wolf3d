@@ -1,0 +1,30 @@
+# THE GOLDEN PATH: the check before a commit, a short run that says the game still works. Each file
+# is here for what breaking it would cost a player, and the rest of the suite is `rake test`.
+
+# Whether a copy of the game is read at all. Nothing else means anything without these.
+test/test_vanilla.rb
+test/test_maps.rb
+test/test_shareware.rb
+
+# The picture: the view is most of a frame and the first thing anybody sees.
+test/test_first_person.rb
+
+# Playing: opening a door, a guard noticing and shooting, a gun firing.
+test/test_doors.rb
+test/test_guards.rb
+test/test_weapons.rb
+
+# A floor to the next: the lift, the screen after it and what carries over.
+test/test_floors.rb
+test/test_end_of_floor.rb
+
+# Around the game: the menus reach everything, and a save is what a player cannot get back.
+test/test_menus.rb
+test/test_saved_games.rb
+
+# Time: the world keeps its pace when a pass runs late, which only breaks in play.
+test/test_keeping_time.rb
+
+# The real thing: the whole game builds, and a cartridge runs on the emulator.
+test/test_wolf3d_builds.rb
+test/test_wolf3d_on_hardware.rb
