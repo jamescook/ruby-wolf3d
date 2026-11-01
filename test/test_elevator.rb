@@ -124,8 +124,9 @@ class TestElevator < Minitest::Test
   def test_the_lift_takes_as_long_as_it_says_and_then_the_floor_starts_again
     during = pull(room_with_a_lift, frames: FP::LIFT_WAIT)
     arrived = pull(room_with_a_lift, frames: FP::LIFT_WAIT + 6)
-    pressed_on = Reference.new.input_each_frame { |f| [2, FP::LIFT_WAIT + 6].include?(f) ? [:a] : [] }
-                          .run(program(room_with_a_lift), frames: FP::LIFT_WAIT + 10)
+    # Two presses: one finishes the figures on that screen and the other moves on.
+    pressed_on = Reference.new.input_each_frame { |f| [2, FP::LIFT_WAIT + 6, FP::LIFT_WAIT + 8].include?(f) ? [:a] : [] }
+                          .run(program(room_with_a_lift), frames: FP::LIFT_WAIT + 12)
 
     assert_operator during[:lift_wait], :>, 0, "still on its way"
     assert_equal 0, arrived[:lift_wait], "then it is in, and the screen between floors is up"

@@ -134,7 +134,7 @@ module Wolf3D
       @b.blit :menu_bj_wins, 8, 4
       @lettering.write YOU_WIN, ACROSS_FOR_HEADING, HEADING_Y
       @lettering.write TOTAL_TIME, ACROSS_FOR_HEADING - 24, TIME_LABEL_Y
-      draw_time
+      @lettering.draw_clock @minutes, @seconds, TIME_X, TIME_Y
       @lettering.write AVERAGES, @lettering.centred(AVERAGES), AVERAGES_Y
       draw_ratio(RATIOS[0], @kill, RATIOS_Y)
       draw_ratio(RATIOS[1], @secret, RATIOS_Y + LETTER)
@@ -142,12 +142,6 @@ module Wolf3D
     end
 
     ACROSS_FOR_HEADING = 80
-
-    def draw_time
-      @lettering.draw_a_figure @minutes, TIME_X, TIME_Y, digits: 2, zeros: true
-      @lettering.write ":", TIME_X + (2 * LETTER), TIME_Y
-      @lettering.draw_a_figure @seconds, TIME_X + (3 * LETTER), TIME_Y, digits: 2, zeros: true
-    end
 
     def draw_ratio(label, value, y)
       @lettering.write label, FIGURES_X - GAP - @lettering.width_of(label), y

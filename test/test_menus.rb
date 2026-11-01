@@ -227,6 +227,16 @@ class TestMenus < Minitest::Test
     assert_equal lettering(:tally_0), picture_at(run, ones, tally::RATIOS_Y), "the ones place of nought per cent"
     # "FLOOR 1" is seven letters, so 112 across and starting at 64, and the number is the seventh.
     assert_equal lettering(:tally_1), picture_at(run, 160, tally::FLOOR_Y), "the floor's number"
+    assert_equal lettering(:tally_colon), picture_at(run, tally::CLOCK_X + (2 * tally::LETTER), tally::TIME_Y)
+    assert_equal lettering(:tally_colon), picture_at(run, tally::CLOCK_X + (2 * tally::LETTER), tally::PAR_Y)
+    assert_equal lettering(:tally_t), picture_at(run, tally::CLOCK_X - tally::GAP - (4 * tally::LETTER), tally::TIME_Y)
+  end
+
+  # EIGHT ROWS OF BIG LETTERS FILL THE VIEW EXACTLY, so the last one must not run under the bar.
+  def test_the_last_row_between_floors_ends_where_the_bar_begins
+    tally = Wolf3D::Tally
+
+    assert_equal Wolf3D::FirstPerson::VIEW_H, tally::RATIOS_Y + (tally::RATIOS.length * tally::LETTER)
   end
 
   # NOR IS A DEATH. It stops drawing the view so the red can build up on what is there, so a menu

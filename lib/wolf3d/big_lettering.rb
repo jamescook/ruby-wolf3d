@@ -55,6 +55,13 @@ module Wolf3D
       end
     end
 
+    # A TIME, as the original writes one: two places of minutes, a colon, two places of seconds.
+    def draw_clock(minutes, seconds, x, y)
+      draw_a_figure minutes, x, y, digits: 2, zeros: true
+      write ":", x + (2 * LETTER), y
+      draw_a_figure seconds, x + (3 * LETTER), y, digits: 2, zeros: true
+    end
+
     def width_of(words)
       words.each_char.sum { |char| char == " " || @art.nil? ? LETTER : @art.width(picture_of(char)) }
     end

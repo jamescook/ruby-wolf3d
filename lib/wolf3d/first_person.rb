@@ -379,7 +379,7 @@ module Wolf3D
       return take_a_turn unless @tally
 
       if @tally.showing == 1
-        @tally.wait_for_a_press
+        @tally.update
       elsif @lift_wait > 0
         @b.call :the_lift_runs
       else

@@ -66,9 +66,17 @@ class TestFloors < Minitest::Test
   # from that screen takes you to the next floor.
   PRESS_ON = FP::LIFT_WAIT + 4
 
+  # What the first floor of an episode pays for being left inside its first second: every one of
+  # its ninety seconds of par, at five hundred points each.
+  WHOLE_PAR = 45_000
+
+  # Leaving that screen is two presses: one finishes the figures and the other moves on. This says
+  # when they fall after a lever pulled on frame +lever+.
+  def leave_screen(lever) = [lever + PRESS_ON, lever + PRESS_ON + 2]
+
   # Pull the lever, ride the lift, and press on from the screen at the bottom of it.
-  def take_the_lift(floors, frames: FP::LIFT_WAIT + 10, press: 2)
-    Reference.new.input_each_frame { |f| [press, press + PRESS_ON].include?(f) ? [:a] : [] }
+  def take_the_lift(floors, frames: FP::LIFT_WAIT + 12, press: 2)
+    Reference.new.input_each_frame { |f| [press, *leave_screen(press)].include?(f) ? [:a] : [] }
              .run(program(floors), frames: frames)
   end
 
@@ -196,12 +204,13 @@ class TestFloors < Minitest::Test
   # has a lever, and the original words the screen for it (wl_inter.cpp, `mapon < 8`).
   def test_the_secret_floor_is_worth_a_flat_bonus
     floors = an_episode(secret_car_on_first: true)
-    run = Reference.new.input_each_frame { |f| { 2 => [:a], 2 + PRESS_ON => [:a], 2 + PRESS_ON + 4 => [:a] }.fetch(f, []) }
-                   .run(program(floors), frames: (PRESS_ON * 2) + 8)
+    second_lever = leave_screen(2).last + 4
+    run = Reference.new.input_each_frame { |f| [2, *leave_screen(2), second_lever].include?(f) ? [:a] : [] }
+                   .run(program(floors), frames: second_lever + PRESS_ON + 4)
 
     assert_equal 9, run[:floor], "still on the secret floor"
     assert_equal 1, run[:_tally_showing]
-    assert_equal 15_000, run[:score], "and nothing on it counted"
+    assert_equal WHOLE_PAR + 15_000, run[:score], "the first floor's par, and nothing on this one counted"
   end
 
   # THE PICTURE, which is the half no variable can show: the view has gone and the bar has not.
@@ -230,8 +239,8 @@ class TestFloors < Minitest::Test
   # One shot on the first floor, then the lever once the gun is at rest again.
   def shoot_then_take_the_lift(floors)
     lever = Wolf3D::Weapons::CYCLE + 4
-    Reference.new.input_each_frame { |f| { 2 => [:b], lever => [:a], lever + PRESS_ON => [:a] }.fetch(f, []) }
-             .run(program(floors), frames: lever + FP::LIFT_WAIT + 10)
+    Reference.new.input_each_frame { |f| f == 2 ? [:b] : ([lever, *leave_screen(lever)].include?(f) ? [:a] : []) }
+             .run(program(floors), frames: lever + FP::LIFT_WAIT + 12)
   end
 
   def test_a_round_spent_on_one_floor_is_still_spent_on_the_next
@@ -246,8 +255,8 @@ class TestFloors < Minitest::Test
   # lift leaving it alone rather than handing you the pistol back.
   def test_the_weapon_in_your_hands_goes_down_the_lift_too
     lever = 10
-    run = Reference.new.input_each_frame { |f| { 2 => [:select], lever => [:a], lever + PRESS_ON => [:a] }.fetch(f, []) }
-                       .run(program(two_floors), frames: lever + FP::LIFT_WAIT + 10)
+    run = Reference.new.input_each_frame { |f| f == 2 ? [:select] : ([lever, *leave_screen(lever)].include?(f) ? [:a] : []) }
+                       .run(program(two_floors), frames: lever + FP::LIFT_WAIT + 12)
 
     assert_equal 1, run[:floor], "on the second floor"
     assert_equal Wolf3D::Weapons::NUMBERS.fetch(:knife), run[:weapon], "still holding the knife"
@@ -261,8 +270,8 @@ class TestFloors < Minitest::Test
   # and ride down.
   def walk_into_the_car(floors, lever: true)
     walked = (1 / FP::WALK).ceil + 4
-    frames = lever ? walked + FP::LIFT_WAIT + 12 : walked
-    Reference.new.input_each_frame { |f| f < walked ? [:up] : ([walked + 2, walked + 2 + PRESS_ON].include?(f) ? [:a] : []) }
+    frames = lever ? walked + FP::LIFT_WAIT + 14 : walked
+    Reference.new.input_each_frame { |f| f < walked ? [:up] : ([walked + 2, *leave_screen(walked + 2)].include?(f) ? [:a] : []) }
              .run(program(floors), frames: frames)
   end
 
@@ -273,7 +282,7 @@ class TestFloors < Minitest::Test
     worth = Wolf3D::Scenery::BONUSES.fetch(CROSS).last
 
     assert_equal 1, run[:floor], "on the second floor"
-    assert_equal worth + Wolf3D::Tally::FOR_A_HUNDRED_PER_CENT, run[:score],
+    assert_equal worth + Wolf3D::Tally::FOR_A_HUNDRED_PER_CENT + WHOLE_PAR, run[:score],
                  "the cross counted, and as the floor's only treasure it was a hundred per cent of them"
     assert_equal 0, run[:treasures], "while the count of this floor's treasures starts again"
   end
