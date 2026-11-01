@@ -1,6 +1,8 @@
 ---
 paths:
   - "test/**/*.rb"
+  - "lib/**/*.rb"
+  - "Rakefile"
 ---
 
 # Testing rules — `test/`
@@ -9,6 +11,31 @@ Helpers and patterns already established in this suite. Reach for these before
 inventing new scaffolding. The *philosophy* (what to assert at which altitude)
 lives in `.claude/CLAUDE.md`; this file is the practical how — the APIs and
 worked examples.
+
+## Which skill a piece of work wants
+
+Choose by what the work is, without asking. A skill earns its cost when the work can go wrong in a
+way it catches, and it costs real time and tokens, so these are the usual fits and judgement decides:
+
+- **`mattpocock-skills:tdd`, for a feature or a bug fix.** Wolfenstein's source is the answer key, so
+  the failing test can come first, at the altitude `.claude/CLAUDE.md` sets. The skill says to agree
+  where tests go with the user first; here that section and this file are that agreement.
+- **`mattpocock-skills:diagnosing-bugs`, for a bug whose cause reading the code does not give up**: a
+  wrong picture, a cartridge disagreeing with the interpreter, a slow frame. Its loop here is a failing
+  test or a small measuring script, and its ranked guesses go on with the work, unconfirmed.
+- **`mattpocock-skills:code-review`, when finishing a change with something to get wrong.** It reads
+  commits, so its place is after the local commit and before calling the work done: the fixed point is
+  the commit before yours, and a fix it asks for is a further commit. It starts two agents, so a
+  change to how the game behaves earns it and a small one does not.
+- **`mattpocock-skills:domain-modeling` or `mattpocock-skills:codebase-design`, when the names or the
+  shape of a part are the hard question** rather than its behaviour.
+
+**Leave a skill out where it cannot find anything:** a one-line fix, a rename, a move of the framework
+revision, a change to notes, a measurement. Say why when closing a change of any size that went
+without review.
+
+Where a skill says to confirm something with the operator, decide it from these rules and write the
+decision on the issue. `rake test:golden` is still the check before the commit.
 
 ## How a test file starts
 
@@ -47,7 +74,6 @@ Unlike the framework's suite, this one does **not** reopen `Minitest::Test` — 
 class to the pool (`parallelize_me!`) and freezes every constant the class declares after that
 line, all the way down, because a worker may only read a constant nothing can change.
 
-Which skill a test wants is in "Which skill a piece of work wants" in `.claude/CLAUDE.md`, and
 `rake test:golden` is the check before a commit.
 
 Running them. **The suite is `rake test`**, every test in a pool of Ractors (the minitest-ractor
