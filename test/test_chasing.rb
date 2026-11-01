@@ -15,7 +15,7 @@ class TestChasing < Minitest::Test
   def fixture = @fixture ||= Wolf3D::Fixture::Release.new(sprites: Wolf3D::Enemy::ALL.flat_map(&:pictures).max + 21)
   def fire_once = ->(f) { f == 2 ? [:b] : [] }
 
-  def played(level, frames:, kinds: nil, &keys)
+  def played(level, frames:, &keys)
     keys ||= fire_once
     Reference.new.input_each_frame(&keys).run(view_of(level, drawing: false), frames: frames)
   end
@@ -52,7 +52,6 @@ class TestChasing < Minitest::Test
     end
   end
 
-  # A body is no obstacle: the same corridor, with the man in the way already dead, lets him by.
   # --- a shut door ---
 
   # A man on his beat with a shut door ahead of him, in the room you are in, walking away from you.
@@ -99,6 +98,19 @@ class TestChasing < Minitest::Test
     assert_operator x_of(run), :>=, DOOR_X + 1
   end
 
+  # TryWalk returns at a shut door before it moves him on the map, so a man waiting there still
+  # holds his own cell, and the man behind him cannot step into it.
+  def test_a_man_waiting_at_a_door_still_holds_his_cell
+    level = two_rooms(player: [13, ROW], door: [DOOR_X, ROW], patrols: [[DOOR_X + 1, ROW, :west], [DOOR_X + 2, ROW, :west]])
+    (6..60).step(6).each do |frames|
+      xs = quietly(level, frames: frames).pool(:guard, :x).compact.map { |x| x / ONE }.minmax
+      next unless xs.first >= DOOR_X + 1
+
+      assert_operator xs.last, :>=, DOOR_X + 2, "the second man stays out at frame #{frames}"
+    end
+  end
+
+  # A body is no obstacle: the same corridor, with the man in the way already dead, lets him by.
   def test_a_man_walks_over_a_body
     corpse = ->(f) { f < 88 && (f / 16).even? ? [:b] : [] }
     level = arena(player: [5, ROW], guards: [[STANDING_X, ROW, :west], [12, ROW, :west]],

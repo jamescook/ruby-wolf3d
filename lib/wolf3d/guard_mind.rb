@@ -55,7 +55,7 @@ module Wolf3D
     # ways the opposite of any one of them is.
     COIN = 128
     BEHIND = 4
-    # North, northwest, west. See #search_for_a_way.
+    # North, northwest, west. See #search_dirs.
     SEARCH_DIRS = Ractor.make_shareable([2, 3, 4])
 
     # One fall in this many, which is `!US_RndT()`. A test can ask for it every time.
@@ -381,7 +381,7 @@ module Wolf3D
           @cellx = (@boxx + (@boxsize * across)).to_i
           @celly = (@boxy + (@boxsize * down)).to_i
           # Only what is built: ProjectileTryMove walks past men, the one who threw it included.
-          @b.call :is_a_cell_open
+          @b.call :check_cell_open
           @blocked = 1 if @clear == 0
         end
       end
@@ -459,6 +459,7 @@ module Wolf3D
           man.y = machine.y
           man.dir = machine.dir
           man.togo = machine.togo
+          man.door = machine.door
           man.state = @behaviour.out_of_the_machine
           man.ticks = @ticks_of[@behaviour.out_of_the_machine]
           man.awake = 1
@@ -653,6 +654,7 @@ module Wolf3D
       guard.state = @blow
       guard.ticks = @ticks_of[@blow]
       guard.togo = 0.0
+      guard.door = 0            # FirstSighting drops any door he was waiting at
       guard.noticed = 1
       # "Halt!" — which is the one sound in this game that tells you something you could not
       # otherwise know: that you have been seen, and by how many.
@@ -940,7 +942,7 @@ module Wolf3D
       @picked = 0
       try_dir_unless_back(@way)
       try_dir_unless_back(@other)
-      search_for_a_way
+      search_dirs
       guard.dir = Guards::NOWHERE if @picked == 0
     end
 
@@ -1076,7 +1078,7 @@ module Wolf3D
       try_dir_unless_back(@way)
       try_dir_unless_back(@other)
       try_dir(guard.dir) if @picked == 0
-      search_for_a_way
+      search_dirs
       try_dir(@back) if @picked == 0
       guard.dir = Guards::NOWHERE if @picked == 0
     end
@@ -1084,7 +1086,7 @@ module Wolf3D
     # THE ORIGINAL'S SEARCH IS THREE WAYS, NOT FOUR. Its loop counts from north to west, and in the
     # list of directions those two are two apart with northwest between them. So a blocked man
     # tries north, northwest and west, in an order a coin picks, and never east or south.
-    def search_for_a_way
+    def search_dirs
       if @picked == 0
         if @b.rand(0..CHANCES - 1) > COIN
           SEARCH_DIRS.each { |way| try_dir_unless_back(way) }
@@ -1115,15 +1117,15 @@ module Wolf3D
         check_diagonal_sides if @clear == 1 && (@try % 2) == 1
         if @clear == 1
           guard.door = 0
-          set_off(guard)
+          start_step(guard)
         elsif @shut_door > 0 && (@try % 2) == 0 && @opens_doors_of[guard.state] == 1
           guard.door = @shut_door
-          set_off(guard)
+          start_step(guard)
         end
       end
     end
 
-    def set_off(guard)
+    def start_step(guard)
       guard.dir = @try
       guard.togo = CELL
       @picked = 1
@@ -1146,9 +1148,9 @@ module Wolf3D
     def free_to_walk = @b.call(:can_a_guard_walk_there)
 
     def declare_the_walkable_test
-      @b.func(:is_a_cell_open) { cell_open }
+      @b.func(:check_cell_open) { cell_open }
       @b.func(:can_a_guard_walk_there) do
-        @b.call :is_a_cell_open
+        @b.call :check_cell_open
         @pool.each { |man| refuse_cell_of(man) } if @clear == 1
       end
     end
@@ -1177,14 +1179,21 @@ module Wolf3D
     end
 
     # A MAN WILL NOT WALK INTO ANOTHER (CHECKSIDE, CHECKDIAG). The cell a walking man holds is the one
-    # he is heading for, because the original moves him to it on the map as he sets off. A body and
-    # a ghost have no hit points, which is what the original's missing FL_SHOOTABLE comes out as, so
-    # both can be walked through.
+    # he is heading for, because the original moves him to it on the map as he sets off. One waiting
+    # at a door has not set off, so he holds his own. A body and a ghost have no hit points, which is
+    # what the original's missing FL_SHOOTABLE comes out as, so both can be walked through, and the
+    # man inside the machine is not on the floor at all.
     def refuse_cell_of(man)
+      return refuse_cell_of_standing(man) unless @behaviour.man_inside?
+
+      refuse_cell_of_standing(man) if man.state != @behaviour.inside
+    end
+
+    def refuse_cell_of_standing(man)
       if man.hp > 0
         @man_x = man.x
         @man_y = man.y
-        if man.togo > 0.0 && man.dir < Guards::NOWHERE
+        if man.door == 0 && man.togo > 0.0 && man.dir < Guards::NOWHERE
           @man_x += man.togo * @step_x[man.dir].to_f
           @man_y += man.togo * @step_y[man.dir].to_f
         end
@@ -1412,16 +1421,24 @@ module Wolf3D
 
     def wait_at_door(guard)
       @slot = guard.door - 1
-      hear_door_open(guard) if @open[@slot] == 0.0
+      play_door_sound(guard) if @open[@slot] == 0.0
       @linger[@slot] = FirstPerson::DOOR_LINGER
       guard.door = 0 if @open[@slot] >= FirstPerson::DOOR_WIDE
     end
 
-    # The original plays this only when the door's room is one you are joined to (DoorOpening).
-    def hear_door_open(guard)
+    # HEARD FROM EITHER SIDE. DoorOpening joins the door's two rooms and then asks whether you are in
+    # one, so a man opening a door into your room is heard. The two cells are the one he stands in
+    # and the one past the door.
+    def play_door_sound(guard)
       return @sounds&.door_opens if @rooms.nil?
 
-      @sounds&.door_opens if @rooms.open_to_the_player?(guard.x, guard.y)
+      @man_x = guard.x + (2.0 * @step_x[guard.dir].to_f)
+      @man_y = guard.y + (2.0 * @step_y[guard.dir].to_f)
+      if @rooms.open_to_the_player?(guard.x, guard.y)
+        @sounds&.door_opens
+      elsif @rooms.open_to_the_player?(@man_x, @man_y)
+        @sounds&.door_opens
+      end
     end
   end
 end
