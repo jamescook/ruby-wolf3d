@@ -18,8 +18,27 @@ output is ignored by git.
 
 ```sh
 bundle install      # once
-rake build          # or: ruby wolf3d.rb — writes wolf3d.gba beside this README
 ```
+
+The same game runs in several places. Pick one:
+
+| Where it runs | Command | What you get |
+|---|---|---|
+| A window, from Ruby | `bundle exec vblank run wolf3d.rb` | the game, with nothing built |
+| A browser, built on each reload | `bundle exec vblank preview wolf3d.rb` | the game, at a local address |
+| A desktop app | `rake build:desktop` | `wolf3d-desktop`, for this computer. Needs zig 0.17 |
+| A desktop app for another computer | `rake build:desktop:windows`, `:linux` or `:linux_arm` | `wolf3d-windows-desktop.exe`, `wolf3d-linux-desktop` or `wolf3d-linux-arm-desktop` |
+| A web page | `bundle exec vblank build wolf3d.rb --format=web --output=wolf3d.html` | one HTML file |
+| One Ruby file | `bundle exec vblank build wolf3d.rb --format=ruby --output=wolf3d-play.rb` | a file to copy anywhere. Needs Ruby, the gem `fiddle` and SDL3 |
+| Game Boy Advance | `rake build` or `ruby wolf3d.rb` | `wolf3d.gba`, beside this README |
+
+**Ruby, the desktop app and the web page play the game well.** The Game Boy Advance plays it, but
+not as well: a first-person view costs more than a frame holds, so the game runs at about 30
+frames a second, 20 on the busiest floors, and moves that much slower. Most of this README is
+about that console, because it is the one with limits worth writing down.
+
+The Linux builds have not been run on Linux. The buttons below are the console's; the desktop
+app's `--help` says which keys they are.
 
 ## Where the build's time goes
 
@@ -53,13 +72,12 @@ always run.
 
 ## What works so far
 
-A floor of the real game, read from your own copy of the data and playable in an emulator: the
-first-person view, walls textured from VSWAP, doors that slide open and shut, pushwalls, all
+The real game, read from your own copy of the data: the first-person view, walls textured from VSWAP, doors that slide open and shut, pushwalls, all
 five kinds of enemy — guard, officer, SS, dog and mutant — that patrol, hear and see you, close
 in, and shoot or bite, and can be shot and killed, the things and pickups standing in the rooms,
 all four weapons drawn in your hands and shown on the status bar, and the game's sound effects
-through the sampled mixer. Without your own copy of the data the cartridge
-still builds; it shows a title screen and says so instead of a floor.
+through the sampled mixer. Without your own copy of the data the game still builds; it shows a
+title screen and says so instead of a floor.
 
 ## How you play it
 
@@ -105,8 +123,8 @@ on it, and none of that is work the game does while you play. Measured on the re
 
 | | ROM | build |
 |---|---|---|
-| all six episodes | 8MB | about a minute |
-| one episode | 4MB | about eight seconds |
+| all six episodes | 16MB | about half a minute |
+| one episode | 8MB | about a quarter of a minute |
 
 There are two smaller dials underneath, for measuring rather than for playing. `WOLF3D_FLOORS=N`
 keeps only the first N floors of whatever the episodes picked — `WOLF3D_FLOORS=1` is the fastest
@@ -187,9 +205,8 @@ because the double-buffered screen holds two pixels in each of its places and wi
 
 **The episode list shows what the cartridge holds.** A default build has all six, so all of them
 are pickable; a build trimmed with `WOLF3D_EPISODES` shows the rest greyed out. A cartridge
-holding only one episode does not ask
-at all — a list with one pickable row is a question with one answer — so NEW GAME goes straight
-to the difficulty screen.
+holding only one episode does not ask at all — a list with one pickable row is a question with
+one answer — so NEW GAME goes straight to the difficulty screen.
 
 What the menu offers, and what it does not: NEW GAME (END GAME once a game is on), LOAD GAME
 greyed until there is somewhere to keep a game, SOUND on or off, and BACK TO DEMO (BACK TO GAME
@@ -238,12 +255,12 @@ and after, a frame went from 421.3 scanlines to 423.0. What a floor really costs
 enemies stand on it, which is the game rather than the machinery.
 
 Not yet there: **the bosses** — Hans, Schabbs, Gretel, Gift, Fat and both Hitlers — which is why
-the boss floor at the end of each episode is empty; and the AdLib music
-and the effects Wolfenstein never recorded to raw PCM.
+the boss floor at the end of each episode is empty; and the AdLib music and the effects
+Wolfenstein never recorded to raw PCM.
 
-**All six episodes fit on one cartridge**, which is sixty floors and 16MB. It nearly did not: five kinds of enemy took the pool the floor's enemies
-stand in from 78 slots to 145, and a list used to round its capacity up to the next power of
-two — so 145 became 256, and the slots nobody planned for came out of the console's 32K of quick
-memory. A list is allocated at the size it asks for now (see the framework's `list`), which gave
+**All six episodes fit on one cartridge**, which is sixty floors and 16MB. It nearly did not: five
+kinds of enemy took the pool the floor's enemies stand in from 78 slots to 145, and a list used to
+round its capacity up to the next power of two — so 145 became 256, and the slots nobody planned
+for came out of the console's 32K of quick memory. A list is allocated at the size it asks for now (see the framework's `list`), which gave
 back 8.5K, and the routine that draws the view is three routines rather than one, so the
 placement chooser can keep the parts that fit rather than turning the whole thing down.

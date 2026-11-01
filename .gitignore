@@ -3,6 +3,9 @@
 # `rake build:desktop` and its build:desktop:* siblings. Like the cartridge, each carries your copy
 # of the game's data inside it. The Windows one ends in .exe, which is ignored below.
 *-desktop
+# ...and so do the two the README builds with `vblank build`, the web page and the one Ruby file.
+wolf3d.html
+wolf3d-play.rb
 .DS_Store
 
 # Not committed — a fresh resolve each time, since the framework is pulled from git.
