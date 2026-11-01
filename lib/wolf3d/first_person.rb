@@ -190,6 +190,9 @@ module Wolf3D
     # ...and how tough the game is set, so the screen that asks can write the answer here.
     attr_reader :difficulty
 
+    # WHERE POINTS GO, for anything that hands them out.
+    attr_reader :scoring
+
     # WHAT STARTS PLAY: a new game, another life, the next floor. The menu begins a game through
     # it. See Playthrough for what each of those puts back, and in what order.
     attr_reader :playthrough
@@ -207,6 +210,7 @@ module Wolf3D
     # A NEW GAME'S OWN COUNTS: three goes, and no episode won.
     def reset_game
       @lives.start_again
+      @scoring.start_again
       @victory&.start_again
     end
 
@@ -636,6 +640,7 @@ module Wolf3D
       # another go.
       declare_the_dying
       @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying, lasting: @lasting)
+      @scoring = Scoring.new(build: b, player: @player, lives: @lives, lasting: @lasting)
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
       # floor you can walk out of, which is a boss floor — see Level::EXIT.
       @victory = Victory.new(build: b, lives: @lives, lasting: @lasting) if any_episode_can_end?
@@ -945,7 +950,7 @@ module Wolf3D
     # still has keys lying on it, and the tests of the locked doors are exactly that game.
     def declare_the_pickups
       @pickups = Pickups.new(build: @b, floors: @floors, pool: @guard_pool&.pool, lives: @lives,
-                             weapons: @weapons, lasting: @lasting, flash: @flash,
+                             weapons: @weapons, lasting: @lasting, flash: @flash, scoring: @scoring,
                              this_floor: @this_floor, player: @player)
     end
 
@@ -972,7 +977,7 @@ module Wolf3D
     # A routine, because this picture costs nothing in a frame that matters and the game loop
     # keeps its quick memory for the ones that do.
     def declare_the_tally
-      @tally = Tally.new(build: @b, player: @player, floors: @floors, floor: @floor,
+      @tally = Tally.new(build: @b, player: @player, scoring: @scoring, floors: @floors, floor: @floor,
                          playthrough: @playthrough, secret_lift: @lift_secret, lettering: big_lettering,
                          totals: { kill: @kill_total, secret: @secret_total, treasure: @treasure_total })
       @b.func(:the_end_of_a_floor, fast: false) do
@@ -1019,7 +1024,7 @@ module Wolf3D
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
                             floors: @floors, player: @player, lasting: @lasting, death_cam: @cam,
-                            flash: @flash)
+                            flash: @flash, scoring: @scoring)
     end
 
     # WHICH ROOMS ARE OPEN TO THE PLAYER'S, which is what stops a guard on the far side of the

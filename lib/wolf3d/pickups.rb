@@ -80,9 +80,11 @@ module Wolf3D
     # did before there was a gun to pick up. +lasting+ is what a saved game holds (see
     # LastingState).
     def initialize(build:, player:, level: nil, lives: nil, scenery: nil, pool: nil,
-                   floors: nil, this_floor:, weapons: nil, lasting: LastingState.new(build:), flash: nil)
+                   floors: nil, this_floor:, weapons: nil, lasting: LastingState.new(build:), flash: nil,
+                   scoring: nil)
       @b = build
       @lasting = lasting
+      @scoring = scoring # where the points for a treasure go
       @flash = flash # the screen going gold when something is taken
       @weapons = weapons
       @floors = floors || Floors.of(level: level, doors: Doors.new(level, nil),
@@ -273,7 +275,7 @@ module Wolf3D
       give_ammunition(@amount) if @kind == AMMUNITION
       give_health(@amount) if @kind == HEALTH
       if @kind == TREASURE
-        @player.score += @amount
+        @scoring.pay(@amount)
         @player.treasures += 1
         @took = 1
       end

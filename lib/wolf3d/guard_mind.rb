@@ -64,8 +64,10 @@ module Wolf3D
 
     def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
-                   rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash: nil)
+                   rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash: nil,
+                   scoring: nil)
       @b = build
+      @scoring = scoring # where the points for a kill go
       @flash = flash     # the screen going red when you are hit
       @lasting = lasting # what a saved game holds, which what is in the air is part of
       @cam = death_cam   # how an episode ends, or nil on a cartridge with no such boss
@@ -1029,7 +1031,7 @@ module Wolf3D
         # WHAT KILLING HIM IS WORTH AND WHAT HE WAS CARRYING, both read BEFORE he starts falling
         # over — a state number is what says which kind he is, and in a moment it will say he is
         # a body instead.
-        @player.score += @points_of[hit[:state]]
+        @scoring.pay(@points_of[hit[:state]])
         @cam.remember_the_spot if @ends_episode[hit[:state]] == 1 if @cam
         @left = @leaves_of[hit[:state]]
         @blow = @fall_of[hit[:state]]
