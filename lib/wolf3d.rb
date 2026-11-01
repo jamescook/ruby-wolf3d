@@ -51,6 +51,7 @@ VBlank.require_game_file "wolf3d/this_floor"
 require_relative "wolf3d/lasting_state"
 require_relative "wolf3d/player"
 VBlank.require_game_file "wolf3d/guard_pool"
+VBlank.require_game_file "wolf3d/screen_flash"
 VBlank.require_game_file "wolf3d/first_person"
 # ...after the view, whose height is what the gun's square is scaled to.
 VBlank.require_game_file "wolf3d/weapons"

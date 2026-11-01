@@ -64,8 +64,9 @@ module Wolf3D
 
     def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
-                   rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil)
+                   rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash: nil)
       @b = build
+      @flash = flash     # the screen going red when you are hit
       @lasting = lasting # what a saved game holds, which what is in the air is part of
       @cam = death_cam   # how an episode ends, or nil on a cartridge with no such boss
       # THE STATE TABLE OF EVERY KIND THIS CARTRIDGE HOLDS. A build that says nothing gets the
@@ -444,8 +445,12 @@ module Wolf3D
       gently
       @wound = 0 if @cam.stage > 0 if @cam
       @player.health -= @wound
+      @flash&.hurt(@wound) if @wound > 0
       if @player.health <= 0
         @player.health = 0
+        # ...AND THE RED GOES, because a death has a red of its own (Died opens with
+        # FinishPaletteShifts, wl_game.cpp).
+        @flash&.finish
         @dying&.struck_by(guard)
       end
     end

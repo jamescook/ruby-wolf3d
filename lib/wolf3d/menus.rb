@@ -458,6 +458,7 @@ module Wolf3D
     def pause_unless(flags)
       if flags.empty?
         if @b.pressed(:start)
+          @view.put_the_flash_away
           @in_game = 1
           go_to MENU
         end

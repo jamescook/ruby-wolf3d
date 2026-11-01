@@ -80,9 +80,10 @@ module Wolf3D
     # did before there was a gun to pick up. +lasting+ is what a saved game holds (see
     # LastingState).
     def initialize(build:, player:, level: nil, lives: nil, scenery: nil, pool: nil,
-                   floors: nil, this_floor:, weapons: nil, lasting: LastingState.new(build:))
+                   floors: nil, this_floor:, weapons: nil, lasting: LastingState.new(build:), flash: nil)
       @b = build
       @lasting = lasting
+      @flash = flash # the screen going gold when something is taken
       @weapons = weapons
       @floors = floors || Floors.of(level: level, doors: Doors.new(level, nil),
                                     pushwalls: Pushwalls.new(level),
@@ -287,7 +288,10 @@ module Wolf3D
       give_another_go if @kind == EXTRA_LIFE
       give_a_weapon if @kind == WEAPON
 
-      @taken[@piece] = 1 if @took == 1
+      if @took == 1
+        @taken[@piece] = 1
+        @flash&.bonus
+      end
     end
 
     # A GUN ON THE FLOOR: six rounds and then the gun itself, in that order and always taken —
@@ -353,7 +357,7 @@ module Wolf3D
       @took = 0
       unless (@weapons && leaves_a_gun?) || leaves_a_key?
         give_ammunition(DROPPED_ROUNDS)
-        guard.dropped = NOTHING_LEFT if @took == 1
+        guard_left_nothing_now(guard)
         return
       end
 
@@ -371,7 +375,15 @@ module Wolf3D
         @player.keys = @player.keys | FirstPerson::KEY_BITS.fetch(:gold)
         @took = 1
       end
-      guard.dropped = NOTHING_LEFT if @took == 1
+      guard_left_nothing_now(guard)
+    end
+
+    # What he left has gone from the floor, if it was taken, and that is a pickup like any other.
+    def guard_left_nothing_now(guard)
+      if @took == 1
+        guard.dropped = NOTHING_LEFT
+        @flash&.bonus
+      end
     end
 
     # Does anything on this cartridge leave a gun behind at all?

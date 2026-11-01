@@ -282,6 +282,7 @@ module Wolf3D
       @guard_pool&.refill(slot: @slot, kill_total: @kill_total)
       @mind&.thrown&.clear
       @cam&.start_again
+      @flash.finish
       @dying&.start_again
     end
 
@@ -332,7 +333,10 @@ module Wolf3D
     # nothing else in the game runs, and nobody can shoot you on your way out. See Tally.
     #
     # SO DOES THE DEATH CAM, for as long as it holds the picture.
+    #
+    # THE FLASH RUNS OUT WHATEVER ELSE IS HAPPENING, or it would hang over a stopped world.
     def play
+      @flash.update
       return play_on unless @cam
 
       if @cam.holding == 1
@@ -514,6 +518,9 @@ module Wolf3D
     # no boss to run it. START opens no menu over it.
     def watching = @cam&.stage
 
+    # A MENU OPENS OVER A CLEAN PICTURE. Its colours are the same table a flash has tinted.
+    def put_the_flash_away = @flash.finish
+
     # THE ENEMIES ON THE FLOOR, and the one thing outside the game that reaches them is a test that
     # has to finish a boss off without playing the whole fight.
     attr_reader :guard_pool
@@ -646,6 +653,8 @@ module Wolf3D
       # ...and before both of them, because a guard asks it whether to think and every piece of
       # scenery asks it whether to be looked at.
       declare_the_rooms
+      # ...and the flash before what sets it off: taking something, and being hit.
+      @flash = ScreenFlash.new(build: b)
       declare_the_guards
       declare_the_pickups
       declare_what_there_is_to_find
@@ -936,7 +945,7 @@ module Wolf3D
     # still has keys lying on it, and the tests of the locked doors are exactly that game.
     def declare_the_pickups
       @pickups = Pickups.new(build: @b, floors: @floors, pool: @guard_pool&.pool, lives: @lives,
-                             weapons: @weapons, lasting: @lasting,
+                             weapons: @weapons, lasting: @lasting, flash: @flash,
                              this_floor: @this_floor, player: @player)
     end
 
@@ -1009,7 +1018,8 @@ module Wolf3D
                             things: @things, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
-                            floors: @floors, player: @player, lasting: @lasting, death_cam: @cam)
+                            floors: @floors, player: @player, lasting: @lasting, death_cam: @cam,
+                            flash: @flash)
     end
 
     # WHICH ROOMS ARE OPEN TO THE PLAYER'S, which is what stops a guard on the far side of the
