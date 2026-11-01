@@ -20,7 +20,7 @@ class TestLives < Minitest::Test
   # (the turn toward the killer, the settle, and the fizzle), so a test that asks for two deaths
   # gets exactly two. What is actually driven is a BUTTON — see #counting_program — so the number
   # only has to be generous, and nothing here depends on how many passes a death really takes.
-  BETWEEN_DEATHS = Dying::MOST_TURNS + Dying::SETTLE + Dying::FRAMES + 20
+  BETWEEN_DEATHS = Dying::MOST_TURNS + Dying::SETTLE + Wolf3D::Fizzle::FRAMES + 20
 
   WHITE = Wolf3D::Palette.game[Lives::INK]
   RED = Wolf3D::Palette.game[Dying::INK]

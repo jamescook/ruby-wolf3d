@@ -49,9 +49,12 @@ module Wolf3D
     # rest come with the registered one; whichever are there get used.
     #
     # The first two are the original's own first three — its map points two of them at the same
-    # chunk, so there are seven recordings of the eight. The sixth in its list is the one it keeps
-    # for a boss floor, which no kind here plays.
+    # chunk, so there are seven recordings of the eight. Its sixth is RARE_SCREAM.
     DEATH_SCREAMS = [12, 13, 34, 35, 40, 41, 42].freeze
+
+    # THE ONE IT KEEPS BACK for the tenth floor of an episode (A_DeathScream). The original's map
+    # calls it FART, and it comes one fall in 256 from anyone there but a boss.
+    RARE_SCREAM = 39
 
     # WHAT EACH KIND SAYS. Each of these is the original's: who shouts what on seeing you is
     # FirstSighting (wl_state.cpp), who fires what is T_Shoot (wl_act2.cpp), and who dies how is
@@ -114,6 +117,7 @@ module Wolf3D
     def bites = say(voice(DOG_BITES))
     def tread = say(voice(MACHINE_TREAD))
     def slurp = say(voice(SLURP))
+    def rare_scream = say(voice(RARE_SCREAM))
     def door_opens = retrigger(DOOR_OPENS)
     def door_shuts = retrigger(DOOR_SHUTS)
     def secret_wall = retrigger(SECRET_WALL)
@@ -196,6 +200,7 @@ module Wolf3D
       said += [DOG_BITES] if @kinds.include?(:dog)
       said += [MACHINE_TREAD] if @kinds.include?(:mecha)
       said += [SLURP] if @kinds.include?(:hitler)
+      said += [RARE_SCREAM]
       said.compact.uniq - [:a_scream]
     end
 

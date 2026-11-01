@@ -356,7 +356,9 @@ class TestEnemies < Minitest::Test
   # player is walking rather than shooting when they reach the body.
   def kill_and_collect(name, shots:, frames:, at: 7, count: 1)
     walking = ->(f) { f < shots * A_SHOT ? (f.even? ? [:b] : []) : [:up] }
-    play(walking, a_floor_of(name, at: at, count: count, drawn: true), frames)
+    # Down a corridor, because he sidesteps across an open floor and you walk straight ahead.
+    program = program_for(name, at, :west, count, :corridor) { |b, view| b.game_loop { view.update } }
+    play(walking, program, frames)
   end
 
   def play(keys, program, frames)
@@ -432,15 +434,15 @@ class TestEnemies < Minitest::Test
   def program_for(name, at, facing, count, tag = nil, &loop_body)
     @programs ||= {}
     @programs[[name, at, facing, count, tag, loop_body.source_location]] ||=
-      view_of(a_level_with(name, at, facing, count), &loop_body)
+      view_of(a_level_with(name, at, facing, count, corridor: tag == :corridor), &loop_body)
   end
 
   # One of them on the player's row, or several in a line — which the questions about what is
   # left lying need, so there is a second one to walk over the first one's gift with.
-  def a_level_with(name, at, facing, count)
+  def a_level_with(name, at, facing, count, corridor: false)
     kind = Enemy[name]
     code = (kind.stands ? kind.standing : kind.patrolling) + Guards::FACINGS.index(facing)
-    with_things((0...count).to_h { |n| [[at + (n * 4), ROW], code] })
+    with_things((0...count).to_h { |n| [[at + (n * 4), ROW], code] }, corridor: corridor)
   end
 
   # A walled field with the player on ROW looking east, and whatever else you name. +corridor+

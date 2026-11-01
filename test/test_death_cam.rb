@@ -12,6 +12,7 @@ class TestDeathCam < Minitest::Test
 
   Enemy = Wolf3D::Enemy
   Cam = Wolf3D::DeathCam
+  Fizzle = Wolf3D::Fizzle
   Release = Wolf3D::Fixture::Release
   Behaviour = Wolf3D::Behaviour
 
@@ -24,6 +25,8 @@ class TestDeathCam < Minitest::Test
   # the body's twenty and the 140 of his last words, in sevenths of a think, a think every other pass.
   FIRED = 6
   DOWN = 200
+  # ...and by which the dots have finished and the words are up.
+  WORDS_UP = DOWN + Cam::HOLD + Fizzle::FRAMES + 4
 
   def test_the_body_lies_there_and_the_world_stops
     run = played(frames: DOWN)
@@ -32,8 +35,18 @@ class TestDeathCam < Minitest::Test
     assert_equal 1, run[:_cam_holding]
   end
 
+  # THE VIEW FIZZLING OVER TO THE GROUND THE WORDS STAND ON, which is the FizzleFade A_StartDeathCam does
+  # first, so half way through some of it is that ground and some of it is still the room.
+  def test_then_the_view_dots_away
+    run = played(frames: DOWN + Cam::HOLD + (Fizzle::FRAMES / 2))
+    ground = (0...Fizzle::ACROSS).count { |x| run.screen.pixel(x, 20) == palette[Cam::GROUND] }
+
+    assert_equal Cam::FIZZLING, run[:_cam_stage]
+    assert_includes (1...Fizzle::ACROSS), ground, "part of a row, not none and not all"
+  end
+
   def test_then_the_game_says_lets_see_that_again
-    run = played(frames: DOWN + Cam::HOLD + 2)
+    run = played(frames: WORDS_UP)
 
     assert_equal Cam::WORDS, run[:_cam_stage]
     assert_equal palette[Cam::GROUND], run.screen.pixel(2, 2), "the view has gone"
@@ -51,7 +64,7 @@ class TestDeathCam < Minitest::Test
   end
 
   def test_a_press_cuts_the_words_short
-    run = played(frames: DOWN + Cam::HOLD + 12) { |f| f == DOWN + Cam::HOLD + 6 ? [:a] : [] }
+    run = played(frames: WORDS_UP + 12) { |f| f == WORDS_UP + 6 ? [:a] : [] }
 
     assert_equal Cam::REPLAY, run[:_cam_stage]
   end
@@ -107,7 +120,7 @@ class TestDeathCam < Minitest::Test
   def states = Behaviour.for(%i[schabbs])
 
   # How long the words stay up when nobody presses anything, and a pass to line up.
-  def words_gone = DOWN + Cam::HOLD + Cam::WORDS_FOR + 2
+  def words_gone = WORDS_UP + Cam::WORDS_FOR
 
   # Stand the boss in front of the player, fire one shot at him on FIRED, and take him to one hit
   # point first so that it kills him.

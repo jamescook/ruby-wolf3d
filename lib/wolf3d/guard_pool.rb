@@ -15,9 +15,9 @@ module Wolf3D
   class GuardPool
     # HOW BIG EACH OF A GUARD'S FIELDS REALLY NEEDS TO BE. A pool is one list per field and a
     # slot is a whole 32-bit number unless it is told otherwise, so left alone a guard takes four
-    # bytes to keep a direction, a flag, or how many hit points are left. Ten of the
-    # thirteen hold far less than that, and on a cartridge carrying every floor the pool is
-    # sized for the busiest one — so what those ten cost is memory the placement chooser would
+    # bytes to keep a direction, a flag, or how many hit points are left. Eleven of the
+    # fourteen hold far less than that, and on a cartridge carrying every floor the pool is
+    # sized for the busiest one — so what those eleven cost is memory the placement chooser would
     # otherwise be giving to the code the frame runs in.
     #
     # EVERY RANGE HERE IS READ OFF THE GAME rather than guessed, and the three countdowns are
@@ -29,7 +29,7 @@ module Wolf3D
     #   dir      0..7      which way he faces
     #   turn     0..1      which half of the guards think on this frame
     #   dropped  0..3      nothing, a clip, a machine gun, or the gold key
-    #   shown, awake, ambush   yes or no
+    #   shown, awake, ambush, noticed   yes or no
     #
     # `wait` is the one that never fits: a reaction is up to 192 units and it is counted
     # down the same way, so it wants -7..192 and a byte stops at 127. It takes a half instead,
@@ -47,7 +47,7 @@ module Wolf3D
     # Both keep the byte on a cartridge that does not need more, which is the whole bargain
     # these widths are: a game with no boss on any floor pays a boss nothing.
     NARROW = { dir: :byte, turn: :byte, dropped: :byte,
-               shown: :byte, awake: :byte, ambush: :byte, wait: :half }.freeze
+               shown: :byte, awake: :byte, ambush: :byte, noticed: :byte, wait: :half }.freeze
 
     # How wide a slot has to be to hold every number that can go in it, given the range the
     # cartridge really needs. Signed, because these are counted down past nothing.
@@ -118,7 +118,7 @@ module Wolf3D
                       state: @home_state[at], ticks: @home_ticks[at],
                       hp: @hit_points[@home_tough[at] + @difficulty],
                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
-                      ambush: @home_ambush[at], turn: counts[:kill_total] % 2
+                      ambush: @home_ambush[at], noticed: 0, turn: counts[:kill_total] % 2
           counts[:kill_total] += @home_counted[at]
         end
       end
@@ -143,8 +143,10 @@ module Wolf3D
       # +ambush+ is a guard put down lying in wait, who has to SEE you: he is the one a gunshot
       # does not bring. Carried on him rather than read off the map because the original clears
       # it the moment he does see you, and from then on he is a guard like any other.
+      # +noticed+ is that he has seen you and has not yet chosen a way to sidestep, which is the one
+      # time he is allowed to turn straight round (FL_FIRSTATTACK).
       @pool = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
-                            hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0,
+                            hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0, noticed: 0,
                             capacity: @floors.room_for(:guards), widths: widths
       stand_up_the_first_floor
       declare_where_they_start

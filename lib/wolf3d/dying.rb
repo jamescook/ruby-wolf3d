@@ -14,73 +14,15 @@ module Wolf3D
   # affordable: the eighty rays and eighty stretched columns that a normal frame spends nearly
   # all of itself on are simply not drawn once the fizzle starts, so the whole frame is free for
   # the dots.
-  #
-  # WHY IT IS NOT A SHIFT REGISTER. The original scatters with a maximum-length linear feedback
-  # shift register, which visits every pixel exactly once with nothing to remember — a shift, a
-  # test and an exclusive-or per pixel. This framework has no bitwise operators at all (the IR
-  # knows + - * / % and the comparisons, and nothing else), so that is not expressible, and
-  # adding one is a new IR operator with a conformance fixture, a cost weight and two backends
-  # behind it — far more than this needs.
-  #
-  # What replaces it does the same job with the arithmetic that IS here. Step a number by
-  # multiplying it, modulo a prime just above the number of pixels: `n = n * STEP % MODULUS`.
-  # With STEP a primitive root, that visits every value from 1 to MODULUS-1 exactly once before
-  # it comes back round, which is the same guarantee the shift register gives — every pixel
-  # once, nothing remembered but the current number. It is two instructions rather than three,
-  # and the six values that overshoot the last pixel fall off the bottom of the view and are
-  # clipped, so nothing has to test for them.
-  #
-  # AND WHY EVERY DOT IS DRAWN TWICE. This game draws on a tear-free screen, which keeps two
-  # pictures and shows them in turn — so a frame's drawing lands on one of them and the next
-  # frame's on the other. A program that repaints everything every frame never notices. This one
-  # ADDS to what is already there, so drawn once, each page would get half the dots and the
-  # screen would flicker between two half-finished pictures.
-  #
-  # `keep_showing` IS THE FRAMEWORK'S ANSWER TO THAT and does not fit here. It paints the same
-  # picture again on the next frame, which suits a figure that changed and is then left alone —
-  # the status bar, the GAME OVER words. A fizzle draws DIFFERENT dots every frame, so painting
-  # it again a frame later draws the next batch rather than this one twice.
-  #
-  # So there are two walkers stepping the same sequence, one a frame behind the other. Every dot
-  # is drawn on two consecutive frames, which is one of each page, and neither walker has to
-  # know anything about the other or about which page it is on.
   class Dying
     # What the player is doing. Everything else in the game asks this before it moves.
     ALIVE = 0
     TURNING = 1   # facing whatever killed you
-    FIZZLING = 2  # the view dotting over to red
+    FIZZLING = 2  # the view fizzling over to red
     GONE = 3      # the story is told — what happens next is Lives's business, not this one's
 
     # The red, out of the game's own 256, which is the one the original fills with.
     INK = 4
-
-    ACROSS = FirstPerson::ACROSS
-    DOWN = FirstPerson::VIEW_H
-    PIXELS = ACROSS * DOWN
-
-    # THE STEP AND THE PRIME, worked out once and written down rather than computed at build
-    # time, because finding a primitive root needs the factors of MODULUS-1 and that is a lot of
-    # machinery to carry for two numbers that will never change. What they promise — that
-    # stepping from 1 reaches every value below MODULUS exactly once — is checked by a test, by
-    # walking the whole sequence, which needs no number theory to read.
-    #
-    # MODULUS is the first prime above the number of pixels, so six of its values name a spot
-    # past the last one. See #scatter for where those six go.
-    MODULUS = 30_727
-    STEP = 15_363
-
-    # How long the fizzle takes: one second, which is what the original spends on it (70 frames
-    # of its 70 a second, so sixty of this console's).
-    #
-    # COUNTED IN PASSES OF THE GAME LOOP rather than in frames, unlike everything else the game
-    # moves by, and on purpose. Drawing belongs to the pass — which page it lands on is decided
-    # by the pass, and the whole two-walker arrangement below rests on that. Putting it on the
-    # clock would mean a late pass drew two or three batches at once, which is more drawing,
-    # which makes the pass later still. So a game that cannot keep up takes a little longer over
-    # its death instead, which is the safe way round. Measured, a fizzling frame spends 132 of
-    # its 228 scanlines here, so there is room before that ever comes up.
-    FRAMES = 60
-    PER_FRAME = ((MODULUS - 1) / FRAMES) + 1
 
     # HOW THE TURN ENDS. It turns a step at a time toward the killer and stops when it goes PAST
     # him — which is the only test that needs no angle worked out, and no arctangent exists here
@@ -126,8 +68,7 @@ module Wolf3D
 
     # A shot has landed and taken the last of the health. Remember where it came from — the turn
     # is the whole reason a death needs to know — and begin the death from its beginning: no turn
-    # taken yet, and both walkers back to where they start. They start at 1 rather than 0 because
-    # nought is the one number a step like theirs can never leave — see #scatter.
+    # taken yet, and the dots back to the beginning.
     #
     # PUT BACK HERE, AS EACH DEATH BEGINS, because a saved game keeps whether you are dying and
     # none of the rest (see LastingState). A game loaded after a death has run to its end comes
@@ -141,10 +82,7 @@ module Wolf3D
         @was = 0
         @turned = 0
         @held = 0
-        @lead = 1
-        @lag = 1
-        @lead_done = 0
-        @lag_done = 0
+        @dots.start_again
       end
     end
 
@@ -181,7 +119,7 @@ module Wolf3D
     def draw
       # Not on a normal frame: this runs for a second or two at the end of a life and never
       # otherwise.
-      @b.call(:scatter_the_red) if @state == FIZZLING
+      @b.call(:dying_fizzle) if @state == FIZZLING
     end
 
     private
@@ -222,14 +160,7 @@ module Wolf3D
       @now, @turned, @held, @spot = %i[now turned held spot].map { |n| b.var(:"_dying_#{n}", 0) }
       @was = b.var :_dying_was, 0 # on a line of its own, since a list would move this name to @now
 
-      # The two walkers, one a frame behind the other, and how far each has got. They start at 1
-      # because nought is the one number this kind of step can never leave.
-      @lead = b.var :_dying_lead, 1
-      @lag = b.var :_dying_lag, 1
-      @walkers = { lead: @lead, lag: @lag } # a Hash, so that #scatter can change either
-      @lead_done = b.var :_dying_lead_done, 0
-      @lag_done = b.var :_dying_lag_done, 0
-
+      @dots = Fizzle.new(build: b, name: :dying, colour: Palette.game[INK])
       declare_the_scattering
     end
 
@@ -248,35 +179,9 @@ module Wolf3D
     # So rare is not the same as cheap-to-slow-down. What decides this is the worst frame it
     # ever takes part in, and there it is the only thing running.
     def declare_the_scattering
-      @b.func(:scatter_the_red) { scatter_the_next_dots }
-    end
-
-    def scatter_the_next_dots
-      if @lead_done < MODULUS - 1
-        scatter(:lead)
-        @lead_done += PER_FRAME
-      end
-      # ...and last frame's dots again, onto the page that missed them.
-      if @lead_done > PER_FRAME
-        scatter(:lag)
-        @lag_done += PER_FRAME
-      end
-      @state = GONE if @lag_done >= MODULUS - 1
-    end
-
-    # HOW THE SIX OVERSHOOTS ARE KEPT OUT OF THE STATUS BAR. The prime is a few above the number
-    # of pixels, so six of its values name a spot one row below the view — and `inside` clips
-    # them for nothing, on both backends: `draw_rect_at` is a run-time position, the one kind
-    # `inside` could not clip until the framework learned to hold it to the area (it used to
-    # wrap onto the next row on the console instead of stopping, a framework bug that lived here
-    # as a worked-around comment for a while).
-    def scatter(which)
-      @b.inside(0, 0, ACROSS, DOWN) do
-        @b.repeat(PER_FRAME) do
-          @walkers[which] = (@walkers[which] * STEP) % MODULUS
-          @spot = @walkers[which] - 1
-          @b.draw_rect_at @spot % ACROSS, @spot / ACROSS, 1, 1, Palette.game[INK]
-        end
+      @b.func(:dying_fizzle) do
+        @dots.scatter_dots
+        @state = GONE if @dots.finished
       end
     end
   end

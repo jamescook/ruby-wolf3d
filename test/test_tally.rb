@@ -129,7 +129,8 @@ class TestTally < Minitest::Test
   end
 
   def test_killing_a_guard_counts_it
-    level = arena(guards: [[9, ROW, :west]])
+    corridor = (1..14).to_a.product([ROW - 1, ROW + 1])
+    level = arena(walls: corridor, guards: [[9, ROW, :west]])
     program = view_of(level, drawn: true)
     run = Reference.new.input_each_frame { |f| (f / 2).even? ? [:b] : [] }
                    .run(program, frames: 120)

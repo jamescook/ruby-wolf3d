@@ -147,7 +147,9 @@ module Wolf3D
     # +floors+ is every floor the cartridge holds.
     # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
     def initialize(build:, atlas:, floors:, things: nil, vswap: nil, bar_art: nil, gun_art: nil,
-                   lettering: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil)
+                   lettering: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil,
+                   rare_scream_odds: GuardMind::RARE_SCREAM_ODDS)
+      @rare_scream_odds = rare_scream_odds
       @floors = floors
       here = @floors.first_floor
       @b = build
@@ -476,6 +478,8 @@ module Wolf3D
 
       if @cam.showing_words == 1
         @b.call :the_words_before_the_replay
+      elsif @cam.fizzling
+        @cam.scatter_dots
       else
         draw_this_floor
       end
@@ -1029,7 +1033,7 @@ module Wolf3D
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
                             floors: @floors, player: @player, lasting: @lasting, death_cam: @cam,
-                            flash: @flash, scoring: @scoring)
+                            flash: @flash, scoring: @scoring, floor: @floor, rare_scream_odds: @rare_scream_odds)
     end
 
     # WHICH ROOMS ARE OPEN TO THE PLAYER'S, which is what stops a guard on the far side of the

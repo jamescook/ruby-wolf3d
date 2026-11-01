@@ -180,7 +180,7 @@ class TestThrowingBosses < Minitest::Test
   # EVERYTHING IN THE AIR GOES when the floor is started again.
   # Read one frame after the floor starts again, which is only known by playing it. The rocket that
   # killed you has its smoke hanging in the air right up to then, so a stale number fails loudly.
-  LIFE_LOST_AT = 358
+  LIFE_LOST_AT = 196
 
   def test_what_is_in_the_air_is_gone_when_a_life_is_lost
     run = Reference.new.run(view_of(with_things({ [6, ROW] => Enemy[:gift].standing })), frames: LIFE_LOST_AT)
@@ -232,7 +232,7 @@ class TestThrowingBosses < Minitest::Test
 
   # A man in the machine, and a chain gun with plenty.
   def machine_in_your_sights
-    @machine_in_your_sights ||= view_of(with_things({ [PLAYER_X + 9, ROW] => Enemy[:mecha].standing }),
+    @machine_in_your_sights ||= view_of(with_things({ [PLAYER_X + 9, ROW] => Enemy[:mecha].standing }, corridor: true),
                                         armed_with: Wolf3D::Weapons::NUMBERS[:chain_gun], ammo: 99)
   end
 
@@ -252,5 +252,9 @@ class TestThrowingBosses < Minitest::Test
 
   def fixture = @fixture ||= Release.new(sprites: SPRITES)
 
-  def with_things(things, side: 24) = arena(side: side, player: [PLAYER_X, ROW], things: things)
+  # +corridor+ walls in the row, for a test about something other than where he sidesteps to.
+  def with_things(things, side: 24, corridor: false)
+    rows = corridor ? (0...side).to_a - [ROW] : []
+    arena(side: side, player: [PLAYER_X, ROW], things: things, walls: (0...side).to_a.product(rows))
+  end
 end

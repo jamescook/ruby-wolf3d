@@ -59,6 +59,7 @@ VBlank.require_game_file "wolf3d/first_person"
 # ...after the view, whose height is what the gun's square is scaled to.
 VBlank.require_game_file "wolf3d/weapons"
 # ...after the view, whose constants say how big the part of the screen that goes red is.
+VBlank.require_game_file "wolf3d/fizzle"
 VBlank.require_game_file "wolf3d/dying"
 # ...and after dying, which is the only thing that ever spends one.
 VBlank.require_game_file "wolf3d/lives"

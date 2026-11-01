@@ -13,16 +13,17 @@ module Wolf3D
   # THE SAME ROUTINE RUNS TWICE. The picture of the body ends the fall with this, and the second
   # fall ends with this again, which is how the original knows it has seen enough.
   #
-  # WHAT THIS LEAVES OUT: the fizzle on the way into the words and on the way back out of them. The
-  # picture simply changes. Dying's dots cover the view by writing over what is there, and the words
-  # and the replay are each a whole new picture to reach, which they cannot show being reached.
+  # WHAT THIS LEAVES OUT: the fizzle back from the words into the replay. The original dots that one
+  # in as well, but it is a fizzle to a whole new picture rather than to one colour, so here the
+  # picture simply changes. See Fizzle.
   class DeathCam
     # WHERE IT HAS GOT TO. Nought is that nothing is happening, and it is what the menus read.
     NOT_RUNNING = 0
     FIRST_HOLD = 1 # the body lies there a moment, with the world stopped
-    WORDS = 2      # "Let's see that again!"
-    REPLAY = 3     # he falls again, in front of you
-    LAST_HOLD = 4  # ...and lies there a moment, and the episode is over
+    FIZZLING = 2       # the view dots over to the ground the words stand on
+    WORDS = 3      # "Let's see that again!"
+    REPLAY = 4     # he falls again, in front of you
+    LAST_HOLD = 5  # ...and lies there a moment, and the episode is over
 
     # The words, on two lines: at sixteen pixels a letter the one line would not fit.
     FIRST_LINE = "LET'S SEE"
@@ -100,6 +101,10 @@ module Wolf3D
     # The words, painted when they go up and then left alone.
     def draw = @picture.draw
 
+    # WHILE THE DOTS GO ON the view is not drawn, or it would paint over them. Dying's the same.
+    def fizzling = @stage == FIZZLING
+    def scatter_dots = @b.call(:death_cam_fizzle)
+
     # IS THE BANNER UP ON THIS PASS? It only is on the replay. Called once a pass, where it is drawn.
     def banner_is_up
       @blink += 1 if @stage == REPLAY
@@ -135,6 +140,8 @@ module Wolf3D
       @angle = b.var :_cam_angle, 0
       @done = b.var :_cam_done, 0
       @picture = b.keep_showing(:death_cam_words) { paint }
+      @dots = Fizzle.new(build: b, name: :cam, colour: Palette.game[GROUND])
+      b.func(:death_cam_fizzle) { @dots.scatter_dots }
       b.func(:the_death_cam_waits, fast: false) { wait }
       b.func(:the_death_cam_lines_up, fast: false) { line_up }
     end
@@ -149,12 +156,21 @@ module Wolf3D
       @count -= 1
       if @stage == WORDS
         @b.call :the_death_cam_lines_up if @count <= 0 || @b.pressed(:any)
+      elsif @stage == FIZZLING
+        show_words if @dots.finished
       elsif @count <= 0
-        @stage == FIRST_HOLD ? put_the_words_up : @victory.won
+        @stage == FIRST_HOLD ? start_fizzle : @victory.won
       end
     end
 
-    def put_the_words_up
+    # BOTH PICTURES HOLD THE SAME ROOM by now, since the world has stood still for the whole of the
+    # hold, so the two walkers are dotting over one view and it cannot shudder.
+    def start_fizzle
+      @dots.start_again
+      @stage = FIZZLING
+    end
+
+    def show_words
       hold_for(WORDS, WORDS_FOR)
       @showing_words = 1
       @picture.changed

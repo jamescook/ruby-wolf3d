@@ -50,6 +50,14 @@ module Wolf3D
     # like Hans's: come close and he runs (T_Schabb, `dist < 4`, SelectRunDir).
     TOO_CLOSE = 4
 
+    # HALF OF A RANDOM BYTE, which is how the original tosses a coin, and how far round the eight
+    # ways the opposite of any one of them is.
+    COIN = 128
+    BEHIND = 4
+
+    # One fall in this many, which is `!US_RndT()`. A test can ask for it every time.
+    RARE_SCREAM_ODDS = 256
+
     # WHETHER HE FIRES is a chance against distance, taken every frame he has a clear line —
     # which is why a guard sometimes just stands there aiming. The original's number is sixteen
     # times the time elapsed, divided by the distance in cells, out of 256. Worked out here for
@@ -68,8 +76,10 @@ module Wolf3D
     def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
                    rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash:,
-                   scoring:)
+                   scoring:, floor: nil, rare_scream_odds: RARE_SCREAM_ODDS)
       @b = build
+      @floor = floor      # which floor is being played, or nil where nothing asks
+      @rare_scream_odds = rare_scream_odds
       @scoring = scoring # where the points for a kill go
       @flash = flash     # the screen going red when you are hit
       @lasting = lasting # what a saved game holds, which what is in the air is part of
@@ -169,6 +179,7 @@ module Wolf3D
         @sees_you_says = b.table :guard_sees_you_says, names.map { |name| @sounds.voice(Sounds::SIGHTING[name]) }, width: :byte
         @fires_says = b.table :guard_fires_says, names.map { |name| @sounds.voice(Sounds::FIRING[name]) }, width: :byte
         @dies_says = b.table :guard_dies_says, names.map { |name| @sounds.voice(Sounds::DYING[name]) }, width: :byte
+        declare_rare_scream(rows)
       end
 
       # WHICH WAY EACH DIRECTION GOES, one cell at a time. Nine entries: eight ways round and
@@ -215,6 +226,16 @@ module Wolf3D
       end
     end
 
+    # WHICH FLOORS AND WHICH KINDS CAN MAKE IT. A cartridge holding no tenth floor pays nothing.
+    def declare_rare_scream(rows)
+      tenth = @floors&.map { |floor| floor.index % Floors::PER_EPISODE == Playthrough::SECRET_FLOOR ? 1 : 0 } || []
+      return unless tenth.include?(1) && @floor
+
+      @rare_scream_floor = @b.table :guard_rare_scream_floor, tenth, width: :byte
+      @rare_scream_kind = @b.table :guard_rare_scream_kind,
+                                   rows.map { |n| @behaviour.kind_at(n).boss? ? 0 : 1 }, width: :byte
+    end
+
     # THE TURNING POINTS OF EVERY FLOOR, in the order the cartridge plays them, so that this table
     # lines up cell for cell with the map. A cartridge with one floor is that floor's own.
     def every_floors_arrows
@@ -249,6 +270,13 @@ module Wolf3D
       @try = b.var :_gtry, 0
       @cellx = b.var :_gcellx, 0
       @way = b.var :_gway, 0
+      @other = b.var :_gother, 0
+      @held = b.var :_gheld, 0
+      @slant = b.var :_gslant, 0
+      @back = b.var :_gback, 0
+      @dodging = b.var :_gdodging, 0
+      @homex = b.var :_ghomex, 0
+      @homey = b.var :_ghomey, 0
       @away = b.var :_gaway, 0
       @target = b.var :_gtarget, 0
       @stepx = b.var :_gstepx, 0.0
@@ -302,12 +330,14 @@ module Wolf3D
     # could never be given, so all of it ran from the cartridge. Apart, each is placed on its own
     # merits, and the one a fight spends its time in can go where it runs faster.
     def declare_the_jobs
+      @pool.func(:guard_try_dir) { |guard| walk_if_clear(guard) }
+      @pool.func(:guard_select_dodge_dir) { |guard| select_dodge_dir(guard) }
       @pool.func(:guard_looks) { |guard| look(guard) }
       @pool.func(:guard_patrols) { |guard| patrol(guard) }
       @pool.func(:guard_chases) { |guard| chase(guard) } if hunts?(:chase)
       @pool.func(:guard_hunts) { |guard| hunt(guard) } if hunts?(:hunt)
       if hunts?(:throw)
-        @pool.func(:guard_picks_a_way_off) { |guard| choose_a_way_off(guard) }
+        @pool.func(:guard_select_chase_or_run_dir) { |guard| select_chase_or_run_dir(guard) }
         @pool.func(:guard_throws) { |guard| throw_or_back_off(guard) }
       end
       @pool.func(:guard_breathes_fire) { |guard| breathe_fire_or_walk(guard) } if hunts?(:flame)
@@ -374,7 +404,24 @@ module Wolf3D
     end
 
     # HE CRIES OUT, in his own voice, or one of eight if he is a guard (A_DeathScream).
-    def cry_out = @sounds.dies(@dies_says[@state])
+    def cry_out
+      return @sounds.dies(@dies_says[@state]) if @rare_scream_floor.nil?
+
+      @try = 0
+      roll_rare_scream
+      @sounds.dies(@dies_says[@state]) if @try == 0
+    end
+
+    # THE ONE THE ORIGINAL KEEPS BACK: on the tenth floor of an episode, one fall in 256 by anything
+    # but a boss makes the sound nobody expects. The floor is asked first, as `mapon==9` is there.
+    def roll_rare_scream
+      if @rare_scream_floor[@floor] == 1 && @rare_scream_kind[@state] == 1
+        if @b.rand(0...@rare_scream_odds) == 0
+          @try = 1
+          @sounds.rare_scream
+        end
+      end
+    end
 
     # THE MACHINE'S TREAD, heard only from its own room or one open to it (A_MechaSound).
     def tread(guard)
@@ -587,6 +634,7 @@ module Wolf3D
       guard.state = @blow
       guard.ticks = @ticks_of[@blow]
       guard.togo = 0.0
+      guard.noticed = 1
       # "Halt!" — which is the one sound in this game that tells you something you could not
       # otherwise know: that you have been seen, and by how many.
       @sounds&.say(@sees_you_says[@blow])
@@ -749,7 +797,7 @@ module Wolf3D
       @way = @arrow[@this_floor.map_index(guard.x.to_i, guard.y.to_i)]
       guard.dir = @way if @way < Guards::NOWHERE
       @picked = 0
-      try_this_way(guard, guard.dir)
+      try_dir(guard.dir)
       guard.dir = Guards::NOWHERE if @picked == 0
     end
 
@@ -759,44 +807,49 @@ module Wolf3D
     # other, then whatever way he was already going. A guard who can do none of those stands
     # still, which is why the original's guards get stuck on corners.
     #
-    # And with a clear line at you he stops to take a shot instead of closing further.
+    # And with a clear line at you he may stop to take a shot, and if he does not, he sidesteps
+    # rather than closing straight down that line.
     def chase(guard)
       take_a_shot(guard)
       if @think_of[guard.state] == CHASE
-        choose_a_chase_way(guard) if guard.togo <= 0.0
+        @dodging = @clear
+        select_chase_or_dodge_dir(guard) if guard.togo <= 0.0
         walk(guard, patrolling: false)
       end
     end
 
     # A DOG CLOSES INSTEAD OF STOPPING FOR A SHOT, and that is the whole difference between
-    # hunting and chasing. It picks its way toward you exactly as a guard does; where a guard
-    # asks whether he has a clear line, a dog asks whether it is near enough to jump — and it
-    # asks about the step it is ABOUT to take, so it leaves the ground a stride early.
+    # hunting and chasing. Where a guard asks whether he has a clear line, a dog asks whether it
+    # is near enough to jump — and it asks about the step it is ABOUT to take, so it leaves the
+    # ground a stride early. It never asks about the line, so it weaves wherever it is (T_DogChase).
     def hunt(guard)
       near_enough_to_jump(guard)
       if @think_of[guard.state] == HUNT
-        choose_a_chase_way(guard) if guard.togo <= 0.0
+        @dodging = 1
+        select_chase_or_dodge_dir(guard) if guard.togo <= 0.0
         walk(guard, patrolling: false)
       end
     end
 
     # ONE WHO THROWS COMES AT YOU UNTIL IT IS NEAR AND THEN BACKS OFF, and with a clear line it may
-    # stop to throw. Distance has nothing to do with whether it does (T_Schabb, T_Gift, T_Fat). The
-    # original also has it sidestep while it has a clear line, which guards here do not do either.
+    # stop to throw, or sidestep. Distance has nothing to do with whether it does (T_Schabb, T_Gift,
+    # T_Fat).
     def throw_or_back_off(guard)
       throw_if_it_will(guard, THROW_CHANCE)
       if @think_of[guard.state] == THROW
-        @b.call :guard_picks_a_way_off if guard.togo <= 0.0
+        @dodging = @clear
+        @b.call :guard_select_chase_or_run_dir if guard.togo <= 0.0
         walk(guard, patrolling: false, backing_off: true)
       end
     end
 
-    # A FAKE HITLER DOES NOT BACK OFF and does not throw often. The original has him only ever
-    # dodge (T_Fake, SelectDodgeDir), which enemies here do not do yet, so he comes on.
+    # A FAKE HITLER DOES NOT BACK OFF and does not throw often. Sidestepping is all he ever does,
+    # with a clear line or without one (T_Fake).
     def breathe_fire_or_walk(guard)
       throw_if_it_will(guard, FLAME_CHANCE)
       if @think_of[guard.state] == FLAME
-        choose_a_chase_way(guard) if guard.togo <= 0.0
+        @dodging = 1
+        select_chase_or_dodge_dir(guard) if guard.togo <= 0.0
         walk(guard, patrolling: false)
       end
     end
@@ -814,26 +867,26 @@ module Wolf3D
     end
 
     # Too close, and it goes the other way. Otherwise it comes on as a guard does.
-    def choose_a_way_off(guard)
+    def select_chase_or_run_dir(guard)
       how_far_away(guard)
       if @away < TOO_CLOSE
-        run_from_the_player(guard)
+        select_run_dir(guard)
       else
-        choose_a_chase_way(guard)
+        select_chase_or_dodge_dir(guard)
       end
     end
 
     # AWAY FROM THE PLAYER on the longer axis first, then the other, then on as before: a chase with
     # its two ways turned round (SelectRunDir).
-    def run_from_the_player(guard)
+    def select_run_dir(guard)
       @dx = @player.x - guard.x
       @dy = @player.y - guard.y
 
       @way = 0                                  # east
       @way = 4 if @dx > 0.0             # west
-      @try = 6                                  # south
-      @try = 2 if @dy > 0.0             # north
-      set_off_one_of_two_ways(guard)
+      @other = 6                                # south
+      @other = 2 if @dy > 0.0           # north
+      try_two_dirs(guard)
     end
 
     # Near enough on EACH axis on its own rather than as a distance, which is the original's own
@@ -875,46 +928,131 @@ module Wolf3D
       guard.togo = 0.0
     end
 
+    # WHICHEVER OF THE TWO HE IS DOING, with a clear line in hand or without one.
+    def select_chase_or_dodge_dir(guard)
+      if @dodging == 1
+        @b.call :guard_select_dodge_dir
+      else
+        select_chase_dir(guard)
+      end
+    end
+
+    # A SIDESTEP, which is why a man with a clear line at you is hard to hit (SelectDodgeDir). He
+    # has five ways to try and a coin decides the middle of the order. The one he likes best is the
+    # slant between the two ways that bring him nearer, which is what walks him off your line.
+    #
+    # WHEN YOU ARE FURTHER AWAY ACROSS THAN DOWN the way across goes second, so that the step he
+    # prefers is the one that takes him sideways to you. The coin then turns that round half the
+    # time. The two that lead away from you come last, and last of all the way he came, which he
+    # may only take sooner on the first choice after he notices you.
+    #
+    # Whole cells, as the original measures it, so standing in the same cell as him is not a side.
+    def select_dodge_dir(guard)
+      set_turnaround(guard)
+      @tx = @player.x.to_i - guard.x.to_i
+      @ty = @player.y.to_i - guard.y.to_i
+
+      @way = 4                                  # west
+      @way = 0 if @tx > 0                       # east
+      @other = 2                                # north
+      @other = 6 if @ty > 0                     # south
+      @slant = (@way + @other) / 2              # the two added and halved, which suits three of the four
+      @slant = 7 if @way == 0 && @other == 6    # and southeast is the one that wraps round
+
+      @tx = 0 - @tx if @tx < 0
+      @ty = 0 - @ty if @ty < 0
+      swap_dirs if @tx > @ty
+      swap_dirs if @b.rand(0..CHANCES - 1) < COIN
+
+      @picked = 0
+      try_dodge_dir(@slant)
+      try_dodge_dir(@way)
+      try_dodge_dir(@other)
+      try_dodge_dir((@way + BEHIND) % Guards::NOWHERE)
+      try_dodge_dir((@other + BEHIND) % Guards::NOWHERE)
+      try_dir(@back) if @picked == 0
+      guard.dir = Guards::NOWHERE if @picked == 0
+    end
+
+    # WHICH WAY IS BACK. Nowhere on the first choice after he notices you, and for one who was
+    # going nowhere, so that nothing is ruled out.
+    def set_turnaround(guard)
+      @back = Guards::NOWHERE
+      if guard.noticed == 1
+        guard.noticed = 0
+      elsif guard.dir < Guards::NOWHERE
+        @back = (guard.dir + BEHIND) % Guards::NOWHERE
+      end
+    end
+
+    def swap_dirs
+      @held = @way
+      @way = @other
+      @other = @held
+    end
+
+    def try_dodge_dir(way)
+      @try = way
+      @b.call :guard_try_dir if @picked == 0 && @try != @back
+    end
+
     # Toward the player on the longer axis first, then the other, then on as before.
-    def choose_a_chase_way(guard)
+    def select_chase_dir(guard)
       @dx = @player.x - guard.x
       @dy = @player.y - guard.y
 
       @way = 4                                  # west
       @way = 0 if @dx > 0.0             # east
-      @try = 2                                  # north
-      @try = 6 if @dy > 0.0             # south
-      set_off_one_of_two_ways(guard)
+      @other = 2                                # north
+      @other = 6 if @dy > 0.0           # south
+      try_two_dirs(guard)
     end
 
-    def set_off_one_of_two_ways(guard)
+    def try_two_dirs(guard)
       # The longer way is tried first, so swap them when the up-and-down one is longer.
-      if @dy.abs > @dx.abs
-        @cellx = @way
-        @way = @try
-        @try = @cellx
-      end
+      swap_dirs if @dy.abs > @dx.abs
 
       @picked = 0
-      try_this_way(guard, @way)
-      try_this_way(guard, @try) if @picked == 0
-      try_this_way(guard, guard.dir) if @picked == 0
+      try_dir(@way)
+      try_dir(@other) if @picked == 0
+      try_dir(guard.dir) if @picked == 0
       guard.dir = Guards::NOWHERE if @picked == 0
     end
 
-    # Can he walk one cell that way? If so he sets off, and from here he is between two cells
-    # until he arrives.
-    def try_this_way(guard, way)
+    # Say which way, and find out whether he went.
+    def try_dir(way)
       @try = way
+      @b.call :guard_try_dir
+    end
+
+    # Can he walk one cell that way? If so he sets off, and from here he is between two cells
+    # until he arrives. @try says which, and @picked says he did.
+    #
+    # A SLANT HAS TO CLEAR THE TWO CELLS BESIDE IT as well as the one it ends in, or he would walk
+    # through the corner of a wall (TryWalk, CHECKDIAG). Every odd way round is a slant.
+    def walk_if_clear(guard)
       if @try < Guards::NOWHERE
-        @cellx = guard.x.to_i + @step_x[@try]
-        @celly = guard.y.to_i + @step_y[@try]
+        @homex = guard.x.to_i
+        @homey = guard.y.to_i
+        @cellx = @homex + @step_x[@try]
+        @celly = @homey + @step_y[@try]
         free_to_walk
+        check_diagonal_sides if @clear == 1 && (@try % 2) == 1
         if @clear == 1
           guard.dir = @try
           guard.togo = CELL
           @picked = 1
         end
+      end
+    end
+
+    def check_diagonal_sides
+      @celly = @homey
+      free_to_walk
+      if @clear == 1
+        @cellx = @homex
+        @celly = @homey + @step_y[@try]
+        free_to_walk
       end
     end
 
@@ -1070,7 +1208,7 @@ module Wolf3D
     # HIS FIELDS ARE KEPT IN A HASH because a name holds a value, so `hp -= @wound` on a local would
     # leave the guard as he was. A write to a slot of the Hash reaches the field.
     def wound_a_guard
-      hit = %i[hp state ticks togo].to_h { |field| [field, @pool.field_ref(field, @target)] }
+      hit = %i[hp state ticks togo noticed].to_h { |field| [field, @pool.field_ref(field, @target)] }
 
       # A MAN WHO IS HIT CRIES OUT, and that is a noise like a gunshot — the original's own flag
       # is commented "true when shooting or screaming" and it is set here, where the damage is
@@ -1106,6 +1244,7 @@ module Wolf3D
           hit[:state] = @blow
           hit[:ticks] = @ticks_of[@blow]
           hit[:togo] = 0.0
+          hit[:noticed] = 1
           @sounds&.say(@sees_you_says[hit[:state]])
         end
         # ...and then the flinch, for a kind that has one. Odd or even decides which of the two
@@ -1147,9 +1286,9 @@ module Wolf3D
           if patrolling
             choose_a_patrol_way(guard)
           elsif backing_off
-            @b.call :guard_picks_a_way_off
+            @b.call :guard_select_chase_or_run_dir
           else
-            choose_a_chase_way(guard)
+            select_chase_or_dodge_dir(guard)
           end
         end
       end

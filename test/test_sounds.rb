@@ -117,6 +117,13 @@ class TestSounds < Minitest::Test
     assert_empty heard
   end
 
+  # THE ONE THE ORIGINAL KEEPS BACK, on `mapon==9` alone (A_DeathScream). Its chance of one in 256 is
+  # set to a certainty here, or the test would be waiting on the dice.
+  def test_the_rare_scream_is_kept_for_the_tenth_floor_of_an_episode
+    assert_includes rare_heard(index: Wolf3D::Playthrough::SECRET_FLOOR), name_of(Sounds::RARE_SCREAM)
+    refute_includes rare_heard(index: 0), name_of(Sounds::RARE_SCREAM)
+  end
+
   # THE ONE ROW ON THE MENU reaches the screams too.
   def test_the_screams_are_silent_with_sound_turned_off
     assert_empty screams_heard(sound: 0)
@@ -274,6 +281,15 @@ class TestSounds < Minitest::Test
   def screams_heard(**)
     heard_during(120, guards: [[11, 8, :west]], drawn: true, **) { |f| f.even? ? [:b] : [] } &
       Sounds::DEATH_SCREAMS.map { |n| name_of(n) }
+  end
+
+  def rare_heard(index:)
+    floors = Wolf3D::Floors.new([floor_of(arena(guards: [[11, 8, :west]]), index: index)])
+    program = cartridge_of(floors, vswap: Chunks.new(ALL), rare_scream_odds: 1)
+
+    (LOOK_EVERY..120).step(LOOK_EVERY).flat_map do |frames|
+      Reference.new.input_each_frame { |f| f.even? ? [:b] : [] }.run(program, frames: frames).active_samples
+    end
   end
 
   def boss_run(frames)

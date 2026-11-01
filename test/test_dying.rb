@@ -17,7 +17,7 @@ class TestDying < Minitest::Test
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # Long enough for the worst turn there can be, the settle, and the whole fizzle.
-  FRAMES = Dying::MOST_TURNS + Dying::SETTLE + Dying::FRAMES + 8
+  FRAMES = Dying::MOST_TURNS + Dying::SETTLE + Wolf3D::Fizzle::FRAMES + 8
 
   RED = Wolf3D::Palette.game[Dying::INK]
   GROUND = VBlank::Graphics::Color.resolve(:blue)
@@ -86,14 +86,14 @@ class TestDying < Minitest::Test
   def test_the_step_reaches_every_pixel_of_the_view_exactly_once
     seen = {}
     at = 1
-    (Dying::MODULUS - 1).times do
-      at = (at * Dying::STEP) % Dying::MODULUS
+    (Wolf3D::Fizzle::MODULUS - 1).times do
+      at = (at * Wolf3D::Fizzle::STEP) % Wolf3D::Fizzle::MODULUS
       seen[at] = true
     end
 
-    assert_equal Dying::MODULUS - 1, seen.size, "every value below the prime, and none twice"
+    assert_equal Wolf3D::Fizzle::MODULUS - 1, seen.size, "every value below the prime, and none twice"
     assert_equal 1, at, "...and back to where it started, so it is one whole cycle"
-    assert_operator (1..Dying::PIXELS).count { |n| seen[n] }, :==, Dying::PIXELS,
+    assert_operator (1..Wolf3D::Fizzle::PIXELS).count { |n| seen[n] }, :==, Wolf3D::Fizzle::PIXELS,
                     "which covers every pixel of the view"
   end
 
@@ -102,14 +102,14 @@ class TestDying < Minitest::Test
   # area, so those six land outside it and are cut off rather than drawn. See
   # test_nothing_outside_the_view_is_touched for the proof that they never reach the bar.
   def test_the_values_past_the_last_pixel_would_land_one_row_under_the_view
-    over = ((Dying::PIXELS + 1)...Dying::MODULUS).map { |n| n - 1 }
+    over = ((Wolf3D::Fizzle::PIXELS + 1)...Wolf3D::Fizzle::MODULUS).map { |n| n - 1 }
 
-    assert_equal [Dying::DOWN], over.map { |spot| spot / Dying::ACROSS }.uniq
+    assert_equal [Wolf3D::Fizzle::DOWN], over.map { |spot| spot / Wolf3D::Fizzle::ACROSS }.uniq
   end
 
   # A frame's worth, twice over, has to finish inside the frames it is given.
   def test_it_is_spread_over_the_frames_it_says
-    assert_operator Dying::PER_FRAME * Dying::FRAMES, :>=, Dying::MODULUS - 1
+    assert_operator Wolf3D::Fizzle::PER_FRAME * Wolf3D::Fizzle::FRAMES, :>=, Wolf3D::Fizzle::MODULUS - 1
   end
 
   # --- turning to face what killed you ---------------------------------------------------
@@ -153,7 +153,7 @@ class TestDying < Minitest::Test
   # rather than gathered at one end. Read as the share of red in the top eighth against the
   # bottom eighth of the view — a wipe would put all of it in one of them.
   def test_it_arrives_scattered_rather_than_swept
-    part = Reference.new.run(dying_program, frames: Dying::MOST_TURNS + Dying::SETTLE + (Dying::FRAMES / 2))
+    part = Reference.new.run(dying_program, frames: Dying::MOST_TURNS + Dying::SETTLE + (Wolf3D::Fizzle::FRAMES / 2))
     band = lambda do |from, to|
       spots = (0...FP::ACROSS).to_a.product((from...to).to_a)
       spots.count { |x, y| part.screen.pixel(x, y) == RED } / spots.length.to_f
