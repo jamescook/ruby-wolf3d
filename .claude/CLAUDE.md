@@ -287,29 +287,7 @@ The plain words used in replies to the operator are for replies, never for names
 
 ### The issue tracker
 
-Issues live in a Beads tracker on a Cloudflare Worker, reached through the ordinary `bd` command.
-Every machine and agent shares it at once, so there is nothing to push or pull and no database file.
-
-- `bd` comes from `mise.local.toml`, pinned to the Cloudflare build. A session started in this project
-  finds it. One started elsewhere gets `storage backend "cloudflare" ... is not recognized`: use
-  `mise exec -- bd`. Do not edit `.beads/` or run `bd init`.
-- `bd dolt push`, `bd dolt pull` and `bd rename` do not work here. `bd doctor` always reports
-  `No dolt database found`; that is expected.
-- `in_progress` is a claim with a two-hour lease that your writes renew. An issue left alone longer
-  goes back to `open` with no assignee.
-- A close reason holds at most 255 characters. Longer findings go in the notes first.
-
-The dashboard's Projects tab shows this project's milestones: epics labelled `milestone`. List them
-with `bd list --type epic --label milestone`. Five at most.
-
-- **A new bead goes under the open milestone it moves forward:** `bd create --parent <milestone>`.
-  For a bead that already exists, `bd dep add <id> <milestone> --type parent-child`, then
-  `bd dep remove <id> <old parent>` if it had one, because a bead has one parent.
-- **If no milestone fits, leave it outside.** The dashboard counts those, and that count is how a
-  gap gets noticed. Do not stretch a milestone to cover it.
-- **Adding, renaming or splitting a milestone is the operator's decision.** Ask.
-- **Close a milestone when its last bead closes,** then check it with `bd show <id>`.
-- **A milestone is a container, not work.** Do not claim one.
+How issues are kept is in `.claude/tracker.md`, which is local and not committed.
 
 ### Writing commit messages
 
