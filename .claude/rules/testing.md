@@ -47,6 +47,9 @@ Unlike the framework's suite, this one does **not** reopen `Minitest::Test` — 
 class to the pool (`parallelize_me!`) and freezes every constant the class declares after that
 line, all the way down, because a worker may only read a constant nothing can change.
 
+Which skill a test wants is in "Which skill a piece of work wants" in `.claude/CLAUDE.md`, and
+`rake test:golden` is the check before a commit.
+
 Running them. **The suite is `rake test`**, every test in a pool of Ractors (the minitest-ractor
 plugin). It ends with a report: either no findings, or each piece of shared state a test
 reached, grouped by cause, with what to change.

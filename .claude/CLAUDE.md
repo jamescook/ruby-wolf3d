@@ -331,6 +331,45 @@ game follows:
   emitted once. That is a size difference, not only a speed one, and it is the thing about
   the framework you cannot work out by reading your own program.
 
+## Asking the operator
+
+The operator is often away while work runs, and a question stops the session for hours until someone
+reads it. So decide: make the choice that is easiest to undo, write what was decided and why on the
+issue, and carry on. If it was wrong, the operator says so and it is changed.
+
+Ask only for a tough call: something hard to reverse, a change to the project's direction, or
+something that spends money or reaches outside the project. Pushing is already the operator's, and it
+holds nothing up, because commits wait locally.
+
+If one issue is stuck on a real question, write the question on it, mark it blocked and take other
+work rather than waiting.
+
+## Which skill a piece of work wants
+
+Choose by what the work is. A skill earns its cost when the work can go wrong in a way it catches, and
+it costs real time and tokens, so these are the usual fits and judgement decides:
+
+- **`mattpocock-skills:tdd`, for a feature or a bug fix.** Wolfenstein's source is the answer key, so
+  the failing test can come first, at the altitude "Testing strategy" sets. The skill says to agree
+  where tests go with the user first; here that section and `.claude/rules/testing.md` are that
+  agreement.
+- **`mattpocock-skills:diagnosing-bugs`, for a bug whose cause reading the code does not give up**: a
+  wrong picture, a cartridge disagreeing with the interpreter, a slow frame. Its loop here is a failing
+  test or a small measuring script, and its ranked guesses go on with the work, unconfirmed.
+- **`mattpocock-skills:code-review`, when finishing a change with something to get wrong.** It reads
+  commits, so its place is after the local commit and before calling the work done: the fixed point is
+  the commit before yours, and a fix it asks for is a further commit. It starts two agents, so a
+  change to how the game behaves earns it and a small one does not.
+- **`mattpocock-skills:domain-modeling` or `mattpocock-skills:codebase-design`, when the names or the
+  shape of a part are the hard question** rather than its behaviour.
+
+**Leave a skill out where it cannot find anything:** a one-line fix, a rename, a move of the framework
+revision, a change to notes, a measurement. Say why when closing a change of any size that went
+without review.
+
+Where a skill says to confirm something with the operator, decide it from these rules and write the
+decision on the issue. `rake test:golden` is still the check before the commit.
+
 ## Finishing a piece of work
 - Run `rake test:golden` before committing. `test/golden.txt` names what it plays and why, and a file
   goes in only by another coming out.
