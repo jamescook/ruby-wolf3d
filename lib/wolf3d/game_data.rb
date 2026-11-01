@@ -17,6 +17,8 @@ module Wolf3D
     ENV_VAR = "WOLF3D_DATA"
     CONFIG_FILE = "wolf3d.yml"
     EXAMPLE_FILE = "wolf3d.example.yml"
+    COPY_VAR = "WOLF3D_COPY"
+    COPY_KEYS = %w[data shareware].freeze
 
     # A release is told apart by the extension its files carry. Finding one is not the same as being
     # able to use it: the build takes only the first two of these. See Vanilla.
@@ -91,10 +93,21 @@ module Wolf3D
       from_env = env.fetch(ENV_VAR, nil)
       return [File.expand_path(from_env), ENV_VAR] unless from_env.to_s.empty?
 
-      named = config_value(home, "data")
+      key = copy_key(env)
+      named = config_value(home, key)
       return [nil, nil] if named.nil?
 
       [File.expand_path(named, home), CONFIG_FILE]
+    end
+
+    # WHICH LINE OF THE CONFIG FILE NAMES THE COPY. Two copies can sit there side by side, and
+    # WOLF3D_COPY=shareware builds from the second.
+    def self.copy_key(env)
+      asked = env.fetch(COPY_VAR, nil).to_s
+      return "data" if asked.empty?
+      return asked if COPY_KEYS.include?(asked)
+
+      raise NotFound, "#{COPY_VAR} is #{asked}. Set it to one of these: #{COPY_KEYS.join(', ')}."
     end
 
     def self.config_value(home, key)

@@ -9,6 +9,6 @@
 
 data: ~/games/wolfenstein-3d
 
-# A second copy, the shareware, for the tests that check the game against it. The tests skip
-# without it, and no build reads it.
+# A second copy, the shareware. To build from it, run WOLF3D_COPY=shareware rake build. The tests
+# that check the game against it read this line too, and they skip without it.
 # shareware: ~/games/wolf3dsw

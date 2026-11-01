@@ -80,6 +80,29 @@ class TestGameData < Minitest::Test
     end
   end
 
+  # TWO COPIES SIDE BY SIDE: the data line is the one a build reads unless told, and WOLF3D_COPY
+  # picks the other.
+  def test_the_shareware_line_is_picked_by_name
+    with_release("WL6") do |full|
+      with_release("WL1") do |shareware|
+        Dir.mktmpdir do |home|
+          File.write(File.join(home, Data::CONFIG_FILE), "data: #{full}\nshareware: #{shareware}\n")
+
+          assert_equal "WL6", Data.locate(home: home, env: {}).set
+          assert_equal "WL1", Data.locate(home: home, env: { Data::COPY_VAR => "shareware" }).set
+        end
+      end
+    end
+  end
+
+  def test_a_copy_nobody_named_is_a_friendly_error
+    Dir.mktmpdir do |home|
+      error = assert_raises(Data::NotFound) { Data.locate(home: home, env: { Data::COPY_VAR => "spear" }) }
+
+      assert_includes error.message, "shareware"
+    end
+  end
+
   def test_saying_nothing_at_all_explains_both_ways_to_say_it
     Dir.mktmpdir do |home|
       error = assert_raises(Data::NotFound) { Data.locate(home: home, env: {}) }
