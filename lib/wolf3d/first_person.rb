@@ -737,6 +737,7 @@ module Wolf3D
       # four-stage cycle with a different answer per weapon — and one routine for both would
       # make the small one wait on room for the big one.
       @b.func(:a_door_opens) { open_a_door }
+      declare_door_movement unless @floors.no_floor_has?(:doors)
       @b.func(:the_player_fires) { fire }
       @b.func(:the_lift_runs) { run_the_lift } if lifts?
     end
@@ -829,6 +830,7 @@ module Wolf3D
     def where_the_eye_stands
       @eyex = @player.x.to_i
       @eyey = @player.y.to_i
+      @eye_cell = (@eyey * @level.width) + @eyex
       @fracx = @player.x - @eyex.to_f
       @fracy = @player.y - @eyey.to_f
       @backx = 1.0 - @fracx
@@ -884,8 +886,8 @@ module Wolf3D
       # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
       # would move the name to @b, and nothing would say so.
       @ang = @b.var :_ang, 0
-      @mapx = @b.var :_mapx, 0
-      @mapy = @b.var :_mapy, 0
+      @walked = @b.var :_walked, 0
+      @eye_cell = @b.var :_eye_cell, 0
       @dist = @b.var :_dist, 0.0
       @nx = @b.var :_nx, 0.0
       @ny = @b.var :_ny, 0.0
@@ -1448,27 +1450,42 @@ module Wolf3D
     def move_the_doors
       return if @floors.no_floor_has?(:doors)
 
-      b = @b
-      @here = @this_floor.cell_at(@player.x.to_i, @player.y.to_i)
-      b.repeat(@this_floor.door_count) do |door|
-        @linger[door] = DOOR_LINGER if @here == @this_floor.cell_of_door(door)
-        @wait = @linger[door]
-        @swing = @open[door]
-        if @wait > 0
-          @linger[door] = @wait - 1
-          # The last frame of standing open: after this one it starts to swing shut, which is
-          # the moment to hear it. Tested here rather than on the way down so it sounds once.
-          @sounds.door_shuts if @wait == 1
-          @swing.approach! DOOR_WIDE, DOOR_STEP
-        else
-          @swing.approach! 0.0, DOOR_STEP
+      @b.call :move_doors
+    end
+
+    # A ROUTINE OF ITS OWN, because the frame's step is too big for the quick memory and this is nine
+    # tenths of its time, on a floor with a good many doors.
+    #
+    # A SHUT DOOR WITH NO TIME ON IT IS LEFT ALONE, which is nearly all of them nearly always. It pays
+    # the two reads and the two tests and none of the sliding.
+    def declare_door_movement
+      @b.func(:move_doors) do
+        @here = @this_floor.cell_at(@player.x.to_i, @player.y.to_i)
+        @b.repeat(@this_floor.door_count) do |door|
+          @linger[door] = DOOR_LINGER if @here == @this_floor.cell_of_door(door)
+          @wait = @linger[door]
+          @swing = @open[door]
+          if @wait > 0
+            @linger[door] = @wait - 1
+            # The last frame of standing open: after this one it starts to swing shut, which is
+            # the moment to hear it. Tested here rather than on the way down so it sounds once.
+            @sounds.door_shuts if @wait == 1
+            @swing.approach! DOOR_WIDE, DOOR_STEP
+            store_door_swing(door)
+          elsif @swing > 0.0
+            @swing.approach! 0.0, DOOR_STEP
+            store_door_swing(door)
+          end
         end
-        # A DOOR THAT MOVED CHANGES WHICH ROOMS ARE OPEN, and this is where that is cheapest to
-        # notice: the old openness is still in hand and the new one is beside it, so it is one
-        # comparison. Asked anywhere else it would mean walking the doors again.
-        @rooms.a_door_moved if @swing != @open[door] if @rooms
-        @open[door] = @swing
       end
+    end
+
+    # A DOOR THAT MOVED CHANGES WHICH ROOMS ARE OPEN, and this is where that is cheapest to notice: the
+    # old openness is still in hand and the new one is beside it, so it is one comparison. Asked
+    # anywhere else it would mean walking the doors again.
+    def store_door_swing(door)
+      @rooms.a_door_moved if @swing != @open[door] if @rooms
+      @open[door] = @swing
     end
 
     # One strip: walk a ray out to the wall it meets, then stretch a column of that wall's
@@ -1493,8 +1510,10 @@ module Wolf3D
       @deltax = @reach[@ang + QUARTER]
       @deltay = @reach[@ang]
 
-      @mapx = @eyex
-      @mapy = @eyey
+      # WHERE THE RAY HAS GOT TO, AS ONE CELL NUMBER, and that is worth more than it looks. Which
+      # cell of the map a column and a row name is a multiply and two adds, on every step of every
+      # ray. Moving a row is adding the width of the floor, so the number can simply be kept.
+      @walked = @eye_cell
       # Nothing else is cleared here. The walk always takes at least one step, and every step
       # says which side of a cell it crossed, so `side` is written before anything reads it — and
       # `wall` is read only to work out a picture for a strip that a ray which met nothing does
@@ -1512,10 +1531,10 @@ module Wolf3D
         @sidex = @backx * @deltax
       end
       if @dy < 0
-        @stepmy = -1
+        @stepmy = -width
         @sidey = @fracy * @deltay
       else
-        @stepmy = 1
+        @stepmy = width
         @sidey = @backy * @deltay
       end
 
@@ -1526,14 +1545,14 @@ module Wolf3D
       b.repeat(CROSSINGS, stop_when: @hit == 1) do
         if @sidex < @sidey
           @sidex += @deltax
-          @mapx += @stepmx
+          @walked += @stepmx
           @side = 0
         else
           @sidey += @deltay
-          @mapy += @stepmy
+          @walked += @stepmy
           @side = 1
         end
-        @cell = @this_floor.cell_at(@mapx, @mapy)
+        @cell = @this_floor.cell(@walked)
         if @cell > 0
           # Something is here. Only now is it worth asking WHICH kind, because the ray has
           # stopped either way — every step before this one paid a single test and no more.
@@ -1625,7 +1644,7 @@ module Wolf3D
     def meet_a_lever
       @hit = 1
       @isdoor = 0
-      if @pulled == (@mapy * @level.width) + @mapx
+      if @pulled == @walked
         @wall = pulled_picture + @side
       else
         @wall = lever_picture + @side
@@ -1658,7 +1677,7 @@ module Wolf3D
       @push = @this_floor.pushwall_in(@cell)
       @pcell = @push_home[@this_floor.pushwall(@push)]
       @pcell += @push_gone[@push] * @push_step[@push]
-      if @pcell == (@mapy * width) + @mapx
+      if @pcell == @walked
         @hit = 1
         @isdoor = 0
         @wall = @push_face[@this_floor.pushwall(@push)] + @side
@@ -1681,11 +1700,11 @@ module Wolf3D
       if @door_across[@this_floor.door(@door)] == 0
         @mid = @sidex - (@deltax / 2)         # half a cell back from the far side
         @wallx = @player.y + (@mid * @dy)           # ...and where the ray is by then
-        @edge = @wallx.to_i - @mapy
+        @edge = @wallx.to_i - (@walked / @level.width)
       else
         @mid = @sidey - (@deltay / 2)
         @wallx = @player.x + (@mid * @dx)
-        @edge = @wallx.to_i - @mapx
+        @edge = @wallx.to_i - (@walked % @level.width)
       end
 
       # Still inside this cell when it got there? If not the ray went by the doorway rather
