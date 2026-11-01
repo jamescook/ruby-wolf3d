@@ -284,6 +284,20 @@ The plain words used in replies to the operator are for replies, never for names
   counts and relationships. A measured number belongs somewhere dated by construction — a
   commit message, or the issue it came from.
 
+### The issue tracker
+
+Issues live in a Beads tracker on a Cloudflare Worker, reached through the ordinary `bd` command.
+Every machine and agent shares it at once, so there is nothing to push or pull and no database file.
+
+- `bd` comes from `mise.local.toml`, pinned to the Cloudflare build. A session started in this project
+  finds it. One started elsewhere gets `storage backend "cloudflare" ... is not recognized`: use
+  `mise exec -- bd`. Do not edit `.beads/` or run `bd init`.
+- `bd dolt push`, `bd dolt pull` and `bd rename` do not work here. `bd doctor` always reports
+  `No dolt database found`; that is expected.
+- `in_progress` is a claim with a two-hour lease that your writes renew. An issue left alone longer
+  goes back to `open` with no assignee.
+- A close reason holds at most 255 characters. Longer findings go in the notes first.
+
 ### Writing commit messages
 
 - Commit messages are for humans and should read as if a human wrote them.
