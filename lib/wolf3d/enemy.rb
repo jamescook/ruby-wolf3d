@@ -576,6 +576,10 @@ module Wolf3D
 
     def pictures_of_what_it_throws = states.filter_map(&:fires).uniq.flat_map { |what| THROWN_PICTURES.fetch(what, []) }
 
+    # CAN IT OPEN A DOOR? TryWalk walks a dog, a fake Hitler and a ghost by CHECKDIAG even on a
+    # straight line, and that stops at a door, where everyone else's CHECKSIDE calls OpenDoor.
+    def opens_doors? = !%i[dog fake blinky clyde pinky inky].include?(name)
+
     # Is this one of the men a floor is counted by? The man inside the machine is not: killing him
     # adds to the kills, but the floor's total never counted him.
     def counted? = !has?(:inside)

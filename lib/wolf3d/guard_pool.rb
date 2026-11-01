@@ -46,7 +46,7 @@ module Wolf3D
     #
     # Both keep the byte on a cartridge that does not need more, which is the whole bargain
     # these widths are: a game with no boss on any floor pays a boss nothing.
-    NARROW = { dir: :byte, turn: :byte, dropped: :byte,
+    NARROW = { dir: :byte, turn: :byte, dropped: :byte, door: :byte,
                shown: :byte, awake: :byte, ambush: :byte, noticed: :byte, wait: :half }.freeze
 
     # How wide a slot has to be to hold every number that can go in it, given the range the
@@ -118,7 +118,7 @@ module Wolf3D
                       state: @home_state[at], ticks: @home_ticks[at],
                       hp: @hit_points[@home_tough[at] + @difficulty],
                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
-                      ambush: @home_ambush[at], noticed: 0, turn: counts[:kill_total] % 2
+                      ambush: @home_ambush[at], noticed: 0, door: 0, turn: counts[:kill_total] % 2
           counts[:kill_total] += @home_counted[at]
           counts[:kills] += @home_killed[at]
         end
@@ -146,8 +146,9 @@ module Wolf3D
       # it the moment he does see you, and from then on he is a guard like any other.
       # +noticed+ is that he has seen you and has not yet chosen a way to sidestep, which is the one
       # time he is allowed to turn straight round (FL_FIRSTATTACK).
+      # +door+ is one more than the number of the door he is waiting at, or nought for none.
       @pool = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
-                            hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0, noticed: 0,
+                            hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0, noticed: 0, door: 0,
                             capacity: @floors.room_for(:guards), widths: widths
       stand_up_the_first_floor
       declare_where_they_start

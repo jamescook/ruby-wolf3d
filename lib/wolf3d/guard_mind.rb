@@ -55,6 +55,8 @@ module Wolf3D
     # ways the opposite of any one of them is.
     COIN = 128
     BEHIND = 4
+    # North, northwest, west. See #search_for_a_way.
+    SEARCH_DIRS = Ractor.make_shareable([2, 3, 4])
 
     # One fall in this many, which is `!US_RndT()`. A test can ask for it every time.
     RARE_SCREAM_ODDS = 256
@@ -79,7 +81,7 @@ module Wolf3D
     # Nothing is a target.
     NOBODY = -1
 
-    def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
+    def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, door_linger:, things:,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
                    rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash:,
                    scoring:, floor: nil, rare_scream_odds: RARE_SCREAM_ODDS)
@@ -106,6 +108,7 @@ module Wolf3D
       @things = things    # the row of pictures everything standing in the level is drawn from
       @player = player    # see Player
       @open = door_open   # how far each door has slid
+      @linger = door_linger # how long each door has left standing open
       declare
     end
 
@@ -172,6 +175,8 @@ module Wolf3D
       # ...and how far it walks each think, which is how an officer runs you down and a dog is
       # quicker than either. Written as a fraction, so it ships as a word.
       @step_of = b.table :guard_step, rows.map { |n| @behaviour.step_from(n) }
+      @opens_doors_of = b.table :guard_opens_doors, rows.map { |n| @behaviour.kind_at(n).opens_doors? ? 1 : 0 },
+                                width: :byte
       # ...and what killing it is worth, and what it leaves lying where it fell.
       @points_of = b.table :guard_points, rows.map { |n| @behaviour.points_from(n) }, width: :half
       @leaves_of = b.table :guard_leaves, rows.map { |n| @behaviour.leaves_from(n) }, width: :byte
@@ -293,6 +298,9 @@ module Wolf3D
       @nearest = b.var :_gnearest, 0.0
       @fromx = b.var :_gfromx, 0.0
       @fromy = b.var :_gfromy, 0.0
+      @man_x = b.var :_gman_x, 0.0
+      @man_y = b.var :_gman_y, 0.0
+      @shut_door = b.var :_gshut_door, 0
     end
 
     # ONE GUARD, ONE FRAME. Count his state down, move him on when it runs out, then let him
@@ -340,6 +348,7 @@ module Wolf3D
     def declare_the_jobs
       @pool.func(:guard_try_dir) { |guard| walk_if_clear(guard) }
       @pool.func(:guard_select_dodge_dir) { |guard| select_dodge_dir(guard) }
+      @pool.func(:guard_select_chase_dir) { |guard| select_chase_dir(guard) }
       @pool.func(:guard_looks) { |guard| look(guard) }
       @pool.func(:guard_patrols) { |guard| patrol(guard) }
       @pool.func(:guard_chases) { |guard| chase(guard) } if hunts?(:chase)
@@ -371,7 +380,8 @@ module Wolf3D
         [[-1.0, -1.0], [1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]].each do |(across, down)|
           @cellx = (@boxx + (@boxsize * across)).to_i
           @celly = (@boxy + (@boxsize * down)).to_i
-          free_to_walk
+          # Only what is built: ProjectileTryMove walks past men, the one who threw it included.
+          @b.call :is_a_cell_open
           @blocked = 1 if @clear == 0
         end
       end
@@ -813,8 +823,7 @@ module Wolf3D
     # --- coming after you ------------------------------------------------------------
 
     # A CHASE IS NOT PATHFINDING. Try the way toward the player on the longer axis, then the
-    # other, then whatever way he was already going. A guard who can do none of those stands
-    # still, which is why the original's guards get stuck on corners.
+    # other, then whatever way he was already going, then a short search. See select_chase_dir.
     #
     # And with a clear line at you he may stop to take a shot, and if he does not, he sidesteps
     # rather than closing straight down that line.
@@ -913,17 +922,26 @@ module Wolf3D
       end
     end
 
-    # AWAY FROM THE PLAYER on the longer axis first, then the other, then on as before: a chase with
-    # its two ways turned round (SelectRunDir).
+    # AWAY FROM THE PLAYER on the longer axis first, then the other, then the same search a chase
+    # ends in, except that any way will do here, the one he came from included (SelectRunDir).
     def select_run_dir(guard)
-      @dx = @player.x - guard.x
-      @dy = @player.y - guard.y
+      @tx = @player.x.to_i - guard.x.to_i
+      @ty = @player.y.to_i - guard.y.to_i
+      @back = Guards::NOWHERE
 
-      @way = 0                                  # east
-      @way = 4 if @dx > 0.0             # west
-      @other = 6                                # south
-      @other = 2 if @dy > 0.0           # north
-      try_two_dirs(guard)
+      @way = 4                                  # west
+      @way = 0 if @tx < 0                       # east
+      @other = 2                                # north
+      @other = 6 if @ty < 0                     # south
+      @tx = 0 - @tx if @tx < 0
+      @ty = 0 - @ty if @ty < 0
+      swap_dirs if @ty > @tx
+
+      @picked = 0
+      try_dir_unless_back(@way)
+      try_dir_unless_back(@other)
+      search_for_a_way
+      guard.dir = Guards::NOWHERE if @picked == 0
     end
 
     # Near enough on EACH axis on its own rather than as a distance, which is the original's own
@@ -970,7 +988,7 @@ module Wolf3D
       if @dodging == 1
         @b.call :guard_select_dodge_dir
       else
-        select_chase_dir(guard)
+        @b.call :guard_select_chase_dir
       end
     end
 
@@ -1002,11 +1020,11 @@ module Wolf3D
       swap_dirs if @b.rand(0..CHANCES - 1) < COIN
 
       @picked = 0
-      try_dodge_dir(@slant)
-      try_dodge_dir(@way)
-      try_dodge_dir(@other)
-      try_dodge_dir((@way + BEHIND) % Guards::NOWHERE)
-      try_dodge_dir((@other + BEHIND) % Guards::NOWHERE)
+      try_dir_unless_back(@slant)
+      try_dir_unless_back(@way)
+      try_dir_unless_back(@other)
+      try_dir_unless_back((@way + BEHIND) % Guards::NOWHERE)
+      try_dir_unless_back((@other + BEHIND) % Guards::NOWHERE)
       try_dir(@back) if @picked == 0
       guard.dir = Guards::NOWHERE if @picked == 0
     end
@@ -1028,32 +1046,52 @@ module Wolf3D
       @other = @held
     end
 
-    def try_dodge_dir(way)
+    def try_dir_unless_back(way)
       @try = way
       @b.call :guard_try_dir if @picked == 0 && @try != @back
     end
 
-    # Toward the player on the longer axis first, then the other, then on as before.
+    # TOWARD THE PLAYER ON THE LONGER AXIS FIRST, then the other, then on as before, then a search
+    # (SelectChaseDir). He will not turn straight round until nothing else is left, which is what
+    # walks a blocked man along a wall rather than back and forth.
+    #
+    # Whole cells, as the original measures it, so an axis he is already level on is no way at all.
     def select_chase_dir(guard)
-      @dx = @player.x - guard.x
-      @dy = @player.y - guard.y
+      @tx = @player.x.to_i - guard.x.to_i
+      @ty = @player.y.to_i - guard.y.to_i
+      @back = Guards::NOWHERE
+      @back = (guard.dir + BEHIND) % Guards::NOWHERE if guard.dir < Guards::NOWHERE
 
-      @way = 4                                  # west
-      @way = 0 if @dx > 0.0             # east
-      @other = 2                                # north
-      @other = 6 if @dy > 0.0           # south
-      try_two_dirs(guard)
-    end
-
-    def try_two_dirs(guard)
-      # The longer way is tried first, so swap them when the up-and-down one is longer.
-      swap_dirs if @dy.abs > @dx.abs
+      @way = Guards::NOWHERE
+      @way = 0 if @tx > 0                       # east
+      @way = 4 if @tx < 0                       # west
+      @other = Guards::NOWHERE
+      @other = 6 if @ty > 0                     # south
+      @other = 2 if @ty < 0                     # north
+      @tx = 0 - @tx if @tx < 0
+      @ty = 0 - @ty if @ty < 0
+      swap_dirs if @ty > @tx
 
       @picked = 0
-      try_dir(@way)
-      try_dir(@other) if @picked == 0
+      try_dir_unless_back(@way)
+      try_dir_unless_back(@other)
       try_dir(guard.dir) if @picked == 0
+      search_for_a_way
+      try_dir(@back) if @picked == 0
       guard.dir = Guards::NOWHERE if @picked == 0
+    end
+
+    # THE ORIGINAL'S SEARCH IS THREE WAYS, NOT FOUR. Its loop counts from north to west, and in the
+    # list of directions those two are two apart with northwest between them. So a blocked man
+    # tries north, northwest and west, in an order a coin picks, and never east or south.
+    def search_for_a_way
+      if @picked == 0
+        if @b.rand(0..CHANCES - 1) > COIN
+          SEARCH_DIRS.each { |way| try_dir_unless_back(way) }
+        else
+          SEARCH_DIRS.reverse_each { |way| try_dir_unless_back(way) }
+        end
+      end
     end
 
     # Say which way, and find out whether he went.
@@ -1076,11 +1114,19 @@ module Wolf3D
         free_to_walk
         check_diagonal_sides if @clear == 1 && (@try % 2) == 1
         if @clear == 1
-          guard.dir = @try
-          guard.togo = CELL
-          @picked = 1
+          guard.door = 0
+          set_off(guard)
+        elsif @shut_door > 0 && (@try % 2) == 0 && @opens_doors_of[guard.state] == 1
+          guard.door = @shut_door
+          set_off(guard)
         end
       end
+    end
+
+    def set_off(guard)
+      guard.dir = @try
+      guard.togo = CELL
+      @picked = 1
     end
 
     def check_diagonal_sides
@@ -1100,22 +1146,50 @@ module Wolf3D
     def free_to_walk = @b.call(:can_a_guard_walk_there)
 
     def declare_the_walkable_test
-      @b.func(:can_a_guard_walk_there) { walkable }
+      @b.func(:is_a_cell_open) { cell_open }
+      @b.func(:can_a_guard_walk_there) do
+        @b.call :is_a_cell_open
+        @pool.each { |man| refuse_cell_of(man) } if @clear == 1
+      end
     end
 
-    # A cell a guard can walk into: open floor, or a doorway whose panel has slid out of the
-    # way, and nothing standing in it that a body cannot pass. The same question the player's
+    # A cell a guard can walk into: open floor, or a doorway whose panel has slid all the way out of
+    # the way, and nothing standing in it that a body cannot pass. The same question the player's
     # feet ask, asked of a guard — and a guard is stopped by a barrel exactly as you are.
-    def walkable
+    #
+    # A door in any other state says which it is in @shut_door. The original marks a door on the map
+    # until it is fully open, so a man does not step in while it is sliding, though you can.
+    def cell_open
       @spot = (@celly * @width) + @cellx
       @ahead = @this_floor.cell(@spot)
       @clear = 0
+      @shut_door = 0
       @clear = 1 if @ahead == 0
       @this_floor.sort_out(@ahead, door: lambda {
         @slot = @this_floor.door_in(@ahead)
-        @clear = 1 if @open[@slot] > FirstPerson::DOOR_WALKABLE
+        if @open[@slot] >= FirstPerson::DOOR_WIDE
+          @clear = 1
+        else
+          @shut_door = @slot + 1
+        end
       })
       @this_floor.when_blocked(@spot) { @clear = 0 }
+    end
+
+    # A MAN WILL NOT WALK INTO ANOTHER (CHECKSIDE, CHECKDIAG). The cell a walking man holds is the one
+    # he is heading for, because the original moves him to it on the map as he sets off. A body and
+    # a ghost have no hit points, which is what the original's missing FL_SHOOTABLE comes out as, so
+    # both can be walked through.
+    def refuse_cell_of(man)
+      if man.hp > 0
+        @man_x = man.x
+        @man_y = man.y
+        if man.togo > 0.0 && man.dir < Guards::NOWHERE
+          @man_x += man.togo * @step_x[man.dir].to_f
+          @man_y += man.togo * @step_y[man.dir].to_f
+        end
+        @clear = 0 if @man_x.to_i == @cellx && @man_y.to_i == @celly
+      end
     end
 
     public
@@ -1307,8 +1381,13 @@ module Wolf3D
     # that differs between the kinds and between the beat and the chase — and the state he is in
     # already says both. So an officer running you down and a dog trotting past cost the same
     # here as a guard did.
+    #
+    # A MAN AT A SHUT DOOR HOLDS IT OPEN AND WAITS, and walks on the moment it is all the way open
+    # (T_Chase, T_Path, ob->distance below nought). OpenDoor asks nothing about keys, which is only
+    # the player's own OperateDoor, so a man goes through a door you cannot.
     def walk(guard, patrolling:, backing_off: false)
-      if guard.dir < Guards::NOWHERE
+      wait_at_door(guard) if guard.door > 0
+      if guard.door == 0 && guard.dir < Guards::NOWHERE
         @pace = @step_of[guard.state]
         guard.x += @pace * @step_x[guard.dir].to_f
         guard.y += @pace * @step_y[guard.dir].to_f
@@ -1329,6 +1408,20 @@ module Wolf3D
           end
         end
       end
+    end
+
+    def wait_at_door(guard)
+      @slot = guard.door - 1
+      hear_door_open(guard) if @open[@slot] == 0.0
+      @linger[@slot] = FirstPerson::DOOR_LINGER
+      guard.door = 0 if @open[@slot] >= FirstPerson::DOOR_WIDE
+    end
+
+    # The original plays this only when the door's room is one you are joined to (DoorOpening).
+    def hear_door_open(guard)
+      return @sounds&.door_opens if @rooms.nil?
+
+      @sounds&.door_opens if @rooms.open_to_the_player?(guard.x, guard.y)
     end
   end
 end

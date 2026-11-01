@@ -1068,7 +1068,7 @@ module Wolf3D
 
       b = @b
       @mind = GuardMind.new(build: b, guards: @guards, pool: @guard_pool&.pool, level: @level,
-                            this_floor: @this_floor, door_open: @open,
+                            this_floor: @this_floor, door_open: @open, door_linger: @linger,
                             things: @things, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
