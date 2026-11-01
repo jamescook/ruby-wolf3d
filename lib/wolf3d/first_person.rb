@@ -332,6 +332,10 @@ module Wolf3D
     # smallest turn the game will make. Played on hardware it reads as the aim being coarse, and
     # slow motion is the better of the two faults until the frame fits.
     #
+    # THAT HOLDS WITH A PASS NEAR ONE FRAME TOO. Beside a wall, or as a door opens onto a room, a pass
+    # runs a little over one, and the two cartridges played side by side there: the slowdown of this
+    # setting feels better than the choppy steps of the other.
+    #
     # So this is a note about the frame rate rather than about pacing. Get a pass under a frame
     # and the dial has one setting.
     PACING = :by_the_pass
