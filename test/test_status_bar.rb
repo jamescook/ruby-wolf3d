@@ -101,7 +101,7 @@ class TestStatusBar < Minitest::Test
   # second time. The ring's guards take their turns in the order the floor lists them, as the
   # original's do (its actors are a list a new one joins at the end, GetNewActor in
   # wl_play.cpp), so a change to that order moves both ends of the quiet.
-  BACK_ON_HIS_FEET = 180
+  BACK_ON_HIS_FEET = 220
 
   def test_the_lives_on_the_bar_come_down_when_you_die
     died = Reference.new.run(view_of(arena(guards: RING)), frames: BACK_ON_HIS_FEET)

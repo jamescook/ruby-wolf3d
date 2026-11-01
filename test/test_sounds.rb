@@ -122,6 +122,19 @@ class TestSounds < Minitest::Test
     assert_empty screams_heard(sound: 0)
   end
 
+  # EACH KIND HAS ITS OWN VOICE (FirstSighting, wl_state.cpp; wolfdigimap, wl_main.cpp): Schabbs on
+  # seeing you is chunk 25, and it is not "Halt!".
+  def test_a_boss_shouts_in_his_own_voice
+    heard = (2..30).step(4).flat_map { |n| boss_run(n).active_samples }.uniq
+
+    assert_includes heard, name_of(25)
+    refute_includes heard, name_of(Sounds::NOTICES_YOU)
+  end
+
+  def test_a_mutant_sees_you_in_silence
+    assert_nil Sounds::SIGHTING[:mutant]
+  end
+
   # ---------------------------------------------------------------- the level
 
   # The fixture floor has a door in the wall the player starts with their back to.
@@ -261,6 +274,16 @@ class TestSounds < Minitest::Test
   def screams_heard(**)
     heard_during(120, guards: [[11, 8, :west]], drawn: true, **) { |f| f.even? ? [:b] : [] } &
       Sounds::DEATH_SCREAMS.map { |n| name_of(n) }
+  end
+
+  def boss_run(frames)
+    release = Release.new(sprites: Wolf3D::Enemy::ALL.flat_map(&:pictures).max + 21)
+    @boss_view ||= begin
+      @fixture = release
+      @vswap = nil
+      view_of(arena(side: 24, player: [3, 12], things: { [14, 12] => Wolf3D::Enemy[:schabbs].standing }))
+    end
+    Reference.new.run(@boss_view, frames: frames)
   end
 
   def about_turn = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil

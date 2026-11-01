@@ -82,12 +82,6 @@ module Wolf3D
     BITE_CHANCE = 180
     BITE_SHIFT = 16
 
-    # HOW LONG ONE TAKES TO REACT once it has seen you — one plus a quarter of a random byte of
-    # the original's time units, so up to about a second. This delay is why the game feels fair:
-    # you get a moment between being seen and being shot at. Kept in the same thirds everything
-    # else that counts down is kept in.
-    REACTION = 64 * Enemy::SCALE
-
     # WHICH WAY EACH DIRECTION GOES, in the order the original numbers them: counter-clockwise
     # from east, with the diagonals between. Eight is "nowhere", which is what one hemmed in on
     # every side is left with.

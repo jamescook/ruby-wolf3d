@@ -98,8 +98,9 @@ module Wolf3D
     # it; the rest is working room that each death begins by putting back. +sines+ is the view's
     # table of sines, which the player's own +sin+ is one entry of: the view turns as you die, so
     # this works the angle's sine out again from the table rather than waiting for a move to.
-    def initialize(build:, player:, sines:, lasting: LastingState.new(build:))
+    def initialize(build:, player:, sines:, lasting: LastingState.new(build:), flash: nil)
       @b = build
+      @flash = flash # the red of the hit that did it, put away as the red of the death begins
       @player = player
       @sines = sines
       @lasting = lasting
@@ -197,7 +198,12 @@ module Wolf3D
     # stop drawing it at all.
     def settle
       @held += 1
-      @state = FIZZLING if @held >= SETTLE
+      if @held >= SETTLE
+        @state = FIZZLING
+        # THE FLASH OF THE LAST HIT ENDS HERE, after the turn, which is where the original's Died
+        # calls FinishPaletteShifts (wl_game.cpp).
+        @flash&.finish
+      end
     end
 
     def declare

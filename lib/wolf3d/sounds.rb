@@ -32,6 +32,9 @@ module Wolf3D
     GUNS = [PISTOL, MACHINE_GUN, CHAIN_GUN].freeze
     NOTICES_YOU = 0     # "Halt!" — a guard the moment he sees you
     GUARD_FIRES = 21     # ...and his gun
+    SLURP = 22           # Hitler going down
+    MACHINE_TREAD = 31   # the machine's footfall
+    DOG_BITES = 29
     DOOR_OPENS = 3
     DOOR_SHUTS = 2
     SECRET_WALL = 15     # a wall that slides away
@@ -46,17 +49,32 @@ module Wolf3D
     # rest come with the registered one; whichever are there get used.
     #
     # The first two are the original's own first three — its map points two of them at the same
-    # chunk, so there are two sounds and not three.
-    DEATH_SCREAMS = [12, 13, 34, 35].freeze
+    # chunk, so there are seven recordings of the eight. The sixth in its list is the one it keeps
+    # for a boss floor, which no kind here plays.
+    DEATH_SCREAMS = [12, 13, 34, 35, 40, 41, 42].freeze
+
+    # WHAT EACH KIND SAYS. Each of these is the original's: who shouts what on seeing you is
+    # FirstSighting (wl_state.cpp), who fires what is T_Shoot (wl_act2.cpp), and who dies how is
+    # A_DeathScream. The numbers are wolfdigimap's. A kind not named makes no sound there, or one of
+    # the AdLib effects, which is the same thing here: a mutant has seen you in silence.
+    SIGHTING = Ractor.make_shareable({ guard: NOTICES_YOU, officer: 27, ss: 7, dog: 1, hans: 8, gretel: 43,
+                                       gift: 37, fat: 38, schabbs: 25, fake: 23, mecha: 18, hitler: 18 })
+    FIRING = Ractor.make_shareable({ guard: GUARD_FIRES, officer: GUARD_FIRES, mutant: GUARD_FIRES,
+                                     gretel: GUARD_FIRES, ss: 11, hans: 10, mecha: 10, hitler: 10 })
+    # +guard: :a_scream+ is one rolled from DEATH_SCREAMS.
+    DYING = Ractor.make_shareable({ guard: :a_scream, mutant: 17, officer: 28, ss: 20, dog: 16, hans: 9,
+                                    gretel: 44, schabbs: 24, fake: 26, mecha: 33, hitler: 19, gift: 36,
+                                    fat: 45 })
 
     # +vswap+ is the player's own copy of the game's sounds, or nil on a build with no data,
     # which makes every one of these do nothing. +switch+ is a variable that is 1 while sound
     # is on — the menu's own SOUND row moves it — or nil on a cartridge with no way to turn
-    # sound off, and then nothing is tested.
-    def initialize(build:, vswap: nil, switch: nil)
+    # sound off, and then nothing is tested. +kinds+ names who is on this cartridge to be heard.
+    def initialize(build:, vswap: nil, switch: nil, kinds: [:guard])
       @b = build
       @vswap = vswap
       @switch = switch
+      @kinds = kinds
       declare
     end
 
@@ -69,8 +87,33 @@ module Wolf3D
       when_sound_is_on { @guns.play @gun_effect[number] }
     end
 
-    def notices_you = play(NOTICES_YOU)
-    def guard_fires = play(GUARD_FIRES)
+    # WHERE +chunk+ SITS IN THE LIST OF VOICES, for a table to hold. A chunk this copy does not hold,
+    # or nil for no sound, lands past the end, and a number naming no effect plays nothing.
+    def voice(chunk)
+      return @voice_count + 1 if chunk == :a_scream
+
+      @held_voices.index(chunk) || @voice_count
+    end
+
+    # THE ONE A TABLE NAMED, which is how a state number picks what is heard without a test per kind.
+    def say(number)
+      return if @voices.nil?
+
+      when_sound_is_on { @voices.play number }
+    end
+
+    # ...and the same for a death, where the one number that is not a voice rolls a scream.
+    def dies(number)
+      if number == @voice_count + 1
+        a_guard_dies
+      else
+        say(number)
+      end
+    end
+
+    def bites = say(voice(DOG_BITES))
+    def tread = say(voice(MACHINE_TREAD))
+    def slurp = say(voice(SLURP))
     def door_opens = retrigger(DOOR_OPENS)
     def door_shuts = retrigger(DOOR_SHUTS)
     def secret_wall = retrigger(SECRET_WALL)
@@ -104,8 +147,9 @@ module Wolf3D
 
     # Every chunk this game plays as a sample. Named for the moment rather than the number, so a
     # sound the player's copy does not hold simply never reaches the list. The guns and the screams
-    # are not here: see #declare_the_guns and #declare_the_screams.
-    WANTED = [NOTICES_YOU, GUARD_FIRES, DOOR_OPENS, DOOR_SHUTS, SECRET_WALL, LEVEL_DONE].freeze
+    # are not here, nor anything an enemy says: see #declare_the_guns, #declare_the_screams and
+    # #declare_the_voices.
+    WANTED = [DOOR_OPENS, DOOR_SHUTS, SECRET_WALL, LEVEL_DONE].freeze
 
     # At this tempo, and the twenty-four ticks to a beat a Score has unless it says otherwise, a
     # tick is one frame.
@@ -120,6 +164,8 @@ module Wolf3D
       # The recordings themselves, kept beside the clips because how LONG one lasts is a question
       # a caller can ask and a built clip cannot answer.
       @clips_source = {}
+      @held_voices = []
+      @voice_count = 0
       return if @vswap.nil?
 
       WANTED.uniq.each do |chunk|
@@ -128,9 +174,29 @@ module Wolf3D
         @clips_source[chunk] = sound
         @clips[chunk] = @b.sample(:"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate)
       end
-      @b.enable_sound if (GUNS + DEATH_SCREAMS).any? { |chunk| recording(chunk) }
+      @b.enable_sound if (GUNS + DEATH_SCREAMS + voices_wanted).any? { |chunk| recording(chunk) }
       declare_the_guns
       declare_the_screams
+      declare_the_voices
+    end
+
+    # EVERYTHING THE KINDS ON THIS CARTRIDGE SAY, in one list, so a table can name any of them by
+    # number and a kind costs a column rather than a test. Like the screams, these are heard over
+    # each other, and a cartridge pays only for the recordings of who is on it.
+    def declare_the_voices
+      @held_voices = voices_wanted.select { |chunk| recording(chunk) }
+      @voice_count = @held_voices.length
+      return if @held_voices.empty?
+
+      @voices = @b.sound_effects :voices, @held_voices.map { |chunk| recording_as_effect(chunk) }
+    end
+
+    def voices_wanted
+      said = @kinds.flat_map { |kind| [SIGHTING[kind], FIRING[kind], DYING[kind]] }
+      said += [DOG_BITES] if @kinds.include?(:dog)
+      said += [MACHINE_TREAD] if @kinds.include?(:mecha)
+      said += [SLURP] if @kinds.include?(:hitler)
+      said.compact.uniq - [:a_scream]
     end
 
     # What this copy holds for a chunk, or nil when it holds nothing there.

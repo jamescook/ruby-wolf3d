@@ -147,7 +147,7 @@ module Wolf3D
     # +floors+ is every floor the cartridge holds.
     # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
     def initialize(build:, atlas:, floors:, things: nil, vswap: nil, bar_art: nil, gun_art: nil,
-                   lettering: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING)
+                   lettering: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil)
       @floors = floors
       here = @floors.first_floor
       @b = build
@@ -174,7 +174,7 @@ module Wolf3D
       # WHICH KINDS OF ENEMY THIS CARTRIDGE CAN MEET, over every floor of it — and so which
       # states, pictures and behaviour it ships. A cartridge with no dogs on any of its floors
       # emits nothing about dogs at all.
-      @behaviour = Behaviour.for(@floors.flat_map { |floor| floor.guards&.kinds || [] }.uniq)
+      @behaviour = Behaviour.for(@floors.flat_map { |floor| floor.guards&.kinds || [] }.uniq, toughness: toughness)
       @things = things
       @vswap = vswap # the player's own copy of the recorded sounds, or nil for a silent build
       @bar_art = bar_art # Wolfenstein's own art for the bar, or nil to draw it plainly
@@ -525,10 +525,6 @@ module Wolf3D
     # A MENU OPENS OVER A CLEAN PICTURE. Its colours are the same table a flash has tinted.
     def put_the_flash_away = @flash.finish
 
-    # THE ENEMIES ON THE FLOOR, and the one thing outside the game that reaches them is a test that
-    # has to finish a boss off without playing the whole fight.
-    attr_reader :guard_pool
-
     # HOW FAR THROUGH A DEATH YOU ARE, nought while you are alive, or nil where nothing can kill
     # you. The menus read this too. See {Dying#state}.
     def dying = @dying&.state
@@ -635,6 +631,9 @@ module Wolf3D
       # the button twice.
       @difficulty = @lasting.var :difficulty, Guards.number_of(Guards::DEFAULT_DIFFICULTY)
 
+      # THE FLASH BEFORE WHAT SETS IT OFF OR PUTS IT AWAY: a pickup, a hit, a death.
+      @flash = ScreenFlash.new(build: b)
+
       # DYING AND THE GOES YOU GET COME FIRST, because what stands in the level reaches both: the
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you
       # another go.
@@ -650,7 +649,7 @@ module Wolf3D
       # minds, and last the drawing. Each needs the one before it; see each for why.
       # The recorded sounds come before the guards' minds, because a guard shouting, shooting and
       # dying is most of what there is to hear.
-      @sounds = Sounds.new(build: b, vswap: @vswap, switch: @sound_on)
+      @sounds = Sounds.new(build: b, vswap: @vswap, switch: @sound_on, kinds: @behaviour.kinds.map(&:name))
       # ...then the gun in your hands: after the sounds, because each of the three guns has one
       # of its own, and before the things lying on the floor, because two of those ARE guns.
       @weapons = Weapons.new(build: b, player: @player, atlas: @gun_art, sounds: @sounds,
@@ -658,8 +657,6 @@ module Wolf3D
       # ...and before both of them, because a guard asks it whether to think and every piece of
       # scenery asks it whether to be looked at.
       declare_the_rooms
-      # ...and the flash before what sets it off: taking something, and being hit.
-      @flash = ScreenFlash.new(build: b)
       declare_the_guards
       declare_the_pickups
       declare_what_there_is_to_find
@@ -816,10 +813,17 @@ module Wolf3D
     # THE GUN GOES WHEN YOU DO, which is the original's own behaviour: dying puts the weapon
     # down before the screen turns red, so what the player watches is the room they died in and
     # not a pistol floating over it.
+    #
+    # AND NOT WHILE THE DEATH CAM WATCHES. You are not there, so the gun is not, and on the replay
+    # the banner flashes where it would be (DrawPlayerWeapon, wl_draw.cpp).
     def draw_the_gun_if_you_are_alive
       return @weapons.draw if @dying.nil?
 
-      @weapons.draw if still_playing
+      if @cam.nil? || @cam.stage <= DeathCam::FIRST_HOLD
+        @weapons.draw if still_playing
+      elsif @cam.banner_is_up
+        @standing.draw_the_death_cam_banner
+      end
     end
 
     # WHERE THE LEVEL PUTS YOU, in one place because it is wanted twice: once to start with, and
@@ -938,7 +942,7 @@ module Wolf3D
     def declare_the_dying
       return if @guards.nil? || @guards.empty?
 
-      @dying = Dying.new(build: @b, player: @player, sines: @sin, lasting: @lasting)
+      @dying = Dying.new(build: @b, player: @player, sines: @sin, lasting: @lasting, flash: @flash)
     end
 
     # THINGS ON THE FLOOR YOU PICK UP BY WALKING OVER THEM. It sits between the guards and their
@@ -990,7 +994,8 @@ module Wolf3D
     def declare_the_death_cam
       return unless @behaviour.any?(:cam)
 
-      @cam = DeathCam.new(build: @b, player: @player, sines: @sin, victory: @victory, lettering: big_lettering)
+      @cam = DeathCam.new(build: @b, player: @player, sines: @sin, victory: @victory, lettering: big_lettering,
+                          lasting: @lasting)
       @b.func(:the_words_before_the_replay, fast: false) do
         @cam.draw
         @bar.draw

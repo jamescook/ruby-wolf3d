@@ -51,6 +51,8 @@ VBlank.require_game_file "wolf3d/this_floor"
 require_relative "wolf3d/lasting_state"
 require_relative "wolf3d/player"
 VBlank.require_game_file "wolf3d/guard_pool"
+# ...and two small things the rest of the game tells: the screen, about a hit or a pickup, and the
+# score, about points.
 VBlank.require_game_file "wolf3d/screen_flash"
 VBlank.require_game_file "wolf3d/scoring"
 VBlank.require_game_file "wolf3d/first_person"
@@ -74,6 +76,7 @@ VBlank.require_game_file "wolf3d/sounds"
 # ...after the view, whose constants they share: the three agree about how wide the lens is, and
 # where the middle of the screen falls is what a shot is aimed by.
 VBlank.require_game_file "wolf3d/billboards"
+# ...and the guards' mind after what it hands things to: what they throw, and how a boss's fall ends.
 VBlank.require_game_file "wolf3d/thrown"
 VBlank.require_game_file "wolf3d/death_cam"
 VBlank.require_game_file "wolf3d/guard_mind"

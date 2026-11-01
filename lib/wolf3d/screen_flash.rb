@@ -4,14 +4,14 @@ module Wolf3D
   # THE SCREEN GOES RED WHEN YOU ARE HIT AND GOLD WHEN YOU PICK SOMETHING UP.
   #
   # THIS IS NOT IN ANY SOURCE ANYBODY CAN READ. The routines were left out of the WL_PLAY.C id
-  # released and every port inherited the hole, but they are in the shipped game, and WOLF3D.MAP says
+  # released, but they are in the shipped game, and WOLF3D.MAP says
   # where. Everything here is read out of WOLF3D.EXE at those addresses: StartBonusFlash, 0x10889;
   # StartDamageFlash, 0x10894; UpdatePaletteShifts, 0x108A0; InitRedShifts, 0x1070C.
   #
   # TWO COUNTS, AND THEY ARE NOT THE SAME KIND. A pickup SETS its count to eighteen, so two in quick
   # succession restart the flash. A hit ADDS what it took, so a hard hit shows longer and hits stack.
   # Each pass the count says which step shows, a count of ten to a red and six to a gold, and both
-  # run down by the time gone by. Red wins if both are running.
+  # come down by a pass's worth. Red wins if both are running.
   #
   # IT IS ONLY WORK WHEN IT MOVES. The picture on this screen is numbers into one table of colours, so
   # a tint rewrites the table, which costs nothing on a pass where the step has not changed.
@@ -26,9 +26,9 @@ module Wolf3D
     GOLD = [31, 30, 0].freeze
 
     # EVERYTHING COUNTS IN SIXTHS OF THE ORIGINAL'S UNIT and comes down by seven a pass, which is the
-    # bargain every enemy is on too (Enemy::TICKS_PER_THINK).
-    SIXTHS = 6
-    PER_PASS = 7
+    # bargain every enemy is on too.
+    SIXTHS = Enemy::SIXTHS
+    PER_PASS = Enemy::SIXTHS_A_PASS
 
     BONUS_COUNT = 18 * SIXTHS
     A_RED = 10 * SIXTHS
@@ -42,7 +42,6 @@ module Wolf3D
     # YOU WERE HIT, for +points+. A wound of nothing, which the easiest setting can make, shows nothing.
     def hurt(points)
       @damage += points * SIXTHS
-      @hits += 1
       @running = 1
     end
 
@@ -70,7 +69,6 @@ module Wolf3D
       b = @b
       @damage = b.var :_flash_damage, 0
       @bonus = b.var :_flash_bonus, 0
-      @hits = b.var :_flash_hits, 0
       @running = b.var :_flash_running, 0
       @shown = b.var :_flash_shown, 0
       @red = b.var :_flash_red, 0

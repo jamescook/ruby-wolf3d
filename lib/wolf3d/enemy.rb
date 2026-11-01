@@ -73,6 +73,11 @@ module Wolf3D
     # units, which is nine of ours, and a think advances seven.
     TICKS_PER_THINK = 7
 
+    # ...AND WHAT MOVES ON EVERY PASS rather than every think counts in sixths of the same units and
+    # comes down by seven: half a think, the same rate in a finer count. See Thrown and ScreenFlash.
+    SIXTHS = 6
+    SIXTHS_A_PASS = 7
+
     # +fires+ marks a state whose END is an attack — a shot, or a dog's jaws: the original hangs
     # its actions on leaving a state rather than on being in one, so a guard aims, fires, and
     # lowers his arm across three pictures and the bullet leaves on the middle one.
@@ -155,14 +160,15 @@ module Wolf3D
     # lengths every other kind chases at; only the turning differs, and his do not.
     #
     # +closing+ is what he thinks about on the way, and +lengths+ how long each picture holds, which
-    # is the one place the machine and the man inside it differ from the rest.
-    def self.chasing_only(poses, closing: :chase, lengths: [10, 3, 8])
+    # is the one place the machine and the man inside it differ from the rest. +footfall+ is what
+    # happens as each long stride ends, which only the machine has: its tread (A_MechaSound).
+    def self.chasing_only(poses, closing: :chase, lengths: [10, 3, 8], footfall: nil)
       long, pause, short = lengths
       w = poses.walk
-      [state(:chase1,  w[0], long,  closing, :chase1s, turns: false),
+      [state(:chase1,  w[0], long,  closing, :chase1s, turns: false, fires: footfall),
        state(:chase1s, w[0], pause, nil,     :chase2,  turns: false),
        state(:chase2,  w[1], short, closing, :chase3,  turns: false),
-       state(:chase3,  w[2], long,  closing, :chase3s, turns: false),
+       state(:chase3,  w[2], long,  closing, :chase3s, turns: false, fires: footfall),
        state(:chase3s, w[2], pause, nil,     :chase4,  turns: false),
        state(:chase4,  w[3], short, closing, :chase1,  turns: false)]
     end
@@ -177,17 +183,23 @@ module Wolf3D
     end
 
     # ...and finished: a few pictures of falling and then a body on the floor, which lasts for
-    # good because its length is nought. +first+ is the first picture's length where that differs
-    # from the rest, and +last_does+ is an attack hung on the last of them.
+    # good because its length is nought.
+    #
+    # EVERYTHING CRIES OUT AS THE FIRST PICTURE ENDS (A_DeathScream, on each kind's first dying
+    # state), which is why the replay of a boss's fall has its scream too.
+    #
+    # +first+ and +second+ are those pictures' lengths where they differ from the rest, and +does+ is
+    # anything else hung on a picture, by its place in the fall.
     #
     # +ends_it+ is one of the four whose fall ends the episode: the body lies for twenty units before
     # the death cam takes over (the last of each one's dying states, A_StartDeathCam).
-    def self.falling(poses, ticks, first: ticks, last_does: nil, ends_it: false)
+    def self.falling(poses, ticks, first: ticks, second: ticks, does: {}, ends_it: false)
       last = poses.fall.length - 1
       after = ends_it ? :lies : :dead
+      lengths = [first, second] + ([ticks] * last)
       poses.fall.each_with_index.map { |picture, n|
-        state(:"fall#{n + 1}", picture, n.zero? ? first : ticks, nil,
-              n < last ? :"fall#{n + 2}" : after, turns: false, fires: n == last ? last_does : nil)
+        state(:"fall#{n + 1}", picture, lengths.fetch(n), nil,
+              n < last ? :"fall#{n + 2}" : after, turns: false, fires: n.zero? ? :scream : does[n])
       } + [*(state(:lies, poses.dead, 20, nil, :dead, turns: false, fires: :cam) if ends_it),
            state(:dead, poses.dead, 0, nil, :dead, turns: false)]
     end
@@ -311,12 +323,17 @@ module Wolf3D
        state(:shoot2, THROWER_POSES.attack[1], 10, nil, :chase1, turns: false, fires: what)]
     end
 
-    SCHABBS_STATES = [*a_thrower(:needle), *falling(THROWER_POSES, 10, ends_it: true)].freeze
-    GIFT_STATES = [*a_thrower(:rocket), *falling(THROWER_POSES, 10, first: 1, ends_it: true)].freeze
+    # THE LONG SECOND PICTURE IS THE TIME THEIR LAST WORDS TAKE: their Spawn routines set it to 140
+    # with recorded sound and 5 without (wl_act2.cpp), and this game's words are recorded.
+    LAST_WORDS = 140
+
+    SCHABBS_STATES = [*a_thrower(:needle), *falling(THROWER_POSES, 10, second: LAST_WORDS, ends_it: true)].freeze
+    GIFT_STATES = [*a_thrower(:rocket),
+                   *falling(THROWER_POSES, 10, first: 1, second: LAST_WORDS, ends_it: true)].freeze
 
     # FETTGESICHT THROWS AND SHOOTS: a rocket, and then four rounds of the chaingun before he walks
-    # on, which is the one burst in the game that hurts you twice over. He has a picture more of
-    # throwing than Giftmacher has and the same keeping away.
+    # on, which is the one burst in the game that hurts you twice over. He has four pictures of
+    # attacking to Giftmacher's two, and the same keeping away.
     FAT_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: [0, 1, 2, 3], hurt: [],
                                                 fall: [0, 0, 8, 9, 10], dead: 11, attack: [4, 5, 6, 7]))
     FAT_STATES = [
@@ -328,12 +345,12 @@ module Wolf3D
       state(:shoot4, FAT_POSES.attack[3], 10, nil, :shoot5, turns: false, fires: :gun),
       state(:shoot5, FAT_POSES.attack[2], 10, nil, :shoot6, turns: false, fires: :gun),
       state(:shoot6, FAT_POSES.attack[3], 10, nil, :chase1, turns: false, fires: :gun),
-      *falling(FAT_POSES, 10, first: 1, ends_it: true)
+      *falling(FAT_POSES, 10, first: 1, second: LAST_WORDS, ends_it: true)
     ].freeze
 
     # A FAKE HITLER BREATHES FIRE, eight flames to a burst from one picture held nine times. He has
-    # no gun and no key, he does not run from you, and there are several of him. The two pictures of
-    # his fire sit inside his own run, between his breath and his falling.
+    # no gun and no key, he dodges rather than closing on you, and there are several of him. The two
+    # pictures of his fire sit inside his own run, between his breath and his falling.
     FAKE_POSES = Ractor.make_shareable(Poses.new(still: 0, walk: [0, 1, 2, 3], hurt: [],
                                                  fall: [7, 8, 9, 10, 11], dead: 12, attack: [4]))
     FAKE_STATES = [
@@ -346,7 +363,7 @@ module Wolf3D
 
     # THE MACHINE AND THE MAN are laid out as Hans is, and fire as he does but for the last round:
     # thirty units up and then five shots. Neither chases at the common lengths: the machine pauses
-    # twice as long between its strides, and the man hardly at all.
+    # twice as long between its strides, and the man takes far shorter ones.
     def self.a_burst_of_five(poses)
       a = poses.attack
       [state(:shoot1, a[0], 30, nil, :shoot2, turns: false),
@@ -361,9 +378,9 @@ module Wolf3D
     # falling: the wreck stays where it fell and he walks away from it.
     MECHA_STATES = [
       *standing_still(BOSS_POSES, turns: false),
-      *chasing_only(BOSS_POSES, lengths: [10, 6, 8]),
+      *chasing_only(BOSS_POSES, lengths: [10, 6, 8], footfall: :tread),
       *a_burst_of_five(BOSS_POSES),
-      *falling(BOSS_POSES, 10, last_does: :morph)
+      *falling(BOSS_POSES, 10, does: { 2 => :morph })
     ].freeze
 
     HITLER_POSES = Ractor.make_shareable(Poses.new(still: nil, walk: [0, 1, 2, 3], hurt: [],
@@ -375,7 +392,7 @@ module Wolf3D
       state(:inside, HITLER_POSES.walk[0], 0, nil, :inside, turns: false),
       *chasing_only(HITLER_POSES, lengths: [6, 4, 2]),
       *a_burst_of_five(HITLER_POSES),
-      *falling(HITLER_POSES, 10, first: 1, ends_it: true)
+      *falling(HITLER_POSES, 10, first: 1, second: LAST_WORDS, does: { 2 => :slurp }, ends_it: true)
     ].freeze
 
     # --- all of them ------------------------------------------------------------------------
@@ -483,11 +500,12 @@ module Wolf3D
 
     # ...and what each attack is numbered, the same way. The three things thrown come last and in
     # this order, so what is thrown is the number less the first of them. See Thrown.
-    ATTACKS = { nil => 0, gun: 1, teeth: 2, morph: 3, cam: 4, needle: 5, rocket: 6, flame: 7 }.freeze
+    ATTACKS = { nil => 0, gun: 1, teeth: 2, morph: 3, cam: 4, scream: 5, tread: 6, slurp: 7,
+                needle: 8, rocket: 9, flame: 10 }.freeze
     THROWN = %i[needle rocket flame].freeze
 
     # WHAT EACH ONE LEAVES WHERE IT FALLS, numbered so a table can say it. Nought is nothing,
-    # which is a dog: it carries no ammunition and drops none. A boss leaves the GOLD KEY, and
+    # which is a dog: it carries no ammunition and drops none. Hans and Gretel leave the GOLD KEY, and
     # that is what killing him is for — the way out of the floor is behind a gold-locked door.
     LEAVES = { nil => 0, clip: 1, machine_gun: 2, gold_key: 3 }.freeze
 
@@ -504,6 +522,12 @@ module Wolf3D
     THROWN_PICTURES = Ractor.make_shareable({ needle: (317..320).to_a, flame: [326, 327],
                                               rocket: (370..384).to_a })
 
+    # The words DEATH CAM, the second picture of the file (SPR_DEATHCAM).
+    DEATH_CAM_PICTURE = 1
+
+    # See #reaction. Every kind not named is a boss.
+    REACTIONS = Ractor.make_shareable({ guard: [1, 4], officer: [2, 0], mutant: [1, 6], ss: [1, 6], dog: [1, 8] })
+
     # --- one kind, asked about itself -------------------------------------------------------
 
     # The four patrolling codes come straight after the four standing ones.
@@ -516,11 +540,18 @@ module Wolf3D
     # The pictures this kind needs: every one any of its states can wear. A state that turns
     # needs all eight of its own, because which one shows depends on where the player is standing
     # — a guard facing east still has his back to you from the other side of the room. A state
-    # that does not turn needs the one. What it throws comes with it, because they are pictures too.
+    # that does not turn needs the one. What it throws comes with it, because they are pictures too,
+    # and the banner of a death cam with one whose fall runs it.
     def pictures
       states.flat_map { |s| s.turns ? (0...POSES).map { |n| s.picture + n } : [s.picture] }
-            .uniq.sort.map { |offset| first_picture + offset } + pictures_of_what_it_throws
+            .uniq.sort.map { |offset| first_picture + offset } + pictures_of_what_it_throws +
+        (ends_the_episode? ? [DEATH_CAM_PICTURE] : [])
     end
+
+    # HOW LONG ONE TAKES TO REACT once it has seen you, in the original's units: a fixed part, and a
+    # random byte divided by the other, or nothing where that is nought (SightPlayer, wl_state.cpp).
+    # A guard takes up to about a second and a boss none at all.
+    def reaction = REACTIONS.fetch(name, [1, 0])
 
     def pictures_of_what_it_throws = states.filter_map(&:fires).uniq.flat_map { |what| THROWN_PICTURES.fetch(what, []) }
 

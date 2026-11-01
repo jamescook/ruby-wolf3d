@@ -194,7 +194,7 @@ are commented with what needs what).
 **Turning that into a floor** — still no console:
 
 - `doors.rb`, `pushwalls.rb`, `elevator.rb`, `rooms.rb` — what joins one part of a floor to
-  another. `enemy.rb`, `behaviour.rb`, `guards.rb`, `scenery.rb` — the five kinds of enemy,
+  another. `enemy.rb`, `behaviour.rb`, `guards.rb`, `scenery.rb` — the kinds of enemy,
   how their states are laid out, and what stands in the rooms. `floors.rb` — all of it, per
   floor.
 - `wall_atlas.rb`, `thing_atlas.rb`, `weapon_atlas.rb`, `bar_art.rb`, `menu_art.rb` — the

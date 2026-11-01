@@ -18,7 +18,6 @@ class TestScreenFlash < Minitest::Test
 
   # Two buttons wired straight to the two flashes, over a grey screen.
   GROUND = 0x4210
-  HURT = 25
 
   def program
     Ractor.current[:flash_program] ||= VBlank.game("FLASH", consoles: %i[gba]) do
@@ -59,7 +58,7 @@ class TestScreenFlash < Minitest::Test
     one = played(6) { |f| f == 2 ? [:b] : [] }
     two = played(6) { |f| [2, 4].include?(f) ? [:b] : [] }
 
-    assert_equal Flash::BONUS_COUNT - (Flash::PER_PASS * 3), two[:_flash_bonus], "three passes since the second"
+    assert_equal Flash::BONUS_COUNT - (Wolf3D::Enemy::SIXTHS_A_PASS * 3), two[:_flash_bonus], "three passes since the second"
     assert_operator two[:_flash_bonus], :>, one[:_flash_bonus]
   end
 
@@ -111,10 +110,10 @@ class TestScreenFlash < Minitest::Test
   # --- in the game ----------------------------------------------------------------------------
 
   def test_a_shot_that_lands_flashes_red
-    run = Reference.new.run(view_of(arena(guards: [[11, 8, :west]]), drawing: false), frames: 250)
+    program = view_of(arena(guards: [[11, 8, :west]]), drawing: false)
+    hit = (20..300).step(4).find { |n| Reference.new.run(program, frames: n)[:health] < Wolf3D::FirstPerson::START_HEALTH }
 
-    assert_operator run[:health], :<, Wolf3D::FirstPerson::START_HEALTH, "he should have hit you by then"
-    assert_operator run[:_flash_hits], :>, 0
+    assert_operator Reference.new.run(program, frames: hit)[:_flash_shown], :>, 0
   end
 
   def test_walking_onto_a_key_flashes_gold

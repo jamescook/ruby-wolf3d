@@ -14,7 +14,8 @@ module Wolf3D
   # fall ends with this again, which is how the original knows it has seen enough.
   #
   # WHAT THIS LEAVES OUT: the fizzle on the way into the words and on the way back out of them. The
-  # picture simply changes. The dots in Dying add to a picture in a way that wants a whole frame.
+  # picture simply changes. Dying's dots cover the view by writing over what is there, and the words
+  # and the replay are each a whole new picture to reach, which they cannot show being reached.
   class DeathCam
     # WHERE IT HAS GOT TO. Nought is that nothing is happening, and it is what the menus read.
     NOT_RUNNING = 0
@@ -33,27 +34,32 @@ module Wolf3D
     FIRST_Y = 40
     SECOND_Y = 64
 
-    # HOW LONG IT HOLDS, in passes. The original waits 100 of its seventieths with the body lying
-    # there, and up to 300 for the words, which a press cuts short. A pass is worth seven sixths of
-    # one of those (see Thrown).
-    HOLD = 100 * Thrown::SIXTHS / Thrown::PER_PASS
-    WORDS_FOR = 300 * Thrown::SIXTHS / Thrown::PER_PASS
+    # HOW LONG IT HOLDS, in passes. The original waits 100 of its units with the body lying there, and
+    # up to 300 for the words, which a press cuts short. These run by the pass like the rest of the
+    # world, so where the world runs slow they do too.
+    HOLD = 100 * Enemy::SIXTHS / Enemy::SIXTHS_A_PASS
+    WORDS_FOR = 300 * Enemy::SIXTHS / Enemy::SIXTHS_A_PASS
+
+    # THE BANNER FLASHES on 32 units of the clock and off for 32 (GetTimeCount()&32, wl_draw.cpp).
+    BANNER_FOR = 32 * Enemy::SIXTHS / Enemy::SIXTHS_A_PASS
 
     # HOW FAR FROM THE BODY IT SETS YOU DOWN, and how far back each try after that (0x14000 and
     # 0x1000), and how wide a thing it wants to be clear of walls (the player's own box, PLAYERSIZE).
     FIRST_TRY = 0x14000 / Enemy::CELL.to_f
     NEXT_TRY = 0x1000 / Enemy::CELL.to_f
     BOX = 0x5800 / Enemy::CELL.to_f
-    # A floor is not so tight that this runs out, and if it did you would be left at the last try.
-    TRIES = 64
+    # ENOUGH TO CROSS THE WIDEST FLOOR, which is the original's "until it fits" with an end to it.
+    TRIES = 64 * 16
 
-    # +sines+ is the view's table, because the angle to the body is found by trying them.
-    def initialize(build:, player:, sines:, victory:, lettering:)
+    # +sines+ is the view's table, because the angle to the body is found by trying them. +lasting+
+    # is what a saved game holds, which the spot you killed him from is part of (gamestate.killx).
+    def initialize(build:, player:, sines:, victory:, lettering:, lasting:)
       @b = build
       @player = player
       @sines = sines
       @victory = victory
       @lettering = lettering
+      @lasting = lasting
       declare
     end
 
@@ -94,6 +100,12 @@ module Wolf3D
     # The words, painted when they go up and then left alone.
     def draw = @picture.draw
 
+    # IS THE BANNER UP ON THIS PASS? It only is on the replay. Called once a pass, where it is drawn.
+    def banner_is_up
+      @blink += 1 if @stage == REPLAY
+      @stage == REPLAY && ((@blink / BANNER_FOR) % 2) == 0
+    end
+
     # A FLOOR STARTED AGAIN has no death cam running on it, whatever a game that ended left behind.
     def start_again
       @stage = NOT_RUNNING
@@ -110,8 +122,9 @@ module Wolf3D
       @showing_words = b.var :_cam_words, 0
       @count = b.var :_cam_count, 0
       @boss = b.var :_cam_boss, 0
-      @kill_x = b.var :_cam_kill_x, 0.0
-      @kill_y = b.var :_cam_kill_y, 0.0
+      @blink = b.var :_cam_blink, 0
+      @kill_x = @lasting.var :kill_x, 0.0
+      @kill_y = @lasting.var :kill_y, 0.0
       @boss_x = b.var :_cam_boss_x, 0.0
       @boss_y = b.var :_cam_boss_y, 0.0
       @dx = b.var :_cam_dx, 0.0
@@ -189,10 +202,7 @@ module Wolf3D
         @player.x = @boss_x - (@dx * @far)
         @player.y = @boss_y - (@dy * @far)
         @done = 1
-        @done = 0 if @mind.cannot_fly_through(@player.x - BOX, @player.y - BOX)
-        @done = 0 if @mind.cannot_fly_through(@player.x + BOX, @player.y - BOX)
-        @done = 0 if @mind.cannot_fly_through(@player.x - BOX, @player.y + BOX)
-        @done = 0 if @mind.cannot_fly_through(@player.x + BOX, @player.y + BOX)
+        @done = 0 if @mind.blocked_around(@player.x, @player.y, BOX)
         @far += NEXT_TRY
       end
     end

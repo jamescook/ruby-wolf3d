@@ -19,9 +19,12 @@ module Wolf3D
   class Behaviour
     attr_reader :kinds, :states
 
-    def self.for(names) = new(names)
+    # +toughness+ puts every kind at that many hit points, which is a dial like the ones for what you
+    # start holding: a fight is too long to wait through to reach what comes after it.
+    def self.for(names, toughness: nil) = new(names, toughness)
 
-    def initialize(names)
+    def initialize(names, toughness = nil)
+      @toughness = toughness
       @kinds = Enemy::ALL.select { |kind| names.include?(kind.name) }
       @kinds = [Enemy::GUARD] if @kinds.empty?
       @first = {}
@@ -104,8 +107,18 @@ module Wolf3D
     # is the one kind a harder game toughens and the setting is not known until somebody picks.
     # Where a kind's four begin is what one carries into the cartridge; which of the four is read
     # is settled when a floor starts.
-    def hit_points = @kinds.flat_map(&:hit_points)
+    def hit_points = @kinds.flat_map { |kind| @toughness ? [@toughness] * Guards::SETTINGS.length : kind.hit_points }
     def hit_points_at(kind) = @kinds.index(Enemy[kind]) * Guards::SETTINGS.length
+
+    # How much killing one kind takes on one setting.
+    def toughness_of(kind, setting) = @toughness || Enemy[kind].toughness(setting)
+
+    # The longest any state lasts, which decides how wide a count of it has to be.
+    def longest = @states.map(&:ticks).max
+    def ticks_width = longest > 255 ? :half : :byte
+
+    # How long the thing in this state takes to react: the fixed part and what a byte is divided by.
+    def reaction_from(number) = kind_at(number).reaction
 
     def starting_state(guard) = number_of(guard.kind, Enemy[guard.kind].first_state(guard.patrolling))
 

@@ -159,35 +159,31 @@ module Wolf3D
     end
 
     def draw_the_percentages
-      left = centred(FLOOR + ("0" * @floor_digits))
-      write FLOOR, left, FLOOR_Y
-      draw_a_figure @floor_number[@floor], left + width_of(FLOOR), FLOOR_Y, digits: @floor_digits
-      write HEADING, centred(HEADING), COMPLETED_Y
+      left = @lettering.centred(FLOOR + ("0" * @floor_digits))
+      @lettering.write FLOOR, left, FLOOR_Y
+      @lettering.draw_a_figure @floor_number[@floor], left + @lettering.width_of(FLOOR), FLOOR_Y, digits: @floor_digits
+      @lettering.write HEADING, @lettering.centred(HEADING), COMPLETED_Y
       draw_the_bonus
       RATIOS.each_with_index { |(name, label), row| draw_a_percentage(name, label, RATIOS_Y + (row * LETTER)) }
     end
 
     def draw_a_percentage(name, label, y)
-      write label, FIGURES_X - GAP - width_of(label), y
-      draw_a_figure @ratios[name], FIGURES_X, y, digits: 3
-      write "%", PERCENT_X, y
+      @lettering.write label, FIGURES_X - GAP - @lettering.width_of(label), y
+      @lettering.draw_a_figure @ratios[name], FIGURES_X, y, digits: 3
+      @lettering.write "%", PERCENT_X, y
     end
 
     def draw_the_bonus
-      write BONUS, BONUS_X - GAP - width_of(BONUS), BONUS_Y
-      draw_a_figure @bonus, BONUS_X, BONUS_Y, digits: 5
+      @lettering.write BONUS, BONUS_X - GAP - @lettering.width_of(BONUS), BONUS_Y
+      @lettering.draw_a_figure @bonus, BONUS_X, BONUS_Y, digits: 5
     end
 
     def draw_a_secret_floor
-      write SECRET_HEADING, centred(SECRET_HEADING), FLOOR_Y
-      write "#{HEADING}!", centred("#{HEADING}!"), COMPLETED_Y
+      @lettering.write SECRET_HEADING, @lettering.centred(SECRET_HEADING), FLOOR_Y
+      @lettering.write "#{HEADING}!", @lettering.centred("#{HEADING}!"), COMPLETED_Y
       draw_the_bonus
     end
 
-    def write(words, x, y) = @lettering.write(words, x, y)
-    def draw_a_figure(...) = @lettering.draw_a_figure(...)
-    def width_of(words) = @lettering.width_of(words)
-    def centred(words) = @lettering.centred(words)
     def colour(ink) = Palette.game[ink]
   end
 end

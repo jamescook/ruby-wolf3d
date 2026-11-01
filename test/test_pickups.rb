@@ -153,14 +153,14 @@ class TestPickups < Minitest::Test
   # of the same one. At this range one round puts a guard down, so "before he falls" is a window
   # too narrow to aim a test at; a guard who is never shot at never falls.
   #
-  # AND IT STOPS BEFORE THE PLAYER REACHES THE BODY, which is the whole of why the count is 60
-  # and not the 70 the walking test uses: walk onto the clip and it is picked up, and then there
+  # AND IT STOPS BEFORE THE PLAYER REACHES THE BODY, which is the whole of why the count is 46
+  # and not the 120 the walking test uses: walk onto the clip and it is picked up, and then there
   # is nothing on the floor to see.
   def test_the_clip_a_guard_left_is_drawn_on_the_floor
     standing = Reference.new.input_each_frame { [:up] }
-                        .run(shooting_program(drawing: true), frames: 60)
+                        .run(shooting_program(drawing: true), frames: 46)
     down = Reference.new.input_each_frame { |f| shoot_at_him(f) }
-                    .run(shooting_program(drawing: true), frames: 60)
+                    .run(shooting_program(drawing: true), frames: 46)
 
     refute_includes colours_on_screen(standing), clip_colour, "nobody has dropped anything"
     assert_includes colours_on_screen(down), clip_colour, "and there it is on the floor"
@@ -241,11 +241,17 @@ class TestPickups < Minitest::Test
   #
   # THE FIRING STOPS WELL BEFORE THE WALK DOES, which the test above depends on: what it measures
   # is the four rounds off the body, so nothing may spend a round after he has fallen.
-  def shoot_at_him(frame) = frame < 40 && frame.even? ? [:b] : [:up]
+  #
+  # AND THE PLAYER STANDS STILL WHILE IT DOES, because a man who walks at him walks past him.
+  def shoot_at_him(frame)
+    return [:up] if frame >= 40
+
+    frame.even? ? [:b] : []
+  end
 
   def shooting_program(drawing: false)
     @shooting_program ||= {}
-    @shooting_program[drawing] ||= view_of(arena(guards: [[9, 8, :west]]), drawing: drawing)
+    @shooting_program[drawing] ||= view_of(arena(guards: [[6, 8, :west]]), drawing: drawing)
   end
 
   # IT DRAWS, because the guard has to actually fall: a shot goes to a man the renderer put on

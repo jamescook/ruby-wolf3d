@@ -27,7 +27,6 @@ module Wolf3D
     # framework's `list`), which the first two fit inside a byte:
     #
     #   dir      0..7      which way he faces
-    #   ticks    -7..90    the longest state, less one think
     #   turn     0..1      which half of the guards think on this frame
     #   dropped  0..3      nothing, a clip, a machine gun, or the gold key
     #   shown, awake, ambush   yes or no
@@ -37,8 +36,9 @@ module Wolf3D
     # which is still half a whole number. And x, y and togo carry fractions, which need the
     # whole word — a fraction is mostly its own fractional part.
     #
-    # TWO OF THEM DEPEND ON WHAT THE CARTRIDGE HOLDS, so they are asked rather than written:
+    # THREE OF THEM DEPEND ON WHAT THE CARTRIDGE HOLDS, so they are asked rather than written:
     #
+    #   ticks  ninety of a boss's wind-up is a byte, and 420 of his last words is not.
     #   hp     an SS starts at 100 and a shot can take him past nothing, which is a byte. A
     #          BOSS starts at up to 1200, which is not.
     #   state  every kind's states end to end, and a state number IS the kind. Five kinds is
@@ -46,7 +46,7 @@ module Wolf3D
     #
     # Both keep the byte on a cartridge that does not need more, which is the whole bargain
     # these widths are: a game with no boss on any floor pays a boss nothing.
-    NARROW = { dir: :byte, ticks: :byte, turn: :byte, dropped: :byte,
+    NARROW = { dir: :byte, turn: :byte, dropped: :byte,
                shown: :byte, awake: :byte, ambush: :byte, wait: :half }.freeze
 
     # How wide a slot has to be to hold every number that can go in it, given the range the
@@ -154,7 +154,8 @@ module Wolf3D
     # See NARROW for the ones that never change and why these two do.
     def widths
       NARROW.merge(hp: self.class.width_for(@behaviour.hit_points.max),
-                   state: self.class.width_for(@behaviour.length))
+                   state: self.class.width_for(@behaviour.length),
+                   ticks: self.class.width_for(@behaviour.longest))
     end
 
     # THE FIRST FLOOR'S GUARDS AT BOOT, written out rather than read from the tables, because
@@ -172,7 +173,7 @@ module Wolf3D
         @pool.spawn x: guard.x + 0.5, y: guard.y + 0.5,
                     dir: Guards.direction_of(guard.facing),
                     state: state, ticks: @behaviour.state_at(state).ticks,
-                    hp: Enemy[guard.kind].toughness(Guards.number_of(Guards::DEFAULT_DIFFICULTY)),
+                    hp: @behaviour.toughness_of(guard.kind, Guards.number_of(Guards::DEFAULT_DIFFICULTY)),
                     ambush: guard.ambush ? 1 : 0,
                     # ...and thinks on every other frame, alternately with his neighbours, so
                     # the floor's thinking is spread evenly over the frames rather than
@@ -201,7 +202,7 @@ module Wolf3D
                               width: :byte
       @home_ticks = b.table :guard_home_ticks,
                             Floors.at_least_one(starting.map { |s| @behaviour.state_at(s).ticks }),
-                            width: :byte
+                            width: @behaviour.ticks_width
       @home_ambush = b.table :guard_home_ambush,
                              Floors.at_least_one(everyone.map { |g| g.ambush ? 1 : 0 }), width: :byte
       # ...and the easiest setting each one turns up on, which is the whole of how a harder game

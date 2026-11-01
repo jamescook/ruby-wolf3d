@@ -21,34 +21,45 @@ module Wolf3D
   # at worst, and the speed of a rocket can stand that.
   class Thrown
     # One row of the table: the picture, whether it turns with where you stand from it (a rocket
-    # does), how long it lasts in the original's units, whether it is still flying, what comes after
-    # it (nil for nothing, and the slot is given back), and two things hung on its end. +smokes+
-    # leaves a puff behind, and +hits+ is what a blow takes off you before the random part.
-    Row = Data.define(:name, :picture, :turns, :ticks, :flies, :after, :smokes, :hits)
+    # does), how long it lasts in the original's units, whether it moves on every pass, what comes
+    # after it (nil for nothing, and the slot is given back), and what is hung on its end. +smokes+
+    # leaves a puff behind and bursts on a wall, and +hits+ is what a blow takes off you before the
+    # random part.
+    #
+    # +hops+ IS FIRE, WHICH MOVES ONLY AS EACH PICTURE ENDS. The original hangs T_Projectile on the end
+    # of s_fire1 and s_fire2 where it hangs it on the think of everything else (wl_act2.cpp), so a
+    # flame creeps a step every six units. That is what makes it something you can walk away from.
+    Row = Data.define(:name, :picture, :turns, :ticks, :flies, :after, :smokes, :hits, :hops)
 
-    def self.row(name, picture, ticks, after, turns: false, flies: false, smokes: false, hits: 0)
-      Row.new(name:, picture:, turns:, ticks:, flies:, after:, smokes:, hits:)
+    def self.row(name, picture, ticks, after, turns: false, flies: false, smokes: false, hits: 0, hops: false)
+      Row.new(name:, picture:, turns:, ticks:, flies:, after:, smokes:, hits:, hops:)
     end
 
     # Twenty and thirty, and nothing for fire, with a random part on top of each. From T_Projectile.
     NEEDLE_HITS = 20
     ROCKET_HITS = 30
 
+    NEEDLES = Enemy::THROWN_PICTURES.fetch(:needle)
+    FLAMES = Enemy::THROWN_PICTURES.fetch(:flame)
+    ROCKET = Enemy::THROWN_PICTURES.fetch(:rocket).first
+    SMOKE = ROCKET + 8 # after the eight sides of the rocket...
+    BOOM = SMOKE + 4   # ...and the four puffs of smoke
+
     ROWS = Ractor.make_shareable([
-      row(:needle1, 317, 6, :needle2, flies: true, hits: NEEDLE_HITS),
-      row(:needle2, 318, 6, :needle3, flies: true, hits: NEEDLE_HITS),
-      row(:needle3, 319, 6, :needle4, flies: true, hits: NEEDLE_HITS),
-      row(:needle4, 320, 6, :needle1, flies: true, hits: NEEDLE_HITS),
-      row(:rocket, 370, 3, :rocket, turns: true, flies: true, smokes: true, hits: ROCKET_HITS),
-      row(:fire1, 326, 6, :fire2, flies: true),
-      row(:fire2, 327, 6, :fire1, flies: true),
-      row(:smoke1, 378, 3, :smoke2),
-      row(:smoke2, 379, 3, :smoke3),
-      row(:smoke3, 380, 3, :smoke4),
-      row(:smoke4, 381, 3, nil),
-      row(:boom1, 382, 6, :boom2),
-      row(:boom2, 383, 6, :boom3),
-      row(:boom3, 384, 6, nil)
+      row(:needle1, NEEDLES[0], 6, :needle2, flies: true, hits: NEEDLE_HITS),
+      row(:needle2, NEEDLES[1], 6, :needle3, flies: true, hits: NEEDLE_HITS),
+      row(:needle3, NEEDLES[2], 6, :needle4, flies: true, hits: NEEDLE_HITS),
+      row(:needle4, NEEDLES[3], 6, :needle1, flies: true, hits: NEEDLE_HITS),
+      row(:rocket, ROCKET, 3, :rocket, turns: true, flies: true, smokes: true, hits: ROCKET_HITS),
+      row(:fire1, FLAMES[0], 6, :fire2, hops: true),
+      row(:fire2, FLAMES[1], 6, :fire1, hops: true),
+      row(:smoke1, SMOKE, 3, :smoke2),
+      row(:smoke2, SMOKE + 1, 3, :smoke3),
+      row(:smoke3, SMOKE + 2, 3, :smoke4),
+      row(:smoke4, SMOKE + 3, 3, nil),
+      row(:boom1, BOOM, 6, :boom2),
+      row(:boom2, BOOM + 1, 6, :boom3),
+      row(:boom3, BOOM + 2, 6, nil)
     ])
 
     def self.number_of(name) = ROWS.index { |row| row.name == name }
@@ -58,10 +69,9 @@ module Wolf3D
     STARTS = Ractor.make_shareable([[:needle1, 0x2000], [:rocket, 0x2000], [:fire1, 0x1200]])
 
     # A pass of this game is worth seven sixths of the original's units, which is the same bargain
-    # every enemy is on (Enemy::TICKS_PER_THINK, in thirds, every second pass). So everything here
-    # counts sixths and comes down by seven.
-    SIXTHS = 6
-    PER_PASS = 7
+    # every enemy is on. So everything here counts sixths and comes down by seven.
+    SIXTHS = Enemy::SIXTHS
+    PER_PASS = Enemy::SIXTHS_A_PASS
     def self.speed_of(raw) = raw * PER_PASS / SIXTHS / Enemy::CELL.to_f
 
     # HOW NEAR COUNTS: a box of an eighth of a cell each way for walls (PROJSIZE), and three quarters
@@ -82,9 +92,9 @@ module Wolf3D
     # A heading counts as along one axis when the other is under this share of it: tan 22.5 degrees.
     SQUARE_ON = 0.41
 
-    # What the player stands to lose to a blow, past the fixed part: a byte shifted down three.
+    # What the player stands to lose to a blow, past the fixed part: an eighth of a random byte.
     ROLLS = 256
-    ROLL_SHIFT = 8
+    ROLL_PART = 8
 
     # +mind+ is what says whether a cell can be flown through and what a blow does to the player.
     def initialize(build:, mind:, player:, things:, lasting:)
@@ -124,6 +134,7 @@ module Wolf3D
       @turns_of = b.table :thrown_turns, ROWS.map { |r| r.turns ? 1 : 0 }, width: :byte
       @ticks_of = b.table :thrown_ticks, ROWS.map { |r| r.ticks * SIXTHS }, width: :byte
       @flies = b.table :thrown_flies, ROWS.map { |r| r.flies ? 1 : 0 }, width: :byte
+      @hops = b.table :thrown_hops, ROWS.map { |r| r.hops ? 1 : 0 }, width: :byte
       @smokes = b.table :thrown_smokes, ROWS.map { |r| r.smokes ? 1 : 0 }, width: :byte
       @hits = b.table :thrown_hits, ROWS.map(&:hits), width: :byte
       # What comes next, and one past the last row means nothing does.
@@ -145,7 +156,6 @@ module Wolf3D
       @row = b.var :_thrown_row, 0
       @way = b.var :_thrown_way, 0
       @gone = b.var :_thrown_gone, 0
-      @corner = b.var :_thrown_corner, 0
       @fromx = b.var :_thrown_fromx, 0.0
       @fromy = b.var :_thrown_fromy, 0.0
       @dx = b.var :_thrown_dx, 0.0
@@ -197,15 +207,10 @@ module Wolf3D
     def fly(shot)
       shot.x += shot.dx
       shot.y += shot.dy
-      @corner = 0
-      @corner = 1 if @mind.cannot_fly_through(shot.x - SIZE, shot.y - SIZE)
-      @corner = 1 if @mind.cannot_fly_through(shot.x + SIZE, shot.y - SIZE)
-      @corner = 1 if @mind.cannot_fly_through(shot.x - SIZE, shot.y + SIZE)
-      @corner = 1 if @mind.cannot_fly_through(shot.x + SIZE, shot.y + SIZE)
-      if @corner == 1
+      if @mind.blocked_around(shot.x, shot.y, SIZE)
         hit_a_wall(shot)
       elsif (@player.x - shot.x).abs < REACH && (@player.y - shot.y).abs < REACH
-        @mind.hit_the_player(shot, @hits[@row] + (@b.rand(0..ROLLS - 1) / ROLL_SHIFT))
+        @mind.hit_the_player(shot, @hits[@row] + (@b.rand(0..ROLLS - 1) / ROLL_PART))
         finish(shot)
       end
     end
@@ -232,14 +237,19 @@ module Wolf3D
     def age(shot)
       shot.ticks -= PER_PASS
       if shot.ticks <= 0
-        leave_some_smoke(shot) if @smokes[@row] == 1
-        @row = @after[@row]
-        if @row == ROWS.length
-          shot.remove
-        else
-          shot.row = @row
-          shot.ticks += @ticks_of[@row]
-        end
+        @b.call :thrown_thing_flies if @hops[@row] == 1
+        next_picture(shot) if @gone == 0
+      end
+    end
+
+    def next_picture(shot)
+      leave_some_smoke(shot) if @smokes[@row] == 1
+      @row = @after[@row]
+      if @row == ROWS.length
+        shot.remove
+      else
+        shot.row = @row
+        shot.ticks += @ticks_of[@row]
       end
     end
 

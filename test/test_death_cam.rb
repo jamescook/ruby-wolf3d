@@ -4,10 +4,9 @@ require_relative "test_helper"
 
 # HOW A BOSS FLOOR ENDS WHEN THERE IS NO WAY OUT, read out of A_StartDeathCam (wl_act2.cpp).
 #
-# THE BOSS IS FINISHED OFF BY THE TEST, which no other test here does, and the reason is arithmetic:
-# fifteen hundred hit points takes a chain gun most of a minute of frames, with him backing away and
-# throwing things, and what is being tested starts once he is down. The game loop writes one number
-# on one pass, and everything after that is the game's own.
+# THE BOSS IS BUILT TO GO DOWN TO ONE ROUND, which is a dial, because fifteen hundred hit points
+# takes a chain gun most of a minute of frames with him backing away and throwing things, and what
+# is being tested starts once he is down.
 class TestDeathCam < Minitest::Test
   include Wolf3DTest
 
@@ -21,10 +20,10 @@ class TestDeathCam < Minitest::Test
   BOSS_X = 6
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
-  # When the test's trigger is pulled, and the pass by which he has finished falling. The round leaves
-  # the pistol a dozen passes after that, and five pictures and the body's twenty are about sixty.
+  # When the test's trigger is pulled, and the pass by which he has finished falling: five pictures,
+  # the body's twenty and the 140 of his last words, in sevenths of a think, a think every other pass.
   FIRED = 6
-  DOWN = 80
+  DOWN = 200
 
   def test_the_body_lies_there_and_the_world_stops
     run = played(frames: DOWN)
@@ -66,7 +65,7 @@ class TestDeathCam < Minitest::Test
   end
 
   def test_then_the_episode_is_over
-    run = played(frames: words_gone + 80 + Cam::HOLD + 4)
+    run = played(frames: words_gone + 190 + Cam::HOLD + 4)
 
     assert_equal 1, run[:episode_won]
     assert_equal 1, run[:game_over]
@@ -76,6 +75,20 @@ class TestDeathCam < Minitest::Test
     run = played(frames: words_gone + 40, guards: { [14, ROW] => Wolf3D::Guards::STANDING })
 
     assert_equal Wolf3D::FirstPerson::START_HEALTH, run[:health]
+  end
+
+  # THE GUN IS GONE AND THE WORDS DEATH CAM FLASH IN ITS PLACE (DrawPlayerWeapon, wl_draw.cpp). A
+  # fixture picture is one flat colour, so its second picture is found by colour.
+  def test_the_banner_shows_on_the_replay
+    run = played(frames: words_gone + 12)
+    ink = palette[Release::SPRITE_INK + Enemy::DEATH_CAM_PICTURE]
+    lit = (0...240).count { |x| run.screen.pixel(x, Wolf3D::FirstPerson::VIEW_H / 2) == ink }
+
+    assert_operator lit, :>, 0
+  end
+
+  def test_the_spot_you_killed_him_from_is_kept_in_a_saved_game
+    assert_operator played(frames: DOWN)[:kill_x], :>, 0
   end
 
   def test_hans_has_no_death_cam
@@ -109,17 +122,10 @@ class TestDeathCam < Minitest::Test
     @programs[[guards, menus]] ||= begin
       level = arena(side: 24, player: [PLAYER_X, ROW], things: { [BOSS_X, ROW] => Enemy[:schabbs].standing }.merge(guards))
       art = menus && Wolf3D::MenuArt.of(fixture.pictures)
-      view_of(level) do |b, view, _|
+      view_of(level, toughness: 1) do |b, view, _|
         menus_on = art && Wolf3D::Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game,
                                             sound_on: b.var(:sound_on, 1), starting_on: Wolf3D::Menus::PLAYING)
-        first = b.var :_test_first, 1
-        game_loop do
-          if first == 1
-            first = 0
-            view.guard_pool.pool.each { |guard| guard.hp = 1 }
-          end
-          art ? menus_on.update : view.update
-        end
+        game_loop { art ? menus_on.update : view.update }
       end
     end
   end

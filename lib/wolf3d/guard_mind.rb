@@ -35,6 +35,9 @@ module Wolf3D
     WITH_TEETH = Enemy::ATTACKS.fetch(:teeth)
     MORPHS = Enemy::ATTACKS.fetch(:morph)
     FINISHED = Enemy::ATTACKS.fetch(:cam)
+    CRIES_OUT = Enemy::ATTACKS.fetch(:scream)
+    TREADS = Enemy::ATTACKS.fetch(:tread)
+    SLURPS = Enemy::ATTACKS.fetch(:slurp)
     FIRST_THROWN = Enemy::ATTACKS.fetch(Enemy::THROWN.first)
 
     # HOW OFTEN ONE WHO THROWS DOES, out of 256 for each think it has a clear line, and distance has
@@ -64,8 +67,8 @@ module Wolf3D
 
     def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
-                   rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash: nil,
-                   scoring: nil)
+                   rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash:,
+                   scoring:)
       @b = build
       @scoring = scoring # where the points for a kill go
       @flash = flash     # the screen going red when you are hit
@@ -129,7 +132,7 @@ module Wolf3D
       @picture_of = b.table :guard_picture,
                             rows.map { |n| @things.position_of(@behaviour.picture_of(n)) }, width: :half
       @turns_of = b.table :guard_turns, states.map { |s| s.turns ? 1 : 0 }, width: :byte
-      @ticks_of = b.table :guard_ticks, states.map(&:ticks), width: :byte
+      @ticks_of = b.table :guard_ticks, states.map(&:ticks), width: @behaviour.ticks_width
       @becomes_of = b.table :guard_becomes, rows.map { |n| @behaviour.becomes_from(n) }, width: wide
       @think_of = b.table :guard_think, states.map { |s| Enemy::THINKING.fetch(s.think) }, width: :byte
       @attacks_of = b.table :guard_attacks, states.map { |s| Enemy::ATTACKS.fetch(s.fires) },
@@ -157,6 +160,16 @@ module Wolf3D
       @points_of = b.table :guard_points, rows.map { |n| @behaviour.points_from(n) }, width: :half
       @leaves_of = b.table :guard_leaves, rows.map { |n| @behaviour.leaves_from(n) }, width: :byte
       @ends_episode = b.table(:guard_ends_episode, rows.map { |n| @behaviour.ends_the_episode_from(n) }, width: :byte) if @cam
+      # HOW LONG IT TAKES TO REACT, the fixed part and what a random byte is divided by.
+      @reacts_at = b.table :guard_reacts_at, rows.map { |n| @behaviour.reaction_from(n).first }, width: :byte
+      @reacts_over = b.table :guard_reacts_over, rows.map { |n| @behaviour.reaction_from(n).last }, width: :byte
+      # WHAT EACH KIND SOUNDS LIKE, as places in the list of what this cartridge's kinds say.
+      if @sounds
+        names = rows.map { |n| @behaviour.kind_at(n).name }
+        @sees_you_says = b.table :guard_sees_you_says, names.map { |name| @sounds.voice(Sounds::SIGHTING[name]) }, width: :byte
+        @fires_says = b.table :guard_fires_says, names.map { |name| @sounds.voice(Sounds::FIRING[name]) }, width: :byte
+        @dies_says = b.table :guard_dies_says, names.map { |name| @sounds.voice(Sounds::DYING[name]) }, width: :byte
+      end
 
       # WHICH WAY EACH DIRECTION GOES, one cell at a time. Nine entries: eight ways round and
       # then nowhere, which is where a guard hemmed in on every side ends up.
@@ -303,9 +316,26 @@ module Wolf3D
     # WHAT IS IN THE AIR IS DECLARED HERE, between the tests it borrows and the jobs that throw it. A
     # cartridge where nobody throws anything has none of it.
     def declare_what_is_thrown
+      declare_the_box_test if @behaviour.throws? || @cam
       return unless @behaviour.throws?
 
       @thrown = Thrown.new(build: @b, mind: self, player: @player, things: @things, lasting: @lasting)
+    end
+
+    def declare_the_box_test
+      @blocked = @b.var :_gblocked, 0
+      @boxx = @b.var :_gboxx, 0.0
+      @boxy = @b.var :_gboxy, 0.0
+      @boxsize = @b.var :_gboxsize, 0.0
+      @b.func(:is_a_box_in_something_solid) do
+        @blocked = 0
+        [[-1.0, -1.0], [1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]].each do |(across, down)|
+          @cellx = (@boxx + (@boxsize * across)).to_i
+          @celly = (@boxy + (@boxsize * down)).to_i
+          free_to_walk
+          @blocked = 1 if @clear == 0
+        end
+      end
     end
 
     # Does anything on this cartridge think this way at all?
@@ -338,6 +368,19 @@ module Wolf3D
       @thrown.throw_from(guard, @blow - FIRST_THROWN) if @blow >= FIRST_THROWN if @thrown
       let_the_man_out(guard) if @blow == MORPHS if @behaviour.man_inside?
       @cam.he_is_down(guard) if @blow == FINISHED if @cam
+      cry_out if @blow == CRIES_OUT if @sounds
+      tread(guard) if @blow == TREADS if @behaviour.any?(:tread) && @sounds
+      @sounds.slurp if @blow == SLURPS if @behaviour.any?(:slurp) && @sounds
+    end
+
+    # HE CRIES OUT, in his own voice, or one of eight if he is a guard (A_DeathScream).
+    def cry_out = @sounds.dies(@dies_says[@state])
+
+    # THE MACHINE'S TREAD, heard only from its own room or one open to it (A_MechaSound).
+    def tread(guard)
+      return @sounds.tread if @rooms.nil?
+
+      @sounds.tread if @rooms.open_to_the_player?(guard.x, guard.y)
     end
 
     # THE MACHINE IS DOWN AND THE MAN GETS OUT, where it stands and going the way it was going
@@ -359,13 +402,15 @@ module Wolf3D
 
     public
 
-    # CAN NOTHING FLY THROUGH HERE? The same question a guard's feet ask, of the cell holding a place
-    # rather than one he is walking to. Asked for Thrown, which has no map of its own.
-    def cannot_fly_through(x, y)
-      @cellx = x.to_i
-      @celly = y.to_i
-      free_to_walk
-      @clear == 0
+    # IS ANY CORNER OF A BOX THIS SIZE IN SOMETHING SOLID? The same question a guard's feet ask, of the
+    # four cells a box can touch, for what crosses cells in mid-flight and for setting the player
+    # down. Neither of those has a map of its own.
+    def blocked_around(x, y, size)
+      @boxx = x
+      @boxy = y
+      @boxsize = size
+      @b.call :is_a_box_in_something_solid
+      @blocked == 1
     end
 
     # A THROWN THING HAS REACHED YOU. +shot+ stands where a guard stands in what follows, so a death
@@ -392,6 +437,7 @@ module Wolf3D
     # and what it takes is a byte of randomness shifted down four. Which is why a dog at your
     # feet is worse than a guard across the room, and why backing away from one works.
     def bite_the_player(guard)
+      @sounds&.bites
       @dx = @player.x - guard.x
       @dy = @player.y - guard.y
       if @dx.abs <= Guards::BITE_REACH && @dy.abs <= Guards::BITE_REACH
@@ -412,7 +458,7 @@ module Wolf3D
     def fire_at_the_player(guard)
       # HEARD WHETHER OR NOT IT LANDS, and before either question is asked. A guard fires; the
       # chance and the line of sight decide what it does to you, not whether he pulled.
-      @sounds&.guard_fires
+      @sounds&.say(@fires_says[@state])
       @dx = @player.x - guard.x
       @dy = @player.y - guard.y
       line_of_sight(guard)
@@ -441,18 +487,15 @@ module Wolf3D
     # setting's own softening too — at the health rather than at the shot, so every wound goes
     # through it.
     #
-    # AND NOTHING HURTS YOU ONCE THE DEATH CAM HAS STARTED, which is the first line of the original's
-    # (TakeDamage, wl_agent.cpp): you are not there any more.
+    # AND NOTHING HURTS YOU ONCE THE DEATH CAM HAS STARTED, which the original tests before anything
+    # else about a wound (TakeDamage, wl_agent.cpp): you are not there any more.
     def take_it_out_of_the_player(guard)
       gently
       @wound = 0 if @cam.stage > 0 if @cam
       @player.health -= @wound
-      @flash&.hurt(@wound) if @wound > 0
+      @flash.hurt(@wound) if @wound > 0
       if @player.health <= 0
         @player.health = 0
-        # ...AND THE RED GOES, because a death has a red of its own (Died opens with
-        # FinishPaletteShifts, wl_game.cpp).
-        @flash&.finish
         @dying&.struck_by(guard)
       end
     end
@@ -485,8 +528,17 @@ module Wolf3D
         end
       else
         heard_or_saw(guard)
-        guard.wait = @b.rand(1..Guards::REACTION) if @clear == 1
+        how_long_to_react(guard) if @clear == 1
       end
+    end
+
+    # THIS DELAY IS WHY THE GAME FEELS FAIR, and how long it is depends on who has seen you: a guard
+    # takes up to about a second and an officer or a boss hardly any time at all (SightPlayer).
+    def how_long_to_react(guard)
+      @blow = @reacts_at[guard.state] * Enemy::SCALE
+      @try = @reacts_over[guard.state]
+      @blow += (@b.rand(0..CHANCES - 1) * Enemy::SCALE) / @try if @try > 0
+      guard.wait = @blow
     end
 
     # A NOISE COUNTS AS A SIGHTING, which is the original's whole hearing model in one line:
@@ -537,7 +589,7 @@ module Wolf3D
       guard.togo = 0.0
       # "Halt!" — which is the one sound in this game that tells you something you could not
       # otherwise know: that you have been seen, and by how many.
-      @sounds&.notices_you
+      @sounds&.say(@sees_you_says[@blow])
     end
 
     # CAN HE SEE YOU? Three questions in order, cheapest first. Are you near enough that it does
@@ -739,7 +791,8 @@ module Wolf3D
       end
     end
 
-    # A FAKE HITLER DOES NOT BACK OFF and does not throw often, and he comes on (T_Fake).
+    # A FAKE HITLER DOES NOT BACK OFF and does not throw often. The original has him only ever
+    # dodge (T_Fake, SelectDodgeDir), which enemies here do not do yet, so he comes on.
     def breathe_fire_or_walk(guard)
       throw_if_it_will(guard, FLAME_CHANCE)
       if @think_of[guard.state] == FLAME
@@ -1044,9 +1097,6 @@ module Wolf3D
         # whole game runs on: shoot a guard, take what he was carrying, shoot the next one. Half
         # a clip from most of them, a machine gun from an SS, and nothing at all from a dog.
         @pickups&.a_guard_fell(@target, leaving: @left)
-        # ...and one of his eight screams, picked as the game runs so a firefight does not
-        # sound like a loop.
-        @sounds&.a_guard_dies
       else
         # BEING SHOT AT COUNTS AS BEING SEEN, whatever the thing does about the wound itself —
         # the original rouses one that had not noticed you BEFORE it asks which kind it is. So
@@ -1056,7 +1106,7 @@ module Wolf3D
           hit[:state] = @blow
           hit[:ticks] = @ticks_of[@blow]
           hit[:togo] = 0.0
-          @sounds&.notices_you
+          @sounds&.say(@sees_you_says[hit[:state]])
         end
         # ...and then the flinch, for a kind that has one. Odd or even decides which of the two
         # it wears, so the same wound twice running does not look like a repeat.

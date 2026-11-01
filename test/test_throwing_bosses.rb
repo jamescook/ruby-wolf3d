@@ -4,7 +4,7 @@ require_relative "test_helper"
 
 # THE FOUR BOSSES WHO DO NOT END THEIR FLOORS WITH A KEY, and the fake Hitlers, and what they throw.
 #
-# Every number here is read out of the original (wl_act2.cpp, wl_state.cpp, wl_game.cpp) and written
+# The numbers here are read out of the original (wl_act2.cpp, wl_state.cpp, wl_game.cpp) and written
 # out, so a change to the tables has something to disagree with.
 class TestThrowingBosses < Minitest::Test
   include Wolf3DTest
@@ -144,12 +144,34 @@ class TestThrowingBosses < Minitest::Test
   # A FAKE HITLER'S FIRE IS WEAK AND THERE IS A LOT OF IT, with nothing fixed under what it rolls.
   def test_fire_comes_in_a_stream_and_hurts_a_little_at_a_time
     assert_includes rows_seen(:fake, frames: 600), :fire1
-    assert_operator Thrown::ROWS.find { |row| row.name == :fire1 }.hits, :==, 0
+    assert_equal 0, Thrown::ROWS.find { |row| row.name == :fire1 }.hits
+  end
+
+  # FIRE CREEPS. T_Projectile hangs on the end of its pictures, so it takes one step in six units
+  # where a rocket steps every unit (wl_act2.cpp:2713).
+  def test_fire_takes_a_step_as_each_picture_ends
+    start, first = first_in_the_air(:fake)
+    later = play(:fake, frames: start + 12).pool(:thrown, :x).compact.first
+
+    assert_in_delta 0, (later - first) / ONE, Thrown.speed_of(0x1200) * 3, "two or three steps, no more"
+  end
+
+  # A BOSS HAS NO MOMENT OF REACTION (SightPlayer, wl_state.cpp:1521), where a guard has up to 64.
+  def test_who_takes_how_long_to_react
+    { guard: [1, 4], officer: [2, 0], mutant: [1, 6], ss: [1, 6], dog: [1, 8], hans: [1, 0], schabbs: [1, 0] }
+      .each { |name, reaction| assert_equal reaction, Enemy[name].reaction, name }
+  end
+
+  # THE SECOND PICTURE OF THEIR FALL IS THE TIME THEIR LAST WORDS TAKE (wl_act2.cpp:2218).
+  def test_the_four_take_their_time_going_down
+    %i[schabbs gift fat hitler].each do |name|
+      assert_equal 140 * Enemy::SCALE, Enemy[name].states.find { |s| s.name == :fall2 }.ticks, name
+    end
   end
 
   # HE KEEPS HIS DISTANCE. Inside four cells he goes the other way, which no other kind does.
   def test_a_thrower_backs_away_from_you
-    run = play(:schabbs, at: PLAYER_X + 3, frames: 120, guards_awake: true)
+    run = play(:schabbs, at: PLAYER_X + 3, frames: 120)
     x = run.pool(:guard, :x).compact.first / ONE
 
     assert_operator x, :>, PLAYER_X + 3.6, "he should have backed down the room"
@@ -184,7 +206,7 @@ class TestThrowingBosses < Minitest::Test
   # A barrel, by its place in the original's list of pieces.
   BARREL = Wolf3D::Scenery::FIRST_CODE + 35
 
-  def play(boss, at: 18, things: {}, frames: 300, **)
+  def play(boss, at: 18, things: {}, frames: 300)
     Reference.new.run(game_with(boss, at, things), frames: frames)
   end
 

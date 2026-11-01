@@ -77,6 +77,8 @@ module Wolf3D
       @pool = pool
       @mind = mind
       @pickups = pickups  # what is still lying on the floor, and where a guard dropped one
+      @thrown = mind&.thrown # what is in the air, or nil on a cartridge where nobody throws
+      @banner = @things.position_of(Enemy::DEATH_CAM_PICTURE) || 0
       declare
     end
 
@@ -100,8 +102,18 @@ module Wolf3D
       # Which way the eye is pointing was worked out once for the frame already, before the
       # guards thought — the shot needed it too.
       @pool&.each { |guard| look_at_a_guard(guard) }
-      @mind&.thrown&.pool&.each { |shot| look_at_something_thrown(shot) }
+      @thrown&.pool&.each { |shot| look_at_something_thrown(shot) }
       @b.call :draw_what_is_on_screen
+    end
+
+    # THE WORDS DEATH CAM, a thing as tall as the view standing in the middle of it, over everything
+    # and in the place of the gun (DrawPlayerWeapon, wl_draw.cpp).
+    def draw_the_death_cam_banner
+      @theight = FP::VIEW_H + 1
+      @cx = FP::ACROSS / 2
+      @ttop = 0
+      @shape = @banner
+      @b.call :draw_a_standing_thing
     end
 
     private
@@ -411,7 +423,7 @@ module Wolf3D
       if @fwd > NEAREST
         size_it_on_screen
         pick_which_of_eight(shot.dir)
-        @shape = @mind.thrown.shape_of[shot.row] + (@pose * @mind.thrown.turns_of[shot.row])
+        @shape = @thrown.shape_of[shot.row] + (@pose * @thrown.turns_of[shot.row])
         @b.call :remember_a_standing_thing
       end
     end
