@@ -24,8 +24,8 @@ The same game runs in several places. Pick one:
 
 | Where it runs | Command | What you get |
 |---|---|---|
-| A window, from Ruby | `bundle exec vblank run wolf3d.rb` | the game, with nothing built |
-| A browser, built on each reload | `bundle exec vblank preview wolf3d.rb` | the game, at a local address |
+| A window, from Ruby | `bundle exec vblank run wolf3d.rb` | the game starts right away and leaves no file behind |
+| A browser, built on each reload | `bundle exec vblank preview wolf3d.rb` | an address to open in your browser. Press Ctrl-C to stop it |
 | A desktop app | `rake build:desktop` | `wolf3d-desktop`, for this computer. Needs zig 0.17 |
 | A desktop app for another computer | `rake build:desktop:windows`, `:linux` or `:linux_arm` | `wolf3d-windows-desktop.exe`, `wolf3d-linux-desktop` or `wolf3d-linux-arm-desktop` |
 | A web page | `bundle exec vblank build wolf3d.rb --format=web --output=wolf3d.html` | one HTML file |
