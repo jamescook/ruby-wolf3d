@@ -87,7 +87,8 @@ title screen and says so instead of a floor.
 | Left / Right | turn |
 | A | open a door, shove a secret wall, pull the lift's lever |
 | B | fire what is in your hands |
-| L / R | change weapon — back and forward through the ones you are carrying |
+| L / R | step sideways, and you can turn at the same time |
+| SELECT | change weapon, through the ones you are carrying |
 | START | pause, which is the main menu with two rows turned over |
 
 **Four weapons, and one button to walk between them.** You start with a knife and a pistol; a
