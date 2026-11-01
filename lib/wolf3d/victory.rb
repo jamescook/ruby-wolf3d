@@ -14,10 +14,9 @@ module Wolf3D
   # original's own arrangement and it is a better fight than "the boss falls and the screen changes":
   # you still have to get past him and out. On the other four the boss's fall ends it. See DeathCam.
   #
-  # WHAT THIS IS NOT YET is the original's victory: the march up the screen, the text of what
-  # you did, the tally of the floor. That is a screen of its own and is filed as its own piece of
-  # work. This is the ending the game needs in order to HAVE one — reach the way out and the
-  # episode is over rather than the lift opening onto a floor the cartridge does not hold.
+  # THE WORDS BELOW ARE FOR A CARTRIDGE WITH NO MENUS. One with menus goes on to what the original
+  # shows, which is EpisodeEnd, and BJ's run comes before all of it where his pictures are held. See
+  # VictoryMarch.
   class Victory
     # White, out of the game's own 256, for words over whatever was last drawn.
     INK = 15

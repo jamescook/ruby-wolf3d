@@ -83,6 +83,9 @@ module Wolf3D
     # model already handles, so there is nothing to do here but hand them over.
     def font(which) = @vg.font(which).glyphs
 
+    # THE WORDS IN CHUNK +n+, for what an episode ends on. See EndArticle.
+    def end_article(n) = @vg.text(n)
+
     private
 
     # SHORTER, AND NOT NARROWER. Every column is kept, so nothing across the picture is ever

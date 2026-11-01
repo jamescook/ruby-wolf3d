@@ -55,6 +55,7 @@ VBlank.require_game_file "wolf3d/guard_pool"
 # score, about points.
 VBlank.require_game_file "wolf3d/screen_flash"
 VBlank.require_game_file "wolf3d/scoring"
+VBlank.require_game_file "wolf3d/floor_records"
 VBlank.require_game_file "wolf3d/first_person"
 # ...after the view, whose height is what the gun's square is scaled to.
 VBlank.require_game_file "wolf3d/weapons"
@@ -65,6 +66,7 @@ VBlank.require_game_file "wolf3d/dying"
 VBlank.require_game_file "wolf3d/lives"
 # ...and its sibling, the other way a game can stop. After lives, whose new game it begins.
 VBlank.require_game_file "wolf3d/victory"
+VBlank.require_game_file "wolf3d/victory_march"
 # ...and what starts play again after either of them, or at the bottom of a lift.
 VBlank.require_game_file "wolf3d/playthrough"
 # ...and the screen a lift arrives at, which hands on to the playthrough, and what it is written in.
@@ -86,7 +88,10 @@ require_relative "wolf3d/palette_view"
 require_relative "wolf3d/art_view"
 # ...after the view, which the menus put themselves in front of and hand a game back to.
 VBlank.require_game_file "wolf3d/saved_games"
+VBlank.require_game_file "wolf3d/small_letters"
 VBlank.require_game_file "wolf3d/high_scores"
+require_relative "wolf3d/end_article"
+VBlank.require_game_file "wolf3d/episode_end"
 VBlank.require_game_file "wolf3d/menus"
 VBlank.require_game_file "wolf3d/title"
 
@@ -256,7 +261,7 @@ module Wolf3D
   #
   #   WOLF3D_SCREEN=credits ruby wolf3d.rb
   #
-  # The screens are: notice, title, credits, menu, episodes, difficulty, playing, load, scores.
+  # The screens are: notice, title, credits, menu, episodes, difficulty, playing, load, scores, won.
   def self.which_screen(asked) = Menus.screen_named(asked&.to_s)
 
   def self.vswap = Ractor.current[:wolf3d_vswap] ||= data && Vswap.from(data)
@@ -316,7 +321,7 @@ module Wolf3D
                                       floors.flat_map { |f|
                                         f.guards.pictures + f.scenery.pictures +
                                           Wolf3D::Pickups.pictures(f.guards)
-                                      }.uniq.sort)
+                                      }.then { |seen| seen + Wolf3D::VictoryMarch.pictures(floors, Wolf3D.vswap) }.uniq.sort)
       # WOLFENSTEIN'S OWN MENU ART, or nil for a release whose pictures we cannot name — and
       # then the cartridge boots straight into the game, because there is nothing to write a
       # menu with. The same pictures hold the lettering of the screen between floors.

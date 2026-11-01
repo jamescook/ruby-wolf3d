@@ -74,6 +74,9 @@ module Wolf3D
     # cartridge's slice of it, so it is kept where the maps are read.
     PER_EPISODE = Maps::PER_EPISODE
 
+    # How many episodes the floors of a cartridge reach into, counting from the first.
+    def self.episodes_in(floors) = (floors.map(&:index).max / PER_EPISODE) + 1
+
     def count = @floors.length
     def each(&) = @floors.each(&)
     def [](index) = @floors[index]

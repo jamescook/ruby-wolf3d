@@ -64,6 +64,7 @@ module Wolf3D
       menu_gun: 8, menu_gun_firing: 9,
       load_game_heading: 25, save_game_heading: 26, # the plates over those two screens
       level_label: 35, name_label: 36, score_label: 37, # the columns of the high score table
+      bj_wins: 82,      # BJ on the screen that says you won
       status_bar: 83,   # the steel plate along the bottom
       title: 84,        # the title screen
       notice: 85,       # the rating box shown before the title
@@ -84,7 +85,7 @@ module Wolf3D
        # THE BIG LETTERING OF THE SCREEN BETWEEN FLOORS AND THE DEATH CAM, a picture for each
        # character: ten numerals, the percent sign, the alphabet, the exclamation mark, the apostrophe.
        (0..9).to_h { |d| [:"tally_#{d}", 42 + d] }
-     ).merge(tally_percent: 52, tally_exclamation: 79, tally_apostrophe: 80)
+     ).merge(tally_colon: 41, tally_percent: 52, tally_exclamation: 79, tally_apostrophe: 80)
      .merge(("a".."z").each_with_index.to_h { |letter, n| [:"tally_#{letter}", 53 + n] })
      .merge(
        # Eight health levels, three looks each — the face that watches you, glancing
@@ -140,6 +141,9 @@ module Wolf3D
     end
 
     def fonts = (0...FONTS).map { |n| font(n) }
+
+    # A chunk of words, or nothing for a release that does not hold it.
+    def text(n) = n < chunk_count ? chunk(n).force_encoding("BINARY") : ""
 
     # The names this release knows its pictures by, or none when we have not read that
     # release's order off a copy of it.

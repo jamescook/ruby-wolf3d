@@ -192,7 +192,7 @@ measuring dial, not a way to play:
 WOLF3D_SCREEN=credits ruby wolf3d.rb
 ```
 
-The names are `notice`, `title`, `credits`, `menu`, `episodes`, `difficulty`, `playing`, `load` and `scores`.
+The names are `notice`, `title`, `credits`, `menu`, `episodes`, `difficulty`, `playing`, `load`, `scores` and `won`.
 Asking for `episodes` on a cartridge holding one is a build error that says so.
 
 **The title and the credits drift.** Both were painted 320×200 for a screen this console does
@@ -213,6 +213,10 @@ What the menu offers, and what it does not: NEW GAME (END GAME once a game is on
 SAVE GAME greyed until a game is on, SOUND on or off, VIEW SCORES, and BACK TO DEMO (BACK TO GAME
 from a pause). The original's Read This! and Control screens are not offered — the first has nothing
 to show yet and the second calibrates a mouse and a joystick.
+
+**Winning an episode** goes as it does in the original: BJ runs out of the castle and jumps, then a
+screen gives your time and averages over the episode, then the story of what happens next, then
+the table.
 
 **The high score table** holds seven games and survives the power going off. It follows the credits
 in the attract loop, and a game that earns a row asks for a name: up and down change the letter,

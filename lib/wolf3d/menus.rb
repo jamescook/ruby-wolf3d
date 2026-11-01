@@ -40,6 +40,8 @@ module Wolf3D
     OVERWRITING = 9 # whether to save over the game already in a slot
     SCORES = 10     # the high score table
     NAMING = 11     # the same table, with a name to pick for the row you earned
+    WINNING = 12    # the screen that says you won
+    ARTICLE = 13    # what the episode ends on
 
     ACROSS = FirstPerson::ACROSS
     DOWN = FirstPerson::DOWN
@@ -165,7 +167,7 @@ module Wolf3D
     # THE SCREENS BY NAME, so a cartridge can be built to boot on one of them. See +starting_on+.
     BY_NAME = { "notice" => NOTICE, "title" => TITLE, "credits" => CREDITS, "menu" => MENU,
                 "episodes" => EPISODES, "difficulty" => DIFFICULTY, "playing" => PLAYING,
-                "load" => LOADING, "scores" => SCORES }.freeze
+                "load" => LOADING, "scores" => SCORES, "won" => WINNING }.freeze
 
     # Which screen a name means, or nothing said, which means the beginning.
     def self.screen_named(name)
@@ -212,6 +214,7 @@ module Wolf3D
                LOADING => :load_game, SAVING => :save_game, OVERWRITING => :confirm_overwrite,
                SCORES => :high_scores, NAMING => :pick_a_name }
       list[EPISODES] = :the_episodes if offers_episodes?
+      list.merge!(WINNING => :you_win, ARTICLE => :end_article) if episodes_can_end?
       list
     end
 
@@ -244,7 +247,8 @@ module Wolf3D
       # declares it and this asks the view for it.
       @difficulty = @view.difficulty
       @saved = SavedGames.new(build: @b, view: @view)
-      @scores = HighScores.new(build: @b, art: @art, palette: @palette, view: @view,
+      @letters = SmallLetters.new(build: @b, art: @art, palette: @palette, ink: HighScores::INK, ground: BACKGROUND)
+      @scores = HighScores.new(build: @b, letters: @letters, palette: @palette, view: @view,
                                player: @view.player, floor: @view.playthrough.floor)
       @view.hand_end_of_game_to_menus
       # Where the table goes back to, and whether it moves on by itself as it does in the attract loop.
@@ -273,7 +277,7 @@ module Wolf3D
 
     def declare_the_art
       %i[notice title credits menu_heading menu_gun menu_gun_firing load_game_heading save_game_heading
-         high_scores level_label name_label score_label]
+         high_scores level_label name_label score_label bj_wins]
         .each { |name| picture(name) }
       DIFFICULTIES.each { |(_, _, portrait)| picture(portrait) }
     end
@@ -304,6 +308,7 @@ module Wolf3D
       declare_slot_screen(:save_game, :save_game_heading) { |n| save_to_slot(n) }
       declare_overwrite_question
       declare_score_screens
+      declare_episode_end_screens if episodes_can_end?
     end
 
     # --- THE ATTRACT LOOP ------------------------------------------------------------------
@@ -527,11 +532,59 @@ module Wolf3D
       leaving_for SCORES
     end
 
+    # AN EPISODE WON GOES STRAIGHT TO THE SCREEN THAT SAYS SO (the original's ex_victorious).
+    def show_the_win
+      return unless @view.won
+
+      if @view.won == 1 && @going_to == NOWHERE
+        @episode_end.add_up_the_episode
+        leaving_for WINNING
+      end
+    end
+
+    # Can an episode be won on this cartridge? Most test cartridges have no way to.
+    def episodes_can_end? = !@view.won.nil?
+
+    def declare_episode_end_screens
+      @episode_end = EpisodeEnd.new(build: @b, art: @art, letters: @letters, lettering: @view.big_lettering,
+                                    records: @view.records, floor: @view.playthrough.floor, floors: @view.floors)
+      # A cartridge built to boot here has won nothing, so the sums are done for it.
+      @episode_end.add_up_the_episode if @starting_on == WINNING
+      @b.scene(:you_win) do
+        @episode_end.draw_summary
+        leave_the_summary if @b.pressed(:any)
+        arriving
+      end
+      @b.scene(:end_article) do
+        @episode_end.draw_page
+        turn_the_page if @b.pressed(:any)
+        arriving
+      end
+    end
+
+    def leave_the_summary
+      if @going_to == NOWHERE
+        @episode_end.open_article
+        if @episode_end.article_open
+          leaving_for ARTICLE
+        else
+          finish_game
+        end
+      end
+    end
+
+    def turn_the_page
+      if @going_to == NOWHERE
+        @episode_end.turn_page
+        finish_game unless @episode_end.article_open
+      end
+    end
+
     # START ON A GAME OVER, which a cartridge with nothing on it to kill you does not have.
     def finish_game_on_start
       return unless @view.over
 
-      finish_game if @view.over == 1 && @b.pressed(:start)
+      finish_game if @view.over == 1 && @b.pressed(:start) && @going_to == NOWHERE
     end
 
     # THE GAME IS DONE, and the table comes next, with a name to pick if it earned a row
@@ -642,8 +695,9 @@ module Wolf3D
     #
     # NOR WHILE THE DEATH CAM RUNS, which is a game already over.
     def pausing
+      show_the_win
       finish_game_on_start
-      pause_unless([@view.over, @view.dying, @view.between_floors, @view.watching].compact)
+      pause_unless([@view.over, @view.dying, @view.between_floors, @view.watching, @view.marching].compact)
     end
 
     # Each of +flags+ is 1 while START must not pause. A cartridge may hold neither of them.

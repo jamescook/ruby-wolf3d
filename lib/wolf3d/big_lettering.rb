@@ -37,12 +37,14 @@ module Wolf3D
     # A FIGURE IS NOT, so each place works out its digit as the game runs, and places the number
     # has not reached are left as bare ground. The numerals are solid pictures of one size, so the
     # number stands against the right of its room as the original's does.
-    def draw_a_figure(value, x, y, digits:)
+    #
+    # +zeros+ writes those places as noughts, as a clock does.
+    def draw_a_figure(value, x, y, digits:, zeros: false)
       return @b.draw_number(value, x, y, colour(INK), digits: digits, font: FONT) unless @art
 
       digits.times do |i|
         place = 10**(digits - 1 - i)
-        if place == 1 || value >= place
+        if zeros || place == 1 || value >= place
           @numeral = (value / place) % 10
           # HALF THE COLUMN, DOUBLED: the framework draws a picture only where it can prove the
           # column is even, and twice anything is.
@@ -84,6 +86,7 @@ module Wolf3D
     def picture_of(char)
       case char
       when "%" then :tally_percent
+      when ":" then :tally_colon
       when "!" then :tally_exclamation
       when "'" then :tally_apostrophe
       else :"tally_#{char.downcase}"

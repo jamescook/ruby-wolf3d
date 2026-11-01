@@ -33,6 +33,7 @@ module Wolf3D
     NOTICES_YOU = 0     # "Halt!" — a guard the moment he sees you
     GUARD_FIRES = 21     # ...and his gun
     SLURP = 22           # Hitler going down
+    YEAH = 32            # BJ, jumping for joy
     MACHINE_TREAD = 31   # the machine's footfall
     DOG_BITES = 29
     DOOR_OPENS = 3
@@ -118,6 +119,7 @@ module Wolf3D
     def tread = say(voice(MACHINE_TREAD))
     def slurp = say(voice(SLURP))
     def rare_scream = say(voice(RARE_SCREAM))
+    def yeah = say(voice(YEAH))
     def door_opens = retrigger(DOOR_OPENS)
     def door_shuts = retrigger(DOOR_SHUTS)
     def secret_wall = retrigger(SECRET_WALL)
@@ -200,7 +202,7 @@ module Wolf3D
       said += [DOG_BITES] if @kinds.include?(:dog)
       said += [MACHINE_TREAD] if @kinds.include?(:mecha)
       said += [SLURP] if @kinds.include?(:hitler)
-      said += [RARE_SCREAM]
+      said += [RARE_SCREAM, YEAH]
       said.compact.uniq - [:a_scream]
     end
 

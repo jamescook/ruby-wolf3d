@@ -198,6 +198,9 @@ module Wolf3D
     # The player, for the table of high scores to read the score off.
     attr_reader :player
 
+    # How each floor of the episode went, for the screen at the end of it.
+    attr_reader :records
+
     # WHAT COMES AFTER GAME OVER, handed to the menus on a cartridge that has them: the score
     # table, where one with no menus begins another game with START.
     def hand_end_of_game_to_menus = @lives.hand_end_of_game_to_menus
@@ -213,6 +216,12 @@ module Wolf3D
     # Whether the game has ended, or nil where nothing can kill you. See {Lives#over}.
     def over = @lives.over
 
+    # Whether an episode has been won, or nil on a cartridge where none can be. See {Victory#over}.
+    def won = @victory&.over
+
+    # 1 while BJ runs out of the castle, or nil on a cartridge with no such floor.
+    def marching = @march&.running
+
     # THE FIVE STEPS PLAY STARTS WITH. The playthrough decides which of them each reason runs and
     # in what order; these are what each one does to this view and the parts of the game it holds.
 
@@ -221,6 +230,7 @@ module Wolf3D
       @lives.start_again
       @scoring.start_again
       @victory&.start_again
+      @records.start_again
     end
 
     # A FRESH PLAYER: full health, the pistol and eight rounds, which is what the original's Died
@@ -274,6 +284,7 @@ module Wolf3D
     # out rather than written down (where each guard stands) are read from one place by both.
     def reset_floor
       @player.keys = 0
+      @records.start_floor
       # ...and none of the floor has been found yet, which is what makes these a share of it.
       @player.kills = 0
       @player.secrets = 0
@@ -295,6 +306,7 @@ module Wolf3D
       @guard_pool&.refill(slot: @slot, kill_total: @kill_total)
       @mind&.thrown&.clear
       @cam&.start_again
+      @march&.start_again
       @flash.finish
       @dying&.start_again
     end
@@ -384,7 +396,9 @@ module Wolf3D
     # last picture of the game is what the words sit over.
     def still_playing
       alive = @dying ? @dying.alive : (@player.health > 0)
-      @victory ? alive & (@victory.over == 0) : alive
+      return alive unless @victory
+
+      @march ? alive & (@victory.over == 0) & (@march.running == 0) : alive & (@victory.over == 0)
     end
 
     # ...and is it yours to steer? Not while the death cam is watching him fall: the world goes on
@@ -403,7 +417,9 @@ module Wolf3D
     # frame spends nearly all of itself on are simply not cast.
     def move_the_world
       walk if in_control
+      @records.tick if in_control
       @dying&.turn
+      @march&.update
 
       if @standing
         # Which way the eye points, worked out once a move: the shot needs it and so does
@@ -652,6 +668,7 @@ module Wolf3D
       declare_the_dying
       @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying, lasting: @lasting)
       @scoring = Scoring.new(build: b, player: @player, lives: @lives, lasting: @lasting)
+      @records = FloorRecords.new(build: b, lasting: @lasting)
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
       # floor you can walk out of, which is a boss floor — see Level::EXIT.
       @victory = Victory.new(build: b, lives: @lives, lasting: @lasting) if any_episode_can_end?
@@ -923,11 +940,19 @@ module Wolf3D
     def declare_the_standing
       return unless anything_stands_anywhere?
 
-      @standing = Billboards.new(build: @b, things: @things, scenery: @scenery,
+      declare_the_march
+      @standing = Billboards.new(build: @b, things: @things, scenery: @scenery, march: @march,
                                  floors: (@floors if @floors.count > 1), this_floor: @this_floor,
                                  rooms: @rooms, piece_room: declare_the_pieces_rooms,
                                  guards: @guards, pool: @guard_pool&.pool, mind: @mind,
                                  pickups: @pickups, player: @player)
+    end
+
+    # BJ'S RUN, where his pictures are on the cartridge. See VictoryMarch.
+    def declare_the_march
+      return unless @victory && @things&.position_of(VictoryMarch::FIRST_PICTURE)
+
+      @march = VictoryMarch.new(build: @b, player: @player, victory: @victory, things: @things, sounds: @sounds)
     end
 
     # WHICH ROOM EACH PIECE OF SCENERY STANDS IN, worked out while building because a lamp does not
@@ -993,7 +1018,7 @@ module Wolf3D
     # A routine, because this picture costs nothing in a frame that matters and the game loop
     # keeps its quick memory for the ones that do.
     def declare_the_tally
-      @tally = Tally.new(build: @b, player: @player, scoring: @scoring, floors: @floors, floor: @floor,
+      @tally = Tally.new(build: @b, player: @player, scoring: @scoring, floors: @floors, floor: @floor, records: @records,
                          playthrough: @playthrough, secret_lift: @lift_secret, lettering: big_lettering,
                          totals: { kill: @kill_total, secret: @secret_total, treasure: @treasure_total })
       @b.func(:the_end_of_a_floor, fast: false) do
@@ -1015,10 +1040,11 @@ module Wolf3D
     end
 
     # One set of the big letters for all that are written in them, holding what those write.
-    def big_lettering
+    public def big_lettering
       @big_lettering ||= begin
-        printed = (lifts? ? Tally::PRINTED : []) + (@behaviour.any?(:cam) ? DeathCam::PRINTED : [])
-        BigLettering.new(build: @b, art: @lettering, printed: printed.uniq, figures: lifts?)
+        printed = (lifts? ? Tally::PRINTED : []) + (@behaviour.any?(:cam) ? DeathCam::PRINTED : []) +
+                  (any_episode_can_end? ? EpisodeEnd::PRINTED : [])
+        BigLettering.new(build: @b, art: @lettering, printed: printed.uniq, figures: lifts? || any_episode_can_end?)
       end
     end
 
@@ -1222,7 +1248,14 @@ module Wolf3D
       return unless @exit_first
 
       @here = (@player.y.to_i * @level.width) + @player.x.to_i
-      @victory.won if @here >= @exit_first[@floor] && @here <= @exit_last[@floor]
+      leave_by_the_way_out if @here >= @exit_first[@floor] && @here <= @exit_last[@floor]
+    end
+
+    # ...AND THE CEREMONY, on a copy of the game that holds his pictures.
+    def leave_by_the_way_out
+      return @victory.won unless @march
+
+      @march.begin_march
     end
 
     # Can the player stand here? Open floor, or a doorway whose panel has slid far enough out

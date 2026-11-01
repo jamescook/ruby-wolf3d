@@ -5,10 +5,7 @@ module Wolf3D
   # survive the power going off, and a new cartridge starts with the seven names the original ships
   # (id_us_1.cpp, Scores).
   #
-  # A NAME IS HELD AS LETTERS, one list for all seven, and that is why it is drawn a letter at a time.
-  # The framework's words are painted into the cartridge as it is built, so a word nobody has typed
-  # yet cannot be one of them. Each letter of the small alphabet is a little picture instead, and the
-  # columns they land on are even because that is all a picture here can start on.
+  # A NAME IS HELD AS LETTERS, one list for all seven, and drawn a letter at a time. See SmallLetters.
   #
   # ON A PAD a name is picked a letter at a time, which the original has no need of: up and down
   # change the letter, left and right change which one.
@@ -28,8 +25,6 @@ module Wolf3D
 
     # What a letter picked with the pad runs through, from a blank.
     ALPHABET = " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-'./"
-    # ...and every character a name on this table can hold.
-    LETTERS = Ractor.make_shareable((ALPHABET + STARTING_NAMES.join).chars.uniq - [" "])
 
     # Where the three columns go, and the rows. The original's are for a screen 320 by 200.
     NAME_X = 16
@@ -45,17 +40,14 @@ module Wolf3D
     # White, the original's SETFONTCOLOR(15, ...), on the ground every menu here is drawn on.
     INK = 15
 
-    # A BLANK IS AS WIDE AS A THIN LETTER.
-    BLANK_WIDTH = 6
-
     # How many passes a held button waits between letters.
     HELD_REPEAT = 8
 
     NOBODY = -1
 
-    def initialize(build:, art:, palette:, view:, player:, floor:)
+    def initialize(build:, letters:, palette:, view:, player:, floor:)
       @b = build
-      @art = art
+      @letters = letters
       @palette = palette
       @player = player
       @floor = floor
@@ -108,9 +100,6 @@ module Wolf3D
       @row = b.var :_score_row, 0
       @letter = b.var :_score_letter, 0
       @column = b.var :_score_column, 0
-      @code = b.var :_score_code, 0
-      @half_x = b.var :_score_half_x, 0
-      @y = b.var :_score_y, 0
       @spot = b.var :_score_spot, 0
       @from = b.var :_score_from, 0
       @wait = b.var :_score_wait, 0
@@ -119,35 +108,10 @@ module Wolf3D
       @alphabet = b.table :high_score_alphabet, ALPHABET.chars.map(&:ord), width: :byte
       @floor_number = b.table :high_score_floor_number, @floors.map { |f| (f.index % Floors::PER_EPISODE) + 1 }, width: :byte
       @episode_number = b.table :high_score_episode_number, @floors.map { |f| (f.index / Floors::PER_EPISODE) + 1 }, width: :byte
-      declare_letters
       b.func(:enter_high_score, fast: false) { insert_game }
       b.func(:edit_high_score_name, fast: false) { edit_letter }
       b.func(:draw_high_score_names, fast: false) { draw_names }
-      b.func(:draw_high_score_letter, fast: false) { draw_letter }
     end
-
-    # EVERY LETTER AS A PICTURE, in its own width made up to an even number. See the class.
-    def declare_letters
-      glyphs = @art.font(0)
-      @pictured = LETTERS.select { |char| glyphs[char] }
-      @pictured.each do |char|
-        rows = glyphs[char]
-        wide = even_width(rows)
-        @b.image letter_picture(char), width: wide, height: rows.length,
-                                       data: rows.flat_map { |row| painted(row, wide) }
-      end
-      widths = (0..127).map { |code| glyphs[code.chr] && code.chr != " " ? even_width(glyphs[code.chr]) : BLANK_WIDTH }
-      @width_of = @b.table :high_score_letter_width, widths, width: :byte
-    end
-
-    def even_width(rows) = (rows.first.length + 1) & ~1
-
-    def painted(row, wide)
-      ground = @palette[Menus::BACKGROUND]
-      row.map { |ink| ink.zero? ? ground : @palette[INK] } + ([ground] * (wide - row.length))
-    end
-
-    def letter_picture(char) = :"score_letter_#{char.ord}"
 
     def insert_game
       @earned_floor = @floor_number[@floor]
@@ -217,44 +181,28 @@ module Wolf3D
 
     def draw_names
       @b.repeat(ROWS) do |row|
-        @half_x = NAME_X / 2
-        @y = TOP_ROW + (row * ROW_STEP)
+        @letters.start_at(NAME_X, TOP_ROW + (row * ROW_STEP))
         @spot = row * NAME_ROOM
-        @b.repeat(NAME_ROOM) do |n|
-          @code = @names[@spot + n]
-          @b.call :draw_high_score_letter
-          @half_x += @width_of[@code] / 2
-        end
+        @b.repeat(NAME_ROOM) { |n| @letters.draw(@names[@spot + n]) }
         draw_figures(row)
       end
-    end
-
-    # ONE TEST PER LETTER, once, and every place calls it.
-    def draw_letter
-      @pictured.each { |char| @b.blit letter_picture(char), @half_x * 2, @y if @code == char.ord }
     end
 
     # WHICH FLOOR, AS THE ORIGINAL WRITES IT, E1/L3, and the score against the right of its room. In
     # these little pictures rather than `draw_number`, whose digits each take the width of the widest
     # letter in the alphabet, which leaves a score running off the screen.
     def draw_figures(row)
-      @half_x = FLOOR_X / 2
-      draw_character("E")
+      @letters.start_at(FLOOR_X, TOP_ROW + (row * ROW_STEP))
+      @letters.draw("E".ord)
       @number = @episodes[row]
       draw_digits(1)
-      draw_character("/")
-      draw_character("L")
+      @letters.draw("/".ord)
+      @letters.draw("L".ord)
       @number = @levels[row]
       draw_digits(FLOOR_DIGITS)
-      @half_x = SCORE_X / 2
+      @letters.start_at(SCORE_X, TOP_ROW + (row * ROW_STEP))
       @number = @scores[row]
       draw_digits(SCORE_DIGITS)
-    end
-
-    def draw_character(char)
-      @code = char.ord
-      @b.call :draw_high_score_letter
-      @half_x += @width_of[@code] / 2
     end
 
     # @number, in +digits+ places, with places it has not reached left bare.
@@ -262,19 +210,19 @@ module Wolf3D
       digits.times do |i|
         place = 10**(digits - 1 - i)
         if place == 1 || @number >= place
-          @code = "0".ord + ((@number / place) % 10)
-          @b.call :draw_high_score_letter
+          @letters.draw("0".ord + ((@number / place) % 10))
+        else
+          @letters.skip(DIGIT_WIDTH)
         end
-        @half_x += DIGIT_WIDTH / 2
       end
     end
 
     # A line under the letter being picked. The width of the letters before it is walked again.
     def draw_cursor
-      @half_x = NAME_X / 2
+      @letters.start_at(NAME_X, 0)
       @spot = @new_row * NAME_ROOM
-      @b.repeat(@column) { |n| @half_x += @width_of[@names[@spot + n]] / 2 }
-      @b.draw_rect_at @half_x * 2, TOP_ROW + (@new_row * ROW_STEP) + 11, BLANK_WIDTH, 1, @palette[INK]
+      @b.repeat(@column) { |n| @letters.skip_past(@names[@spot + n]) }
+      @b.draw_rect_at @letters.x, TOP_ROW + (@new_row * ROW_STEP) + 11, SmallLetters::BLANK_WIDTH, 1, @palette[INK]
     end
   end
 end

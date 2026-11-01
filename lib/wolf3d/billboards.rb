@@ -62,7 +62,7 @@ module Wolf3D
     # +floors+ is every floor the cartridge holds, when there is more than one, and +this_floor+
     # says where the floor being played begins in the tables of every floor's pieces and how many
     # it has.
-    def initialize(build:, things:, player:, scenery: nil, guards: nil, pool: nil, mind: nil,
+    def initialize(build:, things:, player:, scenery: nil, guards: nil, pool: nil, mind: nil, march: nil,
                    pickups: nil, floors: nil, this_floor: nil,
                    rooms: nil, piece_room: nil)
       @b = build
@@ -77,6 +77,7 @@ module Wolf3D
       @pool = pool
       @mind = mind
       @pickups = pickups  # what is still lying on the floor, and where a guard dropped one
+      @march = march      # BJ running out of the castle, or nil
       @thrown = mind&.thrown # what is in the air, or nil on a cartridge where nobody throws
       @banner = @things.position_of(Enemy::DEATH_CAM_PICTURE) || 0
       declare
@@ -103,6 +104,7 @@ module Wolf3D
       # guards thought — the shot needed it too.
       @pool&.each { |guard| look_at_a_guard(guard) }
       @thrown&.pool&.each { |shot| look_at_something_thrown(shot) }
+      look_at_bj if @march
       @b.call :draw_what_is_on_screen
     end
 
@@ -425,6 +427,18 @@ module Wolf3D
         pick_which_of_eight(shot.dir)
         @shape = @thrown.shape_of[shot.row] + (@pose * @thrown.turns_of[shot.row])
         @b.call :remember_a_standing_thing
+      end
+    end
+
+    # BJ HAS ONE PICTURE FOR EVERY WAY ROUND, and it is the side he shows a camera in front of him.
+    def look_at_bj
+      if @march.running == 1
+        place(@march.x, @march.y, NUDGE)
+        if @fwd > NEAREST
+          size_it_on_screen
+          @shape = @march.picture
+          @b.call :remember_a_standing_thing
+        end
       end
     end
 

@@ -72,7 +72,7 @@ module Wolf3D
     # being played, and +secret_lift+ says which lever called the lift, for the playthrough.
     # +lettering+ is what the words are written in, or the framework's font if nothing says. See
     # BigLettering.
-    def initialize(build:, player:, scoring:, totals:, floors:, floor:, playthrough:, secret_lift:,
+    def initialize(build:, player:, scoring:, totals:, floors:, floor:, playthrough:, secret_lift:, records:,
                    lettering: BigLettering.new(build:, art: nil, printed: []))
       @b = build
       @player = player
@@ -82,6 +82,7 @@ module Wolf3D
       @playthrough = playthrough
       @secret_lift = secret_lift
       @lettering = lettering
+      @records = records # how each floor went, for the end of the episode
       @found = { kill: [player.kills, totals.fetch(:kill)],
                  secret: [player.secrets, totals.fetch(:secret)],
                  treasure: [player.treasures, totals.fetch(:treasure)] }
@@ -134,6 +135,7 @@ module Wolf3D
           @ratios[name] = found * 100 / total if total > 0
           @bonus += FOR_A_HUNDRED_PER_CENT if @ratios[name] >= 100
         end
+        @records.record(@floor_number[@floor] - 1, kill: @ratios[:kill], secret: @ratios[:secret], treasure: @ratios[:treasure])
       end
       @scoring.pay(@bonus)
       # The original takes your keys before this screen, so the bar is already empty on it.

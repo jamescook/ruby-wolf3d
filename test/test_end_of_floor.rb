@@ -38,6 +38,7 @@ class TestEndOfFloor < Minitest::Test
       scoring = Wolf3D::Scoring.new(build: self, player: player, lives: Wolf3D::Lives.new(build: self, playthrough: playthrough),
                                     lasting: Wolf3D::LastingState.new(build: self))
       tally = Tally.new(build: self, player: player, scoring: scoring, floors: floors, floor: playthrough.floor,
+                        records: Wolf3D::FloorRecords.new(build: self, lasting: Wolf3D::LastingState.new(build: self)),
                         playthrough: playthrough, secret_lift: var(:secret_lift, 0),
                         totals: { kill: var(:kill_total, kill_total),
                                   secret: var(:secret_total, secret_total),

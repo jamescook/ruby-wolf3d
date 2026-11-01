@@ -145,7 +145,8 @@ module Wolf3DTest
 
     def pictures_on(floors)
       floors.flat_map do |floor|
-        floor.guards.pictures + floor.scenery.pictures + Wolf3D::Pickups.pictures(floor.guards)
+        floor.guards.pictures + floor.scenery.pictures + Wolf3D::Pickups.pictures(floor.guards) +
+          Wolf3D::VictoryMarch.pictures([floor], vswap)
       end.uniq.sort
     end
   end
