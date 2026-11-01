@@ -8,11 +8,11 @@ module Wolf3D
   # which of them you reached and what it says. Written against that shape rather than beside it
   # so the menus have one question to ask ("is a game still being played") and not two.
   #
-  # WHAT ENDS AN EPISODE IS WALKING OUT OF IT, not killing the boss — see Level::EXIT. The boss
-  # stands between you and a gold-locked door, and the corridor behind it is where the way out
-  # lies, so the key he leaves is what killing him buys. That is the original's own arrangement
-  # and it is a better fight than "the boss falls and the screen changes": you still have to get
-  # past him and out.
+  # WHAT ENDS AN EPISODE IS WALKING OUT OF IT, not killing the boss — see Level::EXIT — on the two
+  # floors that have a way out. The boss stands between you and a gold-locked door, and the corridor
+  # behind it is where the way out lies, so the key he leaves is what killing him buys. That is the
+  # original's own arrangement and it is a better fight than "the boss falls and the screen changes":
+  # you still have to get past him and out. On the other four the boss's fall ends it. See DeathCam.
   #
   # WHAT THIS IS NOT YET is the original's victory: the march up the screen, the text of what
   # you did, the tally of the floor. That is a screen of its own and is filed as its own piece of

@@ -62,7 +62,8 @@ VBlank.require_game_file "wolf3d/lives"
 VBlank.require_game_file "wolf3d/victory"
 # ...and what starts play again after either of them, or at the bottom of a lift.
 VBlank.require_game_file "wolf3d/playthrough"
-# ...and the screen a lift arrives at, which hands on to the playthrough.
+# ...and the screen a lift arrives at, which hands on to the playthrough, and what it is written in.
+VBlank.require_game_file "wolf3d/big_lettering"
 VBlank.require_game_file "wolf3d/tally"
 # ...and after the view, whose START_HEALTH and KEY_BITS say what a full player is and what a key
 # is worth, and after lives, which a one-up on the floor hands another of.
@@ -72,6 +73,7 @@ VBlank.require_game_file "wolf3d/sounds"
 # where the middle of the screen falls is what a shot is aimed by.
 VBlank.require_game_file "wolf3d/billboards"
 VBlank.require_game_file "wolf3d/thrown"
+VBlank.require_game_file "wolf3d/death_cam"
 VBlank.require_game_file "wolf3d/guard_mind"
 require_relative "wolf3d/map_view"
 require_relative "wolf3d/palette_view"

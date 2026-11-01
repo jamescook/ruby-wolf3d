@@ -34,6 +34,7 @@ module Wolf3D
     WITH_A_GUN = Enemy::ATTACKS.fetch(:gun)
     WITH_TEETH = Enemy::ATTACKS.fetch(:teeth)
     MORPHS = Enemy::ATTACKS.fetch(:morph)
+    FINISHED = Enemy::ATTACKS.fetch(:cam)
     FIRST_THROWN = Enemy::ATTACKS.fetch(Enemy::THROWN.first)
 
     # HOW OFTEN ONE WHO THROWS DOES, out of 256 for each think it has a clear line, and distance has
@@ -63,9 +64,10 @@ module Wolf3D
 
     def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, things:,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
-                   rooms: nil, floors: nil, difficulty: nil, lasting: nil)
+                   rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil)
       @b = build
       @lasting = lasting # what a saved game holds, which what is in the air is part of
+      @cam = death_cam   # how an episode ends, or nil on a cartridge with no such boss
       # THE STATE TABLE OF EVERY KIND THIS CARTRIDGE HOLDS. A build that says nothing gets the
       # guard's alone, which is what every test of the guard himself wants.
       @behaviour = behaviour || Behaviour.for([:guard])
@@ -151,6 +153,7 @@ module Wolf3D
       # ...and what killing it is worth, and what it leaves lying where it fell.
       @points_of = b.table :guard_points, rows.map { |n| @behaviour.points_from(n) }, width: :half
       @leaves_of = b.table :guard_leaves, rows.map { |n| @behaviour.leaves_from(n) }, width: :byte
+      @ends_episode = b.table(:guard_ends_episode, rows.map { |n| @behaviour.ends_the_episode_from(n) }, width: :byte) if @cam
 
       # WHICH WAY EACH DIRECTION GOES, one cell at a time. Nine entries: eight ways round and
       # then nowhere, which is where a guard hemmed in on every side ends up.
@@ -331,6 +334,7 @@ module Wolf3D
       bite_the_player(guard) if @blow == WITH_TEETH if @behaviour.any?(:teeth)
       @thrown.throw_from(guard, @blow - FIRST_THROWN) if @blow >= FIRST_THROWN if @thrown
       let_the_man_out(guard) if @blow == MORPHS if @behaviour.man_inside?
+      @cam.he_is_down(guard) if @blow == FINISHED if @cam
     end
 
     # THE MACHINE IS DOWN AND THE MAN GETS OUT, where it stands and going the way it was going
@@ -366,6 +370,15 @@ module Wolf3D
     def hit_the_player(shot, blow)
       @wound = blow
       take_it_out_of_the_player(shot)
+    end
+
+    # THE DEATH CAM HAS LINED UP, and the body in slot +boss+ gets up and falls again: from the first
+    # picture of the fall, which a body's state still knows the way to.
+    def fall_again(boss)
+      hit = %i[state ticks].to_h { |field| [field, @pool.field_ref(field, boss)] }
+      @blow = @fall_of[hit[:state]]
+      hit[:state] = @blow
+      hit[:ticks] = @ticks_of[@blow]
     end
 
     private
@@ -424,8 +437,12 @@ module Wolf3D
     # A bullet and a set of teeth both come through here, which is where the original puts the
     # setting's own softening too — at the health rather than at the shot, so every wound goes
     # through it.
+    #
+    # AND NOTHING HURTS YOU ONCE THE DEATH CAM HAS STARTED, which is the first line of the original's
+    # (TakeDamage, wl_agent.cpp): you are not there any more.
     def take_it_out_of_the_player(guard)
       gently
+      @wound = 0 if @cam.stage > 0 if @cam
       @player.health -= @wound
       if @player.health <= 0
         @player.health = 0
@@ -1008,6 +1025,7 @@ module Wolf3D
         # over — a state number is what says which kind he is, and in a moment it will say he is
         # a body instead.
         @player.score += @points_of[hit[:state]]
+        @cam.remember_the_spot if @ends_episode[hit[:state]] == 1 if @cam
         @left = @leaves_of[hit[:state]]
         @blow = @fall_of[hit[:state]]
         hit[:state] = @blow

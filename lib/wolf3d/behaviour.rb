@@ -125,6 +125,9 @@ module Wolf3D
     # no biting, so neither costs a comparison.
     def any?(job) = @states.any? { |s| s.think == job || s.fires == job }
 
+    # Does the thing in this state end the episode by falling?
+    def ends_the_episode_from(number) = kind_at(number).ends_the_episode? ? 1 : 0
+
     # Does anything on this cartridge throw something?
     def throws? = Enemy::THROWN.any? { |what| any?(what) }
 

@@ -259,9 +259,11 @@ enemies stand on it, which is the game rather than the machinery.
 syringes, Giftmacher and Fettgesicht with their rockets, the fake Hitlers with their fire, and the
 machine with the man inside it.
 
-Not yet there: **the death cam**, which is how every boss floor but Hans's and Gretel's ends, so you
-can kill Schabbs, Giftmacher, Fettgesicht and Hitler but cannot yet leave their floors; and the
-AdLib music and the effects Wolfenstein never recorded to raw PCM.
+**Killing Schabbs, Giftmacher, Fettgesicht or Hitler ends the episode**, by way of the death cam:
+"Let's see that again!", and he falls a second time in front of you. Hans and Gretel leave the gold
+key to the way out instead.
+
+Not yet there: the AdLib music and the effects Wolfenstein never recorded to raw PCM.
 
 **All six episodes fit on one cartridge**, which is sixty floors and 16MB. It nearly did not: five
 kinds of enemy took the pool the floor's enemies stand in from 78 slots to 145, and a list used to

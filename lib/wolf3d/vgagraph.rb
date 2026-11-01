@@ -79,10 +79,10 @@ module Wolf3D
       (1..6).to_h { |n| [:"episode_#{n}", 26 + n] }
     ).merge((0..9).to_h { |d| [:"digit_#{d}", 96 + d] })
      .merge(
-       # THE BIG LETTERING OF THE SCREEN BETWEEN FLOORS, a picture for each character and no other
-       # screen uses it: ten numerals, the percent sign, the alphabet, then the exclamation mark.
+       # THE BIG LETTERING OF THE SCREEN BETWEEN FLOORS AND THE DEATH CAM, a picture for each
+       # character: ten numerals, the percent sign, the alphabet, the exclamation mark, the apostrophe.
        (0..9).to_h { |d| [:"tally_#{d}", 42 + d] }
-     ).merge(tally_percent: 52, tally_exclamation: 79)
+     ).merge(tally_percent: 52, tally_exclamation: 79, tally_apostrophe: 80)
      .merge(("a".."z").each_with_index.to_h { |letter, n| [:"tally_#{letter}", 53 + n] })
      .merge(
        # Eight health levels, three looks each — the face that watches you, glancing

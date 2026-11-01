@@ -179,12 +179,17 @@ module Wolf3D
     # ...and finished: a few pictures of falling and then a body on the floor, which lasts for
     # good because its length is nought. +first+ is the first picture's length where that differs
     # from the rest, and +last_does+ is an attack hung on the last of them.
-    def self.falling(poses, ticks, first: ticks, last_does: nil)
+    #
+    # +ends_it+ is one of the four whose fall ends the episode: the body lies for twenty units before
+    # the death cam takes over (the last of each one's dying states, A_StartDeathCam).
+    def self.falling(poses, ticks, first: ticks, last_does: nil, ends_it: false)
       last = poses.fall.length - 1
+      after = ends_it ? :lies : :dead
       poses.fall.each_with_index.map { |picture, n|
         state(:"fall#{n + 1}", picture, n.zero? ? first : ticks, nil,
-              n < last ? :"fall#{n + 2}" : :dead, turns: false, fires: n == last ? last_does : nil)
-      } + [state(:dead, poses.dead, 0, nil, :dead, turns: false)]
+              n < last ? :"fall#{n + 2}" : after, turns: false, fires: n == last ? last_does : nil)
+      } + [*(state(:lies, poses.dead, 20, nil, :dead, turns: false, fires: :cam) if ends_it),
+           state(:dead, poses.dead, 0, nil, :dead, turns: false)]
     end
 
     # --- and what each of them does its own way -------------------------------------------
@@ -306,8 +311,8 @@ module Wolf3D
        state(:shoot2, THROWER_POSES.attack[1], 10, nil, :chase1, turns: false, fires: what)]
     end
 
-    SCHABBS_STATES = [*a_thrower(:needle), *falling(THROWER_POSES, 10)].freeze
-    GIFT_STATES = [*a_thrower(:rocket), *falling(THROWER_POSES, 10, first: 1)].freeze
+    SCHABBS_STATES = [*a_thrower(:needle), *falling(THROWER_POSES, 10, ends_it: true)].freeze
+    GIFT_STATES = [*a_thrower(:rocket), *falling(THROWER_POSES, 10, first: 1, ends_it: true)].freeze
 
     # FETTGESICHT THROWS AND SHOOTS: a rocket, and then four rounds of the chaingun before he walks
     # on, which is the one burst in the game that hurts you twice over. He has a picture more of
@@ -323,7 +328,7 @@ module Wolf3D
       state(:shoot4, FAT_POSES.attack[3], 10, nil, :shoot5, turns: false, fires: :gun),
       state(:shoot5, FAT_POSES.attack[2], 10, nil, :shoot6, turns: false, fires: :gun),
       state(:shoot6, FAT_POSES.attack[3], 10, nil, :chase1, turns: false, fires: :gun),
-      *falling(FAT_POSES, 10, first: 1)
+      *falling(FAT_POSES, 10, first: 1, ends_it: true)
     ].freeze
 
     # A FAKE HITLER BREATHES FIRE, eight flames to a burst from one picture held nine times. He has
@@ -370,7 +375,7 @@ module Wolf3D
       state(:inside, HITLER_POSES.walk[0], 0, nil, :inside, turns: false),
       *chasing_only(HITLER_POSES, lengths: [6, 4, 2]),
       *a_burst_of_five(HITLER_POSES),
-      *falling(HITLER_POSES, 10, first: 1)
+      *falling(HITLER_POSES, 10, first: 1, ends_it: true)
     ].freeze
 
     # --- all of them ------------------------------------------------------------------------
@@ -478,7 +483,7 @@ module Wolf3D
 
     # ...and what each attack is numbered, the same way. The three things thrown come last and in
     # this order, so what is thrown is the number less the first of them. See Thrown.
-    ATTACKS = { nil => 0, gun: 1, teeth: 2, morph: 3, needle: 4, rocket: 5, flame: 6 }.freeze
+    ATTACKS = { nil => 0, gun: 1, teeth: 2, morph: 3, cam: 4, needle: 5, rocket: 6, flame: 7 }.freeze
     THROWN = %i[needle rocket flame].freeze
 
     # WHAT EACH ONE LEAVES WHERE IT FALLS, numbered so a table can say it. Nought is nothing,
@@ -522,6 +527,9 @@ module Wolf3D
     # Is this one of the men a floor is counted by? The man inside the machine is not: killing him
     # adds to the kills, but the floor's total never counted him.
     def counted? = !has?(:inside)
+
+    # Does this one's fall end the episode? See DeathCam.
+    def ends_the_episode? = has?(:lies)
 
     # Which state one of these starts a floor in.
     def first_state(patrolling) = has?(:inside) ? :inside : (patrolling ? :path1 : :stand)

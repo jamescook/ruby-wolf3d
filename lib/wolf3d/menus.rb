@@ -448,8 +448,10 @@ module Wolf3D
     #
     # NOR WHILE YOU ARE DYING. The original reads no keys until a death is over (Died, wl_game.cpp),
     # and here the fizzle adds to the picture already there, which would be the menu.
+    #
+    # NOR WHILE THE DEATH CAM RUNS, which is a game already over.
     def pausing
-      pause_unless([@view.over, @view.dying, @view.between_floors].compact)
+      pause_unless([@view.over, @view.dying, @view.between_floors, @view.watching].compact)
     end
 
     # Each of +flags+ is 1 while START must not pause. A cartridge may hold neither of them.

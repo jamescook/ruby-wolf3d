@@ -281,6 +281,7 @@ module Wolf3D
       @pickups&.put_them_all_back
       @guard_pool&.refill(slot: @slot, kill_total: @kill_total)
       @mind&.thrown&.clear
+      @cam&.start_again
       @dying&.start_again
     end
 
@@ -329,7 +330,19 @@ module Wolf3D
     # from. The lift's wait, and then that screen, are the only things a pass does. The original
     # waits for the lift's sound inside the code that pulled the lever (wl_agent.cpp, Cmd_Use), so
     # nothing else in the game runs, and nobody can shoot you on your way out. See Tally.
+    #
+    # SO DOES THE DEATH CAM, for as long as it holds the picture.
     def play
+      return play_on unless @cam
+
+      if @cam.holding == 1
+        @cam.update
+      else
+        play_on
+      end
+    end
+
+    def play_on
       return take_a_turn unless @tally
 
       if @tally.showing == 1
@@ -343,7 +356,7 @@ module Wolf3D
 
     def take_a_turn
       @b.call :the_world_takes_a_step if @pacing == :by_the_pass
-      if still_playing
+      if in_control
         @b.call :a_door_opens
         @b.call :the_player_fires
       end
@@ -357,6 +370,12 @@ module Wolf3D
       @victory ? alive & (@victory.over == 0) : alive
     end
 
+    # ...and is it yours to steer? Not while the death cam is watching him fall: the world goes on
+    # moving, and you are what is looking at it.
+    def in_control
+      @cam ? still_playing & (@cam.stage == DeathCam::NOT_RUNNING) : still_playing
+    end
+
     # EVERYTHING THAT MOVES, in one place so that where it is CALLED FROM is the only thing that
     # decides how the world is paced. See PACING.
     #
@@ -366,7 +385,7 @@ module Wolf3D
     # is what the original does and is also what makes it affordable: the eighty rays a normal
     # frame spends nearly all of itself on are simply not cast.
     def move_the_world
-      walk if still_playing
+      walk if in_control
       @dying&.turn
 
       if @standing
@@ -396,9 +415,15 @@ module Wolf3D
       return unless @pacing == :by_the_frame
 
       @b.once_a_frame(:the_world_moves) do
-        next move_the_world unless @tally
+        move_the_world_unless_something_holds_it
+      end
+    end
 
-        move_the_world if @tally.showing == 0 && @lift_wait == 0
+    def move_the_world_unless_something_holds_it
+      return move_the_world unless @tally || @cam
+
+      if @tally.nil? || (@tally.showing == 0 && @lift_wait == 0)
+        move_the_world if @cam.nil? || @cam.holding == 0
       end
     end
 
@@ -439,6 +464,16 @@ module Wolf3D
     # already there, so anything painting over it would rub them out — and the whole of what the
     # fizzle costs is affordable precisely because none of this is being done underneath it.
     def draw
+      return draw_this_floor unless @cam
+
+      if @cam.showing_words == 1
+        @b.call :the_words_before_the_replay
+      else
+        draw_this_floor
+      end
+    end
+
+    def draw_this_floor
       return draw_the_game unless @tally
 
       if @tally.showing == 1
@@ -474,6 +509,14 @@ module Wolf3D
     # WHETHER THE SCREEN BETWEEN TWO FLOORS IS UP, or nil on a cartridge with no lift to reach it
     # by. The menus read it, because START does not pause a game that has stopped for it.
     def between_floors = @tally&.showing
+
+    # HOW FAR THROUGH THE DEATH CAM IT IS, nought while it is not running, or nil on a cartridge with
+    # no boss to run it. START opens no menu over it.
+    def watching = @cam&.stage
+
+    # THE ENEMIES ON THE FLOOR, and the one thing outside the game that reaches them is a test that
+    # has to finish a boss off without playing the whole fight.
+    attr_reader :guard_pool
 
     # HOW FAR THROUGH A DEATH YOU ARE, nought while you are alive, or nil where nothing can kill
     # you. The menus read this too. See {Dying#state}.
@@ -588,7 +631,7 @@ module Wolf3D
       @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying, lasting: @lasting)
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
       # floor you can walk out of, which is a boss floor — see Level::EXIT.
-      @victory = Victory.new(build: b, lives: @lives, lasting: @lasting) if any_floor_has_a_way_out?
+      @victory = Victory.new(build: b, lives: @lives, lasting: @lasting) if any_episode_can_end?
 
       # ...then the guards, then what is lying on the floor (which every floor has whether
       # anything DRAWS it or not — a level with a locked door has a key on it), then the guards'
@@ -608,7 +651,10 @@ module Wolf3D
       declare_what_there_is_to_find
       # ...which is what the screen at the bottom of a lift reads.
       declare_the_tally if lifts?
+      # ...and the other picture written in the big lettering, which a boss falling sets off.
+      declare_the_death_cam
       declare_the_guards_minds
+      @cam&.works_with(@mind)
       declare_the_standing
       declare_the_scratch
 
@@ -837,6 +883,9 @@ module Wolf3D
     # — so nearly every cartridge builds none of the winning at all.
     def any_floor_has_a_way_out? = @floors.any? { |floor| floor.level.exits.any? }
 
+    # ...and can an episode be won at all, by that or by a boss whose fall ends it?
+    def any_episode_can_end? = any_floor_has_a_way_out? || @behaviour.any?(:cam)
+
     # WHAT STANDS IN THE LEVEL, and it is a piece of work of its own: the guards, the scenery,
     # and the one way both of them get on the screen. All this end has to do is bring them into
     # being in the right order and hand over what they need — and the order is a real one, so it
@@ -915,11 +964,30 @@ module Wolf3D
     # keeps its quick memory for the ones that do.
     def declare_the_tally
       @tally = Tally.new(build: @b, player: @player, floors: @floors, floor: @floor,
-                         playthrough: @playthrough, secret_lift: @lift_secret, lettering: @lettering,
+                         playthrough: @playthrough, secret_lift: @lift_secret, lettering: big_lettering,
                          totals: { kill: @kill_total, secret: @secret_total, treasure: @treasure_total })
       @b.func(:the_end_of_a_floor, fast: false) do
         @tally.draw
         @bar.draw
+      end
+    end
+
+    # THE DEATH CAM, on a cartridge holding a boss whose fall ends the episode.
+    def declare_the_death_cam
+      return unless @behaviour.any?(:cam)
+
+      @cam = DeathCam.new(build: @b, player: @player, sines: @sin, victory: @victory, lettering: big_lettering)
+      @b.func(:the_words_before_the_replay, fast: false) do
+        @cam.draw
+        @bar.draw
+      end
+    end
+
+    # One set of the big letters for all that are written in them, holding what those write.
+    def big_lettering
+      @big_lettering ||= begin
+        printed = (lifts? ? Tally::PRINTED : []) + (@behaviour.any?(:cam) ? DeathCam::PRINTED : [])
+        BigLettering.new(build: @b, art: @lettering, printed: printed.uniq, figures: lifts?)
       end
     end
 
@@ -941,7 +1009,7 @@ module Wolf3D
                             things: @things, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
-                            floors: @floors, player: @player, lasting: @lasting)
+                            floors: @floors, player: @player, lasting: @lasting, death_cam: @cam)
     end
 
     # WHICH ROOMS ARE OPEN TO THE PLAYER'S, which is what stops a guard on the far side of the
@@ -1119,7 +1187,7 @@ module Wolf3D
     # run without a gap — checked while the cartridge is built rather than assumed (see
     # #the_way_out_of). A floor with no way out carries a range nothing can be inside.
     def reached_the_way_out
-      return unless @victory
+      return unless @exit_first
 
       @here = (@player.y.to_i * @level.width) + @player.x.to_i
       @victory.won if @here >= @exit_first[@floor] && @here <= @exit_last[@floor]
