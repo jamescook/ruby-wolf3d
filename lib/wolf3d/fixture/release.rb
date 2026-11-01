@@ -350,9 +350,18 @@ module Wolf3D
       # THE TWO ALPHABETS, and both are PROPORTIONAL on purpose: a reader that assumed one
       # width for the whole font would find the second character in the wrong place and
       # still come back with something that looked like letters.
+      #
+      # EVERY OTHER CHARACTER IS A SOLID BLOCK, and a space a blank one, because a font asked to write
+      # something it does not hold is refused while the cartridge is built. The tilde is left undrawn,
+      # so that a test has a character nobody drew.
+      def self.alphabet(height, drawn)
+        blocks = (33..125).map(&:chr).to_h { |char| [char, ["##"] * height] }
+        blocks.merge(" " => [".."] * height).merge(drawn)
+      end
+
       FONTS = Ractor.make_shareable([
-        { height: 3, glyphs: { "I" => %w[# # #], "M" => ["# #", "###", "# #"] } },
-        { height: 5, glyphs: { "L" => ["#.", "#.", "#.", "#.", "##"] } }
+        { height: 3, glyphs: alphabet(3, "I" => %w[# # #], "M" => ["# #", "###", "# #"]) },
+        { height: 5, glyphs: alphabet(5, "L" => ["#.", "#.", "#.", "#.", "##"]) }
       ])
 
       # What a lit pixel of a glyph holds. Anything but zero is ink; the colour is chosen

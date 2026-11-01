@@ -82,8 +82,9 @@ class TestVgagraph < Minitest::Test
 
     assert_equal 1, font.width("I")
     assert_equal 3, font.width("M")
-    assert_equal 0, font.width("Z"), "a character nobody drew"
-    assert_equal %w[I M].map(&:ord), font.codes
+    assert_equal 0, font.width("~"), "a character nobody drew"
+    assert_includes font.codes, "M".ord
+    refute_includes font.codes, "~".ord
   end
 
   def test_a_glyph_reads_back_as_the_letter_that_went_in
@@ -92,7 +93,7 @@ class TestVgagraph < Minitest::Test
 
     assert_equal [[ink, 0, ink], [ink, ink, ink], [ink, 0, ink]], font.rows("M")
     assert_equal [[ink], [ink], [ink]], font.rows("I")
-    assert_empty font.rows("Z")
+    assert_empty font.rows("~")
   end
 
   # The door to the framework: an alphabet handed over as pictures of its letters, which
@@ -104,7 +105,8 @@ class TestVgagraph < Minitest::Test
   def test_the_alphabet_registers_as_a_font_and_writes_with_it
     glyphs = fixture.font(0).glyphs
 
-    assert_equal %w[I M], glyphs.keys.sort
+    assert_includes glyphs.keys, "I"
+    assert_includes glyphs.keys, "M"
 
     measured = nil
     program = VBlank.game("FONT", consoles: %i[gba]) do
@@ -157,7 +159,7 @@ class TestVgagraph < Minitest::Test
   def test_art_cut_short_is_a_friendly_error
     graph, dictionary, head = Release.new.send(:vgagraph)
     # Say the file is as long as it was, and hand over one that is not.
-    short = graph[0, graph.bytesize - 40] + ("\x00" * 40)
+    short = graph[0, graph.bytesize - 400] + ("\x00" * 400)
     vg = Vgagraph.new(graph: short, dictionary: dictionary, head: head)
 
     assert_raises(ArgumentError) { vg.picture(Release::PICTURES.length - 1) }

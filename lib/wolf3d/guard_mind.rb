@@ -262,8 +262,8 @@ module Wolf3D
 
     def declare_the_scratch
       b = @b
-      @job, @slot, @celly, @clear, @done, @ahead, @picked, @tx, @ty, @odds, @wound, @spot, @blow, @left =
-        %i[gjob gslot gcelly gclear gdone gahead gpicked gtx gty godds gwound gspot gblow gleft]
+      @job, @slot, @clear, @done, @ahead, @picked, @tx, @ty, @odds, @wound, @spot, @blow, @left =
+        %i[gjob gslot gclear gdone gahead gpicked gtx gty godds gwound gspot gblow gleft]
         .map { |name| b.var(:"_#{name}", 0) }
       @dx, @dy, @absx, @absy, @far, @pace, @fwd, @sideways =
         %i[gdx gdy gabsx gabsy gfar gpace gfwd gsideways].map { |name| b.var(:"_#{name}", 0.0) }
@@ -275,6 +275,7 @@ module Wolf3D
       @dir = b.var :_gdir, 0
       @try = b.var :_gtry, 0
       @cellx = b.var :_gcellx, 0
+      @celly = b.var :_gcelly, 0
       @way = b.var :_gway, 0
       @other = b.var :_gother, 0
       @held = b.var :_gheld, 0

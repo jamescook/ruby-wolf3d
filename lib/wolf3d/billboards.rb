@@ -208,7 +208,8 @@ module Wolf3D
     def declare_the_scratch
       @rx, @ry, @fwd, @sideways = fraction(:rx, :ry, :fwd, :sideways)
       @scale, @tex, @tstep = fraction(:scale, :tex, :tstep)
-      @pose, @pfirst, @plast, @shape, @tcol = whole(:pose, :pfirst, :plast, :shape, :tcol)
+      @pose, @pfirst, @plast, @tcol = whole(:pose, :pfirst, :plast, :tcol)
+      @shape = @b.var :_shape, 0 # on a line of its own, since BJ's picture is copied into it
       @cx, @theight, @ttop = whole(:cx, :theight, :ttop)
       @ptop, @pbottom, @band_top, @band_bottom = whole(:ptop, :pbottom, :bandtop, :bandbot)
       @lstrip, @s1, @tstrip = whole(:lstrip, :s1, :tstrip)

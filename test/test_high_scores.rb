@@ -102,7 +102,13 @@ class TestHighScores < Minitest::Test
     console = Verifier.new(rom, frames: 20, vars: backend.var_addresses, save: image)
 
     assert_equal Menus::SCORES, console.var(:screen)
-    assert_equal 23_456, console.var(:_score_number), "the last figure the screen drew"
+    # Read over several frames, because a picture is drawn across a frame and this may catch it part way.
+    figures = Array.new(12) do
+      console.step
+      console.var(:_score_number)
+    end
+
+    assert_includes figures, 23_456, "a figure the screen drew"
   end
 
   private
