@@ -215,7 +215,7 @@ are commented with what needs what).
 - `saved_games.rb`, `high_scores.rb` — what lasts on the cartridge, which the menus reach. `small_letters.rb` — words drawn a letter at a time. `victory_march.rb`, `episode_end.rb`, `end_article.rb`, `floor_records.rb` — how an episode ends. `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
   around the game.
 - `lib/wolf3d.rb` — the dials (`WOLF3D_EPISODES`, `WOLF3D_FLOORS`, `WOLF3D_FROM`,
-  `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`) and `GAME`, the one `VBlank.game` block.
+  `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`, `WOLF3D_SEED`) and `GAME`, the one `VBlank.game` block.
 
 ### Key patterns
 

@@ -125,12 +125,29 @@ module Wolf3D
   # wolf3d.rb's last line — so a test building one floor never changes what another build sees.
   DIALS = { episodes: "WOLF3D_EPISODES", from: "WOLF3D_FROM", floors: "WOLF3D_FLOORS",
             start: "WOLF3D_START", armed: "WOLF3D_ARMED", ammo: "WOLF3D_AMMO",
-            screen: "WOLF3D_SCREEN" }.freeze
+            screen: "WOLF3D_SCREEN", seed: "WOLF3D_SEED" }.freeze
 
   # The settings the environment asks for — only the dials it actually sets, so an unset one
   # takes the game's own default.
   def self.settings_from(env)
     DIALS.filter_map { |name, var| [name, env[var]] unless env[var].to_s.strip.empty? }.to_h
+  end
+
+  # WHERE THE RANDOM NUMBERS START. Every roll in the game is a guard's: whether he hits, how hard,
+  # which way he dodges. The cartridge starts them in one place on every boot and they advance only
+  # when something rolls, so the same presses already play the same game. This moves that place, to
+  # see a run go differently or to find one that plays well for a recording:
+  #
+  #   WOLF3D_SEED=7 rake build
+  #
+  # The original starts its table of random bytes at a place taken from the clock instead
+  # (US_InitRndT, id_us_1.cpp).
+  def self.seed_random_numbers(build, asked)
+    return if asked.nil?
+
+    build.seed Integer(asked.to_s, 10)
+  rescue ArgumentError
+    raise ArgumentError, "WOLF3D_SEED cannot read #{asked.inspect}. Give a whole number, like 7."
   end
 
   # WHICH EPISODES THE CARTRIDGE HOLDS. Every one your copy has, unless you say otherwise —
@@ -310,6 +327,7 @@ module Wolf3D
     armed = setting :armed, nil
     ammo = setting :ammo, nil
     boot_screen = setting :screen, nil
+    Wolf3D.seed_random_numbers(self, setting(:seed, nil))
 
     Wolf3D.check_the_copy!
     if Wolf3D.maps
