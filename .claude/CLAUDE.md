@@ -209,7 +209,7 @@ are commented with what needs what).
 - `first_person.rb` — the view down the corridor: the ray, the wall columns, the floor and
   ceiling. Most of a frame. `billboards.rb` — the things and enemies drawn into that view.
   `guard_mind.rb` — what a guard does about you. `thrown.rb` — what the bosses throw. `screen_flash.rb` — red and gold. `death_cam.rb` — how most episodes end. `big_lettering.rb` — the
-  game's big letters. `weapons.rb`, `pickups.rb`, `dying.rb`,
+  game's big letters. `fizzle.rb` — the view dotting over to one colour. `weapons.rb`, `pickups.rb`, `dying.rb`,
   `lives.rb`, `scoring.rb`, `victory.rb`, `tally.rb`, `status_bar.rb`, `sounds.rb` — the rest of playing.
 - `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
   around the game.
@@ -233,6 +233,42 @@ are commented with what needs what).
 - **A picture the game draws again only when it changes** goes through `keep_showing`, which
   the tear-free screen makes necessary: it keeps two pictures, so a single paint reaches one
   of them and the figure flickers between old and new.
+
+### Naming methods — the name says what it does, not a story about it
+
+**A method's name tells a reader what calling it does or returns, without opening the body.** This
+project's comments are deliberately narrative; names are not, and carrying that voice into a name
+is the mistake this section exists for. Names are for engineers and use the words engineers know.
+
+```
+BAD   the_world_takes_a_step   a clause of a story
+GOOD  step_world
+BAD   put_the_flash_away       an everyday phrase standing in for a term
+GOOD  finish_flash
+BAD   a_guard_fell             says what happened, not what calling it does
+GOOD  drop_guard_item
+BAD   how_far_away             a question with no verb; it stores a distance
+GOOD  measure_distance
+```
+
+- **Say the effect and its object.** A method is a verb for what it does. A verb with no real
+  object (`check_`, `handle_`, `process_`, `settle_`, `take_`, `do_`) hides what happens.
+- **Suffixes are promises.** `?` returns true or false and does nothing else. `!` raises a friendly
+  error or mutates in a way a caller must know about.
+- **No prose.** No articles (`the_`, `a_`, `an_`), no filler, no metaphors a newcomer cannot decode,
+  and no clauses that narrate. A long name is fine only when it is precise, never when it is a
+  sentence. This holds for the names given to `func`, `table`, `var` and `pool` too.
+- **A software concept takes its standard software name.** Never invent an everyday phrase to stand
+  in for a term a programmer would search for.
+- **A game concept takes the original's name** wherever `~/open_source/wolf4sdl` has one, in Ruby's
+  spelling: `select_dodge_dir`, `first_sighting`.
+- **A constant says what it is and its unit, read alone.** Never a bare participle or verb (`HELD`,
+  `DOES`) or a pronoun.
+- **Siblings differ in their names.** Two names side by side must say in the name what differs.
+- **Matching the code around it does not excuse a bad name.** Where the surrounding names break
+  this, name the new thing properly and rename the old ones the change touches.
+
+The plain words used in replies to the operator are for replies, never for names in code.
 
 ### Writing code comments
 
