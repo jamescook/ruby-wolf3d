@@ -298,6 +298,18 @@ Every machine and agent shares it at once, so there is nothing to push or pull a
   goes back to `open` with no assignee.
 - A close reason holds at most 255 characters. Longer findings go in the notes first.
 
+The dashboard's Projects tab shows this project's milestones: epics labelled `milestone`. List them
+with `bd list --type epic --label milestone`. Five at most.
+
+- **A new bead goes under the open milestone it moves forward:** `bd create --parent <milestone>`.
+  For a bead that already exists, `bd dep add <id> <milestone> --type parent-child`, then
+  `bd dep remove <id> <old parent>` if it had one, because a bead has one parent.
+- **If no milestone fits, leave it outside.** The dashboard counts those, and that count is how a
+  gap gets noticed. Do not stretch a milestone to cover it.
+- **Adding, renaming or splitting a milestone is the operator's decision.** Ask.
+- **Close a milestone when its last bead closes,** then check it with `bd show <id>`.
+- **A milestone is a container, not work.** Do not claim one.
+
 ### Writing commit messages
 
 - Commit messages are for humans and should read as if a human wrote them.
