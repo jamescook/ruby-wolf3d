@@ -60,7 +60,8 @@ module Wolf3D
       # twenty longer, and past the end a colour number wraps round onto a wall's.
       SPRITE_INK = 112
 
-      def initialize(set: "WL1", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2)
+      # A set whose pictures have no names here, unless a test asks for one that does. See #named.
+      def initialize(set: "SDM", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2)
         @set = set
         @walls = walls
         @sprites = sprites

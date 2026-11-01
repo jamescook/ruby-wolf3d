@@ -183,7 +183,7 @@ are commented with what needs what).
 - `lib/wolf3d/codec/` — `rlew`, `carmack`, `huffman`: the three compressions the game's data
   uses. A map is Carmack over RLEW; the art and text are Huffman.
 - `lib/wolf3d/game_data.rb` — finds your copy and says which release it is (`wolf3d.yml`, or
-  `WOLF3D_DATA`). `vanilla.rb` — refuses any copy but the six episodes, version 1.4. `maps.rb` /
+  `WOLF3D_DATA`). `vanilla.rb` — refuses any copy but the six episodes or the shareware, both version 1.4. `maps.rb` /
   `level.rb` — GAMEMAPS and MAPHEAD, a floor as a grid of cells.
   `vswap.rb` — the walls, the things and the digitised sounds. `vgagraph.rb` — the menu art,
   the status bar's plate, the numerals and both proportional alphabets. `palette.rb` — the

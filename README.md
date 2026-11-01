@@ -7,9 +7,10 @@ Wolfenstein 3D, built with [VBlank](https://github.com/vblank-rb/vblank).
 None of Wolfenstein's data is freely licensed, so none of it is in this repository. You supply
 it and the build is pointed at it.
 
-The build needs the registered six episodes, version 1.4: the `*.WL6` files GOG sells. It checks
-the files first and stops if they are anything else. That includes the shareware episode, Spear of
-Destiny, the versions Apogee sold, and changed files.
+The build needs one of two releases, both version 1.4. One is the registered six episodes: the
+`*.WL6` files GOG sells. The other is the shareware episode: the `*.WL1` files, which are a free
+download. The build checks the files first and stops if they are anything else. That includes
+Spear of Destiny, the six episodes Apogee sold, and changed files.
 
 The build reads the files you own. It never copies them into the repository, and the converted
 output is ignored by git.

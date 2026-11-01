@@ -86,8 +86,8 @@ class TestGameData < Minitest::Test
 
       assert_includes error.message, "WOLF3D_DATA"
       assert_includes error.message, Data::CONFIG_FILE
-      refute_includes error.message, "shareware", "the build refuses that copy, so it must not send you for it"
       assert_includes error.message, "WL6"
+      assert_includes error.message, "WL1", "the free copy is one way to start, so it says so"
     end
   end
 

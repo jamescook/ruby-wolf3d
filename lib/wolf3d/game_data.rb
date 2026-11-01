@@ -19,7 +19,7 @@ module Wolf3D
     EXAMPLE_FILE = "wolf3d.example.yml"
 
     # A release is told apart by the extension its files carry. Finding one is not the same as being
-    # able to use it: the build takes only the first of these. See Vanilla.
+    # able to use it: the build takes only the first two of these. See Vanilla.
     SETS = {
       "WL6" => "the registered six episodes",
       "WL1" => "the shareware episode",
@@ -122,7 +122,7 @@ module Wolf3D
              #{File.join(home, CONFIG_FILE)}
 
         The directory must hold these files: #{STEMS.join(', ')}.
-        Each one must end in #{Vanilla::SET}. This game can only use #{Vanilla::NEEDED}.
+        Each one must end in #{Vanilla::SETS}. #{Vanilla::NEEDED}
       TEXT
     end
 
@@ -140,7 +140,7 @@ module Wolf3D
         #{source} points at #{dir}. That directory holds no Wolfenstein 3D data.
 
         A complete release has all of these files: #{STEMS.join(', ')}.
-        Each one ends in #{Vanilla::SET} — for example VSWAP.#{Vanilla::SET}.
+        Each one ends in #{Vanilla::SETS} — for example VSWAP.WL6.
 
         #{present.empty? ? 'The directory is empty.' : "The directory holds: #{present.join(', ')}"}
       TEXT

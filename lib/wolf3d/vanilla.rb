@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Wolf3D
-  # WHICH COPY OF THE GAME THIS BUILDS FROM: the registered six episodes, version 1.4, in the edition
-  # GOG sells, and only that.
+  # WHICH COPIES OF THE GAME THIS BUILDS FROM: version 1.4 of the registered six episodes, in the
+  # edition GOG sells, and version 1.4 of the shareware episode.
   #
   # Files with the right names are not enough. Much of what this game knows about the files is not
   # in the files: it is a number read off one release, like which picture is the status bar, where
@@ -10,10 +10,13 @@ module Wolf3D
   # the same eight files with four more sprites before its first guard, which puts a marble pillar
   # where this game expects him. So a copy is asked first.
   #
-  # APOGEE'S SIX-EPISODE COPIES ARE REFUSED TOO, and that is not fussiness. Theirs is a different
-  # list of pictures, with help screens early in VGAGRAPH, so every number after those is wrong
-  # here. Compare gfxv_apo.h with gfxv_wl6.h in the original's source; version.h and wl_def.h say
-  # which build reads which. This game knows the second list only.
+  # THE SHAREWARE SHARES NEARLY ALL OF THIS WITH THE SIX EPISODES: the same walls, sprites, sounds
+  # and colours, and fewer floors. What differs is its pictures, because Apogee's list has twelve
+  # more help screens early in VGAGRAPH, so every number after those moves. Compare gfxv_apo.h with
+  # gfxv_wl6.h in the original's source; version.h and wl_def.h say which build reads which.
+  #
+  # APOGEE'S SIX-EPISODE COPIES ARE REFUSED, though they may well read the same list. There is no
+  # such copy to check that against, and a promise this game cannot test is not one it makes.
   #
   # IT PROBES RATHER THAN CHECKSUMS. These are the counts the numbers depend on, and the sizes of a
   # few pictures found by number, which a shuffled file gets wrong. A person's edited copy that keeps
@@ -21,14 +24,24 @@ module Wolf3D
   class Vanilla
     class Refused < GameData::NotFound; end
 
-    SET = "WL6"
+    # WHAT A COPY OF EACH RELEASE HOLDS that the others do not. The walls, sprites and sounds below
+    # are the same in all of them, which is what lets one game read them.
+    Release = Data.define(:floors, :pictures)
+    RELEASES = Ractor.make_shareable({ "WL6" => Release.new(60, 132), "WL1" => Release.new(10, 144) })
+
+    # The extensions this game takes, for a message that has to name them.
+    SETS = Ractor.make_shareable(RELEASES.keys.join(" or "))
 
     # What to get, for every message that has to say so.
-    NEEDED = Ractor.make_shareable("the registered six episodes of Wolfenstein 3D, version 1.4 (#{SET}), which GOG sells")
+    NEEDED = Ractor.make_shareable(
+      "This game can use only two releases of Wolfenstein 3D, both version 1.4. " \
+      "One is the registered six episodes (WL6), which GOG sells. " \
+      "The other is the shareware episode (WL1), which is a free download."
+    )
 
     # WHERE THE OTHER GAME'S FILES USUALLY ARE IN RELATION TO THESE, for a copy that has both.
     NEARBY = Ractor.make_shareable(
-      { "SOD" => "In the GOG release, the #{SET} files are one directory above the Spear of Destiny files." }
+      { "SOD" => "In the GOG release, the WL6 files are one directory above the Spear of Destiny files." }
     )
 
     # One thing to ask of a copy: the file that holds the answer, what it is asked in words, the
@@ -49,22 +62,22 @@ module Wolf3D
     # Says nothing about a copy this game can use. Refused says why about any other. +maps+, +vswap+
     # and +vgagraph+ are the copy's files as read, and +dir+ is where they came from.
     def self.check!(set:, dir:, maps:, vswap:, vgagraph:)
-      raise Refused, other_release(set, dir) unless set == SET
+      release = RELEASES.fetch(set) { raise Refused, other_release(set, dir) }
 
-      probes(maps, vswap, vgagraph).each do |probe|
+      probes(release, maps, vswap, vgagraph).each do |probe|
         got = probe.found.call
-        raise Refused, changed_copy(dir, probe, got) unless got == probe.wanted
+        raise Refused, changed_copy(set, dir, probe, got) unless got == probe.wanted
       end
       nil
     end
 
     # In this order, so a picture is asked for by number only once there are the right number of them.
-    def self.probes(maps, vswap, vgagraph)
-      [Probe.new("GAMEMAPS", "the number of floors", 60, -> { maps.count }),
+    def self.probes(release, maps, vswap, vgagraph)
+      [Probe.new("GAMEMAPS", "the number of floors", release.floors, -> { maps.count }),
        Probe.new("VSWAP", "the number of walls", 106, -> { vswap.wall_count }),
        Probe.new("VSWAP", "the number of sprites", 436, -> { vswap.sprite_count }),
        Probe.new("VSWAP", "the number of sounds", 46, -> { vswap.sound_count }),
-       Probe.new("VGAGRAPH", "the number of pictures", 132, -> { vgagraph.picture_count }),
+       Probe.new("VGAGRAPH", "the number of pictures", release.pictures, -> { vgagraph.picture_count }),
        Probe.new("VGAGRAPH", "the size of the status bar", "320x40", -> { size_of(vgagraph, :status_bar) }),
        Probe.new("VGAGRAPH", "the size of the first face", "24x32", -> { size_of(vgagraph, :face_1a) }),
        Probe.new("VGAGRAPH", "the size of the first numeral", "8x16", -> { size_of(vgagraph, :digit_0) })]
@@ -78,20 +91,20 @@ module Wolf3D
       <<~TEXT
         The files in #{dir} are #{GameData::SETS.fetch(set, set)} (#{set}).
 
-        This game can only use #{NEEDED}.
-        To fix this, set #{GameData::ENV_VAR} or #{GameData::CONFIG_FILE} to the directory that has the #{SET} files.
+        #{NEEDED}
+        To fix this, set #{GameData::ENV_VAR} or #{GameData::CONFIG_FILE} to the directory that has the #{SETS} files.
         #{NEARBY[set]}
       TEXT
     end
     private_class_method :other_release
 
-    def self.changed_copy(dir, probe, got)
+    def self.changed_copy(set, dir, probe, got)
       <<~TEXT
-        The #{SET} files in #{dir} are not files this game can use.
+        The #{set} files in #{dir} are not files this game can use.
 
         In #{probe.file}, #{probe.asked} must be #{probe.wanted}. In this copy it is #{got}.
 
-        This game can only use #{NEEDED}. Apogee's versions and changed files do not work.
+        #{NEEDED} Apogee's six episodes and changed files do not work.
         To fix this, set #{GameData::ENV_VAR} or #{GameData::CONFIG_FILE} to the directory that has those files.
       TEXT
     end
@@ -101,7 +114,7 @@ module Wolf3D
       <<~TEXT
         This game cannot read the #{set} files in #{dir}. They are damaged or changed.
 
-        This game can only use #{NEEDED}.
+        #{NEEDED}
         To fix this, set #{GameData::ENV_VAR} or #{GameData::CONFIG_FILE} to the directory that has those files.
       TEXT
     end

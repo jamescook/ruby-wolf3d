@@ -94,7 +94,18 @@ module Wolf3D
              .each_with_index.to_h { |name, n| [name, 106 + n] }
      ).freeze
 
-    NAMES = { "WL6" => WL6_NAMES }.freeze
+    # THE SHAREWARE'S ARE THE SAME PICTURES IN THE SAME ORDER, TWELVE LATER. Its list opens with
+    # eighteen pictures for the help screens where the six episodes have six (gfxv_apo.h and
+    # gfxv_wl6.h, from H_BJPIC to H_SPEARADPIC), and that opening comes before every name here.
+    # test_shareware.rb holds each one against a real copy.
+    WL1_EXTRA_HELP_PICTURES = 12
+    WL1_NAMES = WL6_NAMES.transform_values { |number| number + WL1_EXTRA_HELP_PICTURES }.freeze
+
+    NAMES = { "WL6" => WL6_NAMES, "WL1" => WL1_NAMES }.freeze
+
+    # WHERE THE TEXT OF THE FIRST EPISODE'S ENDING IS (T_ENDART1). The shareware has only that one,
+    # and it is the last chunk of the file.
+    FIRST_END_ARTICLE = { "WL6" => 143, "WL1" => 155 }.freeze
 
     attr_reader :set
 
@@ -148,6 +159,10 @@ module Wolf3D
     # The names this release knows its pictures by, or none when we have not read that
     # release's order off a copy of it.
     def names = NAMES.fetch(@set, {}).keys
+
+    # The chunk holding the ending of an episode, counted from nought. A release with no known
+    # place for them has nothing there.
+    def end_article_chunk(episode) = FIRST_END_ARTICLE.fetch(@set, chunk_count) + episode
 
     private
 

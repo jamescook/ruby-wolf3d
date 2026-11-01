@@ -1,9 +1,14 @@
 # Copy to wolf3d.yml (gitignored) and point it at your own copy of Wolfenstein 3D.
 #
 # The directory must hold VSWAP, GAMEMAPS, MAPHEAD, VGAGRAPH, VGADICT, VGAHEAD, AUDIOT and
-# AUDIOHED, all ending in WL6: the registered six episodes, version 1.4, which GOG sells. The
-# build checks them and stops on anything else. The directory is read flat, not searched downward.
+# AUDIOHED. They all end in WL6, the registered six episodes, version 1.4, which GOG sells. Or they
+# all end in WL1, the shareware episode, version 1.4, which is a free download. The build checks
+# them and stops on anything else. The directory is read flat, not searched downward.
 #
 # WOLF3D_DATA in the environment overrides this file.
 
 data: ~/games/wolfenstein-3d
+
+# A second copy, the shareware, for the tests that check the game against it. The tests skip
+# without it, and no build reads it.
+# shareware: ~/games/wolf3dsw

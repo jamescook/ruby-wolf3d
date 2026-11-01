@@ -36,9 +36,6 @@ module Wolf3D
     LINE_STEP = 13
     COLUMNS = 40
 
-    # Which chunk the first episode's article is (T_ENDART1), and there are six.
-    FIRST_ARTICLE = 143
-
     # +letters+ is the small alphabet, +lettering+ the big one, +records+ the floors of the episode.
     def initialize(build:, art:, letters:, lettering:, records:, floor:, floors:)
       @b = build
@@ -95,7 +92,7 @@ module Wolf3D
     end
 
     def paged(episode)
-      EndArticle.pages(@art.end_article(FIRST_ARTICLE + episode), width: TEXT_WIDTH, lines: LINES) do |char|
+      EndArticle.pages(@art.end_article(episode), width: TEXT_WIDTH, lines: LINES) do |char|
         @letters.width_of(char)
       end
     end

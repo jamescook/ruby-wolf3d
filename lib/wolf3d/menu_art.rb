@@ -84,7 +84,8 @@ module Wolf3D
     def font(which) = @vg.font(which).glyphs
 
     # THE WORDS IN CHUNK +n+, for what an episode ends on. See EndArticle.
-    def end_article(n) = @vg.text(n)
+    # The text that ends an episode, counted from nought.
+    def end_article(episode) = @vg.text(@vg.end_article_chunk(episode))
 
     private
 

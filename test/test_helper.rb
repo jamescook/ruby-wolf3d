@@ -70,6 +70,14 @@ module Wolf3DTest
     skip("this copy of Wolfenstein 3D is one the build refuses")
   end
 
+  # A real copy of the shareware, named by the `shareware` line of wolf3d.yml, beside whatever
+  # copy the rest of the suite reads.
+  def shareware_or_skip
+    dir = Wolf3D::GameData.config_value(Wolf3D.home, "shareware") ||
+          skip("no copy of the shareware found — set shareware in #{Wolf3D::GameData::CONFIG_FILE} to check against one")
+    Wolf3D::GameData.locate(env: { Wolf3D::GameData::ENV_VAR => dir })
+  end
+
   # THE SMALLEST CARTRIDGE THAT IS STILL THIS GAME, for the two tests that build the whole
   # thing rather than a floor of their own.
   #

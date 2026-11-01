@@ -41,9 +41,32 @@ class TestVanilla < Minitest::Test
     assert_includes error.message, "/the/copy"
   end
 
-  def test_the_shareware_and_the_spear_demo_are_refused_by_name
-    assert_includes assert_raises(Refused) { check(copy(set: "WL1")) }.message, "shareware"
+  def test_the_spear_demo_is_refused_by_name
     assert_includes assert_raises(Refused) { check(copy(set: "SDM")) }.message, "Spear of Destiny demo"
+  end
+
+  # The numbers are read off wolf3dsw, the shareware at version 1.4.
+  def test_a_copy_with_the_shareware_numbers_is_accepted
+    assert_nil check(copy(set: "WL1", floors: 10, pictures: 144))
+  end
+
+  # A copy is held to its OWN release: sixty floors in a shareware's files is a changed copy.
+  def test_a_shareware_copy_is_held_to_the_shareware_numbers
+    { { floors: 60 } => /WL1 files.*the number of floors must be 10.*it is 60/m,
+      { pictures: 132 } => /the number of pictures must be 144.*it is 132/m }.each do |changes, says|
+      error = assert_raises(Refused, changes.to_s) { check(copy(**{ set: "WL1", floors: 10, pictures: 144 }.merge(changes))) }
+
+      assert_match says, error.message
+    end
+  end
+
+  # Both releases are named, so a person holding the wrong folder knows what either will do.
+  def test_a_refusal_names_both_releases
+    message = assert_raises(Refused) { check(copy(set: "SOD")) }.message
+
+    assert_includes message, "WL6"
+    assert_includes message, "WL1"
+    assert_includes message, "free download"
   end
 
   # A CHANGED COPY IS TOLD WHICH CHECK IT FAILED, with both numbers.
