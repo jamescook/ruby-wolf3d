@@ -188,7 +188,7 @@ class TestBosses < Minitest::Test
   # which are exactly the two floors the two bosses stand on. That is not a coincidence: the
   # boss stands between you and the gold-locked door, and the way out is behind it.
   def test_only_the_two_boss_floors_can_be_walked_out_of
-    return skip("needs a copy of the game") unless Wolf3D.maps
+    game_data_or_skip
 
     maps = Wolf3D.maps
     with_a_way_out = (0...maps.count).select { |n| maps[n].exits.any? }
@@ -202,7 +202,7 @@ class TestBosses < Minitest::Test
   end
 
   def test_the_way_out_of_a_floor_is_cells_lying_side_by_side
-    return skip("needs a copy of the game") unless Wolf3D.maps
+    game_data_or_skip
 
     Wolf3D.maps.each do |level|
       cells = level.exits.map { |x, y| (y * level.width) + x }.sort

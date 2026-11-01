@@ -5,13 +5,11 @@ Wolfenstein 3D, built with [VBlank](https://github.com/vblank-rb/vblank).
 ## You need your own copy of the game
 
 None of Wolfenstein's data is freely licensed, so none of it is in this repository. You supply
-it and the build is pointed at it. Any of these work:
+it and the build is pointed at it.
 
-| Set | Files | Where it comes from |
-|---|---|---|
-| Shareware | `*.WL1` | free to download; episode one |
-| Registered | `*.WL6` | the GOG release, or an original disk; all six episodes |
-| Spear of Destiny | `*.SOD` | the GOG release ships this too |
+The build needs the registered six episodes, version 1.4: the `*.WL6` files GOG sells. It checks
+the files first and stops if they are anything else. That includes the shareware episode, Spear of
+Destiny, the versions Apogee sold, and changed files.
 
 The build reads the files you own. It never copies them into the repository, and the converted
 output is ignored by git.
@@ -93,8 +91,7 @@ north end of the map, and there is a second, secret one that takes you to the hi
 
 ## How much of the game the cartridge holds
 
-Every episode your copy has, by default — six for the registered release, one for the shareware.
-Say otherwise when you are building over and over:
+All six episodes, by default. Say otherwise when you are building over and over:
 
 ```sh
 WOLF3D_EPISODES=1     ruby wolf3d.rb    # just the first
@@ -188,9 +185,9 @@ the screen there is nothing to lose — 72 of the credits' 200 rows are empty an
 go — so the emptiest are taken and the writing is untouched. It moves two pixels at a time
 because the double-buffered screen holds two pixels in each of its places and will not take one.
 
-**The episode list shows what the cartridge holds.** A default build has every episode your copy
-has, so all of them are pickable; a build trimmed with `WOLF3D_EPISODES` shows the rest greyed
-out, which is what the shareware release does. A cartridge holding only one episode does not ask
+**The episode list shows what the cartridge holds.** A default build has all six, so all of them
+are pickable; a build trimmed with `WOLF3D_EPISODES` shows the rest greyed out. A cartridge
+holding only one episode does not ask
 at all — a list with one pickable row is a question with one answer — so NEW GAME goes straight
 to the difficulty screen.
 
@@ -241,11 +238,10 @@ and after, a frame went from 421.3 scanlines to 423.0. What a floor really costs
 enemies stand on it, which is the game rather than the machinery.
 
 Not yet there: **the bosses** — Hans, Schabbs, Gretel, Gift, Fat and both Hitlers — which is why
-the boss floor at the end of each episode is empty; the tally between floors; and the AdLib music
+the boss floor at the end of each episode is empty; and the AdLib music
 and the effects Wolfenstein never recorded to raw PCM.
 
-**Every episode your copy holds fits on one cartridge**, which for the registered release is
-sixty floors and 16MB. It nearly did not: five kinds of enemy took the pool the floor's enemies
+**All six episodes fit on one cartridge**, which is sixty floors and 16MB. It nearly did not: five kinds of enemy took the pool the floor's enemies
 stand in from 78 slots to 145, and a list used to round its capacity up to the next power of
 two — so 145 became 256, and the slots nobody planned for came out of the console's 32K of quick
 memory. A list is allocated at the size it asks for now (see the framework's `list`), which gave

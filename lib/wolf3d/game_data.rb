@@ -10,11 +10,16 @@ module Wolf3D
   class GameData
     class NotFound < StandardError; end
 
+    # NOTHING SAYS WHERE A COPY IS, which is the one way of not finding it that a build carries on
+    # from: it makes the holding screen. A copy that was named and cannot be used stops the build.
+    class NotSet < NotFound; end
+
     ENV_VAR = "WOLF3D_DATA"
     CONFIG_FILE = "wolf3d.yml"
     EXAMPLE_FILE = "wolf3d.example.yml"
 
-    # A release is told apart by the extension its files carry.
+    # A release is told apart by the extension its files carry. Finding one is not the same as being
+    # able to use it: the build takes only the first of these. See Vanilla.
     SETS = {
       "WL6" => "the registered six episodes",
       "WL1" => "the shareware episode",
@@ -38,7 +43,7 @@ module Wolf3D
 
     def self.locate(home: Wolf3D.home, env: ENV)
       dir, source = configured_dir(home, env)
-      raise NotFound, unset_message(home) if dir.nil?
+      raise NotSet, unset_message(home) if dir.nil?
       raise NotFound, missing_dir_message(dir, source) unless File.directory?(dir)
 
       sets = complete_sets(dir)
@@ -117,10 +122,7 @@ module Wolf3D
              #{File.join(home, CONFIG_FILE)}
 
         The directory must hold these files: #{STEMS.join(', ')}.
-        The extension says which release it is: #{SETS.keys.join(', ')}.
-
-        To get the shareware episode, search for "Wolfenstein 3D shareware". It is free to
-        download and it holds the first episode.
+        Each one must end in #{Vanilla::SET}. This game can only use #{Vanilla::NEEDED}.
       TEXT
     end
 
@@ -138,11 +140,9 @@ module Wolf3D
         #{source} points at #{dir}. That directory holds no Wolfenstein 3D data.
 
         A complete release has all of these files: #{STEMS.join(', ')}.
-        Each one ends in #{SETS.keys.join(', ')} — for example VSWAP.WL6.
+        Each one ends in #{Vanilla::SET} — for example VSWAP.#{Vanilla::SET}.
 
         #{present.empty? ? 'The directory is empty.' : "The directory holds: #{present.join(', ')}"}
-
-        Spear of Destiny is often in a sub-directory of its own. If you see one, point at it.
       TEXT
     end
 

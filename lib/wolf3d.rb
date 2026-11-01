@@ -17,6 +17,7 @@ require_relative "wolf3d/codec/rlew"
 require_relative "wolf3d/codec/carmack"
 require_relative "wolf3d/codec/huffman"
 require_relative "wolf3d/game_data"
+require_relative "wolf3d/vanilla"
 require_relative "wolf3d/palette"
 require_relative "wolf3d/level"
 require_relative "wolf3d/maps"
@@ -259,10 +260,19 @@ module Wolf3D
 
   def self.palette = Palette.game
 
+  # A BUILD STOPS HERE on a copy of the game it cannot use, whether the trouble is the copy or the
+  # place it was said to be. See Vanilla. Nothing said at all is not trouble: see GameData::NotSet.
+  def self.check_the_copy!(home: self.home, env: ENV)
+    Vanilla.check_files!(GameData.locate(home: home, env: env))
+  rescue GameData::NotSet
+    nil
+  end
+
   # Say what the cartridge was built from, or how to fix it not knowing.
   def self.report(err = $stderr)
-    data ? err.puts(data.describe) : err.puts(GameData.unset_message(home))
-    data
+    err.puts GameData.locate.describe
+  rescue GameData::NotSet => e
+    err.puts e.message
   end
 
   GAME = VBlank.game(TITLE, consoles: %i[gba]) do
@@ -285,6 +295,7 @@ module Wolf3D
     ammo = setting :ammo, nil
     boot_screen = setting :screen, nil
 
+    Wolf3D.check_the_copy!
     if Wolf3D.maps
       floors = Wolf3D.floors(Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many),
                              start: start)

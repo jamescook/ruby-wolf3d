@@ -59,10 +59,15 @@ module Wolf3DTest
   end
 
   # A real copy of the game, for the few tests that check us against the world rather than
-  # against ourselves. The suite never depends on one being here.
+  # against ourselves. The suite never depends on one being here, and a copy the build refuses is
+  # no copy at all to these. Asked once per worker, because it reads every file.
   def game_data_or_skip
-    Wolf3D::GameData.find ||
-      skip("no copy of Wolfenstein 3D found — set #{Wolf3D::GameData::ENV_VAR} to check against one")
+    data = Wolf3D::GameData.find ||
+           skip("no copy of Wolfenstein 3D found — set #{Wolf3D::GameData::ENV_VAR} to check against one")
+    Ractor.current[:wolf3d_copy_checked] ||= Wolf3D::Vanilla.check_files!(data) || true
+    data
+  rescue Wolf3D::Vanilla::Refused
+    skip("this copy of Wolfenstein 3D is one the build refuses")
   end
 
   # THE SMALLEST CARTRIDGE THAT IS STILL THIS GAME, for the two tests that build the whole
@@ -73,5 +78,9 @@ module Wolf3DTest
   # what these tests want to know is only that the wiring works. One floor is a few seconds and
   # proves the same thing. The setting is handed to this build alone, so nothing another test is
   # building at the same moment sees it.
-  def a_small_cartridge = Wolf3D.build_rom(out: StringIO.new, err: StringIO.new, settings: { floors: 1 })
+  def a_small_cartridge
+    Wolf3D.build_rom(out: StringIO.new, err: StringIO.new, settings: { floors: 1 })
+  rescue Wolf3D::Vanilla::Refused
+    skip("this copy of Wolfenstein 3D is one the build refuses")
+  end
 end
