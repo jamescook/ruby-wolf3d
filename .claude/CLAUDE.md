@@ -118,6 +118,7 @@ also says the code those tests reached shares none. The report at the end says s
 what was touched and what to change.
 
 ```bash
+rake test:golden                                                # the check before a commit; fails past five minutes
 rake test                                                       # the suite
 rake test TEST=test/test_maps.rb                                # one file
 rake test TEST=test/test_maps.rb TESTOPTS="--name=/pattern/"    # one test
@@ -353,4 +354,6 @@ game follows:
   the framework you cannot work out by reading your own program.
 
 ## Finishing a piece of work
+- Run `rake test:golden` before committing. `test/golden.txt` names what it plays and why, and a file
+  goes in only by another coming out.
 - Commit it, and keep the message for humans — see "Writing commit messages" above.
