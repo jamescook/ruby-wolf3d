@@ -206,8 +206,8 @@ class TestEnemies < Minitest::Test
   # WHAT KILLING ONE IS WORTH, which is not the same for the five and is the original's own
   # scale: a dog is worth twice a guard and a mutant seven times.
   def test_killing_each_kind_is_worth_the_originals_own_score
-    assert_equal({ guard: 100, dog: 200, officer: 400, ss: 500, mutant: 700, fake: 2000,
-                   hans: 5000, gretel: 5000, schabbs: 5000, mecha: 5000, hitler: 5000, gift: 5000,
+    assert_equal({ blinky: 0, clyde: 0, pinky: 0, inky: 0, guard: 100, dog: 200, officer: 400, ss: 500,
+                   mutant: 700, fake: 2000, hans: 5000, gretel: 5000, schabbs: 5000, mecha: 5000, hitler: 5000, gift: 5000,
                    fat: 5000 },
                  Enemy::ALL.to_h { |kind| [kind.name, kind.points] }
                            .sort_by { |_, points| points }.to_h)

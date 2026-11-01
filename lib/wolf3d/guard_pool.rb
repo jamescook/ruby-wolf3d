@@ -99,7 +99,7 @@ module Wolf3D
     #
     # +counts+ is a Hash, so that this reaches the variables in it. Its :slot is working room the
     # view already has, borrowed for the length of this, and its :kill_total is the floor's count of
-    # men to kill, which this is what fills.
+    # men to kill, which this is what fills. Its :kills is the count of those already dead.
     def refill(counts)
       @pool.each(&:remove)
       # EACH ONE WHO STANDS UP IS ONE MORE TO KILL, which is the floor's kill total: the original
@@ -120,6 +120,7 @@ module Wolf3D
                       wait: 0, togo: 0.0, shown: 0, awake: 0, dropped: 0,
                       ambush: @home_ambush[at], noticed: 0, turn: counts[:kill_total] % 2
           counts[:kill_total] += @home_counted[at]
+          counts[:kills] += @home_killed[at]
         end
       end
     end
@@ -202,6 +203,10 @@ module Wolf3D
       @home_counted = b.table :guard_home_counted,
                               Floors.at_least_one(everyone.map { |g| Enemy[g.kind].counted? ? 1 : 0 }),
                               width: :byte
+      # ...and whether he counts as one already killed. See Enemy#killed_from_the_start?.
+      @home_killed = b.table :guard_home_killed,
+                             Floors.at_least_one(everyone.map { |g| Enemy[g.kind].killed_from_the_start? ? 1 : 0 }),
+                             width: :byte
       @home_ticks = b.table :guard_home_ticks,
                             Floors.at_least_one(starting.map { |s| @behaviour.state_at(s).ticks }),
                             width: @behaviour.ticks_width

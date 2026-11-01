@@ -29,6 +29,7 @@ module Wolf3D
     HUNT = Enemy::THINKING.fetch(:hunt)
     THROW = Enemy::THINKING.fetch(:throw)
     FLAME = Enemy::THINKING.fetch(:flame)
+    HAUNT = Enemy::THINKING.fetch(:haunt)
 
     # ...and the ways of attacking, the same way.
     WITH_A_GUN = Enemy::ATTACKS.fetch(:gun)
@@ -57,6 +58,11 @@ module Wolf3D
 
     # One fall in this many, which is `!US_RndT()`. A test can ask for it every time.
     RARE_SCREAM_ODDS = 256
+
+    # A GHOST'S TOUCH. Within a whole cell on each axis (MINACTORDIST) it takes two for every unit of
+    # the original's time.
+    TOUCHING = 1.0
+    TOUCH_WOUND = 2 * Enemy::TICKS_PER_THINK / Enemy::SCALE
 
     # WHETHER HE FIRES is a chance against distance, taken every frame he has a clear line —
     # which is why a guard sometimes just stands there aiming. The original's number is sixteen
@@ -323,6 +329,7 @@ module Wolf3D
       @b.call :guard_hunts if @job == HUNT if hunts?(:hunt)
       @b.call :guard_throws if @job == THROW if hunts?(:throw)
       @b.call :guard_breathes_fire if @job == FLAME if hunts?(:flame)
+      @b.call :guard_haunts if @job == HAUNT if hunts?(:haunt)
     end
 
     # EACH JOB A ROUTINE OF THE POOL'S OWN, run on whichever guard the walk is on. Written into
@@ -341,6 +348,7 @@ module Wolf3D
         @pool.func(:guard_throws) { |guard| throw_or_back_off(guard) }
       end
       @pool.func(:guard_breathes_fire) { |guard| breathe_fire_or_walk(guard) } if hunts?(:flame)
+      @pool.func(:guard_haunts) { |guard| haunt(guard) } if hunts?(:haunt)
     end
 
     # WHAT IS IN THE AIR IS DECLARED HERE, between the tests it borrows and the jobs that throw it. A
@@ -852,6 +860,34 @@ module Wolf3D
         select_chase_or_dodge_dir(guard) if guard.togo <= 0.0
         walk(guard, patrolling: false)
       end
+    end
+
+    # A GHOST COMES ON BY THE PLAIN WAY AND NEVER SIDESTEPS (T_Ghosts). It has no attack: it hurts you
+    # by trying to walk into you, which is in the same place the original puts it, the check every
+    # moving thing makes not to stand on you (MoveObj). Everything else stops there. A ghost goes on
+    # trying, and each try is a wound, a little one, for as long as you are within a cell of it.
+    def haunt(guard)
+      @dx = @player.x - guard.x
+      @dy = @player.y - guard.y
+      if @dx.abs < TOUCHING && @dy.abs < TOUCHING
+        touch_the_player(guard)
+      else
+        @dodging = 0
+        select_chase_or_dodge_dir(guard) if guard.togo <= 0.0
+        walk(guard, patrolling: false)
+      end
+    end
+
+    # ...and only across a room you are in, for a wall can have a ghost a cell from you on the far side.
+    def touch_the_player(guard)
+      return wound_by_touch(guard) if @rooms.nil?
+
+      wound_by_touch(guard) if @rooms.open_to_the_player?(guard.x, guard.y)
+    end
+
+    def wound_by_touch(guard)
+      @wound = TOUCH_WOUND
+      take_it_out_of_the_player(guard)
     end
 
     # WITH NO ROOM IN THE AIR IT DOES NOT TRY, which is the original's `objfreelist`.

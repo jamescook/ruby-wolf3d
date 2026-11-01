@@ -303,7 +303,7 @@ module Wolf3D
       shut_every_door
       put_the_secret_walls_back
       @pickups&.put_them_all_back
-      @guard_pool&.refill(slot: @slot, kill_total: @kill_total)
+      @guard_pool&.refill(slot: @slot, kill_total: @kill_total, kills: @player.kills)
       @mind&.thrown&.clear
       @cam&.start_again
       @march&.start_again

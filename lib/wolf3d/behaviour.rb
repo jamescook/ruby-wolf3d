@@ -59,12 +59,18 @@ module Wolf3D
 
     def becomes_from(number) = number_of(kind_at(number).name, state_at(number).becomes)
     def chase_from(number) = number_of(kind_at(number).name, :chase1)
-    def fall_from(number) = number_of(kind_at(number).name, :fall1)
+    # ...and a thing that cannot fall stays as it is, for a table has to say something.
+    def fall_from(number)
+      kind = kind_at(number)
+      kind.has?(:fall1) ? number_of(kind.name, :fall1) : number
+    end
 
     # What it does when it has you: a gun comes up, or a dog gathers itself to jump.
     def attack_from(number)
       kind = kind_at(number)
-      number_of(kind.name, kind.has?(:shoot1) ? :shoot1 : :jump1)
+      return number_of(kind.name, :shoot1) if kind.has?(:shoot1)
+
+      kind.has?(:jump1) ? number_of(kind.name, :jump1) : number
     end
 
     # ...and what a wound that does not kill it does.

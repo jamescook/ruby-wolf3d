@@ -395,6 +395,21 @@ module Wolf3D
       *falling(HITLER_POSES, 10, first: 1, second: LAST_WORDS, does: { 2 => :slurp }, ends_it: true)
     ].freeze
 
+    # THE GHOSTS, who are out of Pac-Man and do one thing. Two pictures that do not turn, ten units
+    # each, and every one of those is spent coming for you. There is no standing, no attack and no
+    # falling: nothing they could be shot into and nothing they do but touch you (T_Ghosts).
+    GHOST_POSES = Ractor.make_shareable(Poses.new(still: nil, walk: [0, 1], hurt: [], fall: [], dead: nil,
+                                                  attack: []))
+    GHOST_STATES = [
+      state(:chase1, GHOST_POSES.walk[0], 10, :haunt, :chase2, turns: false),
+      state(:chase2, GHOST_POSES.walk[1], 10, :haunt, :chase1, turns: false)
+    ].freeze
+
+    # NOTHING TO KILL. The shot walks past a thing with no hit points, which is how the original's
+    # missing FL_SHOOTABLE comes out here, and a bullet carries on to whoever is behind it.
+    GHOST = { hit_points: [0] * 4, points: 0, patrol_speed: 1500, chase_times: 1, leaves: nil,
+              states: GHOST_STATES, stands: false }.freeze
+
     # --- all of them ------------------------------------------------------------------------
 
     # WHERE EACH KIND'S CODES AND PICTURES ARE.
@@ -484,7 +499,13 @@ module Wolf3D
           leaves: nil, states: GIFT_STATES, stands: true, **BOSS),
       new(name: :fat, standing: 179, first_picture: 396,
           hit_points: BOSS_HIT_POINTS, points: BOSS_POINTS, patrol_speed: 512, chase_times: 3,
-          leaves: nil, states: FAT_STATES, stands: true, **BOSS)
+          leaves: nil, states: FAT_STATES, stands: true, **BOSS),
+      # THE CODES ARE THE ORIGINAL'S ScanInfoPlane AND THE PICTURES ITS SPRITE LIST, which run in
+      # different orders.
+      new(name: :blinky, standing: 224, first_picture: 288, **GHOST, **BOSS),
+      new(name: :clyde, standing: 225, first_picture: 292, **GHOST, **BOSS),
+      new(name: :pinky, standing: 226, first_picture: 290, **GHOST, **BOSS),
+      new(name: :inky, standing: 227, first_picture: 294, **GHOST, **BOSS)
     ])
 
     BY_NAME = Ractor.make_shareable(ALL.to_h { |kind| [kind.name, kind] })
@@ -496,7 +517,7 @@ module Wolf3D
     # What each of the thinking jobs is numbered, so one table can say which to do. A dog HUNTS
     # where everything else chases: it closes on you instead of stopping for a shot.
     # A thrower keeps its distance where a chaser closes, and a fake Hitler does neither.
-    THINKING = { nil => 0, look: 1, patrol: 2, chase: 3, hunt: 4, throw: 5, flame: 6 }.freeze
+    THINKING = { nil => 0, look: 1, patrol: 2, chase: 3, hunt: 4, throw: 5, flame: 6, haunt: 7 }.freeze
 
     # ...and what each attack is numbered, the same way. The three things thrown come last and in
     # this order, so what is thrown is the number less the first of them. See Thrown.
@@ -563,7 +584,16 @@ module Wolf3D
     def ends_the_episode? = has?(:lies)
 
     # Which state one of these starts a floor in.
-    def first_state(patrolling) = has?(:inside) ? :inside : (patrolling ? :path1 : :stand)
+    def first_state(patrolling)
+      return :inside if has?(:inside)
+      return :chase1 unless has?(:stand) || has?(:path1)
+
+      patrolling ? :path1 : :stand
+    end
+
+    # Does it count as killed before you have laid a finger on it? A ghost does: you cannot shoot it
+    # and a floor with one on it can still be a hundred per cent (SpawnGhosts).
+    def killed_from_the_start? = hit_points.max.zero?
 
     # Which picture a state wears, as VSWAP numbers sprites.
     def picture_of(state) = first_picture + state.picture
