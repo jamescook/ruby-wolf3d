@@ -63,6 +63,7 @@ module Wolf3D
       menu_heading: 7,
       menu_gun: 8, menu_gun_firing: 9,
       load_game_heading: 25, save_game_heading: 26, # the plates over those two screens
+      level_label: 35, name_label: 36, score_label: 37, # the columns of the high score table
       status_bar: 83,   # the steel plate along the bottom
       title: 84,        # the title screen
       notice: 85,       # the rating box shown before the title

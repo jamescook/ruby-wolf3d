@@ -86,6 +86,7 @@ require_relative "wolf3d/palette_view"
 require_relative "wolf3d/art_view"
 # ...after the view, which the menus put themselves in front of and hand a game back to.
 VBlank.require_game_file "wolf3d/saved_games"
+VBlank.require_game_file "wolf3d/high_scores"
 VBlank.require_game_file "wolf3d/menus"
 VBlank.require_game_file "wolf3d/title"
 
@@ -255,7 +256,7 @@ module Wolf3D
   #
   #   WOLF3D_SCREEN=credits ruby wolf3d.rb
   #
-  # The screens are: notice, title, credits, menu, episodes, difficulty, playing, load.
+  # The screens are: notice, title, credits, menu, episodes, difficulty, playing, load, scores.
   def self.which_screen(asked) = Menus.screen_named(asked&.to_s)
 
   def self.vswap = Ractor.current[:wolf3d_vswap] ||= data && Vswap.from(data)

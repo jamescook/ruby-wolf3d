@@ -38,6 +38,8 @@ module Wolf3D
     LOADING = 7     # the list of saved games, to load one
     SAVING = 8      # the same list, to save into
     OVERWRITING = 9 # whether to save over the game already in a slot
+    SCORES = 10     # the high score table
+    NAMING = 11     # the same table, with a name to pick for the row you earned
 
     ACROSS = FirstPerson::ACROSS
     DOWN = FirstPerson::DOWN
@@ -50,6 +52,7 @@ module Wolf3D
     NOTICE_FRAMES = 5 * SECOND
     TITLE_FRAMES = 15 * SECOND
     CREDITS_FRAMES = 10 * SECOND
+    SCORES_FRAMES = 10 * SECOND
 
     # THE SELECTOR BLINKS rather than sitting still: the gun for a second, then the same gun
     # with its muzzle flashing for about a ninth of one. A steady cursor is the wrong look.
@@ -113,7 +116,8 @@ module Wolf3D
     NEW_GAME = ["NEW GAME", "END GAME"].freeze
     LOAD_GAME = "LOAD GAME"
     SAVE_GAME = "SAVE GAME"
-    MENU_ROWS = 5
+    VIEW_SCORES = "VIEW SCORES"
+    MENU_ROWS = 6
     SOUND = ["SOUND: OFF", "SOUND: ON"].freeze
     BACK = ["BACK TO DEMO", "BACK TO GAME"].freeze
 
@@ -137,6 +141,10 @@ module Wolf3D
     OVERWRITE_ANSWERS = "A: yes   B: no"
     QUESTION_TOP = 50
 
+    # The little block beside a row of the high score table that is yours to name.
+    MARK_X = 4
+    MARK_SIZE = 8
+
     # The gap between a slot's words and the number of its floor.
     NUMBER_GAP = 4
 
@@ -157,7 +165,7 @@ module Wolf3D
     # THE SCREENS BY NAME, so a cartridge can be built to boot on one of them. See +starting_on+.
     BY_NAME = { "notice" => NOTICE, "title" => TITLE, "credits" => CREDITS, "menu" => MENU,
                 "episodes" => EPISODES, "difficulty" => DIFFICULTY, "playing" => PLAYING,
-                "load" => LOADING }.freeze
+                "load" => LOADING, "scores" => SCORES }.freeze
 
     # Which screen a name means, or nothing said, which means the beginning.
     def self.screen_named(name)
@@ -201,7 +209,8 @@ module Wolf3D
     def screens
       list = { NOTICE => :the_notice, TITLE => :the_title, CREDITS => :the_credits,
                MENU => :the_menu, DIFFICULTY => :the_difficulty, PLAYING => :playing,
-               LOADING => :load_game, SAVING => :save_game, OVERWRITING => :confirm_overwrite }
+               LOADING => :load_game, SAVING => :save_game, OVERWRITING => :confirm_overwrite,
+               SCORES => :high_scores, NAMING => :pick_a_name }
       list[EPISODES] = :the_episodes if offers_episodes?
       list
     end
@@ -235,6 +244,11 @@ module Wolf3D
       # declares it and this asks the view for it.
       @difficulty = @view.difficulty
       @saved = SavedGames.new(build: @b, view: @view)
+      @scores = HighScores.new(build: @b, art: @art, palette: @palette, view: @view,
+                               player: @view.player, floor: @view.playthrough.floor)
+      @view.hand_end_of_game_to_menus
+      # Where the table goes back to, and whether it moves on by itself as it does in the attract loop.
+      @scores_lead_to = @b.var :_scores_lead_to, TITLE
       declare_the_fades
       declare_the_screens
     end
@@ -258,7 +272,8 @@ module Wolf3D
     end
 
     def declare_the_art
-      %i[notice title credits menu_heading menu_gun menu_gun_firing load_game_heading save_game_heading]
+      %i[notice title credits menu_heading menu_gun menu_gun_firing load_game_heading save_game_heading
+         high_scores level_label name_label score_label]
         .each { |name| picture(name) }
       DIFFICULTIES.each { |(_, _, portrait)| picture(portrait) }
     end
@@ -280,7 +295,7 @@ module Wolf3D
     def declare_the_screens
       still_screen(:the_notice, :notice, after: TITLE, holding: NOTICE_FRAMES)
       still_screen(:the_title, :title, after: CREDITS, holding: TITLE_FRAMES)
-      still_screen(:the_credits, :credits, after: TITLE, holding: CREDITS_FRAMES)
+      still_screen(:the_credits, :credits, after: SCORES, holding: CREDITS_FRAMES)
       declare_the_menu
       declare_the_episodes if offers_episodes?
       declare_the_difficulty
@@ -288,6 +303,7 @@ module Wolf3D
       declare_slot_screen(:load_game, :load_game_heading) { |n| load_slot(n) }
       declare_slot_screen(:save_game, :save_game_heading) { |n| save_to_slot(n) }
       declare_overwrite_question
+      declare_score_screens
     end
 
     # --- THE ATTRACT LOOP ------------------------------------------------------------------
@@ -344,7 +360,7 @@ module Wolf3D
     # --- THE MAIN MENU, WHICH IS ALSO THE PAUSE MENU -----------------------------------------
 
     def declare_the_menu
-      rows = NEW_GAME + [LOAD_GAME, SAVE_GAME] + SOUND + BACK
+      rows = NEW_GAME + [LOAD_GAME, SAVE_GAME, VIEW_SCORES] + SOUND + BACK
       at = layout_for(rows)
       y = rows_top(@art.height(:menu_heading) + HEADING_GAP, MENU_ROWS)
       @b.scene(:the_menu) do
@@ -357,6 +373,7 @@ module Wolf3D
           m.item(LOAD_GAME) { leaving_for LOADING }
           m.item(SAVE_GAME, enabled: @in_game) { leaving_for SAVING }
           m.item(SOUND, showing: @sound_on) { @sound_on = 1 - @sound_on }
+          m.item(VIEW_SCORES) { view_scores }
           m.item(BACK, showing: @in_game) { leave_the_menu }
         end
         the_gun(at, y, picked)
@@ -466,6 +483,75 @@ module Wolf3D
       end
     end
 
+    # --- THE HIGH SCORES ------------------------------------------------------------------------
+
+    def declare_score_screens
+      @b.scene(:high_scores) do
+        draw_score_table
+        @waited += 1
+        # IN THE ATTRACT LOOP IT MOVES ON, and from the menu it waits for you.
+        go_to @scores_lead_to if @scores_lead_to == TITLE && @waited >= SCORES_FRAMES
+        if @b.pressed(:any)
+          @scores_lead_to = TITLE
+          go_to MENU
+        end
+        arriving
+      end
+      @b.scene(:pick_a_name) do
+        draw_score_table
+        mark_new_row
+        @scores.edit_name
+        finish_name if @b.pressed(:a) || @b.pressed(:start)
+        arriving
+      end
+    end
+
+    def draw_score_table
+      the_ground
+      the_stripes
+      @b.blit :menu_high_scores, even((ACROSS - @art.width(:high_scores)) / 2), 0
+      @b.blit :menu_name_label, HighScores::NAME_X, HighScores::NAME_LABEL_Y
+      @b.blit :menu_level_label, HighScores::FLOOR_X, HighScores::NAME_LABEL_Y
+      @b.blit :menu_score_label, HighScores::SCORE_X + 16, HighScores::NAME_LABEL_Y
+      @scores.draw
+    end
+
+    # THE ROW YOU EARNED, marked in the column before the names.
+    def mark_new_row
+      y = HighScores::TOP_ROW + (@scores.new_row * HighScores::ROW_STEP)
+      @b.draw_rect_at MARK_X, y, MARK_SIZE, MARK_SIZE, colour(HIGHLIGHT)
+    end
+
+    def view_scores
+      @scores_lead_to = MENU
+      leaving_for SCORES
+    end
+
+    # START ON A GAME OVER, which a cartridge with nothing on it to kill you does not have.
+    def finish_game_on_start
+      return unless @view.over
+
+      finish_game if @view.over == 1 && @b.pressed(:start)
+    end
+
+    # THE GAME IS DONE, and the table comes next, with a name to pick if it earned a row
+    # (CheckHighScore). There is no game behind the menu from here on.
+    def finish_game
+      @scores.enter_game
+      @in_game = 0
+      @scores_lead_to = TITLE
+      if @scores.new_row == HighScores::NOBODY
+        leaving_for SCORES
+      else
+        leaving_for NAMING
+      end
+    end
+
+    def finish_name
+      @scores.finish_name
+      go_to SCORES
+    end
+
     # --- THE EPISODE LIST --------------------------------------------------------------------
 
     # Only worth a screen when the cartridge holds more than one episode to start. A cartridge
@@ -537,6 +623,7 @@ module Wolf3D
       @b.scene(:playing) do
         @view.update
         pausing
+        arriving
       end
     end
 
@@ -555,6 +642,7 @@ module Wolf3D
     #
     # NOR WHILE THE DEATH CAM RUNS, which is a game already over.
     def pausing
+      finish_game_on_start
       pause_unless([@view.over, @view.dying, @view.between_floors, @view.watching].compact)
     end
 

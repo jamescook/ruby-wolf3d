@@ -192,7 +192,7 @@ measuring dial, not a way to play:
 WOLF3D_SCREEN=credits ruby wolf3d.rb
 ```
 
-The names are `notice`, `title`, `credits`, `menu`, `episodes`, `difficulty`, `playing` and `load`.
+The names are `notice`, `title`, `credits`, `menu`, `episodes`, `difficulty`, `playing`, `load` and `scores`.
 Asking for `episodes` on a cartridge holding one is a build error that says so.
 
 **The title and the credits drift.** Both were painted 320×200 for a screen this console does
@@ -210,9 +210,13 @@ holding only one episode does not ask at all — a list with one pickable row is
 one answer — so NEW GAME goes straight to the difficulty screen.
 
 What the menu offers, and what it does not: NEW GAME (END GAME once a game is on), LOAD GAME,
-SAVE GAME greyed until a game is on, SOUND on or off, and BACK TO DEMO (BACK TO GAME from a pause).
-The original's Read This!, View Scores and Control screens are not offered — the first two have
-nothing to show yet and the third calibrates a mouse and a joystick.
+SAVE GAME greyed until a game is on, SOUND on or off, VIEW SCORES, and BACK TO DEMO (BACK TO GAME
+from a pause). The original's Read This! and Control screens are not offered — the first has nothing
+to show yet and the second calibrates a mouse and a joystick.
+
+**The high score table** holds seven games and survives the power going off. It follows the credits
+in the attract loop, and a game that earns a row asks for a name: up and down change the letter,
+left and right change which one, and A finishes.
 
 **A save is the whole game at that moment**, every guard and door, and nothing is saved unless you
 ask, as in the original. There are seven slots where the original has ten, because that is all the

@@ -48,7 +48,7 @@ class TestMenus < Minitest::Test
     assert_equal Menus::CREDITS, credits[:screen]
     assert showing?(credits, :credits), "the credits should follow the title screen"
 
-    round = play(frames: Menus::NOTICE_FRAMES + Menus::TITLE_FRAMES + Menus::CREDITS_FRAMES + 1)
+    round = play(frames: Menus::NOTICE_FRAMES + Menus::TITLE_FRAMES + Menus::CREDITS_FRAMES + Menus::SCORES_FRAMES + 1)
 
     assert_equal Menus::TITLE, round[:screen], "and then round to the title again"
   end
@@ -259,12 +259,12 @@ class TestMenus < Minitest::Test
   def test_the_last_row_goes_back_to_the_game_when_there_is_one
     run = playing(frames: 180) do |f|
       next [:start] if f == 95
-      next [:down] if [105, 110, 115, 120].include?(f)
+      next [:down] if [100, 105, 110, 115, 120].include?(f)
 
       f == 140 ? [:a] : []
     end
 
-    assert_equal 4, run[:__menu_main], "the last row"
+    assert_equal 5, run[:__menu_main], "the last row"
     assert_equal Menus::PLAYING, run[:screen], "and it puts you back in the game"
   end
 
@@ -274,7 +274,7 @@ class TestMenus < Minitest::Test
     before = playing(frames: 90)
     back = playing(frames: 180) do |f|
       next [:start] if f == 95
-      next [:down] if [105, 110, 115, 120].include?(f)
+      next [:down] if [100, 105, 110, 115, 120].include?(f)
 
       f == 140 ? [:a] : []
     end
@@ -286,12 +286,12 @@ class TestMenus < Minitest::Test
 
   # BOTH PAGES, which is the half only the console can answer: the interpreter keeps one picture,
   # so a bar painted once reads right there and shows the menu's leftovers every other frame here.
-  # The script is START, down four times to the last row, A, and the fade back.
+  # The script is START, down five times to the last row, A, and the fade back.
   def test_the_console_shows_the_bar_on_both_pages_after_the_menu
     backend = GBA.new
     rom = ROM.assemble(backend.lower(self.class.booting_into_the_game), title: "MENU")
-    keys = { 20 => Constants::KEY_START, 26 => Constants::KEY_DOWN, 30 => Constants::KEY_DOWN,
-             34 => Constants::KEY_DOWN, 38 => Constants::KEY_DOWN, 44 => Constants::KEY_A }
+    keys = { 20 => Constants::KEY_START, 24 => Constants::KEY_DOWN, 28 => Constants::KEY_DOWN, 32 => Constants::KEY_DOWN,
+             36 => Constants::KEY_DOWN, 40 => Constants::KEY_DOWN, 46 => Constants::KEY_A }
     script = ->(frame) { keys.fetch(frame, 0) }
 
     bars = [90, 91].map do |frames|

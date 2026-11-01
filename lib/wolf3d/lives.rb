@@ -76,6 +76,11 @@ module Wolf3D
       @left.clamp! 0, MOST
     end
 
+    # See FirstPerson#hand_end_of_game_to_menus.
+    def hand_end_of_game_to_menus
+      @menus_end_games = true
+    end
+
     # ONE PASS OF THE GAME LOOP, and it does nothing at all until the death has finished telling
     # its story.
     #
@@ -128,8 +133,11 @@ module Wolf3D
       @words.changed
     end
 
-    # START BEGINS A NEW GAME, on the floor the last one began on.
+    # START BEGINS A NEW GAME, on the floor the last one began on, unless the menus have the end of
+    # the game to deal with.
     def start_another_game
+      return if @menus_end_games
+
       @playthrough.start(:new_game) if @b.pressed(:start)
     end
 
