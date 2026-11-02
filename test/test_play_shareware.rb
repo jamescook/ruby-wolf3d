@@ -23,8 +23,8 @@ class TestPlayShareware < Minitest::Test
     said, status = Open3.capture2e(RUBY, TOOL, "--floors", "2", "--repeat", "--tape", tape)
 
     assert_predicate status, :success?, said
-    assert_match(/floor_1_done: frame \d+/, said)
-    assert_match(/floor_2_done: frame \d+/, said)
+    assert_match(/floor_1_done\s+frame \d+/, said)
+    assert_match(/floor_2_done\s+frame \d+/, said)
     assert_includes said, "The tape played back the same."
   ensure
     FileUtils.rm_f(tape) if tape
