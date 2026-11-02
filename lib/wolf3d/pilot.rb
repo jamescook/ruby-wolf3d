@@ -98,6 +98,7 @@ module Wolf3D
     HEALTH_WORTH_FETCHING = 85
     SCAVENGE_AMMO_BELOW = 60
     LOW_AMMO = 40
+    KEEP_ROUNDS = 15
 
     # Hit points no ordinary man has.
     BOSS_HIT_POINTS = 200
@@ -298,7 +299,8 @@ module Wolf3D
       @sight_passes = target ? @sight_passes + 1 : 0
       return fight_from_corner(*@boss_at) if boss_awake?
       return fight(target) if target && running_past? && in_the_way?(target)
-      return travel if running_past? || !(target && reacted_to?(target))
+      return travel_firing_at(target) if running_past?
+      return travel unless target && reacted_to?(target)
 
       needs_cover = @health < COVER_BELOW_HEALTH || @men_in_sight > 1
       needs_cover ? fight_from_corner(target[0], target[1]) : fight(target)
@@ -307,6 +309,16 @@ module Wolf3D
     # ON THE HARDEST SETTING THERE ARE MORE MEN THAN BULLETS, so once it has a gun that can clear a
     # way it stops to shoot only at whoever blocks the way. A moving player is also harder to hit.
     def running_past? = @hardest && @best_weapon >= Weapons::MACHINE_GUN
+
+    # Whoever happens to stand in front of a running gun gets shot, at no cost in time.
+    def travel_firing_at(target)
+      buttons = travel
+      return buttons unless target && @ammo > KEEP_ROUNDS
+
+      x, y, = target
+      on_target = view_error_to(x, y).abs <= aim_tolerance(distance_to(x, y))
+      on_target && trigger_down? ? buttons + [:b] : buttons
+    end
 
     def in_the_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_passes > HELD_UP_PASSES
 
