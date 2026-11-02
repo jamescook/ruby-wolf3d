@@ -46,6 +46,7 @@ module Wolf3D
     GENTLE_TURN = 60
 
     SIGHT_CELLS = 11.0
+    NEAR_CELLS = 6.0
 
     # On the menus, frames between two presses of a button read on its edge, and how many it stays
     # down. In play, passes between two presses.
@@ -119,6 +120,12 @@ module Wolf3D
 
     PUSH_PASSES = 35
 
+    # When a stash behind a secret wall is worth the walk.
+    STASH_AMMO_BELOW = 40
+    STASH_HEALTH_BELOW = 70
+    STASH_STEPS = 30
+    STASH_PIECES = 3
+
     # +maps+ are the floors of the copy on the cartridge, in the order they are played.
     def initialize(maps, hardest: false)
       @hardest = hardest
@@ -144,11 +151,14 @@ module Wolf3D
       lives = game.var(:lives)
       raise Lost, "The pilot lost its last life on floor #{floor + 1}, on frame #{@frame}." if lost?(game)
 
-      if floor != @floor || lives != @lives
-        warn format("frame %d: floor %d, %d lives, health %d, ammo %d, gun %d, score %d", @frame, floor + 1, lives,
-                    game.var(:health), game.var(:ammo), game.var(:weapon_best), game.var(:score))
-        begin_floor(floor, lives)
+      # Dying puts the floor back as it was, and a life won by score or by a pickup changes nothing.
+      if floor != @floor || lives < @lives
+        warn format("frame %d: floor %d, %d lives, health %d, ammo %d, gun %d, score %d, last at %s with %d near, gun %d ammo %d",
+                    @frame, floor + 1, lives, game.var(:health), game.var(:ammo), game.var(:weapon_best),
+                    game.var(:score), @cell.inspect, men_near, @best_weapon.to_i, @ammo.to_i)
+        begin_floor(floor)
       end
+      @lives = lives
       return [] if game.var(:health) <= 0
       return @buttons unless new_pass?(game)
 
@@ -194,9 +204,14 @@ module Wolf3D
     def press_now_and_then(button) = (@frame % MENU_PRESS_EVERY) < PRESS_FRAMES ? [button] : []
     def press_at_intervals? = (@pass % PRESS_EVERY_PASSES).zero?
 
-    def begin_floor(floor, lives)
+    def men_near
+      return 0 unless @cell
+
+      @people.count { |x, y, _| distance_to(x, y) < NEAR_CELLS }
+    end
+
+    def begin_floor(floor)
       @floor = floor
-      @lives = lives
       @level = @levels.fetch(floor)
       @report = @reports.fetch(floor)
       @route = @report.route
@@ -217,6 +232,9 @@ module Wolf3D
       @walk_on_passes = 0
       @hit_points_left = nil
       @opened = []
+      @wall_ends = []
+      @stash = []
+      @searched_from = nil
       @pushing_passes = 0
       @boss = nil
       @boss_at = nil
@@ -519,7 +537,7 @@ module Wolf3D
     def enterable?((x, y))
       return false if x.negative? || y.negative? || x >= @level.width || y >= @level.height
       return true if @opened.include?([x, y])
-      return false if @secret && @opened.any? && [x, y] == @secret.wall_ends
+      return false if @wall_ends.include?([x, y])
       return false if @level.solid?(x, y) || @blocks.blocks?(x, y)
 
       lock = @level.lock_at(x, y)
@@ -546,17 +564,19 @@ module Wolf3D
     # --- stocking up before a boss ------------------------------------------------------------
 
     def stock_goal
-      plan_secret_trip if @stage == :planning
+      look_for_secret if @stage == :planning || (@stage == :on_foot && @cell != @searched_from)
       case @stage
       when :to_secret then @cell == @secret.from || @pushing_passes.positive? ? :push_wall : @secret.from
       when :stocking then next_stock_piece
+      when :looting then next_stash_piece
       end
     end
 
-    def plan_secret_trip
-      @secret = secret_to_better_gun
+    def look_for_secret
+      @searched_from = @cell
+      @secret = secret_to_better_gun || secret_to_stash
       @stage = if @secret then :to_secret
-               elsif stocks_up_here? then :stocking
+               elsif @stage == :planning && stocks_up_here? then :stocking
                else :on_foot
                end
     end
@@ -566,13 +586,44 @@ module Wolf3D
       walkable = steps_from_here
       return nil if guns.empty? || guns.any? { |cell| walkable[cell] }
 
-      @report.pushwalls.each do |wall|
-        FloorReport::STEPS.each do |dx, dy|
-          secret = secret_at(wall, dx, dy, walkable) or next
-          return secret if opens_way_to?(secret, guns)
-        end
+      secrets_from(walkable).find do |secret|
+        reachable = with_secret_open(secret) { steps_from_here }
+        guns.any? { |cell| reachable[cell] }
       end
-      nil
+    end
+
+    # THE FLOORS KEEP THEIR SUPPLIES BEHIND SECRET WALLS, often beside the way through. Short of
+    # bullets or health, it opens one that is close and has enough behind it to pay for the walk.
+    def secret_to_stash
+      return unless @ammo < STASH_AMMO_BELOW || @health < STASH_HEALTH_BELOW
+
+      walkable = steps_from_here
+      close_by = secrets_from(walkable).select { |secret| walkable[secret.from] <= STASH_STEPS }
+      close_by.find { |secret| stash_behind(secret).count { |piece| stock?(piece) } >= STASH_PIECES }
+    end
+
+    # What opening this wall would put within reach that is out of reach now.
+    def stash_behind(secret)
+      walkable = steps_from_here
+      reachable = with_secret_open(secret) { steps_from_here }
+      @report.pickups.select { |piece| reachable[[piece.x, piece.y]] && !walkable[[piece.x, piece.y]] }
+    end
+
+    def secrets_from(walkable)
+      walls = @report.pushwalls.reject { |wall| @opened.include?([wall.x, wall.y]) }
+      walls.flat_map { |wall| FloorReport::STEPS.filter_map { |dx, dy| secret_at(wall, dx, dy, walkable) } }
+    end
+
+    # The block sees the floor as it would be with this wall pushed.
+    def with_secret_open(secret)
+      opened = @opened
+      wall_ends = @wall_ends
+      @opened += secret.opens
+      @wall_ends += [secret.wall_ends]
+      yield
+    ensure
+      @opened = opened
+      @wall_ends = wall_ends
     end
 
     def secret_at(wall, dx, dy, walkable)
@@ -586,23 +637,27 @@ module Wolf3D
                  wall_ends: enterable?(further) ? further : beyond)
     end
 
-    def opens_way_to?(secret, guns)
-      @secret = secret
-      @opened = secret.opens
-      guns.any? { |cell| steps_from_here[cell] }
-    ensure
-      @secret = nil
-      @opened = []
-    end
-
     def push_secret_wall
       lean_on_and_press(@secret.view) do
         @pushing_passes += 1
         next unless @pushing_passes > PUSH_PASSES
 
-        @opened = @secret.opens
-        @stage = stocks_up_here? ? :stocking : :on_foot
+        @stash = stash_behind(@secret)
+        @opened += @secret.opens
+        @wall_ends += [@secret.wall_ends]
+        @pushing_passes = 0
+        @stage = stocks_up_here? ? :stocking : :looting
       end
+    end
+
+    def next_stash_piece
+      steps = steps_from_here
+      wanted = @stash.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
+                     .select { |cell| steps[cell] && !@taken[cell] }
+      return wanted.min_by { |cell| steps[cell] } unless wanted.empty?
+
+      @stage = :on_foot
+      nil
     end
 
     def next_stock_piece
