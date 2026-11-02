@@ -530,18 +530,17 @@ module Wolf3D
       end
 
       # AN ADLIB EFFECT FOR EACH NUMBER ASKED FOR: one note, a tenth of a second long, on an operator
-      # that sounds at once and a modulator turned right down. +@adlib+ is a list of numbers, or a
-      # Hash of a number's priority. Every other chunk before them is empty.
+      # that sounds at once and a modulator turned right down. Every other chunk before them is empty.
       ADLIB_NOTES = 14
+      ADLIB_PRIORITY = 1
       ADLIB_INSTRUMENT = [0x21, 0x21, 0x3f, 0x00, 0xf0, 0xf0, 0x0f, 0x0f, 0, 0, 0, 0, 0, 0, 0, 0].freeze
 
       def adlib_chunks
-        priorities = @adlib.is_a?(Hash) ? @adlib : @adlib.to_h { |number| [number, 1] }
-        Array.new(AdlibSounds::FIRST_CHUNK + priorities.keys.max + 1) do |chunk|
-          priority = priorities[chunk - AdlibSounds::FIRST_CHUNK]
-          next "" unless priority
+        Array.new(AdlibSounds::FIRST_CHUNK + @adlib.max + 1) do |chunk|
+          next "" unless @adlib.include?(chunk - AdlibSounds::FIRST_CHUNK)
 
-          [ADLIB_NOTES].pack("V") + [priority].pack("v") + ADLIB_INSTRUMENT.pack("C*") + [4].pack("C") + ([200] * ADLIB_NOTES).pack("C*")
+          [ADLIB_NOTES].pack("V") + [ADLIB_PRIORITY].pack("v") + ADLIB_INSTRUMENT.pack("C*") + [4].pack("C") +
+            ([200] * ADLIB_NOTES).pack("C*")
         end
       end
 

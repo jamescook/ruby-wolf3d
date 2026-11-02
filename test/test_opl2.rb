@@ -14,7 +14,6 @@ class TestOpl2 < Minitest::Test
   # operator goes, which leaves the carrier alone.
   HOLDING = { char: 0x21, scale: 0, attack: 0xf0, sustain: 0x00, wave: 0 }.freeze
   SILENT_MODULATOR = HOLDING.merge(scale: 0x3f).freeze
-  TICK_SECONDS = 1.0 / 140
 
   def instrument(modulator: SILENT_MODULATOR, carrier: HOLDING)
     AdLib::Instrument.new(modulator: AdLib::Operator.new(**modulator), carrier: AdLib::Operator.new(**carrier))
@@ -69,6 +68,13 @@ class TestOpl2 < Minitest::Test
     samples = Opl2.render(effect([200] * 70, carrier: decays))
 
     assert_in_delta 127 * (10**(-12.0 / 20)), loudness(samples.last(1500).first(300)), 3
+  end
+
+  def test_the_lowest_sustain_is_nearly_silence
+    decays = HOLDING.merge(attack: 0xfc, sustain: 0xf0)
+    samples = Opl2.render(effect([200] * 70, carrier: decays))
+
+    assert_operator samples.length, :<, 2000, "the rest of the half second is silence, and is cut off"
   end
 
   def test_a_slow_attack_climbs

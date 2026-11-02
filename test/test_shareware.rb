@@ -41,7 +41,7 @@ class TestShareware < Minitest::Test
   def test_every_adlib_effect_the_game_plays_makes_a_sound
     adlib = Wolf3D::AdlibSounds.from(shareware_or_skip)
 
-    Wolf3D::Sounds::ADLIB.each do |name, number|
+    Wolf3D::Sounds::ADLIB_EFFECT_NUMBERS.each do |name, number|
       refute_nil adlib.recording(number), name.to_s
     end
   end

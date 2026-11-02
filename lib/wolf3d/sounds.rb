@@ -12,7 +12,7 @@ module Wolf3D
   # THE OTHER HALF ARE ADLIB EFFECTS: walking into a wall, picking something up, a locked door, the
   # knife, the player's own death and the screen between floors. Those are recipes for a synthesiser
   # chip. Opl2 plays each one while the cartridge is built, and here it is a recording like any other.
-  # See #declare_the_adlib_effects.
+  # See #declare_adlib_effects.
   #
   # WHICH CHUNK IS WHICH is the original's own table (wl_main.cpp, wolfdigimap) rather than
   # remembered. It maps a sound the game asks for onto a numbered chunk of VSWAP, and the numbers
@@ -31,7 +31,7 @@ module Wolf3D
     GUNS = [PISTOL, MACHINE_GUN, CHAIN_GUN].freeze
     NOTICES_YOU = 0     # "Halt!" — a guard the moment he sees you
     GUARD_FIRES = 21     # ...and his gun
-    SLURP = 22           # Hitler going down
+    SLURP = 22           # Hitler going down, and what is left of somebody being eaten
     YEAH = 32            # BJ, jumping for joy
     MACHINE_TREAD = 31   # the machine's footfall
     DOG_BITES = 29
@@ -71,10 +71,10 @@ module Wolf3D
 
     # THE ADLIB EFFECTS THIS GAME PLAYS, by the numbers of audiowl6.h and where wl_agent.cpp,
     # wl_act1.cpp, wl_game.cpp and wl_inter.cpp play them.
-    ADLIB = Ractor.make_shareable({ hit_wall: 0, no_way: 6, player_death: 9, key: 12, knife: 23, machine_gun: 30,
+    ADLIB_EFFECT_NUMBERS = Ractor.make_shareable({ hit_wall: 0, no_way: 6, player_death: 9, key: 12, knife: 23, machine_gun: 30,
                                     ammo: 31, food: 33, first_aid: 34, cross: 35, chalice: 36, bible: 37,
-                                    chain_gun: 38, tally_tick: 42, tally_done: 43, one_up: 44, crown: 45,
-                                    no_bonus: 47, full_marks: 48 })
+                                    chain_gun: 38, end_bonus1: 42, end_bonus2: 43, one_up: 44, crown: 45,
+                                    no_bonus: 47, percent100: 48 })
 
     # +vswap+ is the player's own copy of the game's sounds, or nil on a build with no data,
     # which makes every one of these do nothing. +adlib+ is its AdlibSounds, and nil leaves those
@@ -94,29 +94,30 @@ module Wolf3D
     # past the end, and a number naming no effect plays nothing.
     def adlib_number(name) = @adlib_names.index(name) || @adlib_names.length
 
-    # ...and the effect itself, by name or by a number the game read from a table.
-    def adlib(name)
-      play_adlib(adlib_number(name)) if @adlib_names.include?(name)
+    # ...and the effect itself, by name, and by a number the game read from a table.
+    def play_adlib_named(name)
+      play_adlib_number(adlib_number(name)) if @adlib_names.include?(name)
     end
 
-    def play_adlib(number)
+    def play_adlib_number(number)
       return if @adlib_effects.nil?
 
-      when_sound_is_on do
-        @adlib_effects.play number
-        @adlib_left = @adlib_frames[number]
-      end
+      @adlib_asked = number
+      @b.call :play_adlib
     end
 
     # THE WALL IS HEARD ONLY OVER SILENCE (ClipMove: `if (!SD_SoundPlaying())`), which is why walking
     # along a wall scrapes rather than hammering, and why a wall never cuts a pickup off.
-    def hit_wall
+    def play_hit_wall
       @b.call :play_hit_wall if @adlib_effects
     end
 
-    # A frame has gone by, for the count that says whether an AdLib effect is still sounding.
-    def count_adlib_frame
-      @adlib_left -= 1 if @adlib_effects && @adlib_left > 0
+    # THE COUNT OF WHETHER AN ADLIB EFFECT IS STILL SOUNDING, by the frame so that a slow pass does not
+    # stretch it, and on every pass of the game so that a death or the tally does not hold it.
+    def update
+      return if @adlib_effects.nil?
+
+      @b.once_a_frame(:count_adlib_frames) { @adlib_frames_left -= 1 if @adlib_frames_left > 0 }
     end
 
     # THE GUN GOES OFF, and the shot before it is cut off, whichever gun fired that one. +number+
@@ -154,7 +155,9 @@ module Wolf3D
 
     def bites = say(voice(DOG_BITES))
     def tread = say(voice(MACHINE_TREAD))
-    def slurp = say(voice(SLURP))
+    def slurp
+      say(voice(SLURP)) if @held_voices.include?(SLURP)
+    end
     def rare_scream = say(voice(RARE_SCREAM))
     def yeah = say(voice(YEAH))
     def door_opens = retrigger(DOOR_OPENS)
@@ -210,7 +213,7 @@ module Wolf3D
       @held_voices = []
       @voice_count = 0
       @adlib_names = []
-      declare_the_adlib_effects
+      declare_adlib_effects
       return if @vswap.nil?
 
       WANTED.uniq.each do |chunk|
@@ -230,32 +233,54 @@ module Wolf3D
     # priority is the file's own. They rank among themselves and do not touch a recording, because
     # the original plays those on the mixer beside the chip.
     #
-    # An effect's list place can name no effect, so the table of lengths has one more row for it.
-    def declare_the_adlib_effects
+    # WHAT COUNTS AS STILL SOUNDING IS THE NOTES AND NOT THE FADE AFTER THEM, because that is when the
+    # original clears its own count. The tables are of the effects' numbers in the list here, and
+    # each has one more row, for the place that names no effect.
+    def declare_adlib_effects
       return if @adlib.nil?
 
-      held = ADLIB.select { |_, number| @adlib.recording(number) }
+      held = ADLIB_EFFECT_NUMBERS.select { |_, number| @adlib.recording(number) }
       return if held.empty?
 
       @adlib_names = held.keys
       recordings = held.values.map { |number| @adlib.recording(number) }
+      priorities = held.map { |name, number| adlib_priority(name, @adlib.recording(number)) }
       @b.enable_sound
-      @adlib_effects = @b.sound_effects :adlib, recordings.zip(held.values).map { |recording, number| adlib_score(recording, number) }
-      @adlib_frames = @b.table :adlib_frames, recordings.map { |recording| frames_of(recording) } + [0], width: :half
-      @adlib_left = @b.var :_adlib_left, 0
-      @b.func(:play_hit_wall, fast: false) { adlib(:hit_wall) if @adlib_left == 0 }
+      @adlib_effects = @b.sound_effects :adlib, held.values.each_with_index.map { |number, n| adlib_score(recordings[n], number, priorities[n]) }
+      @adlib_frames = @b.table :adlib_frames, recordings.map(&:note_frames) + [0], width: :half
+      @adlib_priorities = @b.table :adlib_priorities, priorities + [0], width: :byte
+      @adlib_frames_left = @b.var :_adlib_frames_left, 0
+      @adlib_priority_sounding = @b.var :_adlib_priority_sounding, 0
+      @adlib_asked = @b.var :_adlib_asked, 0
+      @b.func(:play_adlib, fast: false) { when_sound_is_on { start_adlib_if_allowed } }
+      @b.func(:play_hit_wall, fast: false) { play_adlib_named(:hit_wall) if @adlib_frames_left == 0 }
     end
 
-    def adlib_score(recording, number)
+    # The same test the group makes, so a sound it refuses does not move the count.
+    def start_adlib_if_allowed
+      if @adlib_frames_left == 0 || @adlib_priorities[@adlib_asked] >= @adlib_priority_sounding
+        @adlib_effects.play @adlib_asked
+        @adlib_frames_left = @adlib_frames[@adlib_asked]
+        @adlib_priority_sounding = @adlib_priorities[@adlib_asked]
+      end
+    end
+
+    # THE TALLY'S SOUNDS RANK LEVEL. The original stops a sound and waits for each before going on,
+    # and here the figures do not wait, so a high one left over from one row would silence the next.
+    # At one level the last asked for wins.
+    TALLY_EFFECTS = %i[end_bonus1 end_bonus2 no_bonus percent100].freeze
+    TALLY_PRIORITY = 60
+
+    def adlib_priority(name, recording) = TALLY_EFFECTS.include?(name) ? TALLY_PRIORITY : recording.priority
+
+    def adlib_score(recording, number, priority)
       @b.instrument :"adlib_#{number}", pcm: recording.pcm, rate: recording.rate
-      note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames_of(recording))
+      note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: recording.sample_frames)
       VBlank::Audio::Score.new(
-        tempo: FRAME_TICKS, group: :adlib, priority: recording.priority,
+        tempo: FRAME_TICKS, group: :adlib, priority: priority,
         parts: [VBlank::Audio::Score::Part.new(plays: :"adlib_#{number}", volume: FULL, notes: [note])]
       )
     end
-
-    def frames_of(recording) = ((recording.pcm.length.to_f / recording.rate) * 60).ceil
 
     # EVERYTHING THE KINDS ON THIS CARTRIDGE SAY, in one list, so a table can name any of them by
     # number and a kind costs a column rather than a test. Like the screams, these are heard over
@@ -272,8 +297,7 @@ module Wolf3D
       said = @kinds.flat_map { |kind| [SIGHTING[kind], FIRING[kind], DYING[kind]] }
       said += [DOG_BITES] if @kinds.include?(:dog)
       said += [MACHINE_TREAD] if @kinds.include?(:mecha)
-      said += [SLURP] if @kinds.include?(:hitler)
-      said += [RARE_SCREAM, YEAH]
+      said += [SLURP, RARE_SCREAM, YEAH]
       said.compact.uniq - [:a_scream]
     end
 

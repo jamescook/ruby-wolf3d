@@ -177,11 +177,14 @@ class TestLives < Minitest::Test
   end
 
   # The wall that slides is in the room's east wall, so it takes a quarter turn to the right and
-  # a walk up to it to lean on.
+  # a walk up to it to lean on. The guard stands in that walk and a man cannot be walked through,
+  # so he is shot first.
   def test_a_secret_wall_you_shoved_is_where_it_was_built
-    shoved, back = either_side_of_a_restart(at: 130) do |f|
+    shoved, back = either_side_of_a_restart(at: 230, drawn: true) do |f|
       next [:right] if f <= quarter_turn
-      next %i[up a] if f == quarter_turn + 42
+      next [:b] if f < quarter_turn + 100 && f.even?
+      next [] if f < quarter_turn + 100
+      next %i[up a] if f == quarter_turn + 142
 
       [:up]
     end

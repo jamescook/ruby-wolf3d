@@ -315,7 +315,7 @@ module Wolf3D
     def the_weapon_acts
       if @in_hand == KNIFE
         @acted = 1
-        @sounds&.adlib(:knife)
+        @sounds&.play_adlib_named(:knife)
       else
         fire_a_round
       end

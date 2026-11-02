@@ -247,17 +247,16 @@ module Wolf3D
     end
 
     # WHICH EFFECT A PIECE MAKES AS IT IS TAKEN (GetBonus, wl_agent.cpp). The first aid box has its own
-    # and the two foods share one. A one-up says so through Lives, and scraps are a digitised sound
-    # in the original that this game does not play.
+    # and the two foods share one. A one-up says so through Lives, and scraps are a recording.
     TREASURE_SOUNDS = { 100 => :cross, 500 => :chalice, 1000 => :bible, 5000 => :crown }.freeze
     WEAPON_SOUNDS = { machine_gun: :machine_gun, chain_gun: :chain_gun }.freeze
-    FIRST_AID_HEALS = 25
+    FIRST_AID_HEALTH_POINTS = 25
 
     def sound_of(piece)
       kind, amount = piece.bonus
       case kind
       when :ammunition then :ammo
-      when :health then amount >= FIRST_AID_HEALS ? :first_aid : :food
+      when :health then amount >= FIRST_AID_HEALTH_POINTS ? :first_aid : :food
       when :key then :key
       when :treasure then TREASURE_SOUNDS.fetch(amount)
       when :weapon then WEAPON_SOUNDS.fetch(amount)
@@ -316,7 +315,8 @@ module Wolf3D
       if @took == 1
         @taken[@piece] = 1
         @flash.bonus
-        @sounds&.play_adlib(@gives_sound[@slot]) if @gives_sound
+        @sounds&.play_adlib_number(@gives_sound[@slot]) if @gives_sound
+        @sounds&.slurp if @kind == SCRAPS
       end
     end
 
@@ -407,9 +407,9 @@ module Wolf3D
     # What he left has gone from the floor, if it was taken, and that is a pickup like any other.
     def guard_left_nothing_now(guard)
       if @took == 1
-        @sounds&.adlib(:key) if leaves_a_key? && guard.dropped == GOLD_KEY_LEFT
-        @sounds&.adlib(:machine_gun) if @weapons && leaves_a_gun? && guard.dropped == MACHINE_GUN_LEFT
-        @sounds&.adlib(:ammo) if guard.dropped == CLIP_LEFT
+        @sounds&.play_adlib_named(:key) if leaves_a_key? && guard.dropped == GOLD_KEY_LEFT
+        @sounds&.play_adlib_named(:machine_gun) if @weapons && leaves_a_gun? && guard.dropped == MACHINE_GUN_LEFT
+        @sounds&.play_adlib_named(:ammo) if guard.dropped == CLIP_LEFT
         guard.dropped = NOTHING_LEFT
         @flash.bonus
       end

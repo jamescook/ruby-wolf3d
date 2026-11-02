@@ -367,6 +367,7 @@ module Wolf3D
     # THE FLASH RUNS OUT WHATEVER ELSE IS HAPPENING, or it would hang over a stopped world.
     def play
       @flash.update
+      @sounds.update
       return play_on unless @cam
 
       if @cam.holding == 1
@@ -1192,7 +1193,6 @@ module Wolf3D
 
       take_the_step if b.held(:up) || b.held(:down)
       step_sideways
-      @sounds.count_adlib_frame
 
       @pickups.update
       reached_the_way_out
@@ -1209,24 +1209,24 @@ module Wolf3D
       @nx += @stepx
       if free?(@nx.to_i, @player.y.to_i)
         if man_in_step?(@nx, @player.y)
-          @sounds.hit_wall
+          @sounds.play_hit_wall
         else
           @player.x = @nx
         end
       else
-        @sounds.hit_wall
+        @sounds.play_hit_wall
       end
 
       @ny = @player.y
       @ny += @stepy
       if free?(@player.x.to_i, @ny.to_i)
         if man_in_step?(@player.x, @ny)
-          @sounds.hit_wall
+          @sounds.play_hit_wall
         else
           @player.y = @ny
         end
       else
-        @sounds.hit_wall
+        @sounds.play_hit_wall
       end
     end
 
@@ -1370,7 +1370,7 @@ module Wolf3D
           @sounds.door_opens if @open[@slot] == 0.0
           @linger[@slot] = DOOR_LINGER
         else
-          @sounds.adlib(:no_way)
+          @sounds.play_adlib_named(:no_way)
         end
       })
     end

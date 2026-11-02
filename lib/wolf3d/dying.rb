@@ -77,7 +77,7 @@ module Wolf3D
     # nothing all the same, or it would draw no red at all.
     def struck_by(guard)
       if @state == ALIVE
-        @sounds&.adlib(:player_death)
+        @sounds&.play_adlib_named(:player_death)
         @kill_x = guard.x
         @kill_y = guard.y
         @state = TURNING

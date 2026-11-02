@@ -73,7 +73,7 @@ module Wolf3D
     MOST = 9
 
     def give_one
-      @sounds&.adlib(:one_up)
+      @sounds&.play_adlib_named(:one_up)
       @left += 1
       @left.clamp! 0, MOST
     end

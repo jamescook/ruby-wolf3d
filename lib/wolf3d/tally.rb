@@ -55,6 +55,9 @@ module Wolf3D
     TICK_EVERY_PER_CENT = 10
     TICK_EVERY_SECONDS = 50
 
+    # How long a finished row stands, for its sound to be heard.
+    ROW_PAUSE_FRAMES = 30
+
     # parTimes, wl_inter.cpp, in seconds: an episode to a row and its eight ordinary floors. The
     # original writes these in minutes, and its "??:??" for the last two floors of an episode is
     # never shown, because those floors do not have this part of the screen.
@@ -158,6 +161,7 @@ module Wolf3D
     def declare
       @showing = @b.var :_tally_showing, 0
       @stage = @b.var :_tally_stage, COUNT_FINISHED
+      @row_pause = @b.var :_tally_row_pause, 0
       @bonus = @b.var :_tally_bonus, 0
       @shown_bonus = @b.var :_tally_shown_bonus, 0
       @time_left = @b.var :_tally_time_left, 0
@@ -235,7 +239,9 @@ module Wolf3D
     end
 
     def count_up
-      if @stage < COUNT_FINISHED
+      if @row_pause > 0
+        @row_pause -= 1
+      elsif @stage < COUNT_FINISHED
         count_par if @stage == COUNTING_PAR
         RATIOS.each_key.with_index(COUNTING_KILLS) { |name, stage| count_ratio(name) if @stage == stage }
         @b.call :tally_finish_count if @stage == COUNT_FINISHED
@@ -244,40 +250,42 @@ module Wolf3D
     end
 
     # A TICK AS THE FIGURES CLIMB, AND ONE SOUND AS EACH ARRIVES (wl_inter.cpp, LevelCompleted). The
-    # original waits for each sound before it goes on. Here the pace is the step above, so the
-    # ticks fall where they fall and a later one cuts an earlier one off.
+    # ticks go by this screen's own pace, and a row that has arrived holds for ROW_PAUSE_FRAMES, which
+    # is the original waiting for that sound, so the next row does not cut it off.
     def count_par
+      @sounds&.play_adlib_named(:end_bonus1) if @shown_time_left % TICK_EVERY_SECONDS == 0 && @time_left > 0
       @shown_time_left += PAR_STEP
       if @shown_time_left >= @time_left
         @shown_time_left = @time_left
         @stage = COUNTING_KILLS
-        @sounds&.adlib(:tally_done) if @time_left > 0
-      elsif @shown_time_left % TICK_EVERY_SECONDS == 0
-        @sounds&.adlib(:tally_tick)
+        if @time_left > 0
+          @sounds&.play_adlib_named(:end_bonus2)
+          @row_pause = ROW_PAUSE_FRAMES
+        end
       end
       @shown_bonus = @shown_time_left * PAR_AMOUNT
     end
 
     def count_ratio(name)
+      @sounds&.play_adlib_named(:end_bonus1) if @shown[name] % TICK_EVERY_PER_CENT == 0
       @shown[name] += RATIO_STEP
       if @shown[name] >= @ratios[name]
         @shown[name] = @ratios[name]
         @shown_bonus += FOR_A_HUNDRED_PER_CENT if @ratios[name] >= 100
         @stage += 1
-        sound_final_ratio(@ratios[name])
-      elsif @shown[name] % TICK_EVERY_PER_CENT == 0
-        @sounds&.adlib(:tally_tick)
+        play_final_ratio_sound(@ratios[name])
+        @row_pause = ROW_PAUSE_FRAMES
       end
     end
 
     # Full marks and nothing at all each have a sound of their own, and the rest share one.
-    def sound_final_ratio(ratio)
+    def play_final_ratio_sound(ratio)
       if ratio >= 100
-        @sounds&.adlib(:full_marks)
+        @sounds&.play_adlib_named(:percent100)
       elsif ratio == 0
-        @sounds&.adlib(:no_bonus)
+        @sounds&.play_adlib_named(:no_bonus)
       else
-        @sounds&.adlib(:tally_done)
+        @sounds&.play_adlib_named(:end_bonus2)
       end
     end
 
@@ -287,6 +295,7 @@ module Wolf3D
       @shown_time_left = @time_left
       @shown_bonus = @bonus
       @stage = COUNT_FINISHED
+      @row_pause = 0
       @scoring.pay(@bonus)
       @picture.changed
     end

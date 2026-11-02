@@ -25,8 +25,13 @@ module Wolf3D
 
     Effect = Data.define(:priority, :instrument, :block, :notes)
 
-    # An effect as the cartridge holds it: samples, and how many a second.
-    Recording = Data.define(:pcm, :rate, :priority)
+    # An effect as the cartridge holds it: samples, how many a second, and how many frames its notes
+    # last, which the fade after them is not counted in.
+    Recording = Data.define(:pcm, :rate, :priority, :note_frames) do
+      def sample_frames = ((pcm.length.to_f / rate) * FRAMES_PER_SECOND).ceil
+    end
+
+    FRAMES_PER_SECOND = 60
 
     def self.from(game_data) = new(head: game_data.read("AUDIOHED"), audio: game_data.read("AUDIOT"))
 
@@ -54,10 +59,15 @@ module Wolf3D
 
       found = effect(number)
       pcm = found && Opl2.render(found)
-      @recordings[number] = pcm && !pcm.empty? ? Recording.new(pcm: pcm, rate: Opl2::RENDER_RATE, priority: found.priority) : nil
+      @recordings[number] = pcm.nil? || pcm.empty? ? nil : recording_of(found, pcm)
     end
 
     private
+
+    def recording_of(effect, pcm)
+      note_frames = (effect.notes.length.to_f * FRAMES_PER_SECOND / Opl2::TICKS_PER_SECOND).ceil
+      Recording.new(pcm: pcm, rate: Opl2::RENDER_RATE, priority: effect.priority, note_frames: note_frames)
+    end
 
     def effect_at(from)
       length, priority = @audio.byteslice(from, 6).unpack("Vv")

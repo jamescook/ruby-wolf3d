@@ -17,7 +17,7 @@ module Wolf3D
   # The high part of the pitch never changes, so the block is the octave of the whole effect.
   #
   # NOT HERE: rhythm mode and the percussion, which no effect uses, and the feedback and additive
-  # connection, which this driver never turns on. The music will want both.
+  # connection, which this driver never turns on.
   class Opl2
     # The chip's own sample rate, and a seventh of it, which is about the rate of the recordings in
     # VSWAP. Each sample written is seven of the chip's, averaged, which keeps out the high notes
@@ -46,6 +46,10 @@ module Wolf3D
 
     LEVEL_STEP_DECIBELS = 0.75
     SUSTAIN_STEP_DECIBELS = 3.0
+
+    # The last setting is not the next step down but nearly silence, 93 decibels.
+    LOWEST_SUSTAIN_LEVEL = 15
+    LOWEST_SUSTAIN_STEPS = 31
     SILENT_DECIBELS = 96.0
 
     # The time for the slowest real setting, in seconds: a decay right down, and an attack right up.
@@ -84,7 +88,8 @@ module Wolf3D
         @key_scale = operator.scale >> 6
         @attack = operator.attack >> 4
         @decay = operator.attack & 0x0f
-        @sustain_decibels = (operator.sustain >> 4) * SUSTAIN_STEP_DECIBELS
+        sustain_level = operator.sustain >> 4
+        @sustain_decibels = (sustain_level == LOWEST_SUSTAIN_LEVEL ? LOWEST_SUSTAIN_STEPS : sustain_level) * SUSTAIN_STEP_DECIBELS
         @release = operator.sustain & 0x0f
         @wave = operator.wave & 3
         @phase = 0.0
@@ -197,10 +202,10 @@ module Wolf3D
 
     def render
       @notes.each do |note|
-        press(note)
+        key_note(note)
         play_tick
       end
-      let_go
+      key_off_both
       play_tail
       @out.pop while @out.last&.zero?
       @out
@@ -208,14 +213,14 @@ module Wolf3D
 
     private
 
-    def press(note)
-      return let_go if note.zero?
+    def key_note(note)
+      return key_off_both if note.zero?
 
       fnum = note
       [@modulator, @carrier].each { |oscillator| oscillator.key_on(@block, fnum) }
     end
 
-    def let_go = [@modulator, @carrier].each(&:key_off)
+    def key_off_both = [@modulator, @carrier].each(&:key_off)
 
     def play_tick = NATIVE_SAMPLES_PER_TICK.times { play_sample }
 
