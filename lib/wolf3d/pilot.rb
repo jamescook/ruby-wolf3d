@@ -27,22 +27,22 @@ module Wolf3D
     class Lost < StandardError; end
 
     # What the running game keeps its fractions in, and what a full circle is on `view`.
-    FRACTION = 1 << VBlank::DSL::Fraction::DEFAULT_BITS
-    CIRCLE = 1024
+    FIXED_POINT_SCALE = 1 << VBlank::DSL::Fraction::DEFAULT_BITS
+    VIEW_UNITS_PER_TURN = 1024
 
     KEY_BITS = FirstPerson::KEY_BITS
-    LEVER = Elevator::SWITCH
+    LEVER_WALL_CODE = Elevator::SWITCH
 
     # How far off the line to a cell it still walks, and how far off a lever or wall it still uses
     # one. `view` moves in twelves, so a target narrower than half of that can never be met.
-    WALK_AIM = 16
-    WALK_ON_TURNING = 80
-    USE_AIM = 12
-    FINEST_AIM = 7
-    GUARD_HALF_WIDTH = 0.12
+    WALK_AIM_VIEW_UNITS = 16
+    WALK_WITHIN_VIEW_UNITS = 80
+    USE_AIM_VIEW_UNITS = 12
+    FINEST_AIM_VIEW_UNITS = 7
+    GUARD_HALF_WIDTH_CELLS = 0.12
 
     # The turn is held less often near the target, so it does not swing past.
-    GENTLE_TURN = 60
+    GENTLE_TURN_VIEW_UNITS = 60
 
     SIGHT_CELLS = 11.0
     NEAR_CELLS = 6.0
@@ -70,12 +70,12 @@ module Wolf3D
     DIFFICULTY_PRESS_FRAMES = 4
     DIFFICULTY_PRESS_SPACING = 24
 
-    # A person's half a second, the place he has to be to shoot sooner, and how long a wound keeps him
-    # awake.
+    # How long a person takes to react, how near a man has to be for it to shoot sooner, and how
+    # long a wound keeps it alert.
     REACTION_PASSES = 15
     POINT_BLANK_CELLS = 2.0
     HURT_PASSES = 30
-    HELD_UP_PASSES = 8
+    STUCK_SHOOT_PASSES = 8
 
     # Below this, every fight is from behind something.
     COVER_BELOW_HEALTH = 70
@@ -83,20 +83,21 @@ module Wolf3D
     # A hurt player walks further for health.
     DETOUR_STEPS_WHEN_HURT = 40
     DETOUR_STEPS_FOR_A_LIFE = 60
-    ANY_DISTANCE = 1000
+    ANY_DISTANCE_STEPS = 1000
     WEAPON_NUMBERS = Ractor.make_shareable({ machine_gun: Weapons::MACHINE_GUN, chain_gun: Weapons::CHAIN_GUN })
     HURT_HEALTH = 50
 
-    # Ten seconds of shooting that hurts nobody is a man behind something; walk on for five.
+    # This much shooting that hurts nobody means a man behind something, so it ignores everybody for
+    # half as long and walks on.
     FUTILE_FIGHT_PASSES = 300
-    WALK_ON_PASSES = 150
+    IGNORE_MEN_PASSES = 150
 
     # A detour costs this many steps at most.
     DETOUR_STEPS = 14
-    STUCK_PASSES = 45
+    STUCK_PRESS_USE_PASSES = 45
     HEALTH_WORTH_FETCHING = 85
     SCAVENGE_AMMO_BELOW = 60
-    LOW_AMMO = 40
+    LOW_AMMO_ROUNDS = 40
     KEEP_ROUNDS = 15
 
     # When a door is worth an ambush, how far back it stands, and how long it waits. Nobody through
@@ -169,7 +170,7 @@ module Wolf3D
       screen = game.var(:screen)
       return :done if screen == Menus::WINNING
       return menu_buttons(screen) unless screen == Menus::PLAYING
-      return press_now_and_then(:a) if tally_showing?(game)
+      return press_periodically(:a) if tally_showing?(game)
 
       floor = game.var(:floor)
       lives = game.var(:lives)
@@ -184,7 +185,7 @@ module Wolf3D
       end
       @lives = lives
       return [] if game.var(:health) <= 0
-      return @buttons unless new_pass?(game)
+      return @buttons unless advance_pass(game)
 
       read_player(game)
       read_people(game) if (@pass % 2).zero? || @people.empty?
@@ -197,12 +198,13 @@ module Wolf3D
       @frame += 1
       return :done unless [Menus::WINNING, Menus::ARTICLE].include?(game.var(:screen))
 
-      press_now_and_then(:a, every: ENDING_SCREEN_FRAMES)
+      press_periodically(:a, every: ENDING_SCREEN_FRAMES)
     end
 
     private
 
-    def new_pass?(game)
+    # Counts one frame, and says whether it began a new pass.
+    def advance_pass(game)
       flag = game.var(PASS_FLAG)
       @frames_on_pass += 1
       return false if flag == @pass_flag && @frames_on_pass < MOST_FRAMES_A_PASS
@@ -224,17 +226,17 @@ module Wolf3D
     end
 
     def menu_buttons(screen)
-      return press_now_and_then(:a) unless screen == Menus::DIFFICULTY && @difficulty.positive?
+      return press_periodically(:a) unless screen == Menus::DIFFICULTY && @difficulty.positive?
 
       @difficulty_frames += 1
       waited = @difficulty_frames - DIFFICULTY_SETTLE_FRAMES
       return [] if waited.negative?
-      return press_now_and_then(:a) if waited >= @difficulty * DIFFICULTY_PRESS_SPACING
+      return press_periodically(:a) if waited >= @difficulty * DIFFICULTY_PRESS_SPACING
 
       (waited % DIFFICULTY_PRESS_SPACING) < DIFFICULTY_PRESS_FRAMES ? [:down] : []
     end
 
-    def press_now_and_then(button, every: MENU_PRESS_EVERY) = (@frame % every) < PRESS_FRAMES ? [button] : []
+    def press_periodically(button, every: MENU_PRESS_EVERY) = (@frame % every) < PRESS_FRAMES ? [button] : []
     def press_at_intervals? = (@pass % PRESS_EVERY_PASSES).zero?
 
     def count_men_near
@@ -252,7 +254,7 @@ module Wolf3D
       @way_points = @route.cells.select { |x, y| @level.key_at(x, y) } + [@route.cells.last]
       @people = []
       @drops = []
-      @taken = {}
+      @walked = {}
       @path = nil
       @goal = nil
       @detour = nil
@@ -265,7 +267,7 @@ module Wolf3D
       @hurt_passes = 0
       @last_health = nil
       @fight_passes = 0
-      @walk_on_passes = 0
+      @ignore_men_passes = 0
       @hit_points_left = nil
       @opened = []
       @wall_ends = []
@@ -286,11 +288,11 @@ module Wolf3D
       @stage = :planning
     end
 
-    def stocks_up_here? = @route.ends_at == :exit
+    def ends_at_exit? = @route.ends_at == :exit
 
     def read_player(game)
-      @x = game.var(:px) / FRACTION.to_f
-      @y = game.var(:py) / FRACTION.to_f
+      @x = game.var(:px) / FIXED_POINT_SCALE.to_f
+      @y = game.var(:py) / FIXED_POINT_SCALE.to_f
       @view = game.var(:view)
       @health = game.var(:health)
       @ammo = game.var(:ammo)
@@ -301,7 +303,7 @@ module Wolf3D
       @hurt_passes = @last_health && @health < @last_health ? HURT_PASSES : [@hurt_passes - 1, 0].max
       @last_health = @health
       @cell = [@x.floor, @y.floor]
-      @taken[@cell] = true
+      @walked[@cell] = true
       @stuck_passes = @cell == @last_cell ? @stuck_passes + 1 : 0
       @trail << @cell unless @cell == @last_cell
       @last_cell = @cell
@@ -314,8 +316,8 @@ module Wolf3D
       @people = xs.each_index.filter_map do |n|
         next unless xs[n]
 
-        x = xs[n] / FRACTION.to_f
-        y = ys[n] / FRACTION.to_f
+        x = xs[n] / FIXED_POINT_SCALE.to_f
+        y = ys[n] / FIXED_POINT_SCALE.to_f
         @drops << [x.floor, y.floor] if dropped[n].to_i.nonzero?
         note_boss(n, x, y, hit_points[n].to_i)
         [x, y, hit_points[n], n] if hit_points[n].to_i.positive?
@@ -338,7 +340,7 @@ module Wolf3D
       @sight_passes = target ? @sight_passes + 1 : 0
       return fight_boss(*@boss_at) if boss_awake?
       return hold_door(target) if @ambush
-      return fight(target) if target && running_past? && in_the_way?(target)
+      return fight(target) if target && running_past? && blocking_way?(target)
       return travel_firing_at(target) if running_past?
       return travel unless target && reacted_to?(target)
 
@@ -358,7 +360,7 @@ module Wolf3D
       target_in_aim?(target) && trigger_down? ? buttons + [:b] : buttons
     end
 
-    def in_the_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_passes > HELD_UP_PASSES
+    def blocking_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_passes > STUCK_SHOOT_PASSES
 
     def reacted_to?((x, y, _hit_points))
       @sight_passes >= REACTION_PASSES || @hurt_passes.positive? || distance_to(x, y) < POINT_BLANK_CELLS
@@ -372,11 +374,11 @@ module Wolf3D
       @fight_passes = 0 if total != @hit_points_left
       @hit_points_left = total
       if @fight_passes > FUTILE_FIGHT_PASSES
-        @walk_on_passes = WALK_ON_PASSES
+        @ignore_men_passes = IGNORE_MEN_PASSES
         @fight_passes = 0
       end
-      if @walk_on_passes.positive?
-        @walk_on_passes -= 1
+      if @ignore_men_passes.positive?
+        @ignore_men_passes -= 1
         @men_in_sight = 0
         return nil
       end
@@ -404,26 +406,28 @@ module Wolf3D
 
     def door_open?(x, y)
       number = @door_numbers[[x, y]]
-      number && @doors_open && @doors_open[number].to_i >= FirstPerson::DOOR_WIDE * FRACTION
+      return false unless number && @doors_open
+
+      @doors_open[number].to_i >= FirstPerson::DOOR_WIDE * FIXED_POINT_SCALE
     end
 
     # How far `view` is from pointing at a place, the short way round.
     def view_error_to(x, y)
-      wanted = (Math.atan2(y - @y, x - @x) / (2 * Math::PI) * CIRCLE).round
+      wanted = (Math.atan2(y - @y, x - @x) / (2 * Math::PI) * VIEW_UNITS_PER_TURN).round
       view_error_from(wanted)
     end
 
-    def view_error_from(wanted) = ((wanted - @view + (CIRCLE / 2)) % CIRCLE) - (CIRCLE / 2)
+    def view_error_from(wanted) = ((wanted - @view + (VIEW_UNITS_PER_TURN / 2)) % VIEW_UNITS_PER_TURN) - (VIEW_UNITS_PER_TURN / 2)
 
     def turn_buttons(error, tolerance)
       return [] if error.abs <= tolerance
-      return [] if error.abs < GENTLE_TURN && (@pass % 2) != 0
+      return [] if error.abs < GENTLE_TURN_VIEW_UNITS && (@pass % 2) != 0
 
       [error.positive? ? :right : :left]
     end
 
     def aim_tolerance(distance)
-      [(Math.atan2(GUARD_HALF_WIDTH, distance) / (2 * Math::PI) * CIRCLE).round, FINEST_AIM].max
+      [(Math.atan2(GUARD_HALF_WIDTH_CELLS, distance) / (2 * Math::PI) * VIEW_UNITS_PER_TURN).round, FINEST_AIM_VIEW_UNITS].max
     end
 
     # A TRIGGER IS READ ON ITS EDGE, so a gun at rest needs the button let go between presses, and an
@@ -443,7 +447,7 @@ module Wolf3D
       tolerance = aim_tolerance(distance)
       buttons = turn_buttons(error, tolerance)
       buttons << :b if error.abs <= tolerance && trigger_down?
-      buttons << :up if @ammo.zero? && error.abs < WALK_ON_TURNING / 2
+      buttons << :up if @ammo.zero? && error.abs < WALK_WITHIN_VIEW_UNITS / 2
       buttons
     end
 
@@ -488,7 +492,7 @@ module Wolf3D
         @ambush[:stage] = :backing
         return []
       end
-      buttons = turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM) + [:up]
+      buttons = turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM_VIEW_UNITS) + [:up]
       press_at_intervals? ? buttons + [:a] : buttons
     end
 
@@ -501,7 +505,7 @@ module Wolf3D
       way = path_to(@ambush[:spot])
       return shoot_through_door(target) unless way && way[1]
 
-      buttons = turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM) + step_buttons(way[1])
+      buttons = turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM_VIEW_UNITS) + step_buttons(way[1])
       target && target_in_aim?(target) && trigger_down? ? buttons + [:b] : buttons
     end
 
@@ -514,7 +518,7 @@ module Wolf3D
       return finish_ambush if @ambush[:quiet_passes] > AMBUSH_QUIET_PASSES
 
       x, y = @ambush[:door]
-      turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM)
+      turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM_VIEW_UNITS)
     end
 
     def target_in_aim?((x, y)) = view_error_to(x, y).abs <= aim_tolerance(distance_to(x, y))
@@ -534,7 +538,7 @@ module Wolf3D
       if goal != @goal || @path.nil? || !@path.include?(@cell)
         @goal = goal
         @path = path_to(goal)
-        return press_now_and_then(:a) unless @path
+        return press_periodically(:a) unless @path
       end
       ahead = @path[@path.index(@cell) + 1]
       begin_ambush(ahead) if ahead && crowded_door?(ahead)
@@ -546,8 +550,8 @@ module Wolf3D
 
     def walk_towards(ahead)
       error = view_error_to(ahead[0] + 0.5, ahead[1] + 0.5)
-      buttons = turn_buttons(error, WALK_AIM)
-      return buttons unless error.abs <= WALK_ON_TURNING
+      buttons = turn_buttons(error, WALK_AIM_VIEW_UNITS)
+      return buttons unless error.abs <= WALK_WITHIN_VIEW_UNITS
 
       buttons + [:up] + run_or_open(ahead)
     end
@@ -555,34 +559,36 @@ module Wolf3D
     # A DOES BOTH JOBS: held it runs, and pressed it opens a door. A door reads the press on its edge,
     # so it is let go on the way to one, and when walking has stopped getting anywhere.
     def run_or_open(ahead)
-      blocked = @level.door?(*ahead) || @stuck_passes > STUCK_PASSES
+      blocked = @level.door?(*ahead) || @stuck_passes > STUCK_PRESS_USE_PASSES
       return [:a] unless blocked
 
       press_at_intervals? ? [:a] : []
     end
 
     def next_way_point
-      @way_points.shift while @way_points.length > 1 && (@taken[@way_points.first] || key_held?(@way_points.first))
+      @way_points.shift while @way_points.length > 1 && (@walked[@way_points.first] || key_held?(@way_points.first))
       goal = @way_points.first
       return :lever if goal == @route.cells.last && @route.ends_at == :lever && @cell == goal
-      return goal if @boss_cell.nil? || (@keys & KEY_BITS.fetch(FloorReport::BOSS_KEY)).nonzero?
+      return goal if @boss_cell.nil? || holds_key?(FloorReport::BOSS_KEY)
 
       @boss_cell
     end
 
     def key_held?(cell)
       key = @level.key_at(*cell)
-      key && (@keys & KEY_BITS.fetch(key)).nonzero?
+      !key.nil? && holds_key?(key)
     end
 
+    def holds_key?(key) = @keys.anybits?(KEY_BITS.fetch(key))
+
     def detour_goal
-      @detour = nil if @detour == @cell || (@detour && @taken[@detour] && !@drops.include?(@detour))
+      @detour = nil if @detour == @cell || (@detour && @walked[@detour] && !@drops.include?(@detour))
       return @detour if @detour
 
       steps = steps_from_here
-      wanted = @report.pickups.select { |piece| fetch_on_the_way?(piece) }
+      wanted = @report.pickups.select { |piece| worth_detour?(piece) }
                       .to_h { |piece| [[piece.x, piece.y], furthest_for(piece)] }
-      wanted = wanted.reject { |cell, _| @taken[cell] }
+      wanted = wanted.reject { |cell, _| @walked[cell] }
       # Something a man dropped is on the floor however often this cell has been walked.
       wanted.merge!(@drops.to_h { |cell| [cell, DETOUR_STEPS] }) if @ammo < SCAVENGE_AMMO_BELOW
       @detour = wanted.keys.select { |cell| steps[cell].to_i.between?(1, wanted[cell] - 1) }
@@ -593,15 +599,15 @@ module Wolf3D
     def furthest_for(piece)
       kind, = piece.bonus
       case kind
-      when :weapon then ANY_DISTANCE
+      when :weapon then ANY_DISTANCE_STEPS
       when :extra_life then DETOUR_STEPS_FOR_A_LIFE
-      when :health then @health < HURT_HEALTH ? ANY_DISTANCE : DETOUR_STEPS_WHEN_HURT
-      when :ammunition then @ammo < LOW_AMMO ? DETOUR_STEPS_WHEN_HURT : DETOUR_STEPS
+      when :health then @health < HURT_HEALTH ? ANY_DISTANCE_STEPS : DETOUR_STEPS_WHEN_HURT
+      when :ammunition then @ammo < LOW_AMMO_ROUNDS ? DETOUR_STEPS_WHEN_HURT : DETOUR_STEPS
       else DETOUR_STEPS
       end
     end
 
-    def fetch_on_the_way?(piece)
+    def worth_detour?(piece)
       kind, = piece.bonus
       case kind
       when :health then @health < HEALTH_WORTH_FETCHING
@@ -680,19 +686,19 @@ module Wolf3D
       return false if @level.solid?(x, y) || @blocks.blocks?(x, y)
 
       lock = @level.lock_at(x, y)
-      lock.nil? || (@keys & KEY_BITS.fetch(lock)).nonzero?
+      lock.nil? || holds_key?(lock)
     end
 
     def pull_lever
-      lever_east = @level.wall_code(@cell[0] + 1, @cell[1]) == LEVER
-      lean_on_and_press(lever_east ? 0 : CIRCLE / 2)
+      lever_east = @level.wall_code(@cell[0] + 1, @cell[1]) == LEVER_WALL_CODE
+      press_into_wall(lever_east ? 0 : VIEW_UNITS_PER_TURN / 2)
     end
 
     # Walls and levers are used from up against them, so it keeps walking while it presses.
-    def lean_on_and_press(wanted_view)
+    def press_into_wall(wanted_view)
       error = view_error_from(wanted_view)
-      buttons = turn_buttons(error, USE_AIM)
-      return buttons unless error.abs <= USE_AIM
+      buttons = turn_buttons(error, USE_AIM_VIEW_UNITS)
+      return buttons unless error.abs <= USE_AIM_VIEW_UNITS
 
       yield if block_given?
       buttons << :up
@@ -715,7 +721,7 @@ module Wolf3D
       @searched_from = @cell
       @secret = secret_to_better_gun || secret_to_stash
       @stage = if @secret then :to_secret
-               elsif @stage == :planning && stocks_up_here? then :stocking
+               elsif @stage == :planning && ends_at_exit? then :stocking
                else :on_foot
                end
     end
@@ -734,10 +740,10 @@ module Wolf3D
     # THE FLOORS KEEP THEIR SUPPLIES BEHIND SECRET WALLS, often beside the way through. Short of
     # bullets or health, it opens one that is close and has enough behind it to pay for the walk.
     def secret_to_stash
-      return unless stocks_up_here? || @ammo < STASH_AMMO_BELOW || @health < STASH_HEALTH_BELOW
+      return unless ends_at_exit? || @ammo < STASH_AMMO_BELOW || @health < STASH_HEALTH_BELOW
 
       walkable = steps_from_here
-      close_by = secrets_from(walkable).select { |secret| stocks_up_here? || walkable[secret.from] <= STASH_STEPS }
+      close_by = secrets_from(walkable).select { |secret| ends_at_exit? || walkable[secret.from] <= STASH_STEPS }
       close_by.find { |secret| stash_behind(secret).count { |piece| stock?(piece) } >= STASH_PIECES }
     end
 
@@ -777,7 +783,7 @@ module Wolf3D
     end
 
     def push_secret_wall
-      lean_on_and_press(@secret.view) do
+      press_into_wall(@secret.view) do
         @pushing_passes += 1
         next unless @pushing_passes > PUSH_PASSES
 
@@ -785,14 +791,14 @@ module Wolf3D
         @opened += @secret.opens
         @wall_ends += [@secret.wall_ends]
         @pushing_passes = 0
-        @stage = stocks_up_here? ? :stocking : :looting
+        @stage = ends_at_exit? ? :stocking : :looting
       end
     end
 
     def next_stash_piece
       steps = steps_from_here
       wanted = @stash.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
-                     .select { |cell| steps[cell] && !@taken[cell] }
+                     .select { |cell| steps[cell] && !@walked[cell] }
       return wanted.min_by { |cell| steps[cell] } unless wanted.empty?
 
       @stage = :on_foot
@@ -802,7 +808,7 @@ module Wolf3D
     def next_stock_piece
       steps = steps_from_here
       wanted = @report.pickups.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
-                      .select { |cell| steps[cell] && !@taken[cell] }
+                      .select { |cell| steps[cell] && !@walked[cell] }
       return wanted.min_by { |cell| steps[cell] } unless wanted.empty?
 
       @stage = :on_foot
@@ -880,7 +886,7 @@ module Wolf3D
 
       steps = steps_from_here
       pieces = @report.pickups.select { |piece| kinds.include?(piece.bonus.first) }.map { |piece| [piece.x, piece.y] }
-      pieces.select { |cell| steps[cell] && !@taken[cell] }.min_by { |cell| steps[cell] }
+      pieces.select { |cell| steps[cell] && !@walked[cell] }.min_by { |cell| steps[cell] }
     end
 
     def step_away_from(x, y)
@@ -898,7 +904,7 @@ module Wolf3D
     end
 
     def strafe_keeps_line?(side, x, y)
-      across = (@view * 2 * Math::PI / CIRCLE) + (side == :l ? -Math::PI / 2 : Math::PI / 2)
+      across = (@view * 2 * Math::PI / VIEW_UNITS_PER_TURN) + (side == :l ? -Math::PI / 2 : Math::PI / 2)
       clear_line?(@x + (Math.cos(across) * KITE_STRAFE_CELLS), @y + (Math.sin(across) * KITE_STRAFE_CELLS), x, y)
     end
 
@@ -929,8 +935,8 @@ module Wolf3D
     # A step in any direction without turning, so the gun stays on him.
     def step_buttons((x, y))
       error = view_error_to(x + 0.5, y + 0.5)
-      if error.abs <= CIRCLE / 8 then [:up]
-      elsif error.abs >= CIRCLE * 3 / 8 then [:down]
+      if error.abs <= VIEW_UNITS_PER_TURN / 8 then [:up]
+      elsif error.abs >= VIEW_UNITS_PER_TURN * 3 / 8 then [:down]
       else [error.positive? ? :r : :l]
       end
     end
