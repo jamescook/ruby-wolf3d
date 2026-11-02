@@ -100,6 +100,15 @@ module Wolf3D
     LOW_AMMO = 40
     KEEP_ROUNDS = 15
 
+    # When a door is worth an ambush, how far back it stands, and how long it waits. Nobody through
+    # the door for the quiet passes means nobody is coming.
+    AMBUSH_ROUNDS = 25
+    AMBUSH_MEN = 3
+    AMBUSH_CROWD_CELLS = 8.0
+    AMBUSH_BACK_STEPS = 4
+    AMBUSH_QUIET_PASSES = 120
+    AMBUSH_MOST_PASSES = 900
+
     # Hit points no ordinary man has.
     BOSS_HIT_POINTS = 200
     BOSS_SEEN_CELLS = 10.0
@@ -225,6 +234,9 @@ module Wolf3D
       @goal = nil
       @detour = nil
       @last_cell = nil
+      @trail = []
+      @ambush = nil
+      @ambushed = {}
       @stuck_passes = 0
       @sight_passes = 0
       @hurt_passes = 0
@@ -265,6 +277,7 @@ module Wolf3D
       @cell = [@x.floor, @y.floor]
       @taken[@cell] = true
       @stuck_passes = @cell == @last_cell ? @stuck_passes + 1 : 0
+      @trail << @cell unless @cell == @last_cell
       @last_cell = @cell
     end
 
@@ -298,6 +311,7 @@ module Wolf3D
       target = pick_target
       @sight_passes = target ? @sight_passes + 1 : 0
       return fight_from_corner(*@boss_at) if boss_awake?
+      return hold_door(target) if @ambush
       return fight(target) if target && running_past? && in_the_way?(target)
       return travel_firing_at(target) if running_past?
       return travel unless target && reacted_to?(target)
@@ -315,9 +329,7 @@ module Wolf3D
       buttons = travel
       return buttons unless target && @ammo > KEEP_ROUNDS
 
-      x, y, = target
-      on_target = view_error_to(x, y).abs <= aim_tolerance(distance_to(x, y))
-      on_target && trigger_down? ? buttons + [:b] : buttons
+      target_in_aim?(target) && trigger_down? ? buttons + [:b] : buttons
     end
 
     def in_the_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_passes > HELD_UP_PASSES
@@ -409,6 +421,78 @@ module Wolf3D
       buttons
     end
 
+    # --- a door with a crowd behind it ---------------------------------------------------------
+
+    # A ROOM FULL OF MEN COMES THROUGH A DOOR ONE AT A TIME. So it opens the door, backs off down the
+    # way it came with the gun on the opening, and shoots whoever comes through, until nobody has for
+    # a while. Then it walks on through what is left.
+    def crowded_door?(cell)
+      return false unless @level.door?(*cell) && !@ambushed[cell]
+      return false unless @best_weapon >= Weapons::CHAIN_GUN && @ammo >= AMBUSH_ROUNDS
+
+      @people.count { |x, y, _| Math.hypot(x - cell[0], y - cell[1]) < AMBUSH_CROWD_CELLS } >= AMBUSH_MEN
+    end
+
+    def begin_ambush(door)
+      spot = @trail.last(AMBUSH_BACK_STEPS).find { |x, y| clear_line?(x + 0.5, y + 0.5, door[0] + 0.5, door[1] + 0.5) }
+      @ambush = { door: door, spot: spot || @cell, stage: :opening, quiet_passes: 0, passes: 0 }
+    end
+
+    def finish_ambush
+      @ambushed[@ambush[:door]] = true
+      @ambush = nil
+      @path = nil
+      travel
+    end
+
+    def hold_door(target)
+      @ambush[:passes] += 1
+      return finish_ambush if @ambush[:passes] > AMBUSH_MOST_PASSES || @ammo < KEEP_ROUNDS
+
+      case @ambush[:stage]
+      when :opening then open_ambush_door
+      when :backing then back_to_spot(target)
+      else shoot_through_door(target)
+      end
+    end
+
+    def open_ambush_door
+      x, y = @ambush[:door]
+      if @doors_open[@report.doors.index(@ambush[:door])].to_i.positive?
+        @ambush[:stage] = :backing
+        return []
+      end
+      buttons = turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM) + [:up]
+      press_at_intervals? ? buttons + [:a] : buttons
+    end
+
+    def back_to_spot(target)
+      if @cell == @ambush[:spot]
+        @ambush[:stage] = :holding
+        return []
+      end
+      x, y = @ambush[:door]
+      way = path_to(@ambush[:spot])
+      return shoot_through_door(target) unless way && way[1]
+
+      buttons = turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM) + step_buttons(way[1])
+      target && target_in_aim?(target) && trigger_down? ? buttons + [:b] : buttons
+    end
+
+    def shoot_through_door(target)
+      if target
+        @ambush[:quiet_passes] = 0
+        return fight(target)
+      end
+      @ambush[:quiet_passes] += 1
+      return finish_ambush if @ambush[:quiet_passes] > AMBUSH_QUIET_PASSES
+
+      x, y = @ambush[:door]
+      turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM)
+    end
+
+    def target_in_aim?((x, y)) = view_error_to(x, y).abs <= aim_tolerance(distance_to(x, y))
+
     # --- walking ------------------------------------------------------------------------------
 
     def travel
@@ -426,6 +510,7 @@ module Wolf3D
         return press_now_and_then(:a) unless @path
       end
       ahead = @path[@path.index(@cell) + 1]
+      begin_ambush(ahead) if ahead && crowded_door?(ahead)
       return walk_towards(ahead) if ahead
 
       @path = nil
