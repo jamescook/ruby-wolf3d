@@ -57,6 +57,11 @@ module Wolf3D
     # A NEW GAME PUTS THIS BACK, however it was started — see Playthrough.
     def start_again = @won = 0
 
+    # See FirstPerson#hand_end_of_game_to_menus.
+    def hand_end_of_game_to_menus
+      @menus_end_games = true
+    end
+
     # ONE PASS. Nothing at all until an episode has been won, and then the words, on every pass
     # until START.
     #
@@ -74,7 +79,11 @@ module Wolf3D
 
     def declare
       @won = @lasting.var :episode_won, 0
-      @b.func(:after_a_victory, fast: false) { paint if @won == 1 }
+      @b.func(:after_a_victory, fast: false) { paint_words unless @menus_end_games }
+    end
+
+    def paint_words
+      paint if @won == 1
     end
 
     def paint

@@ -53,6 +53,25 @@ class TestEpisodeEnd < Minitest::Test
     assert_equal [1, 5], [run[:_end_minutes], run[:_end_seconds]]
   end
 
+  # VW_FadeOut in GameLoop's ex_victorious: the view goes to black with no words over it, and not to
+  # the menus' dark red. The bar stays white where its figures are, so the words are looked for above it.
+  def test_winning_leaves_the_view_on_a_black_fade_with_no_words
+    run = Reference.new
+    leaving = []
+    run.input_each_frame do |f|
+      if run[:episode_won] == 1 && run[:screen] == Menus::PLAYING
+        leaving << (0...160).flat_map { |y| (0...240).map { |x| run.screen.pixel(x, y) } }
+      end
+      f < WON_BY ? [:down] : []
+    end
+    run.run(cartridge(:wins), frames: ON_THE_SUMMARY)
+
+    assert_operator leaving.length, :>=, 20, "the fade takes as long as VW_FadeOut"
+    above_the_bar = leaving.first.first(240 * Wolf3D::FirstPerson::VIEW_H)
+    refute above_the_bar.include?(0x7fff), "no white words over the view"
+    assert_equal 0, leaving.last.count { |pixel| (pixel & 0x1f) > 3 }, "the last of it is black, not the menus' red"
+  end
+
   # A COPY WITH NO ARTICLE, which is what the fixture is, goes on to the table.
   def test_a_press_goes_on_to_the_high_scores
     run = won(ON_THE_SUMMARY + 40) { |f| f == ON_THE_SUMMARY + 2 ? [:a] : [] }

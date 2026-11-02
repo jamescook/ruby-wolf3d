@@ -81,6 +81,8 @@ module Wolf3D
     # held, so the number beside it is the one in the source.
     FADE_CHANNELS = [43, 0, 0].freeze
     FADE_FRAMES = 10
+    # A WIN LEAVES THE GAME ON VW_FadeOut, which is black and thirty of the original's 70 ticks a second.
+    WIN_FADE_FRAMES = 26
 
     # THE TWO ALPHABETS, as the release stores them: the small one is the menu's face and the
     # big one is what a heading is set in.
@@ -347,6 +349,7 @@ module Wolf3D
     # thing the display does, so there should be one place that says how this game fades.
     def declare_the_fades
       @b.func(:_menu_fade_out) { @b.fade_out fade_colour, frames: FADE_FRAMES }
+      @b.func(:_win_fade_out) { @b.fade_out @b.rgb(0, 0, 0), frames: WIN_FADE_FRAMES }
       @b.func(:_menu_fade_in) { @b.fade_in }
     end
 
@@ -592,7 +595,7 @@ module Wolf3D
 
       if @view.won == 1 && @going_to == NOWHERE
         @episode_end.add_up_the_episode
-        leaving_for WINNING
+        leaving_for WINNING, fade: :_win_fade_out
       end
     end
 
@@ -843,10 +846,10 @@ module Wolf3D
     # ...and the other way, which is what picking a row does: the screen fades away first and
     # the new one is not shown until it has gone. A second choice while a fade is running is
     # ignored, which is what the guard is for — the original simply stops reading the pad.
-    def leaving_for(screen)
+    def leaving_for(screen, fade: :_menu_fade_out)
       if @going_to == NOWHERE
         @going_to = screen
-        @b.call :_menu_fade_out
+        @b.call fade
       end
     end
 

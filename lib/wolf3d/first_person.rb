@@ -205,7 +205,10 @@ module Wolf3D
 
     # WHAT COMES AFTER GAME OVER, handed to the menus on a cartridge that has them: the score
     # table, where one with no menus begins another game with START.
-    def hand_end_of_game_to_menus = @lives.hand_end_of_game_to_menus
+    def hand_end_of_game_to_menus
+      @lives.hand_end_of_game_to_menus
+      @victory&.hand_end_of_game_to_menus
+    end
 
     # WHAT STARTS PLAY: a new game, another life, the next floor. The menu begins a game through
     # it. See Playthrough for what each of those puts back, and in what order.
