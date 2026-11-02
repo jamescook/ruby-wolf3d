@@ -1205,12 +1205,19 @@ module Wolf3D
     def take_the_step
       @nx = @player.x
       @nx += @stepx
-      @player.x = @nx if free?(@nx.to_i, @player.y.to_i)
+      if free?(@nx.to_i, @player.y.to_i)
+        @player.x = @nx unless man_in_step?(@nx, @player.y)
+      end
 
       @ny = @player.y
       @ny += @stepy
-      @player.y = @ny if free?(@player.x.to_i, @ny.to_i)
+      if free?(@player.x.to_i, @ny.to_i)
+        @player.y = @ny unless man_in_step?(@player.x, @ny)
+      end
     end
+
+    # A floor with nobody on it has nobody to walk into.
+    def man_in_step?(x, y) = @mind ? @mind.man_in_step?(x, y) : false
 
     # STEPPING SIDEWAYS, which the shoulder buttons do.
     #

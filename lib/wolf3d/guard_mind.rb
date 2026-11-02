@@ -272,6 +272,9 @@ module Wolf3D
         .map { |name| b.var(:"_#{name}", 0) }
       @dx, @dy, @absx, @absy, @far, @pace, @fwd, @sideways =
         %i[gdx gdy gabsx gabsy gfar gpace gfwd gsideways].map { |name| b.var(:"_#{name}", 0.0) }
+      @man_in_step = b.var :_gman_in_step, 0
+      @step_to_x = b.var :_gstep_to_x, 0.0
+      @step_to_y = b.var :_gstep_to_y, 0.0
 
       # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
       # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
@@ -1152,6 +1155,45 @@ module Wolf3D
       @b.func(:can_a_guard_walk_there) do
         @b.call :check_cell_open
         @pool.each { |man| refuse_cell_of(man) } if @clear == 1
+      end
+      @b.func(:check_man_in_step) do
+        @man_in_step = 0
+        @pool.each { |man| refuse_step_at(man) }
+      end
+    end
+
+    public
+
+    # IS A MAN IN THE WAY OF A STEP THE PLAYER WANTS TO TAKE TO (x, y)?
+    def man_in_step?(x, y)
+      @step_to_x = x
+      @step_to_y = y
+      @b.call :check_man_in_step
+      @man_in_step == 1
+    end
+
+    private
+
+    # TRYMOVE REFUSES A STEP THAT ENDS WITHIN A CELL OF A MAN ON BOTH AXES (MINACTORDIST). A body has
+    # no hit points and the man inside the machine is not on the floor, so neither is in the way.
+    #
+    # The original asks only where the step ends, which leaves you stuck to a man who walked up to
+    # you. A step that takes you further from him is allowed, so you can always leave.
+    def refuse_step_at(man)
+      return refuse_step_at_standing(man) unless @behaviour.man_inside?
+
+      refuse_step_at_standing(man) if man.state != @behaviour.inside
+    end
+
+    def refuse_step_at_standing(man)
+      if man.hp > 0
+        @dx = @step_to_x - man.x
+        @dy = @step_to_y - man.y
+        if @dx.abs < TOUCHING && @dy.abs < TOUCHING
+          @absx = @player.x - man.x
+          @absy = @player.y - man.y
+          @man_in_step = 1 if @dx.abs + @dy.abs < @absx.abs + @absy.abs
+        end
       end
     end
 
