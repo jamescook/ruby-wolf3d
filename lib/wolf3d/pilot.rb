@@ -60,10 +60,12 @@ module Wolf3D
     PASS_FLAG = :_gturn
     MOST_FRAMES_A_PASS = 8
 
-    # The difficulty screen starts on its top row and the bottom one is the hardest, three presses
-    # down. It fades in first, and it reads a press on a pass that can take a few frames, so each
-    # press is held and spaced.
-    DIFFICULTY_PRESSES = 3
+    # The original's four settings, top row first (gd_baby and the rest, in wl_def.h).
+    DIFFICULTY_NAMES = %w[baby easy medium hard].freeze
+    HARDEST_DIFFICULTY = DIFFICULTY_NAMES.length - 1
+
+    # The difficulty screen starts on its top row, and each row down is one press. It fades in first,
+    # and it reads a press on a pass that can take a few frames, so each press is held and spaced.
     DIFFICULTY_SETTLE_FRAMES = 40
     DIFFICULTY_PRESS_FRAMES = 4
     DIFFICULTY_PRESS_SPACING = 24
@@ -146,8 +148,10 @@ module Wolf3D
     STASH_PIECES = 3
 
     # +maps+ are the floors of the copy on the cartridge, in the order they are played.
-    def initialize(maps, hardest: false)
-      @hardest = hardest
+    # +difficulty+ is the row of the difficulty screen, counted from nought.
+    def initialize(maps, difficulty: 0)
+      @difficulty = difficulty
+      @hardest = difficulty == HARDEST_DIFFICULTY
       @levels = Array.new(maps.count) { |n| maps[n] }
       @reports = @levels.map { |level| FloorReport.new(level) }
       @scenery = @levels.map { |level| Scenery.new(level) }
@@ -219,12 +223,12 @@ module Wolf3D
     end
 
     def menu_buttons(screen)
-      return press_now_and_then(:a) unless screen == Menus::DIFFICULTY && @hardest
+      return press_now_and_then(:a) unless screen == Menus::DIFFICULTY && @difficulty.positive?
 
       @difficulty_frames += 1
       waited = @difficulty_frames - DIFFICULTY_SETTLE_FRAMES
       return [] if waited.negative?
-      return press_now_and_then(:a) if waited >= DIFFICULTY_PRESSES * DIFFICULTY_PRESS_SPACING
+      return press_now_and_then(:a) if waited >= @difficulty * DIFFICULTY_PRESS_SPACING
 
       (waited % DIFFICULTY_PRESS_SPACING) < DIFFICULTY_PRESS_FRAMES ? [:down] : []
     end

@@ -2,7 +2,7 @@
 
 # THE SHAREWARE PLAYED BY Wolf3D::Pilot, as a script for `vblank play`. tools/play_shareware.rb is
 # the way to run it, and says which copy to read. WOLF3D_PILOT_FLOORS stops it after that many floors,
-# and WOLF3D_PILOT_HARDEST=1 picks the hardest setting in place of the easiest.
+# and WOLF3D_PILOT_DIFFICULTY picks the row of the difficulty screen, counted from nought.
 
 #
 # It does not require the game. `vblank play` loads this file first and the game file after, and a
@@ -17,7 +17,7 @@ stop_after = ENV.fetch("WOLF3D_PILOT_FLOORS", nil)&.to_i
 floors_played = (1..floors_before_the_last).select { |floor| stop_after.nil? || floor <= stop_after }
 pilot = nil
 pilot_buttons = lambda do |game|
-  pilot ||= Wolf3D::Pilot.new(Wolf3D.maps, hardest: ENV["WOLF3D_PILOT_HARDEST"] == "1")
+  pilot ||= Wolf3D::Pilot.new(Wolf3D.maps, difficulty: ENV.fetch("WOLF3D_PILOT_DIFFICULTY", "0").to_i)
   pilot.buttons_for(game)
 end
 
