@@ -95,6 +95,9 @@ require_relative "wolf3d/end_article"
 VBlank.require_game_file "wolf3d/episode_end"
 VBlank.require_game_file "wolf3d/menus"
 VBlank.require_game_file "wolf3d/title"
+# Reads the screens, the weapons and the keys by the names those files give them. Not on the
+# cartridge: it drives one from outside, for tools/play_shareware.rb.
+require_relative "wolf3d/pilot"
 
 module Wolf3D
   # The name people see, and the only thing this cartridge says about itself. The four-character
