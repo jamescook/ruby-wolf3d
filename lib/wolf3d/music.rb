@@ -23,9 +23,9 @@ module Wolf3D
 
     # The musicnames of audiowl6.h that are not in a floor's list.
     MENU_SONG = 14    # WONDERIN_MUS
-    TITLE_SONG = 7    # NAZI_NOR_MUS
+    INTRO_SONG = 7    # NAZI_NOR_MUS
     BETWEEN_FLOORS_SONG = 16 # ENDLEVEL_MUS
-    SCORES_SONG = 23  # ROSTER_MUS
+    ROSTER_SONG = 23  # ROSTER_MUS
     WON_SONG = 24     # URAHERO_MUS
 
     GETTHEM = 3
@@ -57,27 +57,26 @@ module Wolf3D
       FIRST_EPISODE + SECOND_EPISODE + THIRD_EPISODE + FIRST_EPISODE + SECOND_EPISODE + SIXTH_EPISODE
     )
 
-    # A song's own rests are silence to the mixer, so it is kept below the effects' full level.
+    # Kept below the effects' full level, so a shot is heard over the music.
     MUSIC_VOLUME = 11
-    FULL_FRAMES_PER_SECOND = 60
 
-    # At the tempo and ticks a Score has by default here, a tick is one frame.
+    # At this tempo, and the twenty-four ticks to a beat a Score has unless it says otherwise, a
+    # tick is one frame.
     FRAME_TICKS = 150
 
     # +tracks+ is the copy's AdlibMusic, or nil on a build with none, and then there is no music.
     # +setting+ is the variable the SOUND row moves. Sounds has turned sound on by now, since a copy
     # of the game with music has effects too.
-    def initialize(build:, tracks:, floors:, setting:, renderer: Opl2Track)
+    def initialize(build:, tracks:, floors:, setting:)
       @b = build
       @tracks = tracks
       @floors = floors
       @setting = setting
-      @renderer = renderer
       declare
     end
 
     # WHERE A TRACK SITS IN THE LIST, for a table to hold. One this copy lacks lands past the end.
-    def song(track) = @held.index(track) || @held.length
+    def song_index(track) = @held.index(track) || @held.length
 
     # The song of the floor being played, by its place on the cartridge.
     def floor_song(floor) = @floor_songs ? @floor_songs[floor] : 0
@@ -94,22 +93,25 @@ module Wolf3D
       end
     end
 
+    def stop = @songs&.stop
+
     private
 
     def declare
-      wanted = (@floors.map { |floor| FLOOR_SONGS[floor.index] } + [MENU_SONG, TITLE_SONG, BETWEEN_FLOORS_SONG, SCORES_SONG, WON_SONG]).compact.uniq
+      others = [MENU_SONG, INTRO_SONG, BETWEEN_FLOORS_SONG, ROSTER_SONG, WON_SONG]
+      wanted = (@floors.map { |floor| FLOOR_SONGS[floor.index] } + others).compact.uniq
       @held = @tracks ? wanted.reject { |track| @tracks.writes(track).empty? } : []
       return if @held.empty?
 
       @songs = @b.songs :music, @held.map { |track| score_of(track) }
-      @floor_songs = @b.table :floor_song, @floors.map { |floor| song(FLOOR_SONGS[floor.index]) }, width: :byte
+      @floor_songs = @b.table :floor_song, @floors.map { |floor| song_index(FLOOR_SONGS[floor.index]) }, width: :byte
     end
 
     def score_of(track)
-      pcm = @tracks.recording(track, renderer: @renderer)
+      pcm = @tracks.recording(track)
       name = :"music_#{track}"
       @b.instrument name, pcm: pcm, rate: Opl2Track::RATE
-      frames = ((pcm.length.to_f / Opl2Track::RATE) * FULL_FRAMES_PER_SECOND).ceil
+      frames = ((pcm.length.to_f / Opl2Track::RATE) * AdlibSounds::FRAMES_PER_SECOND).ceil
       note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames)
       VBlank::Audio::Score.new(
         tempo: FRAME_TICKS, parts: [VBlank::Audio::Score::Part.new(plays: name, volume: MUSIC_VOLUME, notes: [note])]

@@ -126,12 +126,12 @@ module Wolf3DTest
       atlas, things = atlases_of(floors)
       VBlank.game("VIEW", consoles: %i[gba]) do
         screen :bitmap, tear_free: true
-        sound_on = sound && var(:sound_on, sound)
+        sound_setting = sound && var(:sound_setting, sound)
         view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
-                                       sound_on: sound_on, **options)
+                                       sound_setting: sound_setting, **options)
         if loop_body
           # With `instance_exec`, because that is what reads a test's block as a game's is read.
-          instance_exec(self, view, sound_on, &loop_body)
+          instance_exec(self, view, sound_setting, &loop_body)
         else
           game_loop { drawing ? view.update : view.play }
         end

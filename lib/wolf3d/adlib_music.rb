@@ -16,7 +16,7 @@ module Wolf3D
     WRITE_BYTES = 4
 
     # Where a recording is kept once made, under the game's own folder.
-    KEPT_IN = "tmp/music"
+    RECORDINGS_DIR = "tmp/music"
 
     def self.from(game_data) = new(head: game_data.read("AUDIOHED"), audio: game_data.read("AUDIOT"))
 
@@ -37,14 +37,15 @@ module Wolf3D
     # Track +number+ played through the chip, as a byte String of signed samples. Kept on disk,
     # named for the writes and for the code that plays them, so a change to either makes it again.
     # It is written to one side and moved in, so builds running at once never read half of one.
-    def recording(number, renderer: Opl2Track)
-      path = File.join(Wolf3D.home, KEPT_IN, "#{Digest::SHA256.hexdigest(fingerprint(number))}.pcm")
+    def recording(number)
+      path = File.join(Wolf3D.home, RECORDINGS_DIR, "#{Digest::SHA256.hexdigest(fingerprint(number))}.pcm")
       return File.binread(path) if File.exist?(path)
 
-      pcm = renderer.render(writes(number)).pack("c*")
+      pcm = Opl2Track.render(writes(number)).pack("c*")
       FileUtils.mkdir_p(File.dirname(path))
-      File.binwrite("#{path}.#{Process.pid}.#{Ractor.current.object_id}", pcm)
-      File.rename("#{path}.#{Process.pid}.#{Ractor.current.object_id}", path)
+      unfinished = "#{path}.#{Process.pid}.#{Ractor.current.object_id}"
+      File.binwrite(unfinished, pcm)
+      File.rename(unfinished, path)
       pcm
     end
 

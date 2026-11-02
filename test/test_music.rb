@@ -13,18 +13,24 @@ class TestMusic < Minitest::Test
   class HeldTracks
     def initialize(*numbers) = @numbers = numbers
     def writes(number) = @numbers.include?(number) ? [[0, 0, 0]] : []
-    def recording(_number, renderer:) = (([60] * 40) + ([-60] * 40)).cycle.first(3500).pack("c*")
+    def recording(_number) = (([60] * 40) + ([-60] * 40)).cycle.first(3500).pack("c*")
   end
 
   Floor = Data.define(:index)
 
-  def game_with(setting:, tracks: HeldTracks.new(Music::GETTHEM, Music::SEARCHN), floors: [Floor.new(0), Floor.new(1)], which: 0)
+  # Plays the first floor for ten frames and then the second.
+  def game_with(setting:, tracks: HeldTracks.new(Music::GETTHEM, Music::SEARCHN))
     VBlank.game("MUSIC", consoles: %i[gba]) do
       enable_sound
       sound = var(:sound_setting, setting)
-      music = Music.new(build: self, tracks: tracks, floors: floors, setting: sound)
-      floor = var(:floor_now, which)
-      game_loop { music.update(music.floor_song(floor)) }
+      music = Music.new(build: self, tracks: tracks, floors: [Floor.new(0), Floor.new(1)], setting: sound)
+      frame = var(:_frame, 0)
+      floor = var(:_floor_now, 0)
+      game_loop do
+        frame += 1
+        floor = 1 if frame > 10
+        music.update(music.floor_song(floor))
+      end
     end.program
   end
 
@@ -46,23 +52,38 @@ class TestMusic < Minitest::Test
     refute_includes heard(game_with(setting: Music::OFF)).map(&:first), :song
   end
 
-  def test_a_copy_without_a_track_is_left_without_it
-    built = {}
-    VBlank.game("MUSIC", consoles: %i[gba]) do
-      enable_sound
-      sound = var(:sound_setting, 2)
-      music = Music.new(build: self, tracks: HeldTracks.new(Music::GETTHEM), floors: [Floor.new(0), Floor.new(1)], setting: sound)
-      built[:held] = music.song(Music::GETTHEM)
-      built[:missing] = music.song(Music::SEARCHN)
-      game_loop { music.update(0) }
-    end.program
+  # The second floor's track is missing, so the song the first floor started plays on through it.
+  def test_a_copy_without_a_track_plays_the_last_song_on
+    program = game_with(setting: Music::EFFECTS_AND_MUSIC, tracks: HeldTracks.new(Music::GETTHEM))
 
-    assert_equal 0, built[:held]
-    assert_equal 1, built[:missing], "past the end of the list of one, which names no song"
+    assert_includes heard(program).map(&:first), :song
   end
 
   def test_a_build_with_no_tracks_plays_no_music
     refute_includes heard(game_with(setting: Music::EFFECTS_AND_MUSIC, tracks: nil)).map(&:first), :song
+  end
+
+  # A TRACK IN THE FILE, as AUDIOT lays it out: two bytes of length, the writes, and the composer's
+  # notes after them. The shareware's missing tracks are only the notes.
+  def audio_with_a_track_and_a_gap
+    track = [0x20, 0x21, 7, 0xb0, 0x30, 9].pack("CCvCCv")
+    held = [track.bytesize].pack("v") + track + ("x" * 86)
+    gap = [0].pack("v") + ("x" * 86)
+    first = Wolf3D::AdlibMusic::FIRST_CHUNK
+    offsets = Array.new(first, 0) + [0, held.bytesize, held.bytesize + gap.bytesize]
+    Wolf3D::AdlibMusic.new(head: offsets.pack("V*"), audio: held + gap)
+  end
+
+  def test_a_track_reads_as_register_value_and_wait
+    assert_equal [[0x20, 0x21, 7], [0xb0, 0x30, 9]], audio_with_a_track_and_a_gap.writes(0)
+  end
+
+  def test_a_slot_the_copy_left_empty_reads_as_nothing
+    assert_empty audio_with_a_track_and_a_gap.writes(1)
+  end
+
+  def test_a_number_past_the_end_of_the_file_reads_as_nothing
+    assert_empty audio_with_a_track_and_a_gap.writes(2)
   end
 
   # The first episode's floors, by wl_play.cpp: four themes twice over, the boss, the secret floor.

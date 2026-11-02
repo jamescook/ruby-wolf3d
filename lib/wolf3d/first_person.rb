@@ -146,9 +146,9 @@ module Wolf3D
     FLOOR_COLOR = VBlank::Graphics::Color.rgb(12, 11, 10)
 
     # +floors+ is every floor the cartridge holds.
-    # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
+    # +sound_setting+ is the menu's own sound switch, or nil where there is no menu to turn it off.
     def initialize(build:, atlas:, floors:, things: nil, vswap: nil, adlib: nil, bar_art: nil, gun_art: nil,
-                   lettering: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil,
+                   lettering: nil, sound_setting: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil,
                    rare_scream_odds: GuardMind::RARE_SCREAM_ODDS)
       @rare_scream_odds = rare_scream_odds
       @floors = floors
@@ -184,7 +184,7 @@ module Wolf3D
       @bar_art = bar_art # Wolfenstein's own art for the bar, or nil to draw it plainly
       @gun_art = gun_art # ...and for the gun in your hands, or nil to hold one you cannot see
       @lettering = lettering # ...and the big letters between floors, or nil for the plain font
-      @sound_on = sound_on
+      @sound_setting = sound_setting
       declare
     end
 
@@ -670,7 +670,7 @@ module Wolf3D
       @flash = ScreenFlash.new(build: b)
 
       # THE SOUNDS COME BEFORE ANYTHING THAT MAKES ONE: a death, a guard shouting, a gun.
-      @sounds = Sounds.new(build: b, vswap: @vswap, adlib: @adlib, switch: @sound_on, kinds: @behaviour.kinds.map(&:name))
+      @sounds = Sounds.new(build: b, vswap: @vswap, adlib: @adlib, switch: @sound_setting, kinds: @behaviour.kinds.map(&:name))
 
       # DYING AND THE GOES YOU GET COME FIRST, because what stands in the level reaches both: the
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you

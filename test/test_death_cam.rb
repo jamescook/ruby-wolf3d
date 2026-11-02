@@ -137,7 +137,7 @@ class TestDeathCam < Minitest::Test
       art = menus && Wolf3D::MenuArt.of(fixture.pictures)
       view_of(level, toughness: 1) do |b, view, _|
         menus_on = art && Wolf3D::Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game,
-                                            sound_on: b.var(:sound_on, 1), starting_on: Wolf3D::Menus::PLAYING)
+                                            sound_setting: b.var(:sound_setting, 1), starting_on: Wolf3D::Menus::PLAYING)
         game_loop { art ? menus_on.update : view.update }
       end
     end

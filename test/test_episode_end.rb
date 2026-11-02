@@ -76,8 +76,8 @@ class TestEpisodeEnd < Minitest::Test
   def cartridge(way)
     Ractor.current[:"episode_end_#{way}"] ||= begin
       art = Wolf3D::MenuArt.of(fixture.pictures)
-      view_of(way_out_level, sound: 1) do |b, view, sound_on|
-        menus = Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game, sound_on: sound_on,
+      view_of(way_out_level, sound: 1) do |b, view, sound_setting|
+        menus = Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game, sound_setting: sound_setting,
                           starting_on: Menus::PLAYING)
         once = b.var :_test_once, 0
         b.game_loop do

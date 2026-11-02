@@ -181,7 +181,7 @@ module Wolf3D
     end
 
     # +view+ is the game itself, which this puts a menu in front of. +art+ is Wolfenstein's own
-    # menu pictures. +sound_on+ is the variable the SOUND row moves, which the game's own
+    # menu pictures. +sound_setting+ is the variable the SOUND row moves, which the game's own
     # sounds are played under.
     #
     # +starting_on+ is which screen the cartridge boots on, and it is a MEASURING TOOL rather
@@ -191,12 +191,12 @@ module Wolf3D
     # to the one you want to look at is worth being able to build.
     #
     # +music+ is the Music on this cartridge, or nil on one with none.
-    def initialize(build:, view:, art:, palette:, sound_on:, starting_on: NOTICE, music: nil)
+    def initialize(build:, view:, art:, palette:, sound_setting:, starting_on: NOTICE, music: nil)
       @b = build
       @view = view
       @art = art
       @palette = palette
-      @sound_on = sound_on
+      @sound_setting = sound_setting
       @music = music
       @episodes = view.floors.episodes
       @starting_on = starting_on
@@ -230,30 +230,49 @@ module Wolf3D
     # WHAT PLAYS ON EACH SCREEN: the original's title and menu songs, and the ones wl_inter.cpp starts
     # for the high scores and the end of an episode. The game itself is the one that depends.
     def screen_songs
-      songs = Array.new(ARTICLE + 1, @music.song(Music::MENU_SONG))
-      [NOTICE, TITLE, CREDITS].each { |screen| songs[screen] = @music.song(Music::TITLE_SONG) }
-      [SCORES, NAMING].each { |screen| songs[screen] = @music.song(Music::SCORES_SONG) }
-      [WINNING, ARTICLE].each { |screen| songs[screen] = @music.song(Music::WON_SONG) }
+      songs = Array.new(ARTICLE + 1, @music.song_index(Music::MENU_SONG))
+      [NOTICE, TITLE, CREDITS].each { |screen| songs[screen] = @music.song_index(Music::INTRO_SONG) }
+      [SCORES, NAMING].each { |screen| songs[screen] = @music.song_index(Music::ROSTER_SONG) }
+      [WINNING, ARTICLE].each { |screen| songs[screen] = @music.song_index(Music::WON_SONG) }
       songs
     end
 
-    def declare_the_music
+    def declare_music
       return unless @music
 
       table = @b.table :screen_song, screen_songs, width: :byte
       @song_wanted = @b.var :_song_wanted, 0
       @b.func(:choose_music, fast: false) do
         @song_wanted = table[@screen]
+        song_for_the_attract_loop if @screen == SCORES
         @song_wanted = @music.floor_song(@view.playthrough.floor) if @screen == PLAYING
-        @song_wanted = @music.song(Music::BETWEEN_FLOORS_SONG) if @screen == PLAYING && between_floors?
-        @music.update(@song_wanted)
+        @song_wanted = @music.song_index(Music::BETWEEN_FLOORS_SONG) if @screen == PLAYING && between_floors?
+        if @screen == PLAYING && player_falling?
+          @music.stop
+        else
+          @music.update(@song_wanted)
+        end
       end
+    end
+
+    # THE TITLE'S SONG PLAYS ON through the attract loop's high scores (wl_main.cpp), and only a table
+    # you came to yourself has a song of its own.
+    def song_for_the_attract_loop
+      @song_wanted = @music.song_index(Music::INTRO_SONG) if @scores_lead_to == TITLE
     end
 
     def between_floors? = @view.between_floors ? @view.between_floors == 1 : false
 
-    def next_sound_setting
-      @sound_on = (@sound_on + 1) % SOUND.length
+    # THE ORIGINAL STOPS THE MUSIC BEFORE A DEATH (StopMusic, wl_game.cpp) and starts the floor's song
+    # from the top on the next life, which naming it again does here.
+    def player_falling?
+      return false unless @view.dying || @view.over
+
+      (@view.dying ? @view.dying != 0 : false) || (@view.over ? @view.over != 0 : false)
+    end
+
+    def cycle_sound_setting
+      @sound_setting = (@sound_setting + 1) % SOUND.length
       @scores.save_setting
     end
 
@@ -262,7 +281,9 @@ module Wolf3D
       declare_the_lettering
       declare_the_art
       @screen = @b.var :screen, @starting_on
-      declare_the_music
+      # Where the table goes back to, and whether it moves on by itself as it does in the attract loop.
+      @scores_lead_to = @b.var :_scores_lead_to, TITLE
+      declare_music
       # How long the screen you are on has been up, and where a fade is taking you. A fade is
       # running exactly while the second one holds a screen number rather than nothing.
       @waited = @b.var :_screen_waited, 0
@@ -284,10 +305,8 @@ module Wolf3D
       @saved = SavedGames.new(build: @b, view: @view)
       @letters = SmallLetters.new(build: @b, art: @art, palette: @palette, ink: HighScores::INK, ground: BACKGROUND)
       @scores = HighScores.new(build: @b, letters: @letters, palette: @palette, view: @view,
-                               player: @view.player, floor: @view.playthrough.floor, setting: @sound_on)
+                               player: @view.player, floor: @view.playthrough.floor, setting: @sound_setting)
       @view.hand_end_of_game_to_menus
-      # Where the table goes back to, and whether it moves on by itself as it does in the attract loop.
-      @scores_lead_to = @b.var :_scores_lead_to, TITLE
       declare_the_fades
       declare_the_screens
     end
@@ -412,7 +431,7 @@ module Wolf3D
           m.item(NEW_GAME, showing: @in_game) { new_game_or_end_it }
           m.item(LOAD_GAME) { leaving_for LOADING }
           m.item(SAVE_GAME, enabled: @in_game) { leaving_for SAVING }
-          m.item(SOUND, showing: @sound_on) { next_sound_setting }
+          m.item(SOUND, showing: @sound_setting) { cycle_sound_setting }
           m.item(VIEW_SCORES) { view_scores }
           m.item(BACK, showing: @in_game) { leave_the_menu }
         end

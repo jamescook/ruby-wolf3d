@@ -17,6 +17,7 @@ class TestMenus < Minitest::Test
   FirstPerson = Wolf3D::FirstPerson
   Release = Wolf3D::Fixture::Release
   Floors = Wolf3D::Floors
+  Music = Wolf3D::Music
   Names = Wolf3D::Vgagraph::WL6_NAMES
 
   ROW = Menus::ROW_STEP
@@ -128,7 +129,7 @@ class TestMenus < Minitest::Test
     both = at_the_menu(frames: 30) { |f| [4, 8].include?(f) ? [:down] : (f == 20 ? [:a] : []) }
 
     assert_equal 3, both[:__menu_main], "the fourth row is SOUND"
-    assert_equal Wolf3D::Music::EFFECTS_AND_MUSIC, both[:sound_on], "from effects only, one press adds the music"
+    assert_equal Wolf3D::Music::EFFECTS_AND_MUSIC, both[:sound_setting], "from effects only, one press adds the music"
 
     off = at_the_menu(frames: 40) do |f|
       next [:down] if [4, 8].include?(f)
@@ -136,7 +137,7 @@ class TestMenus < Minitest::Test
       [20, 30].include?(f) ? [:a] : []
     end
 
-    assert_equal Wolf3D::Music::OFF, off[:sound_on], "a second press turns everything off"
+    assert_equal Wolf3D::Music::OFF, off[:sound_setting], "a second press turns everything off"
 
     only = at_the_menu(frames: 50) do |f|
       next [:down] if [4, 8].include?(f)
@@ -144,7 +145,7 @@ class TestMenus < Minitest::Test
       [20, 30, 40].include?(f) ? [:a] : []
     end
 
-    assert_equal Wolf3D::Music::EFFECTS_ONLY, only[:sound_on], "and a third comes back round"
+    assert_equal Wolf3D::Music::EFFECTS_ONLY, only[:sound_setting], "and a third comes back round"
   end
 
   # THE SETTING OUTLIVES THE POWER, as it does in the original's config file.
@@ -154,7 +155,40 @@ class TestMenus < Minitest::Test
     Reference.new(save: image).input_each_frame(&presses).run(self.class.program, frames: 30)
     again = Reference.new(save: image).run(self.class.program, frames: 2)
 
-    assert_equal Wolf3D::Music::EFFECTS_AND_MUSIC, again[:sound_on]
+    assert_equal Wolf3D::Music::EFFECTS_AND_MUSIC, again[:sound_setting]
+  end
+
+  # --- THE MUSIC ------------------------------------------------------------------------------
+
+  # The song the list holds at each of these places, in the order Music declares them: the floor's,
+  # then the menu's, the intro's, the one between floors, the roster's and the win's.
+  MENU_INDEX = 1
+  INTRO_INDEX = 2
+
+  def song_on(screen, name, frames: 6)
+    floors = self.class.floors_for(1)
+    play(frames: frames, program: self.class.with_music(floors: floors, starting_on: screen, name: name))
+  end
+
+  def test_the_menu_has_the_menu_song
+    assert_equal MENU_INDEX, song_on(Menus::MENU, :menu)[:_song_wanted]
+  end
+
+  # DrawHighScores in the attract loop (wl_main.cpp) leaves the title's song playing.
+  def test_the_attract_loops_table_keeps_the_title_song
+    assert_equal INTRO_INDEX, song_on(Menus::SCORES, :attract_scores)[:_song_wanted]
+  end
+
+  # StopMusic comes before Died (wl_game.cpp).
+  def test_the_music_stops_for_a_death
+    ring = [[9, 8, :west], [7, 8, :east], [8, 9, :north], [8, 7, :south], [9, 9, :west], [7, 7, :east]]
+    floors = Floors.new([self.class.floor_of(self.class.arena(guards: ring), index: 0)])
+    program = self.class.with_music(floors: floors, starting_on: Menus::PLAYING, name: :ring)
+    alive = play(frames: 6, program: program)
+    falling = play(frames: MID_DEATH, program: program)
+
+    assert_includes alive.sound_owners.map(&:first), :song
+    refute_includes falling.sound_owners.map(&:first), :song
   end
 
   # --- THE DIFFICULTY SCREEN -----------------------------------------------------------------
@@ -668,11 +702,29 @@ class TestMenus < Minitest::Test
       end
     end
 
+    # Holds every track, each a short square wave, for a test of which song goes where.
+    class EveryTrack
+      def writes(_number) = [[0, 0, 0]]
+      def recording(_number) = (([60] * 40) + ([-60] * 40)).cycle.first(3500).pack("c*")
+    end
+
+    def with_music(floors:, starting_on:, name:)
+      Ractor.current[:"menus_music_#{name}"] ||= begin
+        menu_art = art
+        cartridge_of(floors, sound: Music::EFFECTS_AND_MUSIC, lettering: menu_art) do |b, view, sound_setting|
+          music = Music.new(build: b, tracks: EveryTrack.new, floors: floors, setting: sound_setting)
+          menus = Wolf3D::Menus.new(build: b, view: view, art: menu_art, palette: Wolf3D::Palette.game,
+                                    sound_setting: sound_setting, starting_on: starting_on, music: music)
+          b.game_loop { menus.update }
+        end
+      end
+    end
+
     def cartridge(episodes: 1, floors: floors_for(episodes), starting_on: Menus::NOTICE)
       menu_art = art
-      cartridge_of(floors, sound: 1, lettering: menu_art) do |b, view, sound_on|
+      cartridge_of(floors, sound: 1, lettering: menu_art) do |b, view, sound_setting|
         menus = Wolf3D::Menus.new(build: b, view: view, art: menu_art, palette: Wolf3D::Palette.game,
-                                  sound_on: sound_on, starting_on: starting_on)
+                                  sound_setting: sound_setting, starting_on: starting_on)
         b.game_loop { menus.update }
       end
     end

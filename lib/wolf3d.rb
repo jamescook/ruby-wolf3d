@@ -342,8 +342,8 @@ module Wolf3D
     ammo = setting :ammo, nil
     boot_screen = setting :screen, nil
     # MUSIC STARTS ON WHERE IT COSTS NOTHING A PLAYER CAN SEE, and off on the console, where a frame
-    # is short. This dial starts a cartridge with it on, to measure that. Any value does it.
-    music_on = setting(:music, nil) || built_for_computer?
+    # is short. `--set music=on` starts a cartridge with it on, to measure that.
+    music_on = setting(:music, nil) == "on" || built_for_computer?
     Wolf3D.seed_random_numbers(self, setting(:seed, nil))
 
     Wolf3D.check_the_copy!
@@ -361,10 +361,10 @@ module Wolf3D
       # then the cartridge boots straight into the game, because there is nothing to write a
       # menu with. The same pictures hold the lettering of the screen between floors.
       menu_art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
-      # WHETHER SOUND IS ON, which the menu's own row moves and every one of the game's sounds
-      # is played under. Declared here rather than inside either of them because both need it
-      # and neither owns it.
-      sound_on = menu_art && var(:sound_on, music_on ? Wolf3D::Music::EFFECTS_AND_MUSIC : Wolf3D::Music::EFFECTS_ONLY)
+      # WHAT THE SOUND ROW IS SET TO, which every one of the game's sounds and songs is played
+      # under. Declared here rather than inside either of them because both need it and neither
+      # owns it.
+      sound_setting = menu_art && var(:sound_setting, music_on ? Wolf3D::Music::EFFECTS_AND_MUSIC : Wolf3D::Music::EFFECTS_ONLY)
       # `gun_art` is the pictures of the gun in your hands, and it is asked of the CARTRIDGE
       # rather than of the level: every floor is played holding the same four weapons, where the
       # walls and the things standing in the rooms differ from one floor to the next.
@@ -374,13 +374,13 @@ module Wolf3D
                                      bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph),
                                      gun_art: Wolf3D.gun_art,
                                      lettering: menu_art,
-                                     sound_on: sound_on,
+                                     sound_setting: sound_setting,
                                      armed_with: Wolf3D.armed_with(armed),
                                      ammo: Wolf3D.starting_ammo(ammo))
       if menu_art
-        music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_on)
+        music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_setting)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
-                                  palette: Wolf3D.palette, sound_on: sound_on, music: music,
+                                  palette: Wolf3D.palette, sound_setting: sound_setting, music: music,
                                   starting_on: Wolf3D.which_screen(boot_screen))
         game_loop { menus.update }
       else

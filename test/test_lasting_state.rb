@@ -275,9 +275,9 @@ class TestLastingState < Minitest::Test
   # its LastingState holds and the framework's check that nothing else is left out by accident.
   def whole_game
     art = Wolf3D::MenuArt.of(fixture.pictures)
-    cartridge_of(two_floors, sound: 1) do |b, view, sound_on|
+    cartridge_of(two_floors, sound: 1) do |b, view, sound_setting|
       menus = Wolf3D::Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game,
-                                sound_on: sound_on)
+                                sound_setting: sound_setting)
       b.game_loop { menus.update }
     end
   end

@@ -165,8 +165,8 @@ class TestSavedGames < Minitest::Test
     Ractor.current[:"saved_games_#{from}"] ||= begin
       art = Wolf3D::MenuArt.of(fixture.pictures)
       screen = { playing: Menus::PLAYING, notice: Menus::NOTICE, load: Menus::LOADING }.fetch(from)
-      view_of(arena(side: 24, player: [3, ROW], guards: [[20, ROW, :north]]), sound: 1) do |b, view, sound_on|
-        menus = Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game, sound_on: sound_on,
+      view_of(arena(side: 24, player: [3, ROW], guards: [[20, ROW, :north]]), sound: 1) do |b, view, sound_setting|
+        menus = Menus.new(build: b, view: view, art: art, palette: Wolf3D::Palette.game, sound_setting: sound_setting,
                           starting_on: screen)
         b.game_loop { menus.update }
       end

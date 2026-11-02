@@ -9,10 +9,12 @@ class TestOpl2Track < Minitest::Test
 
   # Channel nought's modulator is operator cell 0x00 and its carrier 0x03. Each write is a register,
   # a value, and the ticks to wait after it.
-  def a_held_note(fnum: 0x241, block: 4, channel_offset: 0)
+  def a_held_note
+    fnum = 0x241
+    block = 4
     silent_modulator = [[0x40, 0x3f, 0], [0x60, 0xf0, 0], [0x80, 0x0f, 0]]
     loud_carrier = [[0x43, 0x00, 0], [0x63, 0xf0, 0], [0x83, 0x0f, 0], [0x23, 0x21, 0], [0x20, 0x21, 0]]
-    tune = [[0xa0 + channel_offset, fnum & 0xff, 0], [0xb0 + channel_offset, 0x20 | (block << 2) | (fnum >> 8), 700]]
+    tune = [[0xa0, fnum & 0xff, 0], [0xb0, 0x20 | (block << 2) | (fnum >> 8), 700]]
     silent_modulator + loud_carrier + tune
   end
 
@@ -64,11 +66,13 @@ class TestOpl2Track < Minitest::Test
     assert_operator samples.map(&:abs).max, :>, 20
   end
 
-  def test_the_track_of_a_copy_of_the_game_lasts_what_its_delays_add_up_to
-    data = game_data_or_skip
-    music = Wolf3D::AdlibMusic.from(data)
-    track = music.writes(Wolf3D::Music::GETTHEM)
+  # Floor 1's theme is 56,000 ticks in the game's own file. That is the eighty seconds it runs for at
+  # the original's 700 ticks a second, and it would run a hundred at the 560 of other games' files.
+  def test_a_real_track_lasts_as_long_as_seven_hundred_ticks_a_second_makes_it
+    music = Wolf3D::AdlibMusic.from(game_data_or_skip)
+    samples = Wolf3D::Opl2Track.render(music.writes(Wolf3D::Music::GETTHEM).first(200))
+    ticks = music.writes(Wolf3D::Music::GETTHEM).first(200).sum(&:last)
 
-    assert_in_delta 80.0, track.sum(&:last) / 700.0, 1.0
+    assert_in_delta ticks * Wolf3D::Opl2Track::RATE / 700.0, samples.length, 2
   end
 end
