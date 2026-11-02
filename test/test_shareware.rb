@@ -37,6 +37,15 @@ class TestShareware < Minitest::Test
     six.names.each { |name| assert_equal six.size(name), graph.size(name), name.to_s }
   end
 
+  # THE ADLIB EFFECTS AGAINST THE FILE: each one this game plays is there and comes out as sound.
+  def test_every_adlib_effect_the_game_plays_makes_a_sound
+    adlib = Wolf3D::AdlibSounds.from(shareware_or_skip)
+
+    Wolf3D::Sounds::ADLIB.each do |name, number|
+      refute_nil adlib.recording(number), name.to_s
+    end
+  end
+
   # T_ENDART1 is the last chunk of the file, and the original starts an article with ^P.
   def test_the_first_episode_ends_on_its_own_article
     article = shareware.then { |graph| graph.text(graph.end_article_chunk(0)) }

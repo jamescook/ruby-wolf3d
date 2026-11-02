@@ -146,7 +146,7 @@ module Wolf3D
 
     # +floors+ is every floor the cartridge holds.
     # +sound_on+ is the menu's own sound switch, or nil where there is no menu to turn it off.
-    def initialize(build:, atlas:, floors:, things: nil, vswap: nil, bar_art: nil, gun_art: nil,
+    def initialize(build:, atlas:, floors:, things: nil, vswap: nil, adlib: nil, bar_art: nil, gun_art: nil,
                    lettering: nil, sound_on: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil,
                    rare_scream_odds: GuardMind::RARE_SCREAM_ODDS)
       @rare_scream_odds = rare_scream_odds
@@ -179,6 +179,7 @@ module Wolf3D
       @behaviour = Behaviour.for(@floors.flat_map { |floor| floor.guards&.kinds || [] }.uniq, toughness: toughness)
       @things = things
       @vswap = vswap # the player's own copy of the recorded sounds, or nil for a silent build
+      @adlib = adlib # ...and of the effects that are recipes for the AdLib chip, or nil
       @bar_art = bar_art # Wolfenstein's own art for the bar, or nil to draw it plainly
       @gun_art = gun_art # ...and for the gun in your hands, or nil to hold one you cannot see
       @lettering = lettering # ...and the big letters between floors, or nil for the plain font
@@ -666,11 +667,14 @@ module Wolf3D
       # THE FLASH BEFORE WHAT SETS IT OFF OR PUTS IT AWAY: a pickup, a hit, a death.
       @flash = ScreenFlash.new(build: b)
 
+      # THE SOUNDS COME BEFORE ANYTHING THAT MAKES ONE: a death, a guard shouting, a gun.
+      @sounds = Sounds.new(build: b, vswap: @vswap, adlib: @adlib, switch: @sound_on, kinds: @behaviour.kinds.map(&:name))
+
       # DYING AND THE GOES YOU GET COME FIRST, because what stands in the level reaches both: the
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you
       # another go.
       declare_the_dying
-      @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying, lasting: @lasting)
+      @lives = Lives.new(build: b, playthrough: @playthrough, dying: @dying, lasting: @lasting, sounds: @sounds)
       @scoring = Scoring.new(build: b, player: @player, lives: @lives, lasting: @lasting)
       @records = FloorRecords.new(build: b, lasting: @lasting)
       # ...and the other way a game stops, which is winning it. Only on a cartridge holding a
@@ -680,11 +684,8 @@ module Wolf3D
       # ...then the guards, then what is lying on the floor (which every floor has whether
       # anything DRAWS it or not — a level with a locked door has a key on it), then the guards'
       # minds, and last the drawing. Each needs the one before it; see each for why.
-      # The recorded sounds come before the guards' minds, because a guard shouting, shooting and
-      # dying is most of what there is to hear.
-      @sounds = Sounds.new(build: b, vswap: @vswap, switch: @sound_on, kinds: @behaviour.kinds.map(&:name))
-      # ...then the gun in your hands: after the sounds, because each of the three guns has one
-      # of its own, and before the things lying on the floor, because two of those ARE guns.
+      # The gun in your hands goes before the things lying on the floor, because two of those ARE
+      # guns.
       @weapons = Weapons.new(build: b, player: @player, atlas: @gun_art, sounds: @sounds,
                              starting: @armed_with, lasting: @lasting)
       # ...and before both of them, because a guard asks it whether to think and every piece of
@@ -985,7 +986,7 @@ module Wolf3D
     def declare_the_dying
       return if @guards.nil? || @guards.empty?
 
-      @dying = Dying.new(build: @b, player: @player, sines: @sin, lasting: @lasting, flash: @flash)
+      @dying = Dying.new(build: @b, player: @player, sines: @sin, lasting: @lasting, flash: @flash, sounds: @sounds)
     end
 
     # THINGS ON THE FLOOR YOU PICK UP BY WALKING OVER THEM. It sits between the guards and their
@@ -998,7 +999,7 @@ module Wolf3D
     def declare_the_pickups
       @pickups = Pickups.new(build: @b, floors: @floors, pool: @guard_pool&.pool, lives: @lives,
                              weapons: @weapons, lasting: @lasting, flash: @flash, scoring: @scoring,
-                             this_floor: @this_floor, player: @player)
+                             this_floor: @this_floor, player: @player, sounds: @sounds)
     end
 
     # HOW MUCH THERE IS TO FIND ON THE FLOOR BEING PLAYED: the men to kill, the walls that slide
@@ -1025,7 +1026,7 @@ module Wolf3D
     # keeps its quick memory for the ones that do.
     def declare_the_tally
       @tally = Tally.new(build: @b, player: @player, scoring: @scoring, floors: @floors, floor: @floor, records: @records,
-                         playthrough: @playthrough, secret_lift: @lift_secret, lettering: big_lettering,
+                         playthrough: @playthrough, secret_lift: @lift_secret, lettering: big_lettering, sounds: @sounds,
                          totals: { kill: @kill_total, secret: @secret_total, treasure: @treasure_total })
       @b.func(:the_end_of_a_floor, fast: false) do
         @tally.draw
@@ -1191,6 +1192,7 @@ module Wolf3D
 
       take_the_step if b.held(:up) || b.held(:down)
       step_sideways
+      @sounds.count_adlib_frame
 
       @pickups.update
       reached_the_way_out
@@ -1206,13 +1208,25 @@ module Wolf3D
       @nx = @player.x
       @nx += @stepx
       if free?(@nx.to_i, @player.y.to_i)
-        @player.x = @nx unless man_in_step?(@nx, @player.y)
+        if man_in_step?(@nx, @player.y)
+          @sounds.hit_wall
+        else
+          @player.x = @nx
+        end
+      else
+        @sounds.hit_wall
       end
 
       @ny = @player.y
       @ny += @stepy
       if free?(@player.x.to_i, @ny.to_i)
-        @player.y = @ny unless man_in_step?(@player.x, @ny)
+        if man_in_step?(@player.x, @ny)
+          @sounds.hit_wall
+        else
+          @player.y = @ny
+        end
+      else
+        @sounds.hit_wall
       end
     end
 
@@ -1355,6 +1369,8 @@ module Wolf3D
           # count back up, which is not a door opening and does not sound like one.
           @sounds.door_opens if @open[@slot] == 0.0
           @linger[@slot] = DOOR_LINGER
+        else
+          @sounds.adlib(:no_way)
         end
       })
     end

@@ -22,6 +22,8 @@ require_relative "wolf3d/palette"
 require_relative "wolf3d/level"
 require_relative "wolf3d/maps"
 require_relative "wolf3d/vswap"
+require_relative "wolf3d/adlib_sounds"
+require_relative "wolf3d/opl2"
 # ...and the pictures of the gun in your hands, which are the last twenty sprites of it. Up
 # here with the reader rather than beside the other two atlases, because a release written for
 # the tests has to know how many sprites it must hold to have them.
@@ -286,6 +288,7 @@ module Wolf3D
   def self.which_screen(asked) = Menus.screen_named(asked&.to_s)
 
   def self.vswap = Ractor.current[:wolf3d_vswap] ||= data && Vswap.from(data)
+  def self.adlib = Ractor.current[:wolf3d_adlib] ||= data && AdlibSounds.from(data)
 
   def self.vgagraph = Ractor.current[:wolf3d_vgagraph] ||= data && Vgagraph.from(data)
 
@@ -357,6 +360,7 @@ module Wolf3D
       # walls and the things standing in the rooms differ from one floor to the next.
       view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
                                      vswap: Wolf3D.vswap,
+                                     adlib: Wolf3D.adlib,
                                      bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph),
                                      gun_art: Wolf3D.gun_art,
                                      lettering: menu_art,

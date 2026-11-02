@@ -61,11 +61,12 @@ module Wolf3D
       SPRITE_INK = 112
 
       # A set whose pictures have no names here, unless a test asks for one that does. See #named.
-      def initialize(set: "SDM", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2)
+      def initialize(set: "SDM", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2, adlib: [])
         @set = set
         @walls = walls
         @sprites = sprites
         @sounds = sounds
+        @adlib = adlib
         @rlew = Codec::RLEW.new(tag: RLEW_TAG)
       end
 
@@ -521,11 +522,27 @@ module Wolf3D
       end
 
       def audiot
-        chunks = [Array.new(8) { |i| i }.pack("C*")]
+        chunks = @adlib.empty? ? [Array.new(8) { |i| i }.pack("C*")] : adlib_chunks
         body = chunks.join
         at = 0
         offsets = chunks.map { |chunk| at.tap { at += chunk.bytesize } } << body.bytesize
         [body, offsets.pack("V*")]
+      end
+
+      # AN ADLIB EFFECT FOR EACH NUMBER ASKED FOR: one note, a tenth of a second long, on an operator
+      # that sounds at once and a modulator turned right down. +@adlib+ is a list of numbers, or a
+      # Hash of a number's priority. Every other chunk before them is empty.
+      ADLIB_NOTES = 14
+      ADLIB_INSTRUMENT = [0x21, 0x21, 0x3f, 0x00, 0xf0, 0xf0, 0x0f, 0x0f, 0, 0, 0, 0, 0, 0, 0, 0].freeze
+
+      def adlib_chunks
+        priorities = @adlib.is_a?(Hash) ? @adlib : @adlib.to_h { |number| [number, 1] }
+        Array.new(AdlibSounds::FIRST_CHUNK + priorities.keys.max + 1) do |chunk|
+          priority = priorities[chunk - AdlibSounds::FIRST_CHUNK]
+          next "" unless priority
+
+          [ADLIB_NOTES].pack("V") + [priority].pack("v") + ADLIB_INSTRUMENT.pack("C*") + [4].pack("C") + ([200] * ADLIB_NOTES).pack("C*")
+        end
       end
 
       # VGAHEAD stores three-byte offsets, not four.

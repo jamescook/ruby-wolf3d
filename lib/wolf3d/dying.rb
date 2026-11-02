@@ -40,9 +40,10 @@ module Wolf3D
     # it; the rest is working room that each death begins by putting back. +sines+ is the view's
     # table of sines, which the player's own +sin+ is one entry of: the view turns as you die, so
     # this works the angle's sine out again from the table rather than waiting for a move to.
-    def initialize(build:, player:, sines:, lasting: LastingState.new(build:), flash: nil)
+    def initialize(build:, player:, sines:, lasting: LastingState.new(build:), flash: nil, sounds: nil)
       @b = build
       @flash = flash # the red of the hit that did it, put away as the red of the death begins
+      @sounds = sounds
       @player = player
       @sines = sines
       @lasting = lasting
@@ -76,6 +77,7 @@ module Wolf3D
     # nothing all the same, or it would draw no red at all.
     def struck_by(guard)
       if @state == ALIVE
+        @sounds&.adlib(:player_death)
         @kill_x = guard.x
         @kill_y = guard.y
         @state = TURNING

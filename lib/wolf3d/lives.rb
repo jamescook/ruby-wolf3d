@@ -31,8 +31,9 @@ module Wolf3D
     # +dying+ may be nil: a floor with nothing on it that can kill you still shows a number of
     # lives, and never spends one. +playthrough+ is what starts play again after a death.
     # +lasting+ is what a saved game holds (see LastingState).
-    def initialize(build:, playthrough:, dying: nil, lasting: LastingState.new(build:))
+    def initialize(build:, playthrough:, dying: nil, lasting: LastingState.new(build:), sounds: nil)
       @b = build
+      @sounds = sounds
       @playthrough = playthrough
       @dying = dying
       @lasting = lasting
@@ -72,6 +73,7 @@ module Wolf3D
     MOST = 9
 
     def give_one
+      @sounds&.adlib(:one_up)
       @left += 1
       @left.clamp! 0, MOST
     end

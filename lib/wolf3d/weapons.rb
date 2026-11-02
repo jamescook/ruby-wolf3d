@@ -315,6 +315,7 @@ module Wolf3D
     def the_weapon_acts
       if @in_hand == KNIFE
         @acted = 1
+        @sounds&.adlib(:knife)
       else
         fire_a_round
       end
@@ -325,9 +326,9 @@ module Wolf3D
     # they are about to go looking for.
     #
     # A GUN IS HEARD WHETHER OR NOT IT HITS ANYTHING, which is where the original puts it too:
-    # GunAttack says so before it has even looked for a target. The knife is not here, and that
-    # is the whole of the difference — a swing that meets nothing is silent, and one that lands
-    # makes its noise where the man cries out (GuardMind#wound_a_guard).
+    # GunAttack says so before it has even looked for a target. That is a noise a guard hears. The
+    # knife's swing is a sound too, but one that meets nothing is no noise to a guard, and one that
+    # lands makes its noise where the man cries out (GuardMind#wound_a_guard).
     def fire_a_round
       if @player.ammo > 0
         @player.ammo -= 1
@@ -352,8 +353,7 @@ module Wolf3D
     end
 
     # Each gun has its own recording, which is the one place a machine gun and a chain gun
-    # differ to the ear. The knife's is an ADLIB effect and no copy of the game holds a
-    # recording of it, so the knife goes in quietly, and only a gun ever reaches here.
+    # differ to the ear.
     def the_gun_is_heard
       @sounds&.gun(@in_hand - PISTOL)
     end

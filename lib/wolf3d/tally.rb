@@ -51,6 +51,10 @@ module Wolf3D
     # counting from nought within an episode.
     NO_PERCENTAGES_FROM = 8
 
+    # How often a climbing figure ticks: `i % 10` and `i % (PAR_AMOUNT / 10)`.
+    TICK_EVERY_PER_CENT = 10
+    TICK_EVERY_SECONDS = 50
+
     # parTimes, wl_inter.cpp, in seconds: an episode to a row and its eight ordinary floors. The
     # original writes these in minutes, and its "??:??" for the last two floors of an episode is
     # never shown, because those floors do not have this part of the screen.
@@ -113,8 +117,9 @@ module Wolf3D
     # +lettering+ is what the words are written in, or the framework's font if nothing says. See
     # BigLettering. +records+ holds the floor's clock and keeps how it went.
     def initialize(build:, player:, scoring:, totals:, floors:, floor:, playthrough:, secret_lift:, records:,
-                   lettering: BigLettering.new(build:, art: nil, printed: []))
+                   lettering: BigLettering.new(build:, art: nil, printed: []), sounds: nil)
       @b = build
+      @sounds = sounds
       @player = player
       @scoring = scoring
       @floors = floors
@@ -238,11 +243,17 @@ module Wolf3D
       end
     end
 
+    # A TICK AS THE FIGURES CLIMB, AND ONE SOUND AS EACH ARRIVES (wl_inter.cpp, LevelCompleted). The
+    # original waits for each sound before it goes on. Here the pace is the step above, so the
+    # ticks fall where they fall and a later one cuts an earlier one off.
     def count_par
       @shown_time_left += PAR_STEP
       if @shown_time_left >= @time_left
         @shown_time_left = @time_left
         @stage = COUNTING_KILLS
+        @sounds&.adlib(:tally_done) if @time_left > 0
+      elsif @shown_time_left % TICK_EVERY_SECONDS == 0
+        @sounds&.adlib(:tally_tick)
       end
       @shown_bonus = @shown_time_left * PAR_AMOUNT
     end
@@ -253,6 +264,20 @@ module Wolf3D
         @shown[name] = @ratios[name]
         @shown_bonus += FOR_A_HUNDRED_PER_CENT if @ratios[name] >= 100
         @stage += 1
+        sound_final_ratio(@ratios[name])
+      elsif @shown[name] % TICK_EVERY_PER_CENT == 0
+        @sounds&.adlib(:tally_tick)
+      end
+    end
+
+    # Full marks and nothing at all each have a sound of their own, and the rest share one.
+    def sound_final_ratio(ratio)
+      if ratio >= 100
+        @sounds&.adlib(:full_marks)
+      elsif ratio == 0
+        @sounds&.adlib(:no_bonus)
+      else
+        @sounds&.adlib(:tally_done)
       end
     end
 

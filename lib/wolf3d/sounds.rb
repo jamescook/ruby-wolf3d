@@ -9,10 +9,10 @@ module Wolf3D
   # whole of the conversion is taking 128 off every byte, which Vswap::Sound already does. No
   # file format, no resampling, nothing to install.
   #
-  # THE OTHER HALF OF THIS GAME'S SOUND IS NOT HERE and cannot be: walking into a wall, picking
-  # something up, a locked door, and the player's own death are ADLIB effects — a recipe for a
-  # synthesiser chip rather than a recording — and there is no PCM of them anywhere in the game
-  # files. They want the chip emulated at build time, which is its own piece of work.
+  # THE OTHER HALF ARE ADLIB EFFECTS: walking into a wall, picking something up, a locked door, the
+  # knife, the player's own death and the screen between floors. Those are recipes for a synthesiser
+  # chip. Opl2 plays each one while the cartridge is built, and here it is a recording like any other.
+  # See #declare_the_adlib_effects.
   #
   # WHICH CHUNK IS WHICH is the original's own table (wl_main.cpp, wolfdigimap) rather than
   # remembered. It maps a sound the game asks for onto a numbered chunk of VSWAP, and the numbers
@@ -24,8 +24,7 @@ module Wolf3D
   # never played. Nothing is a build error: a floor that is quieter than it might be is better
   # than a cartridge that will not build.
   class Sounds
-    # The player's own guns. Three of the four make a noise; the knife's is an ADLIB effect and
-    # no copy of the game holds a recording of it, so a knife goes in quietly.
+    # The player's own guns. Three of the four are recordings. The knife is an AdLib effect.
     MACHINE_GUN = 4
     PISTOL = 5
     CHAIN_GUN = 6        # the gatling gun, as the original's own art calls it
@@ -70,16 +69,54 @@ module Wolf3D
                                     gretel: 44, schabbs: 24, fake: 26, mecha: 33, hitler: 19, gift: 36,
                                     fat: 45 })
 
+    # THE ADLIB EFFECTS THIS GAME PLAYS, by the numbers of audiowl6.h and where wl_agent.cpp,
+    # wl_act1.cpp, wl_game.cpp and wl_inter.cpp play them.
+    ADLIB = Ractor.make_shareable({ hit_wall: 0, no_way: 6, player_death: 9, key: 12, knife: 23, machine_gun: 30,
+                                    ammo: 31, food: 33, first_aid: 34, cross: 35, chalice: 36, bible: 37,
+                                    chain_gun: 38, tally_tick: 42, tally_done: 43, one_up: 44, crown: 45,
+                                    no_bonus: 47, full_marks: 48 })
+
     # +vswap+ is the player's own copy of the game's sounds, or nil on a build with no data,
-    # which makes every one of these do nothing. +switch+ is a variable that is 1 while sound
-    # is on — the menu's own SOUND row moves it — or nil on a cartridge with no way to turn
-    # sound off, and then nothing is tested. +kinds+ names who is on this cartridge to be heard.
-    def initialize(build:, vswap: nil, switch: nil, kinds: [:guard])
+    # which makes every one of these do nothing. +adlib+ is its AdlibSounds, and nil leaves those
+    # effects out. +switch+ is a variable that is 1 while sound is on — the menu's own SOUND row
+    # moves it — or nil on a cartridge with no way to turn sound off, and then nothing is tested.
+    # +kinds+ names who is on this cartridge to be heard.
+    def initialize(build:, vswap: nil, adlib: nil, switch: nil, kinds: [:guard])
       @b = build
       @vswap = vswap
+      @adlib = adlib
       @switch = switch
       @kinds = kinds
       declare
+    end
+
+    # WHERE AN ADLIB EFFECT SITS IN THE LIST, for a table to hold. One this copy does not hold lands
+    # past the end, and a number naming no effect plays nothing.
+    def adlib_number(name) = @adlib_names.index(name) || @adlib_names.length
+
+    # ...and the effect itself, by name or by a number the game read from a table.
+    def adlib(name)
+      play_adlib(adlib_number(name)) if @adlib_names.include?(name)
+    end
+
+    def play_adlib(number)
+      return if @adlib_effects.nil?
+
+      when_sound_is_on do
+        @adlib_effects.play number
+        @adlib_left = @adlib_frames[number]
+      end
+    end
+
+    # THE WALL IS HEARD ONLY OVER SILENCE (ClipMove: `if (!SD_SoundPlaying())`), which is why walking
+    # along a wall scrapes rather than hammering, and why a wall never cuts a pickup off.
+    def hit_wall
+      @b.call :play_hit_wall if @adlib_effects
+    end
+
+    # A frame has gone by, for the count that says whether an AdLib effect is still sounding.
+    def count_adlib_frame
+      @adlib_left -= 1 if @adlib_effects && @adlib_left > 0
     end
 
     # THE GUN GOES OFF, and the shot before it is cut off, whichever gun fired that one. +number+
@@ -172,6 +209,8 @@ module Wolf3D
       @clips_source = {}
       @held_voices = []
       @voice_count = 0
+      @adlib_names = []
+      declare_the_adlib_effects
       return if @vswap.nil?
 
       WANTED.uniq.each do |chunk|
@@ -180,11 +219,43 @@ module Wolf3D
         @clips_source[chunk] = sound
         @clips[chunk] = @b.sample(:"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate)
       end
-      @b.enable_sound if (GUNS + DEATH_SCREAMS + voices_wanted).any? { |chunk| recording(chunk) }
+      @b.enable_sound if @adlib_effects.nil? && (GUNS + DEATH_SCREAMS + voices_wanted).any? { |chunk| recording(chunk) }
       declare_the_guns
       declare_the_screams
       declare_the_voices
     end
+
+    # THE CHIP HAS ONE VOICE FOR THESE, so a group is what they are: one at a time, and a sound of at
+    # least the priority of the one playing replaces it, or is not played (SD_PlaySound). That
+    # priority is the file's own. They rank among themselves and do not touch a recording, because
+    # the original plays those on the mixer beside the chip.
+    #
+    # An effect's list place can name no effect, so the table of lengths has one more row for it.
+    def declare_the_adlib_effects
+      return if @adlib.nil?
+
+      held = ADLIB.select { |_, number| @adlib.recording(number) }
+      return if held.empty?
+
+      @adlib_names = held.keys
+      recordings = held.values.map { |number| @adlib.recording(number) }
+      @b.enable_sound
+      @adlib_effects = @b.sound_effects :adlib, recordings.zip(held.values).map { |recording, number| adlib_score(recording, number) }
+      @adlib_frames = @b.table :adlib_frames, recordings.map { |recording| frames_of(recording) } + [0], width: :half
+      @adlib_left = @b.var :_adlib_left, 0
+      @b.func(:play_hit_wall, fast: false) { adlib(:hit_wall) if @adlib_left == 0 }
+    end
+
+    def adlib_score(recording, number)
+      @b.instrument :"adlib_#{number}", pcm: recording.pcm, rate: recording.rate
+      note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames_of(recording))
+      VBlank::Audio::Score.new(
+        tempo: FRAME_TICKS, group: :adlib, priority: recording.priority,
+        parts: [VBlank::Audio::Score::Part.new(plays: :"adlib_#{number}", volume: FULL, notes: [note])]
+      )
+    end
+
+    def frames_of(recording) = ((recording.pcm.length.to_f / recording.rate) * 60).ceil
 
     # EVERYTHING THE KINDS ON THIS CARTRIDGE SAY, in one list, so a table can name any of them by
     # number and a kind costs a column rather than a test. Like the screams, these are heard over

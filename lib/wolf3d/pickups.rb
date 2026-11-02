@@ -81,8 +81,9 @@ module Wolf3D
     # LastingState).
     def initialize(build:, player:, level: nil, lives: nil, scenery: nil, pool: nil,
                    floors: nil, this_floor:, weapons: nil, lasting: LastingState.new(build:), flash:,
-                   scoring:)
+                   scoring:, sounds: nil)
       @b = build
+      @sounds = sounds # what a thing sounds like as it is picked up
       @lasting = lasting
       @scoring = scoring # where the points for a treasure go
       @flash = flash # the screen going gold when something is taken
@@ -228,6 +229,10 @@ module Wolf3D
       @gives_kind = b.table :gives_kind, Floors.at_least_one(everything.map { |p| kind_of(p) }), width: :byte
       @gives_amount = b.table :gives_amount, Floors.at_least_one(everything.map { |p| amount_of(p) }),
                               width: :half
+      if @sounds
+        @gives_sound = b.table :gives_sound, Floors.at_least_one(everything.map { |p| @sounds.adlib_number(sound_of(p)) }),
+                               width: :byte
+      end
 
       # WHAT HAS BEEN TAKEN, which is the only thing about a floor's things that ever changes.
       # One floor's worth, since only one is ever being played.
@@ -239,6 +244,24 @@ module Wolf3D
 
       b.func(:pick_things_up) { what_am_i_standing_on }
       declare_the_walk_over_the_fallen
+    end
+
+    # WHICH EFFECT A PIECE MAKES AS IT IS TAKEN (GetBonus, wl_agent.cpp). The first aid box has its own
+    # and the two foods share one. A one-up says so through Lives, and scraps are a digitised sound
+    # in the original that this game does not play.
+    TREASURE_SOUNDS = { 100 => :cross, 500 => :chalice, 1000 => :bible, 5000 => :crown }.freeze
+    WEAPON_SOUNDS = { machine_gun: :machine_gun, chain_gun: :chain_gun }.freeze
+    FIRST_AID_HEALS = 25
+
+    def sound_of(piece)
+      kind, amount = piece.bonus
+      case kind
+      when :ammunition then :ammo
+      when :health then amount >= FIRST_AID_HEALS ? :first_aid : :food
+      when :key then :key
+      when :treasure then TREASURE_SOUNDS.fetch(amount)
+      when :weapon then WEAPON_SOUNDS.fetch(amount)
+      end
     end
 
     # THE WALK OVER THE GUARDS A ROUTINE OF ITS OWN, and taking what one of them left another.
@@ -293,6 +316,7 @@ module Wolf3D
       if @took == 1
         @taken[@piece] = 1
         @flash.bonus
+        @sounds&.play_adlib(@gives_sound[@slot]) if @gives_sound
       end
     end
 
@@ -383,6 +407,9 @@ module Wolf3D
     # What he left has gone from the floor, if it was taken, and that is a pickup like any other.
     def guard_left_nothing_now(guard)
       if @took == 1
+        @sounds&.adlib(:key) if leaves_a_key? && guard.dropped == GOLD_KEY_LEFT
+        @sounds&.adlib(:machine_gun) if @weapons && leaves_a_gun? && guard.dropped == MACHINE_GUN_LEFT
+        @sounds&.adlib(:ammo) if guard.dropped == CLIP_LEFT
         guard.dropped = NOTHING_LEFT
         @flash.bonus
       end
