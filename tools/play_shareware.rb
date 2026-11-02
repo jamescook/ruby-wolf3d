@@ -7,6 +7,7 @@
 #   ruby tools/play_shareware.rb --window            in a window, at the console's frame rate
 #   ruby tools/play_shareware.rb --on native         or interpreter, web, ruby, emulator
 #   ruby tools/play_shareware.rb --floors 2          stops when two floors are done
+#   ruby tools/play_shareware.rb --hardest           on the hardest setting, and not the easiest
 #   ruby tools/play_shareware.rb --repeat            plays the run back from its tape, and says if
 #                                                    it came out the same (emulator only)
 #   ruby tools/play_shareware.rb --tape run.tape     writes the tape there
@@ -28,10 +29,12 @@ OptionParser.new do |parser|
   parser.on("--repeat") { options[:repeat] = true }
   parser.on("--tape PATH") { |path| options[:tape] = path }
   parser.on("--seed N", Integer) { |n| options[:seed] = n }
+  parser.on("--hardest") { options[:hardest] = true }
 end.parse!
 
 ENV["WOLF3D_COPY"] = "shareware"
 ENV["WOLF3D_PILOT_FLOORS"] = options[:floors].to_s if options[:floors]
+ENV["WOLF3D_PILOT_HARDEST"] = "1" if options[:hardest]
 require_relative "../lib/wolf3d"
 
 unless Wolf3D::GameData.config_value(Wolf3D.home, "shareware")
@@ -50,8 +53,9 @@ run += ["--write-tape", options[:tape]] if options[:on] == "emulator"
 screens = File.join(Dir.mktmpdir("shareware"), "played")
 run += ["--pictures-in", screens] if options[:repeat]
 
-# What the player says about a run begins at this line. Before it is what the build says of its speed.
-report_from = lambda { |said| said.lines.drop_while { |line| !line.start_with?("Played") }.join }
+# Each floor the pilot starts, and what the player says about the run, which begins at this line.
+# The rest is what the build says of its speed.
+report_from = lambda { |said| said.lines.select { |line| line.match?(/\A(frame \d+:|Played|  \w+ +frame)/) || line.include?("tape") }.join }
 
 began = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 said, status = Open3.capture2e(*(run + seed))
