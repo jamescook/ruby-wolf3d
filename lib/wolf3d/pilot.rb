@@ -122,6 +122,13 @@ module Wolf3D
     PEEK_STEPS = 5
     PEEK_NEAREST_CELLS = 1.6
 
+    # The range it holds a boss at, how long one strafe lasts, and when it goes for more stock.
+    KITE_NEAR_CELLS = 7.0
+    KITE_FAR_CELLS = 10.0
+    KITE_STRAFE_PASSES = 20
+    KITE_HEALTH_BELOW = 50
+    KITE_ROUNDS_BELOW = 25
+
     # A SECRET WALL WORTH OPENING: the one that stands between here and a better gun. +from+ is where
     # to push it, +view+ which way that faces, +opens+ the cells it leaves and +wall_ends+ where it
     # stops, which stays shut. A wall slides two cells, or one with something behind it.
@@ -310,7 +317,7 @@ module Wolf3D
     def choose_buttons
       target = pick_target
       @sight_passes = target ? @sight_passes + 1 : 0
-      return fight_from_corner(*@boss_at) if boss_awake?
+      return fight_boss(*@boss_at) if boss_awake?
       return hold_door(target) if @ambush
       return fight(target) if target && running_past? && in_the_way?(target)
       return travel_firing_at(target) if running_past?
@@ -692,10 +699,10 @@ module Wolf3D
     # THE FLOORS KEEP THEIR SUPPLIES BEHIND SECRET WALLS, often beside the way through. Short of
     # bullets or health, it opens one that is close and has enough behind it to pay for the walk.
     def secret_to_stash
-      return unless @ammo < STASH_AMMO_BELOW || @health < STASH_HEALTH_BELOW
+      return unless stocks_up_here? || @ammo < STASH_AMMO_BELOW || @health < STASH_HEALTH_BELOW
 
       walkable = steps_from_here
-      close_by = secrets_from(walkable).select { |secret| walkable[secret.from] <= STASH_STEPS }
+      close_by = secrets_from(walkable).select { |secret| stocks_up_here? || walkable[secret.from] <= STASH_STEPS }
       close_by.find { |secret| stash_behind(secret).count { |piece| stock?(piece) } >= STASH_PIECES }
     end
 
@@ -787,6 +794,56 @@ module Wolf3D
                      Math.hypot(@boss_at[0] - @boss_home[0], @boss_at[1] - @boss_home[1]) > BOSS_MOVED_CELLS ||
                      (distance_to(*@boss_at) < BOSS_SEEN_CELLS && clear_line?(@x, @y, *@boss_at))
     end
+
+    def fight_boss(x, y) = @hardest ? kite_boss(x, y) : fight_from_corner(x, y)
+
+    # ON THE HARDEST SETTING NO CORNER SAVES YOU: he has more hit points than a fight of peeking
+    # leaves bullets for. What saves you is T_Shoot's sums. From six cells a shot of his does a
+    # quarter of the harm one does beside you, and a running player is harder to hit. So it keeps him
+    # at range, gun on him, and never stands still.
+    def kite_boss(x, y)
+      supply = boss_fight_supply
+      return follow_path_to(supply) if supply
+
+      distance = distance_to(x, y)
+      sees_him = clear_line?(@x, @y, x, y)
+      error = view_error_to(x, y)
+      tolerance = aim_tolerance(distance)
+      buttons = turn_buttons(error, tolerance)
+      buttons << :b if sees_him && error.abs <= tolerance && trigger_down?
+      return buttons + approach_boss(x, y) if !sees_him || distance > KITE_FAR_CELLS
+
+      away = distance < KITE_NEAR_CELLS ? step_away_from(x, y) : nil
+      buttons + (away || strafe_buttons) + [:a]
+    end
+
+    def approach_boss(x, y)
+      way = path_to([x.floor, y.floor])
+      return [] unless way && way[1]
+
+      step_buttons(way[1]) + run_or_open(way[1])
+    end
+
+    # Run for what is left of the stock, turning its back on him to get there.
+    def boss_fight_supply
+      kinds = []
+      kinds << :health if @health < KITE_HEALTH_BELOW
+      kinds << :ammunition if @ammo < KITE_ROUNDS_BELOW
+      return if kinds.empty?
+
+      steps = steps_from_here
+      pieces = @report.pickups.select { |piece| kinds.include?(piece.bonus.first) }.map { |piece| [piece.x, piece.y] }
+      pieces.select { |cell| steps[cell] && !@taken[cell] }.min_by { |cell| steps[cell] }
+    end
+
+    def step_away_from(x, y)
+      farthest = neighbours(@cell).max_by { |cell| Math.hypot(cell[0] + 0.5 - x, cell[1] + 0.5 - y) }
+      return unless farthest && Math.hypot(farthest[0] + 0.5 - x, farthest[1] + 0.5 - y) > distance_to(x, y)
+
+      step_buttons(farthest)
+    end
+
+    def strafe_buttons = (@pass % (KITE_STRAFE_PASSES * 2)) < KITE_STRAFE_PASSES ? [:l] : [:r]
 
     # Out to shoot and back in when hurt, keeping the gun on him all the while.
     def fight_from_corner(x, y)
