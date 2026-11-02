@@ -86,7 +86,7 @@ class TestPickups < Minitest::Test
   # order — nothing about picking a thing up asks for a random number — so what is left between
   # them is exactly what the box gave.
   def test_a_first_aid_box_is_taken_as_soon_as_a_shot_has_landed
-    under_fire = 260
+    under_fire = 200
     healed = shot_at_standing_on(FIRST_AID, frames: under_fire)
     bare = shot_at_standing_on(nil, frames: under_fire)
 
@@ -103,7 +103,7 @@ class TestPickups < Minitest::Test
   # whether this one has a rule of its own. Half dead is where the two answers differ — food is
   # taken there and this is not.
   def test_what_is_left_of_somebody_is_stepped_over_by_a_player_who_is_only_half_dead
-    hurt = shot_at_standing_on(SCRAPS, frames: 260)
+    hurt = shot_at_standing_on(SCRAPS, frames: 200)
 
     assert_operator hurt[:health], :>, Pickups::NEARLY_DEAD, "hurt, but not nearly dead"
     assert_operator hurt[:health], :<, FP::START_HEALTH, "and hurt enough for food to be welcome"
@@ -121,7 +121,7 @@ class TestPickups < Minitest::Test
   end
 
   def test_good_food_is_worth_what_the_original_says
-    under_fire = 260
+    under_fire = 200
     fed = shot_at_standing_on(GOOD_FOOD, frames: under_fire)
     bare = shot_at_standing_on(nil, frames: under_fire)
 
@@ -136,8 +136,8 @@ class TestPickups < Minitest::Test
   # Read as two moments of the same walk — the guard down and not yet walked over, then walked
   # over — so what changed between them is only the clip.
   def test_a_guard_who_falls_leaves_a_clip_where_he_fell
-    down = shoot_then_walk(frames: 60)
-    took = shoot_then_walk(frames: 120)
+    down = shoot_then_walk(frames: 50)
+    took = shoot_then_walk(frames: 100)
 
     assert_equal 0, pool(down, :hp), "he should be down by then" if pool(down, :hp).positive?
     assert_equal 1, pool(down, :dropped), "and lying beside what he was carrying"
@@ -229,7 +229,7 @@ class TestPickups < Minitest::Test
   # and stays; the guard three cells further on comes and fires. +piece+ may be nil, which is the
   # same walk onto bare floor and is what the readings are held against.
   def shot_at_standing_on(piece, frames:)
-    level = arena(on_the_spot: piece, guards: [[8, 8, :west]])
+    level = arena(on_the_spot: piece, guards: [[7, 8, :west]])
     Reference.new.input_each_frame { |f| f <= cells(1) ? [:up] : [] }
              .run(view_of(level), frames: frames)
   end

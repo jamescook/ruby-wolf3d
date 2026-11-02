@@ -71,7 +71,7 @@ class TestChasing < Minitest::Test
   # TryWalk's CHECKSIDE: he calls OpenDoor and then waits at it, and walks on when it is all the way
   # open.
   def test_a_man_opens_a_shut_door_and_walks_through
-    assert_operator x_of(quietly(a_door_ahead_of, frames: 500)), :<, DOOR_X
+    assert_operator x_of(quietly(a_door_ahead_of, frames: 600)), :<, DOOR_X
   end
 
   def test_a_man_waits_for_the_door_to_open_all_the_way
@@ -87,7 +87,7 @@ class TestChasing < Minitest::Test
   def test_a_man_opens_a_locked_door
     locked = a_door_ahead_of(door: Wolf3D::Level::LOCKED_DOORS.first)
 
-    assert_operator x_of(quietly(locked, frames: 500)), :<, DOOR_X
+    assert_operator x_of(quietly(locked, frames: 600)), :<, DOOR_X
   end
 
   # Dogs, fakes and ghosts walk by CHECKDIAG, which stops at a door.
@@ -115,7 +115,7 @@ class TestChasing < Minitest::Test
     corpse = ->(f) { f < 88 && (f / 16).even? ? [:b] : [] }
     level = arena(player: [5, ROW], guards: [[STANDING_X, ROW, :west], [12, ROW, :west]],
                   walls: (1..14).to_a.product([ROW - 1, ROW + 1]))
-    run = Reference.new.input_each_frame(&corpse).run(view_of(level, drawing: true), frames: 400)
+    run = Reference.new.input_each_frame(&corpse).run(view_of(level, drawing: true), frames: 720)
 
     alive = run.pool(:guard, :hp).compact.zip(run.pool(:guard, :x).compact).select { |hp, _| hp.positive? }
 

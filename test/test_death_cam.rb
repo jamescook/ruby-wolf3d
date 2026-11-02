@@ -22,9 +22,9 @@ class TestDeathCam < Minitest::Test
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # When the test's trigger is pulled, and the pass by which he has finished falling: five pictures,
-  # the body's twenty and the 140 of his last words, in sevenths of a think, a think every other pass.
+  # the body's twenty and the 140 of his last words, at one of the original's units a pass.
   FIRED = 6
-  DOWN = 200
+  DOWN = 235
   # ...and by which the dots have finished and the words are up.
   WORDS_UP = DOWN + Cam::HOLD + Fizzle::FRAMES + 4
 
@@ -78,7 +78,7 @@ class TestDeathCam < Minitest::Test
   end
 
   def test_then_the_episode_is_over
-    run = played(frames: words_gone + 190 + Cam::HOLD + 4)
+    run = played(frames: words_gone + 225 + Cam::HOLD + 4)
 
     assert_equal 1, run[:episode_won]
     assert_equal 1, run[:game_over]
@@ -93,7 +93,7 @@ class TestDeathCam < Minitest::Test
   # THE GUN IS GONE AND THE WORDS DEATH CAM FLASH IN ITS PLACE (DrawPlayerWeapon, wl_draw.cpp). A
   # fixture picture is one flat colour, so its second picture is found by colour.
   def test_the_banner_shows_on_the_replay
-    run = played(frames: words_gone + 12)
+    run = played(frames: words_gone + 48)
     ink = palette[Release::SPRITE_INK + Enemy::DEATH_CAM_PICTURE]
     lit = (0...240).count { |x| run.screen.pixel(x, Wolf3D::FirstPerson::VIEW_H / 2) == ink }
 

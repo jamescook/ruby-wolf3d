@@ -213,8 +213,8 @@ class TestLastingState < Minitest::Test
   # HOW LONG EACH PART OF THE WALK TAKES, in passes, and each is generous: one more pass walking
   # into a wall or a shut door changes nothing.
   SHOT_LANDS = 4 * Wolf3D::Weapons::STAGE_PASSES # a pistol's four stages, one round
-  OVER_THE_KEY = 20 # backing a cell and more
-  TO_THE_DOOR = 70 # from the key to the shut door, and stopped against it
+  OVER_THE_KEY = 18 # backing a cell and more
+  TO_THE_DOOR = 58 # from the key to the shut door, and stopped against it
   INTO_THE_DOORWAY = 26 # through a door as it opens, and no further
 
   # WHAT THE PLAYER DOES ON THE SECOND FLOOR, a pass at a time, and then saves: turn to face the

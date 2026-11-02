@@ -122,7 +122,8 @@ module Wolf3D
     HALF_VIEW = (COLUMNS - 1) * SPREAD / 2.0 # angle units from the middle of the view to its edge
     WALL_SCALE = (ACROSS / 2) / Math.tan(HALF_VIEW * 2 * Math::PI / TURN)
 
-    WALK = 0.07
+    # How far a step goes in one pass, which is the original's BASEMOVE * MOVESCALE in one of its units.
+    WALK = 0.0801
 
     # How far a press of left or right turns you in one pass. Twelve of the turn's 1024 units
     # is 4.2 degrees, which is what the original turns in one of its own units of time — and

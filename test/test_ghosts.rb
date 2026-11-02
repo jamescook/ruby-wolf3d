@@ -40,7 +40,7 @@ class TestGhosts < Minitest::Test
   # NOTHING A GUN CAN DO. A shot goes through a ghost as though it were not there, and with a guard
   # standing behind it the guard is who is hit (GunAttack asks for FL_SHOOTABLE).
   def test_a_shot_goes_through_a_ghost_to_the_man_behind_it
-    run = played(frames: 60, ghost_at: 11, guards: [[12, ROW, :east]], keys: ->(f) { f.even? ? [:b] : [] })
+    run = played(frames: 90, ghost_at: 11, guards: [[12, ROW, :east]], keys: ->(f) { f.even? ? [:b] : [] })
     hurt = run.pool(:guard, :hp).compact
 
     assert_includes hurt, 0, "the ghost still holds its nothing"

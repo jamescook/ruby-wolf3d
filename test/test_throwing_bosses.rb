@@ -180,7 +180,7 @@ class TestThrowingBosses < Minitest::Test
   # EVERYTHING IN THE AIR GOES when the floor is started again.
   # Read one frame after the floor starts again, which is only known by playing it. The rocket that
   # killed you has its smoke hanging in the air right up to then, so a stale number fails loudly.
-  LIFE_LOST_AT = 196
+  LIFE_LOST_AT = 229
 
   def test_what_is_in_the_air_is_gone_when_a_life_is_lost
     run = Reference.new.run(view_of(with_things({ [6, ROW] => Enemy[:gift].standing })), frames: LIFE_LOST_AT)

@@ -68,6 +68,9 @@ module Wolf3D
     # A RUNNING PLAYER IS HARDER TO HIT, and this is how much: T_Shoot starts from 160 and not 256.
     RUNNING_DODGE = 96
 
+    # Inside this on both axes a man does not roll to fire: T_Chase sets the chance past any byte.
+    BESIDE_CELLS = 1.25
+
     # How near a man counts as near enough to look closer, and how many passes that answer lasts.
     NEARBY_CELLS = 3.0
     NEARBY_PASSES = 4
@@ -191,6 +194,7 @@ module Wolf3D
       # HOW LONG IT TAKES TO REACT, the fixed part and what a random byte is divided by.
       @reacts_at = b.table :guard_reacts_at, rows.map { |n| @behaviour.reaction_from(n).first }, width: :byte
       @reacts_over = b.table :guard_reacts_over, rows.map { |n| @behaviour.reaction_from(n).last }, width: :byte
+      @better_shot = b.table :guard_better_shot, rows.map { |n| @behaviour.kind_at(n).better_shot? ? 1 : 0 }, width: :byte
       # WHAT EACH KIND SOUNDS LIKE, as places in the list of what this cartridge's kinds say.
       if @sounds
         names = rows.map { |n| @behaviour.kind_at(n).name }
@@ -543,6 +547,7 @@ module Wolf3D
       line_of_sight(guard)
       if @clear == 1
         how_far_away(guard)
+        @away = @away * 2 / 3 if @better_shot[@state] == 1
         @odds = CHANCES - (@away * 8)
         @odds = CHANCES - (@away * 16) if guard.shown == 1
         @odds -= RUNNING_DODGE if @player.running == 1
@@ -973,7 +978,11 @@ module Wolf3D
       line_of_sight(guard)
       if @clear == 1
         how_far_away(guard)
-        start_attacking(guard) if @b.rand(0..CHANCES - 1) < @shot[@away]
+        if @away == 1 && @dx.abs < BESIDE_CELLS && @dy.abs < BESIDE_CELLS
+          start_attacking(guard)
+        elsif @b.rand(0..CHANCES - 1) < @shot[@away]
+          start_attacking(guard)
+        end
       end
     end
 

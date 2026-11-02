@@ -267,7 +267,7 @@ class TestLives < Minitest::Test
   # with a hundred of health and one go fewer. It is the dear one — every frame of it draws the
   # whole view — so there is one of it and it is sized to the moment just after the first death.
   def test_being_killed_really_does_start_the_floor_again
-    ran = Reference.new.run(ringed_program, frames: 225)
+    ran = Reference.new.run(ringed_program, frames: 190)
 
     assert_equal Lives::START - 1, ran[:lives], "one go spent"
     assert_equal FP::START_HEALTH, ran[:health], "and a fresh hundred of health"

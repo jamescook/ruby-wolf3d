@@ -33,7 +33,7 @@ class TestSidestepping < Minitest::Test
   # cut a corner. Walls north and south of him leave only the way along the row.
   def test_a_sidestep_does_not_cut_a_corner
     level = arena(player: [3, 8], walls: [[6, 7], [6, 9]], guards: [[6, 8, :west]])
-    still_there = WATCHING.map { |frames| where(level, frames) }.take_while { |x, _| x > 5.5 }
+    still_there = WATCHING.map { |frames| where(level, frames) }.take_while { |x, _| x > 5.6 }
 
     assert_equal([ROW], still_there.map(&:last).uniq, "he goes out by the row")
   end

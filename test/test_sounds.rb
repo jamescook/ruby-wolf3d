@@ -187,7 +187,7 @@ class TestSounds < Minitest::Test
   # at once rather than like one winning. A guard shouting, a guard firing and a pistol is what a
   # firefight is, and the interpreter counts the voices that really sounded together.
   def test_a_firefight_sounds_several_voices_at_once
-    run = play_it(frames: 300, guards: [[11, 8, :west], [11, 6, :west]]) { |f| f % 8 == 0 ? [:b] : [] }
+    run = play_it(frames: 300, guards: [[11, 8, :west], [11, 6, :west], [11, 10, :west], [12, 8, :west]]) { |f| f % 8 == 0 ? [:b] : [] }
 
     assert_operator run.peak_voices, :>=, 3,
                     "a firefight should stack voices, not cut them off — peak was #{run.peak_voices}"

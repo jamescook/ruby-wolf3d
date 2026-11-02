@@ -53,12 +53,11 @@ module Wolf3D
     # different speed from the world they stand in. Derive it from a pass.
     #
     # WHAT THE RIGHT ANSWER IS, then, is whatever puts an enemy on the same footing as the
-    # player, and the player says what that is. He walks 0.07 of a cell a pass where the original
-    # walks 0.0801 of one a unit, so a pass is worth 0.87 of a unit; he turns 4.2 degrees a pass
-    # where the original turns 3.5 a unit running, so a pass is worth 1.21. A pass of this game
-    # is worth about ONE of the original's units, and a think — every other pass — about two.
-    # Seven thirds is 2.33 a think, 1.17 a pass, which sits inside that band.
-    # TestGuards holds it there; see the test for what going outside it costs.
+    # player, and the player says what that is: he walks FirstPerson::WALK a pass, which is what the
+    # original walks in one unit, and a stage of his gun takes six passes where it takes six units.
+    # So a pass is ONE of the original's units, and a think, every other pass, is two. Any more and
+    # every enemy gets more done against you than the original lets him, which shows most on the
+    # hardest setting. TestGuards holds it there.
     #
     # WHY EVERY OTHER PASS. Thinking is the most expensive thing an enemy does and half of it is
     # asking a question whose answer cannot change in one pass — can it see you, is anything in
@@ -70,13 +69,13 @@ module Wolf3D
     # is the same every pass instead of nothing then double.
     #
     # It never steps over a state: the shortest in any of the tables is three of the original's
-    # units, which is nine of ours, and a think advances seven.
-    TICKS_PER_THINK = 7
+    # units, which is nine of ours, and a think advances six.
+    TICKS_PER_THINK = 6
 
     # ...AND WHAT MOVES ON EVERY PASS rather than every think counts in sixths of the same units and
-    # comes down by seven: half a think, the same rate in a finer count. See Thrown and ScreenFlash.
+    # comes down by six: half a think, the same rate in a finer count. See Thrown and ScreenFlash.
     SIXTHS = 6
-    SIXTHS_A_PASS = 7
+    SIXTHS_A_PASS = 6
 
     # +fires+ marks a state whose END is an attack — a shot, or a dog's jaws: the original hangs
     # its actions on leaving a state rather than on being in one, so a guard aims, fires, and
@@ -573,6 +572,9 @@ module Wolf3D
     # random byte divided by the other, or nothing where that is nought (SightPlayer, wl_state.cpp).
     # A guard takes up to about a second and a boss none at all.
     def reaction = REACTIONS.fetch(name, [1, 0])
+
+    # T_Shoot takes a third off the distance for these two, and only these two: "ss are better shots".
+    def better_shot? = %i[ss hans].include?(name)
 
     def pictures_of_what_it_throws = states.filter_map(&:fires).uniq.flat_map { |what| THROWN_PICTURES.fetch(what, []) }
 

@@ -151,7 +151,7 @@ class TestBosses < Minitest::Test
   end
 
   # AND THE NUMBER THAT DECIDES WHETHER THE FIGHT IS WINNABLE AT ALL, which is worth pinning
-  # because nothing else in the game says it: you walk two and a half times faster than he
+  # because nothing else in the game says it: you walk more than three times faster than he
   # chases. Backing away while firing is the fight, and it works.
   def test_you_walk_faster_than_a_boss_chases
     # A think is every other pass, so half the distance per think is the distance per pass.
@@ -159,7 +159,7 @@ class TestBosses < Minitest::Test
 
     assert_operator chasing, :<, FP::WALK,
                     "a boss you cannot back away from could not be beaten without strafing"
-    assert_in_delta 0.39, chasing / FP::WALK, 0.02
+    assert_in_delta 0.29, chasing / FP::WALK, 0.02
   end
 
   # ------------------------------------------------------------------ the gold key
