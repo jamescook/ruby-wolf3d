@@ -110,6 +110,8 @@ module Wolf3D
 
     # Hit points no ordinary man has.
     BOSS_HIT_POINTS = 200
+    # How long a person stays on each screen after the win. It is long enough to read a page.
+    ENDING_SCREEN_FRAMES = 600
     BOSS_SEEN_CELLS = 10.0
     BOSS_MOVED_CELLS = 0.3
 
@@ -122,9 +124,10 @@ module Wolf3D
     PEEK_NEAREST_CELLS = 1.6
 
     # The range it holds a boss at, how long one strafe lasts, and when it goes for more stock.
-    KITE_NEAR_CELLS = 7.0
-    KITE_FAR_CELLS = 10.0
+    KITE_NEAR_CELLS = 8.0
+    KITE_FAR_CELLS = 11.0
     KITE_STRAFE_PASSES = 20
+    KITE_STRAFE_CELLS = 0.7
     KITE_HEALTH_BELOW = 50
     KITE_ROUNDS_BELOW = 25
 
@@ -183,6 +186,15 @@ module Wolf3D
       @buttons = choose_buttons
     end
 
+    # What to hold on the screens after the win, which a person reads before pressing on, or :done
+    # when they are over: the summary, then each page of the article the episode ends on.
+    def ending_buttons(game)
+      @frame += 1
+      return :done unless [Menus::WINNING, Menus::ARTICLE].include?(game.var(:screen))
+
+      press_now_and_then(:a, every: ENDING_SCREEN_FRAMES)
+    end
+
     private
 
     def new_pass?(game)
@@ -217,7 +229,7 @@ module Wolf3D
       (waited % DIFFICULTY_PRESS_SPACING) < DIFFICULTY_PRESS_FRAMES ? [:down] : []
     end
 
-    def press_now_and_then(button) = (@frame % MENU_PRESS_EVERY) < PRESS_FRAMES ? [button] : []
+    def press_now_and_then(button, every: MENU_PRESS_EVERY) = (@frame % every) < PRESS_FRAMES ? [button] : []
     def press_at_intervals? = (@pass % PRESS_EVERY_PASSES).zero?
 
     def count_men_near
@@ -252,6 +264,9 @@ module Wolf3D
       @hit_points_left = nil
       @opened = []
       @wall_ends = []
+      @door_numbers = @report.doors.each_with_index.to_h
+      @walk_maps = {}
+      @firing_cell = nil
       @stash = []
       @searched_from = nil
       @pushing_passes = 0
@@ -383,7 +398,7 @@ module Wolf3D
     def see_through?(x, y) = !@level.solid?(x, y) && (!@level.door?(x, y) || door_open?(x, y))
 
     def door_open?(x, y)
-      number = @report.doors.index([x, y])
+      number = @door_numbers[[x, y]]
       number && @doors_open && @doors_open[number].to_i >= FirstPerson::DOOR_WIDE * FRACTION
     end
 
@@ -501,8 +516,9 @@ module Wolf3D
 
     # --- walking ------------------------------------------------------------------------------
 
+    # With the boss dead the floor has nothing left to survive, so it takes his key and leaves.
     def travel
-      goal = stock_goal || detour_goal || next_way_point
+      goal = boss_dead? ? next_way_point : stock_goal || detour_goal || next_way_point
       return push_secret_wall if goal == :push_wall
       return pull_lever if goal == :lever
 
@@ -594,7 +610,20 @@ module Wolf3D
     def better_gun?(piece) = WEAPON_NUMBERS.fetch(piece.bonus.last) > @best_weapon
 
     # Cells between here and everywhere that can be walked to now.
+    # The walk from here is the same until the player changes cell or the floor changes.
     def steps_from_here
+      map = walk_map
+      return map[:steps] if map[:steps_from] == @cell
+
+      map[:steps_from] = @cell
+      map[:steps] = measure_steps
+    end
+
+    # WHERE ONE CAN WALK DEPENDS ONLY ON WHICH WALLS ARE PUSHED AND WHICH KEYS ARE HELD. One map stands
+    # for each of those, and the search for a stash asks about the same few again and again.
+    def walk_map = @walk_maps[[@opened, @wall_ends, @keys]] ||= { neighbours: {}, steps: nil, steps_from: nil }
+
+    def measure_steps
       steps = { @cell => 0 }
       queue = [@cell]
       until queue.empty?
@@ -635,7 +664,9 @@ module Wolf3D
       cells
     end
 
-    def neighbours((x, y)) = FloorReport::STEPS.map { |dx, dy| [x + dx, y + dy] }.select { |cell| enterable?(cell) }
+    def neighbours(cell) = walk_map[:neighbours][cell] ||= enterable_neighbours(cell)
+
+    def enterable_neighbours((x, y)) = FloorReport::STEPS.map { |dx, dy| [x + dx, y + dy] }.select { |cell| enterable?(cell) }
 
     def enterable?((x, y))
       return false if x.negative? || y.negative? || x >= @level.width || y >= @level.height
@@ -786,6 +817,8 @@ module Wolf3D
 
     # --- a boss -------------------------------------------------------------------------------
 
+    def boss_dead? = !@boss.nil? && !@boss_hp.positive?
+
     def boss_awake?
       return false unless @boss_at && @boss_hp.positive?
 
@@ -810,14 +843,24 @@ module Wolf3D
       tolerance = aim_tolerance(distance)
       buttons = turn_buttons(error, tolerance)
       buttons << :b if sees_him && error.abs <= tolerance && trigger_down?
-      return buttons + approach_boss(x, y) if !sees_him || distance > KITE_FAR_CELLS
+      @firing_cell = @cell if sees_him && distance >= KITE_NEAR_CELLS
+      return buttons + approach_cell(boss_approach_cell(x, y)) if !sees_him || distance > KITE_FAR_CELLS
 
       away = distance < KITE_NEAR_CELLS ? step_away_from(x, y) : nil
-      buttons + (away || strafe_buttons) + [:a]
+      buttons + (away || strafe_buttons(x, y)) + [:a]
     end
 
-    def approach_boss(x, y)
-      way = path_to([x.floor, y.floor])
+    # OUT OF HIS SIGHT IT GOES BACK TO WHERE IT LAST HAD A SHOT FROM, at range. Walking on towards him
+    # is only for when that place shows nothing either, which means his door has shut: beside him is
+    # where his chain gun does its worst.
+    def boss_approach_cell(x, y)
+      return @firing_cell if @firing_cell && @firing_cell != @cell
+
+      [x.floor, y.floor]
+    end
+
+    def approach_cell(cell)
+      way = path_to(cell)
       return [] unless way && way[1]
 
       step_buttons(way[1]) + run_or_open(way[1])
@@ -842,7 +885,17 @@ module Wolf3D
       step_buttons(farthest)
     end
 
-    def strafe_buttons = (@pass % (KITE_STRAFE_PASSES * 2)) < KITE_STRAFE_PASSES ? [:l] : [:r]
+    # Side to side and back, as long as the step still has a line to him. A step that loses him is a
+    # step back towards his gun, so it holds its place instead.
+    def strafe_buttons(x, y)
+      side = (@pass % (KITE_STRAFE_PASSES * 2)) < KITE_STRAFE_PASSES ? :l : :r
+      strafe_keeps_line?(side, x, y) ? [side] : []
+    end
+
+    def strafe_keeps_line?(side, x, y)
+      across = (@view * 2 * Math::PI / CIRCLE) + (side == :l ? -Math::PI / 2 : Math::PI / 2)
+      clear_line?(@x + (Math.cos(across) * KITE_STRAFE_CELLS), @y + (Math.sin(across) * KITE_STRAFE_CELLS), x, y)
+    end
 
     # Out to shoot and back in when hurt, keeping the gun on him all the while.
     def fight_from_corner(x, y)

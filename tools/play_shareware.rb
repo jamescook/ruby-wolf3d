@@ -8,12 +8,14 @@
 #   ruby tools/play_shareware.rb --on native         or interpreter, web, ruby, emulator
 #   ruby tools/play_shareware.rb --floors 2          stops when two floors are done
 #   ruby tools/play_shareware.rb --hardest           on the hardest setting, and not the easiest
+#   ruby tools/play_shareware.rb --music             with effects and music on, whichever way it runs
 #   ruby tools/play_shareware.rb --repeat            plays the run back from its tape, and says if
-#                                                    it came out the same (emulator only)
+#                                                    it came out the same
 #   ruby tools/play_shareware.rb --tape run.tape     writes the tape there
 #
 # Each way of running is a run of its own, because a pass that takes two frames on the console takes
-# one on a computer. A tape is a list of presses and holds nothing of the game's own.
+# one on a computer. A tape is a list of presses and holds nothing of the game's own, so it plays only
+# on the way it was recorded on, built with the same settings.
 
 require "bundler/setup"
 require "fileutils"
@@ -30,6 +32,7 @@ OptionParser.new do |parser|
   parser.on("--tape PATH") { |path| options[:tape] = path }
   parser.on("--seed N", Integer) { |n| options[:seed] = n }
   parser.on("--hardest") { options[:hardest] = true }
+  parser.on("--music") { options[:music] = true }
 end.parse!
 
 ENV["WOLF3D_COPY"] = "shareware"
@@ -46,10 +49,11 @@ Dir.chdir(File.expand_path("..", __dir__))
 FileUtils.mkdir_p(File.dirname(options[:tape]))
 
 play = %w[bundle exec vblank play wolf3d.rb]
-seed = ["--set", "seed=#{options[:seed]}"]
-run = play + ["--script", "tools/shareware_playthrough.rb", "--on", options[:on]]
+seed = ["--set", "seed=#{options[:seed]}", *("music=on" if options[:music])]
+way = ["--on", options[:on]]
+run = play + ["--script", "tools/shareware_playthrough.rb"] + way
 run << "--window" if options[:window]
-run += ["--write-tape", options[:tape]] if options[:on] == "emulator"
+run += ["--write-tape", options[:tape]] unless options[:on] == "logic"
 screens = File.join(Dir.mktmpdir("shareware"), "played")
 run += ["--pictures-in", screens] if options[:repeat]
 
@@ -67,7 +71,7 @@ exit 1 unless status.success?
 # on, so the frames prove nothing. The picture at each moment is what the game really came to.
 if options[:repeat]
   replayed = File.join(File.dirname(screens), "replayed")
-  again, status = Open3.capture2e(*(play + ["--tape", options[:tape], "--pictures-in", replayed] + seed))
+  again, status = Open3.capture2e(*(play + ["--tape", options[:tape], "--pictures-in", replayed] + way + seed))
   puts status.success? ? report_from.call(again) : again
   files = Dir.children(screens).sort
   same = status.success? && files.any? && files == Dir.children(replayed).sort &&

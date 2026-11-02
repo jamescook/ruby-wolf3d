@@ -1,5 +1,5 @@
 vblank tape 1
-recorded on: WOLF3D 0x28AB5311
+recorded on: WOLF3D 0x3F6A2139
 starts from: power-on
 
 1 a
@@ -2555,7 +2555,7 @@ moment floor_2_done
 2 a left up
 21 a up
 2 a right up
-54 a up
+53 a up
 2 a left up
 2 a up
 2 left
@@ -3065,7 +3065,7 @@ moment floor_2_done
 56 up
 8 a up
 14 up
-11 -
+12 -
 2 a
 22 -
 1 a
@@ -4232,7 +4232,7 @@ moment floor_3_done
 2 a left up
 6 a up
 2 a left up
-22 right
+21 right
 4 a right up
 2 right
 4 a right up
@@ -5523,7 +5523,7 @@ moment floor_3_done
 56 up
 8 a up
 14 up
-15 -
+16 -
 2 a
 22 -
 1 a
@@ -12063,7 +12063,7 @@ moment floor_5_done
 2 a left up
 10 a up
 2 a left up
-36 a up
+35 a up
 1 a right up
 23 a up
 2 a left up
@@ -13620,7 +13620,7 @@ moment floor_5_done
 56 up
 8 a up
 14 up
-11 -
+12 -
 2 a
 22 -
 1 a
@@ -13905,7 +13905,7 @@ moment floor_6_done
 2 a left up
 2 a up
 4 a left up
-72 left
+71 left
 2 a left up
 7 left
 10 a left up
@@ -14933,7 +14933,7 @@ moment floor_6_done
 4 a right up
 2 right
 2 a right up
-43 left
+42 left
 2 a left up
 6 right
 4 a right up
@@ -15282,7 +15282,7 @@ moment floor_6_done
 14 up
 2 a up
 40 up
-4 -
+6 -
 2 a
 22 -
 1 a
@@ -17249,149 +17249,316 @@ moment floor_8_done
 2 up
 1 a down
 4 up
-43 a b down
+49 a b down
+5 a b r
+1 a left r
 2 a b r
 1 a r
 1 a left r
-2 a b r
-2 a r
-2 a left r
-1 a b r
-1 a left r
-1 a b r
+1 a b
+3 a b l
 1 a l
-1 a b r
-1 a l
-1 a r
-2 a l
+1 a right l
 2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+1 a l
+1 a b l
+1 a l
+1 a right
+3 a b
+5 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left
+2 a b
+1 a
+3 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right
+3 a b
+3 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left down
+3 a b r
+2 a b
+1 a b l
+1 a b down
+4 a b l
+1 a right l
+3 a b l
+1 a right down
+3 a b l
+1 a right l
+3 a b l
+1 a right l
+1 a b l
+1 a b r
+1 a r
+2 a b r
+1 a left r
+3 a b r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a
+1 a left l
+1 a b l
+1 a right l
+3 a b l
+1 a right l
+1 a l
+2 a b l
+1 a right l
+2 a b l
+1 a l
 1 a right l
 2 a b l
 1 a l
 1 a right l
 1 a b l
+5 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left r
+1 a r
+2 a b r
+1 a left r
+3 a b r
+1 a left l
+1 a b l
+1 a right l
+3 a b l
+1 a right l
+3 a b l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+2 a l
+2 a right l
+1 a b l
+5 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left r
+3 a b r
+1 a left l
+1 a b l
+1 a right l
+1 a l
+2 a b l
+1 a right l
+3 a b l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+1 a b l
+5 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left r
+3 a b r
+1 a left l
+1 a l
+1 a right l
+1 a l
+2 a b l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+1 a b l
+5 a b r
+2 a r
+2 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left l
+1 a l
+1 a right l
+1 a l
+1 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
 1 a right l
 5 a b l
 1 a right l
+1 a b l
+4 a b r
+1 a left r
+4 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left r
+3 a b r
+1 a left l
+1 a l
+1 a right l
+1 a l
+2 a b l
+1 a right l
+3 a b l
+1 a right l
+2 a b l
+1 a l
+1 a right l
 2 a b l
 1 a l
 1 a right l
 1 a b l
+5 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left down
+4 a b r
+1 a r
+1 a left r
+1 a b r
+5 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+1 a b l
+1 a right l
+1 a l
+2 a b l
+1 a right l
+3 a b l
 1 a right r
+1 a b r
+1 a left r
+3 a b r
+1 a left r
+3 a b r
+1 a left r
+2 a b r
 2 a r
 2 a left r
 2 a b r
 1 a r
 1 a left r
-1 a r
-1 a left r
-1 a r
-2 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
 1 a b r
-1 a left r
-1 a b r
+5 a b l
 1 a l
-3 a b l
 1 a right l
 2 a b l
 1 a l
 1 a right l
 1 a b l
 1 a right l
-3 a b l
-1 a right l
-1 a l
-2 a b l
-1 a right l
-1 a b l
-1 a r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-2 a b l
-2 a l
-1 a right l
-2 a l
-1 a up
-1 a l
-1 a up
-1 a right up
-5 a up
+31 left
 1 a left up
-16 a up
-1 a r
-6 a up
-1 a r
+8 left
+5 a left up
 1 a up
-6 up
+1 a left up
 1 a up
-1 up
-1 r
-1 up
-1 left r
-1 r
-1 up
-5 a up
-1 a r
-1 a down
-1 a left down
-1 a down
-9 a b down
-1 a b l
-5 a b down
-1 a b l
+1 a left up
 1 a up
-1 a right up
+1 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
 3 a up
-4 up
+1 a left up
 1 a up
-6 up
-5 a up
-1 a r
-1 a down
-1 a left down
-1 a down
-9 a b down
-35 left
-1 a left up
-4 left
-13 a left up
-2 a up
-2 a left up
-2 a up
-2 a left up
-2 a up
-2 a left up
-22 a up
-2 a right up
-20 a up
 1 a right up
-14 a up
-1 a left up
-23 a up
+7 a up
 1 a right up
-13 a up
-8 right
-4 a right up
-2 right
+7 a up
+1 a right up
+1 a up
+9 right
 5 a right up
+1 right
+4 a right up
 1 a up
 1 a right up
 1 a up
@@ -17404,584 +17571,1525 @@ moment floor_8_done
 1 a left up
 3 a up
 1 a left up
-11 a up
+5 a up
 10 left
+5 a left up
+3 right
+3 a right up
+1 right
+9 a right up
+3 a up
+1 a right up
+1 a up
+1 a left up
+5 a up
+8 right
+5 a right up
+3 left
 3 a left up
 1 left
-2 a left up
-4 right
+1 a left up
+3 right
 4 a right up
 1 right
 8 a right up
-11 a up
-8 right
-4 a right up
+3 a up
+1 a right up
+5 a up
+1 a left up
+1 a up
+1 a left up
+25 a up
+9 a right down
+1 a right r
+1 a right down
+2 a right r
+1 a r
+1 a right down
+1 a r
+1 a right r
+1 a down
+1 a right r
+3 a r
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+3 a r
+1 a left down
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+3 a r
+1 a down
+1 a r
+1 a down
+1 a left r
+2 a down
+2 a r
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+2 a r
+1 a left r
+1 a r
+1 a up
+5 a r
+1 a left down
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+4 a r
+1 a left r
+2 a r
+1 a up
+1 a r
+1 a up
+1 a r
+1 a up
+1 a b r
+1 a up
+1 a left l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a right l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a right l
+1 a r
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a left down
+1 a up
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a right l
+1 a r
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a down
+1 a up
+1 a left down
+1 a up
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+29 left
+6 a left up
+9 right
+3 a right up
+5 a left up
+1 left
+3 a left up
+1 a up
+2 a left up
+7 right
+2 a right up
 1 right
 1 a right up
-4 left
-4 a left up
-2 right
-5 a right up
-1 right
-7 a right up
-3 a up
+3 right
+3 a right up
+1 a up
+3 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
 1 a right up
 5 a up
 1 a left up
 3 a up
 1 a left up
-23 a up
-13 left
-5 a left up
-6 a right down
-1 a right l
-15 a right down
-1 a down
+9 a up
+6 a right r
+2 a right down
+2 a right r
 1 a right down
-1 a down
+7 a right r
+1 a r
 1 a right down
-1 a down
-1 a right down
-1 a down
 1 a r
+1 a right r
 1 a down
+1 a right r
 1 a r
-1 a down
+1 a left r
 1 a r
-1 a down
-1 a r
-3 a down
-1 a r
+1 a left r
 1 a down
 1 a r
 1 a down
+1 a left r
 1 a r
+1 a left r
 2 a down
 1 a r
 1 a down
 1 a r
 1 a left down
+3 a r
+1 a left up
+3 a r
+1 a left r
+1 a r
+1 a left r
+2 a down
+1 a r
+1 a left down
 1 a down
 1 a r
 1 a down
-7 a r
+1 a r
+1 a down
+1 a left r
+3 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a left l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+2 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 r
+1 a l
+2 r
+1 a b l
+1 r
+1 a r
+1 a b l
+1 r
+1 a b l
+2 r
+1 a b l
+1 r
+1 a r
+1 a b l
+1 r
+1 a b l
+3 r
+1 a b l
+1 r
+1 a r
+1 a b l
+1 r
+1 a b l
+2 r
+1 a b l
+1 r
+1 a r
+1 a l
+1 r
+1 a l
+2 r
+1 a b l
+1 r
+1 a r
+1 a b l
+1 r
+1 a b l
+3 r
+2 a b l
+1 r
+2 a r
+1 a b l
+1 r
+2 a b l
+3 r
+1 a b l
+1 r
+1 a r
+1 a b l
+1 r
+1 a b l
+2 r
+1 a b l
+1 r
+1 a r
+20 left
+2 left up
+1 up
+1 left up
+1 up
+1 left up
+1 up
+1 a left up
+1 up
+1 left up
+1 up
+1 left up
+7 right
+4 a right up
+1 left
+5 a left up
+1 left
+6 a left up
+7 right
+1 a right up
+1 right
+2 a right up
+3 right
+4 a right up
+1 a up
+3 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+3 a up
+1 a left up
+5 a up
+1 a left up
+22 a up
+5 a right r
+1 a right down
+1 a right r
+1 a right down
+2 a right r
+1 a right down
+9 a right r
+1 a right down
+4 a right r
+1 a r
+1 a right r
+3 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a left r
+1 a down
+1 a left down
+1 a down
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a left down
+1 a down
+1 a left down
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+1 a left r
+1 a r
+1 a left r
+3 a r
+1 a left r
+1 a r
+1 a left r
+2 a r
+1 a down
+1 a left l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+2 r
+1 a b l
+3 r
+2 a b l
+2 r
+1 a b l
+2 r
+1 a b l
+1 r
+1 a r
+2 a b down
+1 a down
+2 a b r
+1 a left r
+3 a b r
+1 a left r
+3 a b r
+1 a left r
+3 a b r
+1 a left r
+3 a b r
+1 a left r
+1 a b r
+3 a b l
+1 a l
+1 a right l
+1 a l
+1 a right l
+1 a l
+2 a b l
+1 a right l
+3 a b l
+1 a right l
+5 a b
+6 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+1 a r
+2 a b r
+1 a b l
+1 a b down
+2 a b l
+1 a right l
+1 a b l
+1 a b down
+1 a b l
+1 a right l
+3 a b l
+1 a right down
+3 a b l
+1 a right l
+2 a b l
+1 a
+1 a right
+1 a b
+1 a b r
+1 a r
+1 a left r
+1 a r
+1 a left down
+1 a r
+3 a b r
+1 a r
+1 a left r
+1 a b r
+1 a left r
+1 a b r
+1 a b down
+4 a b
+9 left
+7 a left up
+1 a up
+3 a left up
+7 right
+2 a right up
+1 right
+1 a right up
+11 a left up
+1 a up
+9 right
+3 a right up
+1 left
+12 a left up
+1 a up
+1 a left up
+4 a up
+12 right
+4 a right up
+1 right
+7 a right up
+3 a up
+1 a right up
+3 a up
+1 a left up
+7 a up
+1 a left up
+2 a up
+10 left
+12 a left up
+1 a up
+1 a left up
+3 a up
+1 a left up
+1 a up
+1 a right up
+3 a up
+1 a right up
+6 a left down
+2 a left l
+1 a left down
+2 a left l
+1 a left down
+18 a left l
+1 a left up
+1 a l
+1 a left l
+1 a up
+1 a left up
+1 a up
+1 a left l
+1 a up
+1 a l
+1 a up
+1 a right up
+2 a up
+1 a r
+1 a up
+1 a r
+1 a left up
+2 a r
+1 a up
+1 a left r
+1 a up
+2 a r
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a up
+2 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a up
+1 a left up
+3 a up
+1 a right up
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a up
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left up
+1 a up
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a l
+1 a left r
+1 a l
+1 a left r
+1 a l
+1 a left r
+1 a l
+2 a r
+1 a left l
+1 a l
+1 a right r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 r
+1 a l
+1 right r
+1 r
+1 left r
+1 a l
+1 a r
+1 a l
+2 r
+1 a b l
+2 r
+1 a b l
+1 a r
+1 a b l
+3 r
+2 a b l
+4 r
+34 left
+2 left up
+1 up
+1 a left up
+1 up
+1 left up
+1 up
+2 left up
+8 right
+3 a right up
+1 right
+1 a right up
+2 left
+2 a left up
+1 left
+3 a left up
+5 right
+4 a right up
+1 right
+2 a right up
+1 a up
+3 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+3 a up
+1 a left up
+5 a up
+1 a left up
+7 a up
+1 a left up
+13 a up
+1 a right up
+12 a up
+8 a right down
+1 a right r
+2 a right down
+5 a right r
+1 a right down
+13 a right r
+1 a r
+1 a right r
+1 a up
+1 a right r
+1 a up
+1 a right up
+1 a r
+1 a up
+1 a r
+1 a left up
+2 a r
+1 a up
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left up
+1 a up
+1 a left up
+1 a up
+1 a left r
+1 a up
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a left down
+1 a r
+1 a left down
+1 a down
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a l
+1 a left r
+1 a l
+1 a left r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+3 r
+2 a b l
+2 r
+1 a b l
+1 a r
+1 a b l
+2 r
+1 a b l
+2 r
+1 a b l
+1 a r
+2 a b l
+3 r
+1 a b l
+2 r
+19 left
+2 left up
+1 a left up
+1 up
+1 left up
+1 up
+1 left up
+1 up
+1 left up
+1 up
+1 a left up
+8 right
+4 a right up
+2 left
+11 a left up
+7 right
+2 a right up
+1 right
+1 a right up
+2 right
+8 a right up
+1 a up
+1 a right up
+11 a up
+1 a left up
+9 a up
+1 a left up
+11 a up
+1 a right up
+13 a up
+5 a right r
+1 a right up
+2 a right r
+2 a right down
+4 a right r
+1 a right down
+12 a right r
+1 a r
+1 a right r
+3 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a left r
+1 a r
+1 a left down
+1 a down
+1 a left r
+1 a down
+1 a left r
+1 a down
+1 a left down
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
 1 a down
 1 a r
 1 a down
 1 a left r
 4 a down
 1 a r
+1 a left down
 1 a down
-1 a r
-1 a down
-9 a r
-1 a left r
-5 a r
-1 a up
-1 a r
-1 a up
-1 a r
-1 a up
-1 a r
-1 a left r
 4 a r
-1 a up
+1 a left r
+3 a r
+1 a left r
 1 a r
-6 a up
+1 a left r
+1 a r
+2 a b down
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
 2 a r
-1 a up
+2 a b l
 1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+5 a b
+1 a b r
+15 left
+2 a left up
+2 left
+6 a left up
+7 right
+2 a right up
+1 right
+1 a right up
+13 a left up
+5 a up
+10 right
+2 a right up
+1 right
+2 a right up
+1 right
+7 a right up
 1 a up
-1 a left r
-5 a r
+1 a right up
+3 a up
+1 a right up
 1 a up
-3 a r
-1 a left r
-3 a r
-1 a up
-5 a r
-1 a left r
-7 a r
-1 a left r
-5 a r
-40 a up
+1 a left up
+5 a up
 1 a left up
 4 a up
-1 a r
-13 a up
-1 a r
-14 a up
-1 a r
-13 a up
-1 a r
-1 a up
-1 a left up
-6 a up
-1 a r
-1 a up
-5 up
-1 a up
-3 up
-1 a r
-3 up
-1 a up
-1 up
-1 r
-5 up
-1 a r
-4 up
-1 a down
-2 up
-1 a b down
-1 up
-1 a right down
-20 a b down
-1 a right down
-1 a b down
-1 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a l
-1 a b r
-2 a l
-1 a b r
-1 a l
-1 a b down
-1 a b r
-2 a l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right down
-1 a b l
-3 a b r
-1 a r
-1 a left r
-1 a r
-1 a left r
-1 a r
-1 a b r
-1 a r
-1 a left down
-1 a b r
-12 a up
-1 a right up
-1 a up
-1 a l
-7 a up
-2 up
-1 a up
-1 up
-1 left up
-2 up
-1 a l
-22 a b down
-1 a left down
-4 a b down
-2 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-2 a b l
-1 a r
-3 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-3 a b r
-5 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right up
-13 a up
-1 a left up
-7 a up
-1 a r
-1 a up
-4 up
-1 left up
-1 up
-1 a up
-1 up
-1 r
-1 up
-1 r
-1 up
-1 r
-1 up
-1 a left up
-3 a up
-1 a r
-1 a down
-1 a left down
-1 a down
-4 a b down
-1 up
-8 a b down
-1 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-2 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-2 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-2 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-2 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-2 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-2 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-2 a up
-2 a b down
-1 up
-9 a b down
-3 a l
-1 a right up
-10 a up
-1 up
-1 a up
-2 up
-42 left
-8 a left up
-6 a up
-2 a left up
-6 a up
-2 a right up
-10 a up
-2 a right up
-17 a up
-1 a right up
-15 a up
-1 a left up
-33 a up
-1 a right up
-13 a up
-9 right
-3 a right up
-1 right
-1 a right up
-1 right
-2 a right up
-1 a up
-5 a right up
-13 a up
-1 a left up
-9 a up
-1 a left up
 10 left
 5 a left up
-4 right
-3 a right up
-1 right
-1 a right up
-1 right
-3 a right up
-1 a up
-3 a right up
-1 a up
-1 a right up
-3 a up
-1 a right up
+1 left
+4 a left up
 1 a up
 1 a left up
-4 a up
-8 right
-3 a right up
-1 right
-1 a right up
-2 left
-5 a left up
-3 right
-4 a right up
-1 right
-2 a right up
 1 a up
-5 a right up
+1 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
 3 a up
 1 a right up
+5 a up
+1 a right up
 3 a up
-1 a left up
-7 a up
-1 a left up
-33 a up
-9 a right down
-1 a r
+7 a right down
+1 a right r
+2 a right down
+4 a right r
 1 a right down
+17 a right r
+1 a up
+1 a right up
+1 a r
+1 a right up
+1 a up
+1 a right r
+3 a up
+1 a r
+1 a up
+1 a r
+1 a up
+1 a left r
+1 a r
+1 a left up
+3 a r
+1 a left r
 1 a down
+1 a left down
+2 a down
+1 a r
+1 a down
+1 a r
+1 a left down
+1 a r
+3 a down
+1 a r
+1 a down
+1 a r
+1 a left down
+1 a down
+1 a r
+4 a down
+1 a r
+1 a down
+1 a r
+1 a down
+1 a r
+1 a left r
+3 a r
+1 a left r
+2 a down
+1 a r
+1 a down
+1 a r
+5 a down
+1 a r
+1 a left down
+1 a down
+4 a r
+1 a left r
+5 a r
+1 a left r
+3 a r
+1 a left r
+1 a r
+1 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left r
+3 a b r
+1 a left r
+3 a b r
+1 a left l
+1 a b l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+2 a b l
+1 a l
+1 a right l
+1 a b l
+1 a right l
+2 a b l
+5 a b
 1 a right r
 1 a r
-1 a right down
-2 a r
-1 a down
-1 a r
-2 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a left down
-2 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-2 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-2 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a left down
-1 a r
-3 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a down
-5 a r
 1 a left r
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-3 a down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a left down
-9 a r
+3 a b r
 1 a left r
-1 a up
-5 a r
-1 a up
+4 a b r
 1 a r
-1 a up
-2 a r
 1 a left r
-2 a r
+2 a b r
+14 left
+6 a left up
 1 a up
-1 a r
+1 a left up
 1 a up
-1 a r
+1 a left up
+3 a up
+1 a right up
 5 a up
-1 a r
-1 a up
-2 a r
-1 a left up
-1 a r
-1 a up
-6 a r
-1 a up
-2 a r
-1 a left r
-3 a r
-1 a up
-5 a r
-1 a left r
-7 a r
-1 a left r
-6 a r
-73 a up
 1 a right up
-20 a up
-1 up
-1 left up
-3 up
-1 a up
-7 up
-1 a up
-7 up
-1 a up
-1 a down
-1 up
-1 a down
-1 left up
-1 up
-12 a b down
-1 a left down
-15 a b down
-6 a up
-1 a left up
-16 a up
-7 up
-1 a up
-2 r
-1 up
-1 a left up
-3 a up
-1 a r
-1 a down
-1 a left down
-1 a down
-1 a left up
-1 a down
-3 a up
-1 a r
-1 a left down
-1 a down
-1 a left down
-1 a down
-1 a b down
-1 a b l
-1 a right up
-2 a up
-1 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-1 a up
-2 a b down
-2 a up
-2 a b down
-1 a up
-2 a b down
-1 a up
-2 a b down
-1 a up
-1 a b down
-1 a up
-1 a b down
-1 a up
-1 a down
-1 a up
-1 a down
-1 a up
-1 a down
-1 a up
-1 a down
-1 a up
-1 a down
-1 a up
-12 left
-133 -
-32 a up
-7 up
-1 a up
-7 up
-1 a up
-14 up
-14 a up
-13 left
-4 a left up
-1 left
-3 a left up
-1 a up
-3 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a right up
-3 a up
-1 a right up
-10 right
+5 a up
+11 right
 5 a right up
-1 right
+5 left
+12 a left up
+3 a up
+1 a left up
+1 a up
+12 right
 4 a right up
+1 right
+6 a right up
 1 a up
 1 a right up
 1 a up
 1 a right up
 1 a up
 1 a right up
-1 a up
-1 a right up
-7 a up
+5 a up
 1 a left up
-1 a up
+3 a up
 1 a left up
-22 a up
+3 a up
 10 left
-3 a left up
+5 a left up
 1 left
+3 a left up
+1 a up
+3 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
+3 a up
+1 a right up
+4 a up
+8 left
+2 a left up
+1 left
+2 a left up
+3 a left down
+16 a left l
+2 a left up
+1 a left l
 6 a left up
 1 a up
 1 a left up
@@ -17991,1201 +19099,712 @@ moment floor_8_done
 1 a left up
 1 a up
 1 a left up
-11 right
-3 a right up
-1 right
-1 a right up
-2 left
-4 a left up
-1 left
-1 a left up
-5 right
-4 a right up
-1 right
-4 a right up
 1 a up
-3 a right up
+1 a left up
+3 a up
+2 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a left r
+1 a r
+1 a left down
+1 a down
+1 a r
+1 a down
+1 a r
+1 a down
+1 a left r
+1 a down
+2 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left down
+3 a down
+1 a r
+1 a down
+1 a r
+1 a down
+1 a left r
+1 a down
+2 a r
+1 a left r
+3 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a b down
+5 a b
+1 a b r
+1 a down
+1 a left down
+22 a b down
+5 a b
+1 a b r
+2 a b down
+5 a b
+1 a b down
+10 a b
+2 a b down
+1 a b
+3 a b r
+2 a up
+1 a left up
+7 a up
+1 a left up
+7 a up
+1 a right up
 3 a up
 1 a right up
+10 left
+4 a left up
+1 left
+7 a left up
+9 right
+3 a right up
+4 a left up
+1 left
+7 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
+3 a up
+12 right
+4 a right up
+1 right
+6 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a left up
 5 a up
 1 a left up
 3 a up
 1 a left up
-35 a up
-17 left
-1 -
+1 a up
+9 left
+4 a left up
 1 left
-1 -
+7 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
+5 a up
+1 a right up
+7 a up
+1 a right up
+1 a up
+10 right
+5 a right up
+14 a right r
+4 a right up
+1 a right r
+16 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a l
+1 a right up
+1 a l
+1 a right up
+1 a l
+1 a right l
+1 a l
+1 a right up
+1 a l
+8 a up
+1 a r
+1 a up
+1 a r
+1 a up
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a up
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a up
+2 a r
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a up
+1 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a left down
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a up
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left l
+1 a r
+1 a left l
+1 a r
+1 a left l
+1 a r
+1 a left l
+1 a r
+1 a left l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+2 a r
+2 a b l
+1 a r
+1 a b l
+2 r
+1 a b l
+1 a r
+1 a b l
+2 r
+1 a b l
+2 r
+1 a l
+1 a r
+1 a l
+2 r
+1 a b l
+2 r
+1 a b l
+1 a r
+1 a b l
+2 r
+1 a b l
+2 r
+1 a b l
+1 a r
+2 a b l
+3 r
+1 a b l
+2 r
+1 a b l
+1 a r
+1 a b l
+2 r
+1 a b l
+2 r
+1 a l
+1 a r
+1 a l
+2 r
+1 a b l
+2 r
+1 a b l
+1 a r
+1 a b l
+2 r
+1 a b l
+2 r
+1 a b l
+1 a r
+19 left
+1 a left up
+2 left up
+1 up
+1 left up
+1 up
+1 left up
+1 up
+1 a left up
+1 up
+1 left up
+7 right
+1 a right up
+1 right
+3 a right up
+2 left
+4 a left up
 1 left
-1 -
+3 a left up
+1 a up
+3 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
+2 a up
+11 right
+4 a right up
+2 right
+5 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a left up
+3 a up
+1 a left up
+5 a up
+1 a left up
+9 left
+4 a left up
 1 left
-1 -
+8 a left up
+3 a up
+1 a left up
+5 a up
+1 a right up
+3 a up
+1 a right up
+10 a up
+7 a right down
+1 a right r
+2 a right down
+5 a right r
+1 a right down
+15 a right r
+2 a right up
+1 a up
+1 a right r
+1 a up
+1 a right r
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a r
+1 a up
+1 a r
+1 a up
+1 a left r
+2 a up
+1 a r
+1 a left up
+1 a r
+1 a up
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left down
+2 a down
+1 a r
+1 a down
+1 a r
+1 a left down
+1 a down
+1 a r
+3 a down
+1 a r
+1 a down
+1 a r
+1 a down
+1 a left r
+1 a down
+1 a r
+4 a down
+1 a r
+1 a left down
+1 a r
+1 a down
+3 a r
+1 a left r
+1 a r
+1 a down
+1 a r
+1 a left down
+1 a down
+1 a r
+5 a down
+1 a r
+1 a down
+1 a r
+1 a down
+2 a r
+1 a left r
+3 a r
+1 a left r
+3 a r
+1 a left r
+1 a r
+3 a b r
+1 a r
+1 a left r
+2 a b r
+1 a r
+1 a left l
+2 a b l
+1 a l
+1 a right l
+15 a b
+4 a b r
+1 a left r
+3 a b r
+1 a left r
+3 a b r
+1 a left r
+4 a b r
+1 a r
+1 a left r
+1 a b r
+1 a b l
+15 left
+6 a left up
+6 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+6 a up
+9 right
+3 a right up
+1 right
+2 a right up
+3 left
+3 a left up
 1 left
-3 up
+1 a left up
+1 left
+4 a left up
 1 a up
-7 up
+3 a left up
+3 a up
+1 a left up
 1 a up
-7 up
+11 right
+3 a right up
+1 right
+1 a right up
+1 right
+6 a right up
 1 a up
-7 up
+1 a right up
 1 a up
-7 up
+1 a right up
+7 a up
+1 a left up
+7 a up
+10 left
+4 a left up
+1 left
+8 a left up
+3 a up
+1 a left up
+5 a up
+1 a right up
+2 a up
+9 left
+4 a left up
+2 right
+5 a right up
+9 a left down
+16 a left l
+1 a left up
+1 a left l
+3 a left up
 1 a up
-2 right up
+1 a left l
+1 a up
+1 a left up
+1 a up
+1 a left up
+1 a up
+1 a left up
+1 a up
+1 a l
+5 a up
+1 a l
+1 a up
+1 a right l
+1 a up
+1 a right up
+1 a up
+2 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left up
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a up
+1 a left up
+1 a r
+1 a left r
+1 a r
+1 a left up
+3 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a down
+1 a left down
+1 a down
+1 a left r
+1 a down
+2 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a r
+1 a left r
+1 a l
+1 a left r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a r
+1 a l
+1 a b l
+2 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 a r
+1 a b l
+1 r
+1 a b l
+1 right r
+2 r
+2 a left l
+2 r
+1 a b l
+1 right r
+1 r
+1 a left l
+1 r
+1 a r
+1 a b l
+1 r
+1 a l
+1 right r
+1 r
+1 a left l
+1 r
+1 a b l
+1 r
+1 right r
+1 a b l
+2 r
+1 a b l
+1 r
+1 a r
+1 a l
+1 r
+1 a b l
+3 r
+2 a b l
+1 r
+1 a r
+1 a l
+1 r
+1 a b l
+2 r
+1 a b l
+1 r
+1 a r
+1 a l
+1 r
+1 a l
+2 r
+1 a b l
+1 r
+1 a r
+1 a l
+1 r
+1 a b l
+2 r
+1 a b l
+1 r
+1 a r
+1 a l
+1 r
+2 a b l
+3 r
+1 a b l
+1 r
+1 a r
+2 a l
+9 right
+3 right up
 1 up
 1 right up
-3 up
-1 a up
-3 up
-1 left up
-1 up
-1 left up
-3 a up
+4 left
+3 a left up
+1 left
+10 a left up
+2 a up
+2 a left up
+2 a up
 1 a left up
-3 a up
-1 a left up
-9 a up
+2 a up
+12 right
+3 a right up
+1 right
 1 a right up
+2 right
+3 a right up
+1 a up
+3 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a right up
+1 a up
+1 a left up
+3 a up
+1 a left up
+5 a up
+1 a left up
 19 a up
-1 a left up
-7 a up
-11 right
-4 a right up
-1 right
-1 a right up
-5 left
-3 a left up
-1 left
-7 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-12 right
-1 a right up
-1 right
-3 a right up
-1 right
-7 a right up
-17 a up
-1 a left up
-10 left
-4 a left up
-1 left
-5 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-9 a up
-12 right
-3 a right up
-1 right
-1 a right up
-4 left
-5 a left up
-2 left
-7 a left up
-13 left
-7 a left up
-18 left
-5 a left up
-4 right
-4 a right up
-19 right
-5 a right up
-4 left
-2 a left up
-1 left
-2 a left up
-18 left
-4 a left up
-1 left
-8 a left up
-10 left
-5 a left up
-1 left
-2 a left up
-1 a up
-1 a left up
-1 a up
-2 a left up
-8 right
-3 a right up
-3 right
-3 a right up
-1 a up
-3 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-7 a up
-1 a left up
-1 a up
-1 a left up
-9 a up
-10 right
-4 a right up
-1 right
-7 a right up
-2 a up
-1 a right up
-9 a up
-11 left
-4 a left up
-1 left
-1 a left up
-4 right
-4 a right up
-1 right
-7 a right up
-10 left
-3 a left up
-2 left
-7 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-5 a up
-1 a right up
-2 a up
-8 left
-4 a left up
-1 left
-1 a left up
-4 right
-4 a right up
-1 right
-3 a right up
-1 a up
-3 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-7 a up
-1 a left up
-3 a up
-1 a left up
-9 a up
-11 left
-8 a left up
-1 a up
-3 a left up
-1 a up
-1 a left up
-9 a up
-1 a right up
-5 a up
-1 a right up
-29 a up
-1 a left up
-13 a up
-1 a right up
-18 a up
-7 up
-1 a up
-3 up
-1 left up
-3 up
-1 a up
-10 up
-2 a up
-2 a down
-2 up
-1 a down
-4 up
-49 a b down
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-3 a b l
-1 a right r
-1 a b r
-1 a left r
-1 a r
-1 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-3 a b r
-1 a l
-5 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a b l
-4 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-5 a b l
-1 a right l
-1 a l
-2 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a b l
-4 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a r
-1 a left r
-1 a r
-1 a b down
-1 a b r
-1 a left r
-1 a b r
-4 a b l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a r
-1 a left r
-1 a r
-1 a b r
-1 a r
-1 a left l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-3 a b l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-1 a b l
-2 a b r
-1 a b down
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-3 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left down
-1 a r
-2 a b r
-1 a left l
-1 a b l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a b l
-1 a right down
-3 a b l
-1 a right l
-1 a b l
-4 a b r
-1 a b down
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a b down
-1 a b r
-1 a left r
-1 a b r
-3 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right down
-4 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a l
-1 a right r
-1 a r
-1 a left r
-1 a r
-1 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-1 a l
-3 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a b r
-1 a r
-3 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-4 a b l
-1 a right l
-4 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-4 a b l
-1 a l
-1 a right l
-1 a l
-4 a b r
-1 a left r
-3 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-5 a b l
-1 a l
-1 a right l
-1 a l
-1 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-3 a b l
-1 a right r
-1 a b r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-1 a b down
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-1 a b down
-1 a b r
-1 a left r
-1 a b r
-5 a b l
-1 a l
-1 a right l
-1 a l
-1 a right l
-1 a l
-1 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-1 a b down
-2 a b r
-1 a r
-1 a left r
-1 a r
-1 a b r
-1 a r
-1 a left down
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right r
-1 a b r
-1 a left down
-1 a r
-2 a b r
-1 a left r
-1 a b r
-1 a b down
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left down
-4 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right down
-2 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a b r
-1 a r
-1 a b down
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-1 a b down
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a b r
-1 a left l
-1 a b l
-1 a right l
-1 a b l
-1 a b down
-2 a b l
-1 a l
-1 a right l
-1 a l
-1 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-3 a b l
-1 a right l
-1 a b l
-1 a b down
-3 a b r
-1 a left r
-1 a b r
-1 a b down
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a r
-1 a b r
-1 a r
-1 a left r
-1 a r
-1 a left l
-1 a b l
-1 a right down
-3 a b l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right down
-1 a r
-3 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left down
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a b down
-4 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a l
-4 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-3 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left l
-1 a b l
-1 a right l
-2 a b l
-2 a l
-2 a right l
-1 a l
-1 a right l
-1 a l
-2 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a b l
-4 a b r
-1 a left r
-4 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-3 a b r
-1 a left r
-1 a r
-1 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left l
-1 a l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-3 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a right l
-1 a b l
-3 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left l
-3 a b l
-1 a right l
-36 left
-2 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-8 right
-3 a right up
-3 right
-7 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-7 a up
-1 a left up
-5 a up
-1 a left up
-13 a up
 9 left
 4 a left up
-1 left
-1 a left up
-4 right
-3 a right up
-1 right
-8 a right up
-1 a up
-1 a right up
-9 a up
-1 a left up
-9 right
-4 a right up
-1 left
-3 a left up
-1 left
-2 a left up
-1 left
-3 a left up
-1 a up
-3 a left up
-1 a up
-1 a left up
-3 a up
-1 a left up
-12 right
-3 a right up
-1 right
-1 a right up
-1 right
-4 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-3 a up
-1 a left up
-3 a up
-1 a left up
-5 a up
-10 left
-4 a left up
-1 left
-6 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-3 a up
-1 a right up
-3 a up
-1 a right up
-10 left
-4 a left up
-1 left
-3 a left up
-1 a up
-3 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-2 a up
-6 a left down
-3 a left l
-2 a left down
-7 a left l
-1 a left down
-1 a l
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-25 a up
-2 a r
-1 a left r
-3 a r
-1 a left r
-3 a r
-1 a left r
-1 a r
-1 a left r
-3 a r
-1 a left down
-1 a down
-4 a r
-1 a left down
-1 a down
-1 a r
-1 a down
-2 a r
-1 a left r
-1 a up
-2 a r
-1 a left r
-3 a r
-1 a left r
-2 a down
-1 a r
-1 a left down
-1 a r
-1 a down
-1 a r
-1 a down
-1 a r
-1 a left r
-3 a r
-1 a left r
-1 a r
-1 a up
-1 a r
-1 a left r
-1 a r
-2 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-2 a b r
-1 a r
-1 a left l
-3 a b l
-1 a right l
-3 a b l
-1 a right l
-4 a b l
-1 a l
-1 a right r
-1 a up
-1 a b l
-1 a r
-1 a b l
-1 a r
-2 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left l
-1 a l
-1 a right l
-1 a l
-2 a b l
-1 a right l
-1 a b l
-1 a b down
-2 a b l
-1 a l
-1 a right l
-1 a b l
-1 a b down
-1 a b l
-1 a right l
-2 a b l
-1 a l
-1 a right r
-1 a r
-1 a left down
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left r
-1 a r
-1 a b down
-1 a b r
-1 a left r
-2 a b r
-1 a r
-1 a left r
-1 a b r
-1 a left down
-1 a b r
-3 a b l
-19 left
-1 a left up
-1 left
-1 a left up
-9 right
-3 a right up
-3 right
-3 a right up
-1 a up
-3 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-7 a up
-1 a left up
-5 a up
-1 a left up
-13 a up
-38 left
-5 a left up
-1 a up
-3 a left up
-11 a up
-1 a right up
-3 a up
-1 a right up
-1 a up
-9 right
-5 a right up
-1 right
-4 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-9 right
-5 a right up
-4 left
-4 a left up
-1 right
-3 a right up
-1 right
-8 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a left up
-5 a up
-1 a left up
-3 a up
-1 a left up
-7 a up
-11 left
-5 a left up
-19 left
-4 a left up
-2 right
-5 a right up
-1 right
-6 a right up
-1 a up
-1 a right up
-3 a up
-1 a right up
-3 a up
-1 a left up
-5 a up
-1 a left up
-3 a up
-10 left
-4 a left up
-1 left
-4 a left up
-1 a up
-3 a left up
-1 a up
-1 a left up
-3 a up
-10 right
-3 a right up
-1 right
-1 a right up
-1 right
-6 a right up
-7 left
-3 a left up
-20 left
-4 a left up
-3 left
-6 a left up
-9 right
-1 a right up
-2 right
-2 a right up
-19 right
-4 a right up
-2 right
-7 a right up
-11 left
-3 a left up
-19 left
-4 a left up
-1 left
-8 a left up
-11 left
-6 a left up
-1 a up
-1 a left up
-1 a up
-3 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-7 a up
-1 a right up
-3 a up
-1 a right up
-9 a up
-10 right
-4 a right up
-1 right
-4 a right up
-1 a up
-3 a right up
-1 a up
-1 a right up
-9 a up
-1 a left up
-5 a up
-1 a left up
-6 a up
-10 right
-4 a right up
-1 right
-5 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-1 a up
-1 a right up
-3 a up
-1 a left up
-2 a up
-10 left
-3 a left up
-1 left
-2 a left up
-3 right
-3 a right up
-1 right
-8 a right up
-9 left
-2 a left up
-1 left
-1 a left up
 2 left
 4 a left up
 1 a up
 3 a left up
-1 a up
+3 a up
 1 a left up
-1 a up
-1 a left up
+3 a up
+1 a right up
+7 a up
+1 a right up
 1 a up
 1 a right up
 5 a up
-8 left
-4 a left up
-1 left
 1 a left up
-4 right
-3 a right up
-1 right
-8 a right up
-2 a up
-1 a right up
-9 a up
-1 a left up
-3 a up
-1 a left up
-8 a up
-10 left
-4 a left up
-1 left
-3 a left up
-1 a up
-3 a left up
-1 a up
-1 a left up
-1 a up
-1 a left up
-7 a up
-1 a right up
-3 a up
-1 a right up
-65 a up
-2 up
+44 a up
+3 up
 1 a up
 7 up
 1 a up
@@ -19199,16 +19818,36 @@ moment floor_8_done
 20 a up
 8 up
 40 right
-16 a up
+8 a right up
+8 a up
 8 a left up
-48 left
-56 right
-16 a up
+56 left
+48 right
+8 a right up
+8 a up
 8 a left up
-48 left
-56 right
-152 a up
+56 left
+48 right
+8 a right up
+144 a up
 16 up
 8 a up
-46 up
+56 up
+6 a up
 moment won
+120 -
+moment summary
+315 -
+2 a
+128 -
+moment article
+590 -
+2 a
+598 -
+2 a
+598 -
+2 a
+598 -
+2 a
+308 -
+moment scores
