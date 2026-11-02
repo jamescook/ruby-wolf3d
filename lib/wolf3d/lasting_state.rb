@@ -25,8 +25,6 @@ module Wolf3D
     # choice: SaveTheGame (wl_main.cpp) writes the game's state and the floor's, and none of these.
     # The names are what the framework's `saves_keep_everything` is told to leave out.
     LEFT_OUT = Ractor.make_shareable({
-      sound_on: "A setting, not part of a game. The original keeps it in its config file " \
-                "(WriteConfig, wl_main.cpp), so loading a game leaves it as the player set it.",
       screen: "Which menu is up. Loading is done from a menu and goes straight into the game.",
       noise: "A shot heard for the next pass or two. The original's madenoise is a global " \
              "outside gamestate, and a save never writes it.",

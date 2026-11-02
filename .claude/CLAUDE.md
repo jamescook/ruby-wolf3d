@@ -190,7 +190,9 @@ are commented with what needs what).
   the status bar's plate, the numerals and both proportional alphabets. `palette.rb` — the
   game's own 256 colours.
 - `adlib_sounds.rb` — the effects in AUDIOT, which are recipes for the AdLib chip. `opl2.rb` — that
-  chip, played while building, so the cartridge holds recordings.
+  chip, played while building, so the cartridge holds recordings. `adlib_music.rb` — the tracks in
+  AUDIOT, which are logs of writes to it. `opl2_track.rb` — all nine channels, which turn a track
+  into a recording, kept under `tmp/music` and never committed.
 - `lib/wolf3d/fixture/release.rb` — a made-up release built in memory, so most of the suite
   runs with no copy of the game present.
 
@@ -213,12 +215,12 @@ are commented with what needs what).
   ceiling. Most of a frame. `billboards.rb` — the things and enemies drawn into that view.
   `guard_mind.rb` — what a guard does about you. `thrown.rb` — what the bosses throw. `screen_flash.rb` — red and gold. `death_cam.rb` — how most episodes end. `big_lettering.rb` — the
   game's big letters. `fizzle.rb` — the view dotting over to one colour. `weapons.rb`, `pickups.rb`, `dying.rb`,
-  `lives.rb`, `scoring.rb`, `victory.rb`, `tally.rb`, `status_bar.rb`, `sounds.rb` — the rest of playing.
+  `lives.rb`, `scoring.rb`, `victory.rb`, `tally.rb`, `status_bar.rb`, `sounds.rb`, `music.rb` — the rest of playing.
 - `saved_games.rb`, `high_scores.rb` — what lasts on the cartridge, which the menus reach. `small_letters.rb` — words drawn a letter at a time. `victory_march.rb`, `episode_end.rb`, `end_article.rb`, `floor_records.rb` — how an episode ends. `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
   around the game.
 - `pilot.rb` — a player made of Ruby, not on the cartridge, which `tools/play_shareware.rb` runs.
 - `lib/wolf3d.rb` — the dials (`WOLF3D_EPISODES`, `WOLF3D_FLOORS`, `WOLF3D_FROM`,
-  `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`, `WOLF3D_SEED`) and `GAME`, the one `VBlank.game` block.
+  `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`, `WOLF3D_SEED`, `WOLF3D_MUSIC`) and `GAME`, the one `VBlank.game` block.
 
 ### Key patterns
 

@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 module Wolf3D
-  # THE ADLIB CARD'S CHIP, THE YAMAHA YM3812, FOR AS MUCH OF IT AS A SOUND EFFECT USES. Written from
+  # THE ADLIB CARD'S CHIP, THE YAMAHA YM3812, ONE CHANNEL OF IT, WHICH IS WHAT A SOUND EFFECT USES.
+  # Opl2Track plays the music through nine of these operator pairs. Written from
   # the chip's data sheet. It runs while the cartridge is built, and what it writes is a recording,
   # so nothing on the cartridge knows what FM synthesis is.
   #
@@ -82,19 +83,36 @@ module Wolf3D
 
       attr_reader :stage
 
-      def initialize(operator)
-        @char = operator.char
-        @level = operator.scale & 0x3f
-        @key_scale = operator.scale >> 6
-        @attack = operator.attack >> 4
-        @decay = operator.attack & 0x0f
-        sustain_level = operator.sustain >> 4
-        @sustain_decibels = (sustain_level == LOWEST_SUSTAIN_LEVEL ? LOWEST_SUSTAIN_STEPS : sustain_level) * SUSTAIN_STEP_DECIBELS
-        @release = operator.sustain & 0x0f
-        @wave = operator.wave & 3
+      # +rate+ is how many times a second #step is called, which a track keeps down to save time.
+      def initialize(operator, rate: NATIVE_RATE)
+        @rate = rate
+        @block = 0
+        @fnum = 0
+        @char = 0
+        @key_scale = 0
+        %i[char scale attack sustain wave].each { |name| set(name, operator.public_send(name)) }
         @phase = 0.0
         @decibels = SILENT_DECIBELS
         @stage = :off
+        tune(0, 0)
+      end
+
+      # A write to one of the five registers, which a track can make while a note sounds.
+      def set(name, value)
+        case name
+        when :char
+          @char = value
+          tune(@block, @fnum)
+        when :scale
+          @level = value & 0x3f
+          @key_scale = value >> 6
+          tune(@block, @fnum)
+        when :attack
+          @attack = value >> 4
+          @decay = value & 0x0f
+        when :sustain then set_sustain(value)
+        when :wave then @wave = value & 3
+        end
       end
 
       def multiple = MULTIPLES[@char & 0x0f]
@@ -119,6 +137,8 @@ module Wolf3D
       end
 
       def tune(block, fnum)
+        @block = block
+        @fnum = fnum
         @hertz = fnum * NATIVE_RATE * (2.0**(block - 20)) * multiple
         @key_code = (block * 2) + (fnum >> 9 & 1)
         @rate_offset = scales_rate_by_key? ? @key_code : @key_code >> 2
@@ -131,7 +151,7 @@ module Wolf3D
       def step(modulation, wobble, tremor)
         move_envelope
         pitch = @hertz * (vibrato? ? 1.0 + wobble : 1.0)
-        @phase = (@phase + (pitch / NATIVE_RATE)) % 1.0
+        @phase = (@phase + (pitch / @rate)) % 1.0
         loss = @decibels + (@level * LEVEL_STEP_DECIBELS) + @scale_decibels + (tremolo? ? tremor : 0.0)
         wave_at(@phase + modulation) * (10.0**(-loss / 20))
       end
@@ -139,6 +159,12 @@ module Wolf3D
       def quiet? = @stage == :off || @decibels + (@level * LEVEL_STEP_DECIBELS) >= QUIET_DECIBELS
 
       private
+
+      def set_sustain(value)
+        level = value >> 4
+        @sustain_decibels = (level == LOWEST_SUSTAIN_LEVEL ? LOWEST_SUSTAIN_STEPS : level) * SUSTAIN_STEP_DECIBELS
+        @release = value & 0x0f
+      end
 
       def wave_at(phase)
         sine = Math.sin(TURN * phase)
@@ -163,7 +189,7 @@ module Wolf3D
       def rise
         return if @attack_seconds.infinite?
 
-        @attack_elapsed += 1.0 / NATIVE_RATE
+        @attack_elapsed += 1.0 / @rate
         amplitude = @attack_elapsed / @attack_seconds
         @decibels = amplitude >= 1.0 ? 0.0 : -20 * Math.log10(amplitude)
         @stage = :decay if amplitude >= 1.0
@@ -175,7 +201,7 @@ module Wolf3D
         span = seconds(SLOWEST_DECAY_SECONDS, register)
         return if span.infinite?
 
-        @decibels += SILENT_DECIBELS / (span * NATIVE_RATE)
+        @decibels += SILENT_DECIBELS / (span * @rate)
         yield if @decibels >= floor
       end
 

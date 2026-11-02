@@ -122,21 +122,39 @@ class TestMenus < Minitest::Test
     assert_equal(-1, arrived[:_screen_going_to], "with nothing left waiting")
   end
 
-  # ONE ROW THAT TURNS SOUND OFF, which is the whole of what the original's twelve-row sound
-  # menu means on hardware that is none of the three sound cards it offered.
-  def test_the_sound_row_turns_sound_off_and_on_again
-    off = at_the_menu(frames: 30) { |f| [4, 8].include?(f) ? [:down] : (f == 20 ? [:a] : []) }
+  # ONE ROW FOR ALL OF SOUND, which is the whole of what the original's twelve-row sound menu means
+  # on hardware that is none of the three sound cards it offered. It goes round three settings.
+  def test_the_sound_row_goes_round_its_three_settings
+    both = at_the_menu(frames: 30) { |f| [4, 8].include?(f) ? [:down] : (f == 20 ? [:a] : []) }
 
-    assert_equal 3, off[:__menu_main], "the fourth row is SOUND"
-    assert_equal 0, off[:sound_on], "and picking it turns sound off"
+    assert_equal 3, both[:__menu_main], "the fourth row is SOUND"
+    assert_equal Wolf3D::Music::EFFECTS_AND_MUSIC, both[:sound_on], "from effects only, one press adds the music"
 
-    on = at_the_menu(frames: 40) do |f|
+    off = at_the_menu(frames: 40) do |f|
       next [:down] if [4, 8].include?(f)
 
       [20, 30].include?(f) ? [:a] : []
     end
 
-    assert_equal 1, on[:sound_on], "and picking it again turns it back on"
+    assert_equal Wolf3D::Music::OFF, off[:sound_on], "a second press turns everything off"
+
+    only = at_the_menu(frames: 50) do |f|
+      next [:down] if [4, 8].include?(f)
+
+      [20, 30, 40].include?(f) ? [:a] : []
+    end
+
+    assert_equal Wolf3D::Music::EFFECTS_ONLY, only[:sound_on], "and a third comes back round"
+  end
+
+  # THE SETTING OUTLIVES THE POWER, as it does in the original's config file.
+  def test_the_sound_setting_survives_the_power_going_off
+    image = SaveImage.new
+    presses = ->(f) { { 2 => [:a], 4 => [:down], 8 => [:down], 20 => [:a] }.fetch(f, []) }
+    Reference.new(save: image).input_each_frame(&presses).run(self.class.program, frames: 30)
+    again = Reference.new(save: image).run(self.class.program, frames: 2)
+
+    assert_equal Wolf3D::Music::EFFECTS_AND_MUSIC, again[:sound_on]
   end
 
   # --- THE DIFFICULTY SCREEN -----------------------------------------------------------------

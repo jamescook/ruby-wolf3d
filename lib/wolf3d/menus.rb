@@ -120,7 +120,7 @@ module Wolf3D
     SAVE_GAME = "SAVE GAME"
     VIEW_SCORES = "VIEW SCORES"
     MENU_ROWS = 6
-    SOUND = ["SOUND: OFF", "SOUND: ON"].freeze
+    SOUND = Music::ROW_WORDS
     BACK = ["BACK TO DEMO", "BACK TO GAME"].freeze
 
     # THE FOUR ANSWERS TO "HOW TOUGH ARE YOU?", in the order the original asks them: which
@@ -189,12 +189,15 @@ module Wolf3D
     # reached by playing, but two of them are a quarter of a minute of waiting away and one only
     # exists on a cartridge carrying more than one episode, so a cartridge that boots straight
     # to the one you want to look at is worth being able to build.
-    def initialize(build:, view:, art:, palette:, sound_on:, starting_on: NOTICE)
+    #
+    # +music+ is the Music on this cartridge, or nil on one with none.
+    def initialize(build:, view:, art:, palette:, sound_on:, starting_on: NOTICE, music: nil)
       @b = build
       @view = view
       @art = art
       @palette = palette
       @sound_on = sound_on
+      @music = music
       @episodes = view.floors.episodes
       @starting_on = starting_on
       declare
@@ -202,6 +205,7 @@ module Wolf3D
 
     # ONE PASS OF THE GAME LOOP: exactly one screen runs, whichever one you are on.
     def update
+      @b.call :choose_music if @music
       pairs = screens
       @b.case_var(:screen) { pairs.each { |state, scene| when_val state, scene } }
     end
@@ -223,11 +227,42 @@ module Wolf3D
 
     private
 
+    # WHAT PLAYS ON EACH SCREEN: the original's title and menu songs, and the ones wl_inter.cpp starts
+    # for the high scores and the end of an episode. The game itself is the one that depends.
+    def screen_songs
+      songs = Array.new(ARTICLE + 1, @music.song(Music::MENU_SONG))
+      [NOTICE, TITLE, CREDITS].each { |screen| songs[screen] = @music.song(Music::TITLE_SONG) }
+      [SCORES, NAMING].each { |screen| songs[screen] = @music.song(Music::SCORES_SONG) }
+      [WINNING, ARTICLE].each { |screen| songs[screen] = @music.song(Music::WON_SONG) }
+      songs
+    end
+
+    def declare_the_music
+      return unless @music
+
+      table = @b.table :screen_song, screen_songs, width: :byte
+      @song_wanted = @b.var :_song_wanted, 0
+      @b.func(:choose_music, fast: false) do
+        @song_wanted = table[@screen]
+        @song_wanted = @music.floor_song(@view.playthrough.floor) if @screen == PLAYING
+        @song_wanted = @music.song(Music::BETWEEN_FLOORS_SONG) if @screen == PLAYING && between_floors?
+        @music.update(@song_wanted)
+      end
+    end
+
+    def between_floors? = @view.between_floors ? @view.between_floors == 1 : false
+
+    def next_sound_setting
+      @sound_on = (@sound_on + 1) % SOUND.length
+      @scores.save_setting
+    end
+
     def declare
       check_it_can_start_there!
       declare_the_lettering
       declare_the_art
       @screen = @b.var :screen, @starting_on
+      declare_the_music
       # How long the screen you are on has been up, and where a fade is taking you. A fade is
       # running exactly while the second one holds a screen number rather than nothing.
       @waited = @b.var :_screen_waited, 0
@@ -249,7 +284,7 @@ module Wolf3D
       @saved = SavedGames.new(build: @b, view: @view)
       @letters = SmallLetters.new(build: @b, art: @art, palette: @palette, ink: HighScores::INK, ground: BACKGROUND)
       @scores = HighScores.new(build: @b, letters: @letters, palette: @palette, view: @view,
-                               player: @view.player, floor: @view.playthrough.floor)
+                               player: @view.player, floor: @view.playthrough.floor, setting: @sound_on)
       @view.hand_end_of_game_to_menus
       # Where the table goes back to, and whether it moves on by itself as it does in the attract loop.
       @scores_lead_to = @b.var :_scores_lead_to, TITLE
@@ -377,7 +412,7 @@ module Wolf3D
           m.item(NEW_GAME, showing: @in_game) { new_game_or_end_it }
           m.item(LOAD_GAME) { leaving_for LOADING }
           m.item(SAVE_GAME, enabled: @in_game) { leaving_for SAVING }
-          m.item(SOUND, showing: @sound_on) { @sound_on = 1 - @sound_on }
+          m.item(SOUND, showing: @sound_on) { next_sound_setting }
           m.item(VIEW_SCORES) { view_scores }
           m.item(BACK, showing: @in_game) { leave_the_menu }
         end

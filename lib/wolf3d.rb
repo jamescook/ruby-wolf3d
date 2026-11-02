@@ -13,6 +13,9 @@ require "bundler/setup"
 # beside this file. The public entry point only, never its internals.
 require "vblank"
 
+require "digest"
+require "fileutils"
+
 require_relative "wolf3d/codec/rlew"
 require_relative "wolf3d/codec/carmack"
 require_relative "wolf3d/codec/huffman"
@@ -24,6 +27,8 @@ require_relative "wolf3d/maps"
 require_relative "wolf3d/vswap"
 require_relative "wolf3d/adlib_sounds"
 require_relative "wolf3d/opl2"
+require_relative "wolf3d/adlib_music"
+require_relative "wolf3d/opl2_track"
 # ...and the pictures of the gun in your hands, which are the last twenty sprites of it. Up
 # here with the reader rather than beside the other two atlases, because a release written for
 # the tests has to know how many sprites it must hold to have them.
@@ -78,6 +83,7 @@ VBlank.require_game_file "wolf3d/tally"
 # ...and after the view, whose START_HEALTH and KEY_BITS say what a full player is and what a key
 # is worth, and after lives, which a one-up on the floor hands another of.
 VBlank.require_game_file "wolf3d/pickups"
+VBlank.require_game_file "wolf3d/music"
 VBlank.require_game_file "wolf3d/sounds"
 # ...after the view, whose constants they share: the three agree about how wide the lens is, and
 # where the middle of the screen falls is what a shot is aimed by.
@@ -131,7 +137,7 @@ module Wolf3D
   # wolf3d.rb's last line — so a test building one floor never changes what another build sees.
   DIALS = { episodes: "WOLF3D_EPISODES", from: "WOLF3D_FROM", floors: "WOLF3D_FLOORS",
             start: "WOLF3D_START", armed: "WOLF3D_ARMED", ammo: "WOLF3D_AMMO",
-            screen: "WOLF3D_SCREEN", seed: "WOLF3D_SEED" }.freeze
+            screen: "WOLF3D_SCREEN", seed: "WOLF3D_SEED", music: "WOLF3D_MUSIC" }.freeze
 
   # The settings the environment asks for — only the dials it actually sets, so an unset one
   # takes the game's own default.
@@ -289,6 +295,7 @@ module Wolf3D
 
   def self.vswap = Ractor.current[:wolf3d_vswap] ||= data && Vswap.from(data)
   def self.adlib = Ractor.current[:wolf3d_adlib] ||= data && AdlibSounds.from(data)
+  def self.adlib_music = Ractor.current[:wolf3d_adlib_music] ||= data && AdlibMusic.from(data)
 
   def self.vgagraph = Ractor.current[:wolf3d_vgagraph] ||= data && Vgagraph.from(data)
 
@@ -334,6 +341,9 @@ module Wolf3D
     armed = setting :armed, nil
     ammo = setting :ammo, nil
     boot_screen = setting :screen, nil
+    # MUSIC STARTS ON WHERE IT COSTS NOTHING A PLAYER CAN SEE, and off on the console, where a frame
+    # is short. This dial starts a cartridge with it on, to measure that. Any value does it.
+    music_on = setting(:music, nil) || built_for_computer?
     Wolf3D.seed_random_numbers(self, setting(:seed, nil))
 
     Wolf3D.check_the_copy!
@@ -354,7 +364,7 @@ module Wolf3D
       # WHETHER SOUND IS ON, which the menu's own row moves and every one of the game's sounds
       # is played under. Declared here rather than inside either of them because both need it
       # and neither owns it.
-      sound_on = menu_art && var(:sound_on, 1)
+      sound_on = menu_art && var(:sound_on, music_on ? Wolf3D::Music::EFFECTS_AND_MUSIC : Wolf3D::Music::EFFECTS_ONLY)
       # `gun_art` is the pictures of the gun in your hands, and it is asked of the CARTRIDGE
       # rather than of the level: every floor is played holding the same four weapons, where the
       # walls and the things standing in the rooms differ from one floor to the next.
@@ -368,8 +378,9 @@ module Wolf3D
                                      armed_with: Wolf3D.armed_with(armed),
                                      ammo: Wolf3D.starting_ammo(ammo))
       if menu_art
+        music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_on)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
-                                  palette: Wolf3D.palette, sound_on: sound_on,
+                                  palette: Wolf3D.palette, sound_on: sound_on, music: music,
                                   starting_on: Wolf3D.which_screen(boot_screen))
         game_loop { menus.update }
       else

@@ -83,8 +83,8 @@ module Wolf3D
 
     # +vswap+ is the player's own copy of the game's sounds, or nil on a build with no data,
     # which makes every one of these do nothing. +adlib+ is its AdlibSounds, and nil leaves those
-    # effects out. +switch+ is a variable that is 1 while sound is on — the menu's own SOUND row
-    # moves it — or nil on a cartridge with no way to turn sound off, and then nothing is tested.
+    # effects out. +switch+ is a variable that is nought while sound is off — the menu's own SOUND
+    # row moves it — or nil on a cartridge with no way to turn sound off, and then nothing is tested.
     # +kinds+ names who is on this cartridge to be heard.
     def initialize(build:, vswap: nil, adlib: nil, switch: nil, kinds: [:guard])
       @b = build
@@ -198,7 +198,7 @@ module Wolf3D
     def when_sound_is_on
       return yield if @switch.nil?
 
-      yield if @switch == 1
+      yield if @switch != Music::OFF
     end
 
     # Every chunk this game plays as a sample. Named for the moment rather than the number, so a

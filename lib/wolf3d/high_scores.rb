@@ -45,15 +45,23 @@ module Wolf3D
 
     NOBODY = -1
 
-    def initialize(build:, letters:, palette:, view:, player:, floor:)
+    # +setting+ is the SOUND row's variable, which this record keeps too. A record takes a whole
+    # stretch of the save memory however small it is, and the saved games leave no room for another,
+    # so the one thing the game remembers between games goes with the other. The original keeps both
+    # in files of their own.
+    def initialize(build:, letters:, palette:, view:, player:, floor:, setting:)
       @b = build
       @letters = letters
       @palette = palette
       @player = player
       @floor = floor
       @floors = view.floors
+      @setting = setting
       declare
     end
+
+    # What the SOUND row has just changed, written down.
+    def save_setting = @record[0].save
 
     # Which row a game has just earned, or NOBODY.
     attr_reader :new_row
@@ -92,7 +100,7 @@ module Wolf3D
         NAME_ROOM.times { |n| @names << (STARTING_NAMES[row][n] || " ").ord }
       end
       @record = b.save_data :high_scores, copies: 1, fast: false
-      [@scores, @levels, @episodes, @names].each { |list| @record.keep list }
+      [@scores, @levels, @episodes, @names, @setting].each { |kept| @record.keep kept }
       @record[0].load
 
       @new_row = b.var :_score_new_row, NOBODY
