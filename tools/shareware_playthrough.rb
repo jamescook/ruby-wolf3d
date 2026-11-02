@@ -9,7 +9,7 @@
 # game already loaded would not declare itself to it. So the Pilot is made at the first frame, when
 # the game is there.
 
-frames_for_a_floor = 30_000
+frames_for_a_floor = 120_000
 floors_before_the_last = 8
 stop_after = ENV.fetch("WOLF3D_PILOT_FLOORS", nil)&.to_i
 floors_played = (1..floors_before_the_last).select { |floor| stop_after.nil? || floor <= stop_after }

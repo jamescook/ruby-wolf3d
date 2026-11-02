@@ -47,10 +47,18 @@ module Wolf3D
 
     SIGHT_CELLS = 11.0
 
-    # Frames between two presses of a button read on its edge, and how many it stays down.
-    PRESS_EVERY = 16
+    # On the menus, frames between two presses of a button read on its edge, and how many it stays
+    # down. In play, passes between two presses.
     MENU_PRESS_EVERY = 24
     PRESS_FRAMES = 2
+    PRESS_EVERY_PASSES = 8
+
+    # IT DECIDES ONCE A PASS, because a pass is what the world moves by, and a pass takes two or three
+    # frames on a cartridge and one anywhere else. Counted in passes, what it does is the same on every
+    # way of running. A flag that flips every pass says when one has gone by. The world stands still
+    # for the lift, so this many frames with no flip counts as a pass as well.
+    PASS_FLAG = :_gturn
+    MOST_FRAMES_A_PASS = 8
 
     # The difficulty screen starts on its top row and the bottom one is the hardest, three presses
     # down. It fades in first, and it reads a press on a pass that can take a few frames, so each
@@ -62,10 +70,10 @@ module Wolf3D
 
     # A person's half a second, the place he has to be to shoot sooner, and how long a wound keeps him
     # awake.
-    REACTION_FRAMES = 30
+    REACTION_PASSES = 15
     POINT_BLANK_CELLS = 2.0
-    HURT_FRAMES = 60
-    HELD_UP_FRAMES = 15
+    HURT_PASSES = 30
+    HELD_UP_PASSES = 8
 
     # Below this, every fight is from behind something.
     COVER_BELOW_HEALTH = 70
@@ -78,12 +86,12 @@ module Wolf3D
     HURT_HEALTH = 50
 
     # Ten seconds of shooting that hurts nobody is a man behind something; walk on for five.
-    FUTILE_FIGHT_FRAMES = 600
-    WALK_ON_FRAMES = 300
+    FUTILE_FIGHT_PASSES = 300
+    WALK_ON_PASSES = 150
 
     # A detour costs this many steps at most.
     DETOUR_STEPS = 14
-    STUCK_FRAMES = 90
+    STUCK_PASSES = 45
     AMMO_FULL = 99
     HEALTH_FULL = 100
     HEALTH_WORTH_FETCHING = 85
@@ -95,10 +103,10 @@ module Wolf3D
     BOSS_SEEN_CELLS = 10.0
     BOSS_MOVED_CELLS = 0.3
 
-    # OUT FOR SEVENTY FRAMES IN EVERY HUNDRED AND TEN, once he has hurt it at all, and it looks this
+    # OUT FOR THIRTY-FIVE PASSES IN EVERY FIFTY-FIVE, once he has hurt it at all, and it looks this
     # far for a corner. It never picks a cell this close to him, for he stops you walking there.
-    PEEK_FRAMES = 110
-    PEEK_OUT_FRAMES = 70
+    PEEK_PASSES = 55
+    PEEK_OUT_PASSES = 35
     PEEK_FROM_HEALTH = 90
     PEEK_STEPS = 5
     PEEK_NEAREST_CELLS = 1.6
@@ -109,7 +117,7 @@ module Wolf3D
     Secret = Data.define(:wall, :from, :view, :opens, :wall_ends)
     VIEWS = Ractor.make_shareable({ [1, 0] => 0, [0, 1] => 256, [-1, 0] => 512, [0, -1] => 768 })
 
-    PUSH_FRAMES = 70
+    PUSH_PASSES = 35
 
     # +maps+ are the floors of the copy on the cartridge, in the order they are played.
     def initialize(maps, hardest: false)
@@ -118,6 +126,9 @@ module Wolf3D
       @reports = @levels.map { |level| FloorReport.new(level) }
       @scenery = @levels.map { |level| Scenery.new(level) }
       @frame = 0
+      @pass = 0
+      @frames_on_pass = 0
+      @buttons = []
       @difficulty_frames = 0
     end
 
@@ -139,13 +150,25 @@ module Wolf3D
         begin_floor(floor, lives)
       end
       return [] if game.var(:health) <= 0
+      return @buttons unless new_pass?(game)
 
       read_player(game)
-      read_people(game) if (@frame % 4).zero? || @people.empty?
-      choose_buttons
+      read_people(game) if (@pass % 2).zero? || @people.empty?
+      @buttons = choose_buttons
     end
 
     private
+
+    def new_pass?(game)
+      flag = game.var(PASS_FLAG)
+      @frames_on_pass += 1
+      return false if flag == @pass_flag && @frames_on_pass < MOST_FRAMES_A_PASS
+
+      @pass_flag = flag
+      @frames_on_pass = 0
+      @pass += 1
+      true
+    end
 
     # A won game ends through the same flag as a lost one.
     def lost?(game) = game.var(:game_over) != 0 && game.var(:episode_won).zero?
@@ -169,7 +192,7 @@ module Wolf3D
     end
 
     def press_now_and_then(button) = (@frame % MENU_PRESS_EVERY) < PRESS_FRAMES ? [button] : []
-    def press_at_intervals? = (@frame % PRESS_EVERY) < PRESS_FRAMES
+    def press_at_intervals? = (@pass % PRESS_EVERY_PASSES).zero?
 
     def begin_floor(floor, lives)
       @floor = floor
@@ -186,15 +209,15 @@ module Wolf3D
       @goal = nil
       @detour = nil
       @last_cell = nil
-      @stuck_frames = 0
-      @sight_frames = 0
-      @hurt_frames = 0
+      @stuck_passes = 0
+      @sight_passes = 0
+      @hurt_passes = 0
       @last_health = nil
-      @fight_frames = 0
-      @walk_on_frames = 0
+      @fight_passes = 0
+      @walk_on_passes = 0
       @hit_points_left = nil
       @opened = []
-      @pushing_frames = 0
+      @pushing_passes = 0
       @boss = nil
       @boss_at = nil
       @boss_cell = nil
@@ -218,11 +241,11 @@ module Wolf3D
       @weapon = game.var(:weapon)
       @best_weapon = game.var(:weapon_best)
       @attack_stage = game.var(:weapon_stage)
-      @hurt_frames = @last_health && @health < @last_health ? HURT_FRAMES : [@hurt_frames - 1, 0].max
+      @hurt_passes = @last_health && @health < @last_health ? HURT_PASSES : [@hurt_passes - 1, 0].max
       @last_health = @health
       @cell = [@x.floor, @y.floor]
       @taken[@cell] = true
-      @stuck_frames = @cell == @last_cell ? @stuck_frames + 1 : 0
+      @stuck_passes = @cell == @last_cell ? @stuck_passes + 1 : 0
       @last_cell = @cell
     end
 
@@ -254,7 +277,7 @@ module Wolf3D
 
     def choose_buttons
       target = pick_target
-      @sight_frames = target ? @sight_frames + 1 : 0
+      @sight_passes = target ? @sight_passes + 1 : 0
       return fight_from_corner(*@boss_at) if boss_awake?
       return fight(target) if target && running_past? && in_the_way?(target)
       return travel if running_past? || !(target && reacted_to?(target))
@@ -267,10 +290,10 @@ module Wolf3D
     # way it stops to shoot only at whoever blocks the way. A moving player is also harder to hit.
     def running_past? = @hardest && @best_weapon >= Weapons::MACHINE_GUN
 
-    def in_the_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_frames > HELD_UP_FRAMES
+    def in_the_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_passes > HELD_UP_PASSES
 
     def reacted_to?((x, y, _hit_points))
-      @sight_frames >= REACTION_FRAMES || @hurt_frames.positive? || distance_to(x, y) < POINT_BLANK_CELLS
+      @sight_passes >= REACTION_PASSES || @hurt_passes.positive? || distance_to(x, y) < POINT_BLANK_CELLS
     end
 
     # --- seeing and aiming --------------------------------------------------------------------
@@ -278,14 +301,14 @@ module Wolf3D
     # The nearest man with a clear line, unless shooting has stopped doing any good.
     def pick_target
       total = @people.sum { |_, _, hit_points| hit_points }
-      @fight_frames = 0 if total != @hit_points_left
+      @fight_passes = 0 if total != @hit_points_left
       @hit_points_left = total
-      if @fight_frames > FUTILE_FIGHT_FRAMES
-        @walk_on_frames = WALK_ON_FRAMES
-        @fight_frames = 0
+      if @fight_passes > FUTILE_FIGHT_PASSES
+        @walk_on_passes = WALK_ON_PASSES
+        @fight_passes = 0
       end
-      if @walk_on_frames.positive?
-        @walk_on_frames -= 1
+      if @walk_on_passes.positive?
+        @walk_on_passes -= 1
         @men_in_sight = 0
         return nil
       end
@@ -326,7 +349,7 @@ module Wolf3D
 
     def turn_buttons(error, tolerance)
       return [] if error.abs <= tolerance
-      return [] if error.abs < GENTLE_TURN && (@frame % 3) != 0
+      return [] if error.abs < GENTLE_TURN && (@pass % 2) != 0
 
       [error.positive? ? :right : :left]
     end
@@ -340,13 +363,13 @@ module Wolf3D
     def trigger_down?
       return @weapon >= Weapons::MACHINE_GUN if @attack_stage >= 0
 
-      @frame.even?
+      @pass.even?
     end
 
     # --- an ordinary man ----------------------------------------------------------------------
 
     def fight((x, y, _hit_points))
-      @fight_frames += 1
+      @fight_passes += 1
       distance = distance_to(x, y)
       error = view_error_to(x, y)
       tolerance = aim_tolerance(distance)
@@ -390,7 +413,7 @@ module Wolf3D
     # A DOES BOTH JOBS: held it runs, and pressed it opens a door. A door reads the press on its edge,
     # so it is let go on the way to one, and when walking has stopped getting anywhere.
     def run_or_open(ahead)
-      blocked = @level.door?(*ahead) || @stuck_frames > STUCK_FRAMES
+      blocked = @level.door?(*ahead) || @stuck_passes > STUCK_PASSES
       return [:a] unless blocked
 
       press_at_intervals? ? [:a] : []
@@ -525,7 +548,7 @@ module Wolf3D
     def stock_goal
       plan_secret_trip if @stage == :planning
       case @stage
-      when :to_secret then @cell == @secret.from || @pushing_frames.positive? ? :push_wall : @secret.from
+      when :to_secret then @cell == @secret.from || @pushing_passes.positive? ? :push_wall : @secret.from
       when :stocking then next_stock_piece
       end
     end
@@ -574,8 +597,8 @@ module Wolf3D
 
     def push_secret_wall
       lean_on_and_press(@secret.view) do
-        @pushing_frames += 1
-        next unless @pushing_frames > PUSH_FRAMES
+        @pushing_passes += 1
+        next unless @pushing_passes > PUSH_PASSES
 
         @opened = @secret.opens
         @stage = stocks_up_here? ? :stocking : :on_foot
@@ -619,7 +642,7 @@ module Wolf3D
       error = view_error_to(x, y)
       tolerance = aim_tolerance(distance_to(x, y))
       in_his_sight = clear_line?(@x, @y, x, y)
-      hiding = @health < PEEK_FROM_HEALTH && (@frame % PEEK_FRAMES) >= PEEK_OUT_FRAMES
+      hiding = @health < PEEK_FROM_HEALTH && (@pass % PEEK_PASSES) >= PEEK_OUT_PASSES
       buttons = turn_buttons(error, tolerance)
       buttons << :b if in_his_sight && error.abs <= tolerance && trigger_down?
       return buttons if in_his_sight != hiding
