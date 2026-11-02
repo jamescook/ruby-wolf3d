@@ -18,11 +18,10 @@ module Wolf3D
   # open, it walks on for a moment after a man comes into sight, and it fires at once only when he is
   # on top of it or has just hurt it.
   #
-  # A BOSS IS BEATEN THE OLD WAY. His shots are dice with no bullet to dodge, and going from side to
-  # side in a fight costs more in missed shots than it saves (T_Shoot). What stops a shot is a wall. So
-  # stock up first, in the secret room his floor keeps for it, then fight from beside a corner: out to
-  # shoot, back in when hurt. He also carries the key to the way out, so the floor cannot be finished
-  # round him.
+  # A BOSS IS BEATEN FROM A STOCK. He carries the key to the way out, so the floor cannot be finished
+  # round him, and his floor keeps a secret room for the fight. On the easiest setting it fights him
+  # from beside a corner: out to shoot, back in when hurt. On the hardest he outlasts that, so it holds
+  # him at range and keeps moving, and runs back to the room when short (#kite_boss).
   class Pilot
     # The game is over and there is nothing left to steer.
     class Lost < StandardError; end
@@ -172,7 +171,7 @@ module Wolf3D
       if floor != @floor || lives < @lives
         warn format("frame %d: floor %d, %d lives, health %d, ammo %d, gun %d, score %d, last at %s with %d near, gun %d ammo %d",
                     @frame, floor + 1, lives, game.var(:health), game.var(:ammo), game.var(:weapon_best),
-                    game.var(:score), @cell.inspect, men_near, @best_weapon.to_i, @ammo.to_i)
+                    game.var(:score), @cell.inspect, count_men_near, @best_weapon.to_i, @ammo.to_i)
         begin_floor(floor)
       end
       @lives = lives
@@ -221,7 +220,7 @@ module Wolf3D
     def press_now_and_then(button) = (@frame % MENU_PRESS_EVERY) < PRESS_FRAMES ? [button] : []
     def press_at_intervals? = (@pass % PRESS_EVERY_PASSES).zero?
 
-    def men_near
+    def count_men_near
       return 0 unless @cell
 
       @people.count { |x, y, _| distance_to(x, y) < NEAR_CELLS }
