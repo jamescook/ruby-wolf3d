@@ -94,8 +94,6 @@ module Wolf3D
     # A detour costs this many steps at most.
     DETOUR_STEPS = 14
     STUCK_PASSES = 45
-    AMMO_FULL = 99
-    HEALTH_FULL = 100
     HEALTH_WORTH_FETCHING = 85
     SCAVENGE_AMMO_BELOW = 60
     LOW_AMMO = 40
@@ -110,8 +108,11 @@ module Wolf3D
     AMBUSH_QUIET_PASSES = 120
     AMBUSH_MOST_PASSES = 900
 
-    # Hit points no ordinary man has.
-    BOSS_HIT_POINTS = 200
+    # THE FEWEST HIT POINTS A BOSS STARTS WITH, on any setting. The pool of guards does not say what
+    # kind a man is, but no ordinary man has this many. Pac-Man's ghosts are bosses by the table
+    # and have none, for they cannot be shot.
+    BOSS_LEAST_HIT_POINTS = Enemy::ALL.select(&:boss?).flat_map(&:hit_points).select(&:positive?).min
+
     # How long a person stays on each screen after the win. It is long enough to read a page.
     ENDING_SCREEN_FRAMES = 600
     BOSS_SEEN_CELLS = 10.0
@@ -322,7 +323,7 @@ module Wolf3D
     end
 
     def note_boss(number, x, y, hit_points)
-      @boss = number if @boss.nil? && hit_points >= BOSS_HIT_POINTS
+      @boss = number if @boss.nil? && hit_points >= BOSS_LEAST_HIT_POINTS
       return unless number == @boss
 
       @boss_at = [x, y]
@@ -483,7 +484,7 @@ module Wolf3D
 
     def open_ambush_door
       x, y = @ambush[:door]
-      if @doors_open[@report.doors.index(@ambush[:door])].to_i.positive?
+      if @doors_open[@door_numbers.fetch(@ambush[:door])].to_i.positive?
         @ambush[:stage] = :backing
         return []
       end
@@ -564,7 +565,7 @@ module Wolf3D
       @way_points.shift while @way_points.length > 1 && (@taken[@way_points.first] || key_held?(@way_points.first))
       goal = @way_points.first
       return :lever if goal == @route.cells.last && @route.ends_at == :lever && @cell == goal
-      return goal if @boss_cell.nil? || (@keys & KEY_BITS.fetch(:gold)).nonzero?
+      return goal if @boss_cell.nil? || (@keys & KEY_BITS.fetch(FloorReport::BOSS_KEY)).nonzero?
 
       @boss_cell
     end
@@ -604,7 +605,7 @@ module Wolf3D
       kind, = piece.bonus
       case kind
       when :health then @health < HEALTH_WORTH_FETCHING
-      when :ammunition then @ammo < AMMO_FULL
+      when :ammunition then @ammo < Pickups::MOST_AMMO
       when :weapon then better_gun?(piece)
       when :extra_life then true
       else false
@@ -812,8 +813,8 @@ module Wolf3D
       kind, = piece.bonus
       case kind
       when :weapon then @weapon < Weapons::CHAIN_GUN
-      when :ammunition then @ammo < AMMO_FULL
-      when :health then @health < HEALTH_FULL
+      when :ammunition then @ammo < Pickups::MOST_AMMO
+      when :health then @health < Pickups::FULL_HEALTH
       when :extra_life then true
       else false
       end
