@@ -17,12 +17,13 @@ module Wolf3D
   #   kills, secrets,      how much of this floor has been found
   #   treasures
   #   noise                how long a noise they made stands for
+  #   running              1 while they move fast enough to be harder to hit
   #
   # +sin+ IS A NUMBER, THE SINE OF THIS ONE ANGLE, and never the table of sines. The table belongs
   # to the view rather than to the player, and anything that needs it to look up another angle is
   # handed it separately: see Dying.
   Player = Data.define(:x, :y, :angle, :cos, :sin, :health, :ammo, :score, :keys, :kills, :secrets,
-                       :treasures, :noise) do
+                       :treasures, :noise, :running) do
     # A PLAYER AT +x+, +y+ LOOKING ALONG +angle+, with +ammo+ rounds. +lasting+ is what a saved game
     # holds (see LastingState), and every field but the noise and the two worked out from the angle
     # is in it.
@@ -67,7 +68,8 @@ module Wolf3D
         # stood for one pass would be heard by half the room and missed by the other half, chosen
         # by nothing anyone could see. It stands for FirstPerson::HEARD_FOR passes instead, which is
         # how long it takes every guard to have thought once.
-        noise: build.var(:noise, 0)
+        noise: build.var(:noise, 0),
+        running: build.var(:_running, 0)
       )
     end
   end

@@ -86,7 +86,7 @@ title screen and says so instead of a floor.
 |---|---|
 | Up / Down | walk forward and back |
 | Left / Right | turn |
-| A | open a door, shove a secret wall, pull the lift's lever |
+| A | open a door, shove a secret wall, pull the lift's lever; hold to run |
 | B | fire what is in your hands |
 | L / R | step sideways, and you can turn at the same time |
 | SELECT | change weapon, through the ones you are carrying |

@@ -1192,8 +1192,12 @@ module Wolf3D
       @stepx.flip! if b.held(:down)
       @stepy.flip! if b.held(:down)
 
-      take_the_step if b.held(:up) || b.held(:down)
+      if b.held(:up) || b.held(:down)
+        take_the_step
+        take_the_step if b.held(:a)
+      end
       step_sideways
+      note_running
 
       @pickups.update
       reached_the_way_out
@@ -1263,7 +1267,23 @@ module Wolf3D
         @stepy.flip! if b.held(:l)
         @stepx.flip! if b.held(:r)
         take_the_step
+        take_the_step if b.held(:a)
       end
+    end
+
+    # RUNNING IS HOLDING A, which is twice the walk (RUNMOVE against BASEMOVE) as two steps, so each
+    # has its own collision test and a run cannot jump a wall. The pad has no button to spare, and A
+    # is read on its edge to use a door, so the same thumb presses a door and runs at it.
+    #
+    # WHAT A GUARD'S AIM ASKS is whether the thrust of this move reached RUNSPEED (T_Shoot). A run
+    # does. A walk alone does not, and Thrust adds up, so a walk with a sidestep does as well.
+    def note_running
+      b = @b
+      forward = b.held(:up) || b.held(:down)
+      sideways = b.held(:l) || b.held(:r)
+      @player.running = 0
+      @player.running = 1 if forward && sideways
+      @player.running = 1 if b.held(:a) && (forward || sideways)
     end
 
     # HAVE YOU WALKED OUT OF THE EPISODE? See Level::EXIT for why this and not the boss's death

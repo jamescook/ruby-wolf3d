@@ -65,6 +65,9 @@ module Wolf3D
     # the original's time.
     TOUCHING = 1.0
 
+    # A RUNNING PLAYER IS HARDER TO HIT, and this is how much: T_Shoot starts from 160 and not 256.
+    RUNNING_DODGE = 96
+
     # How near a man counts as near enough to look closer, and how many passes that answer lasts.
     NEARBY_CELLS = 3.0
     NEARBY_PASSES = 4
@@ -542,6 +545,7 @@ module Wolf3D
         how_far_away(guard)
         @odds = CHANCES - (@away * 8)
         @odds = CHANCES - (@away * 16) if guard.shown == 1
+        @odds -= RUNNING_DODGE if @player.running == 1
         wound_the_player(guard) if @b.rand(0..CHANCES - 1) < @odds
       end
     end
