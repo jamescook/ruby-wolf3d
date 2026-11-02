@@ -1183,6 +1183,7 @@ module Wolf3D
 
     def walk
       b = @b
+      @mind&.update_men_nearby
       @player.angle -= TURN_SPEED if b.held(:left)
       @player.angle += TURN_SPEED if b.held(:right)
 

@@ -30,20 +30,26 @@ class TestSounds < Minitest::Test
   Clip = Struct.new(:pcm, :rate, :length)
 
   class Chunks
-    def initialize(count, missing: [])
+    def initialize(count, missing: [], scraps: [])
       @count = count
       @missing = missing
+      @scraps = scraps
     end
 
     def sound_count = @count
 
     def sound(index)
       return Clip.new([], RATE, 0) if @missing.include?(index)
+      return Clip.new([-128] * SCRAP_BYTES, RATE, SCRAP_BYTES) if @scraps.include?(index)
 
       pcm = Array.new(HALF_A_SECOND) { |i| (Math.sin(i * (index + 1) * 0.01) * 100).round }
       Clip.new(pcm, RATE, pcm.length)
     end
   end
+
+  # What the shareware's VSWAP holds in the slots of the sounds it left out: the same few bytes in
+  # each, and heard as a click.
+  SCRAP_BYTES = 184
 
   # Every chunk the game knows how to want.
   ALL = Sounds::DEATH_SCREAMS.max + 1
@@ -106,6 +112,16 @@ class TestSounds < Minitest::Test
   def test_a_copy_holding_two_screams_plays_one_of_the_two
     two, others = Sounds::DEATH_SCREAMS.partition { |n| n < 20 }
     heard = screams_heard(chunks: Chunks.new(ALL, missing: others))
+
+    refute_empty heard, "he still cries out"
+    assert_empty heard - two.map { |n| name_of(n) }
+  end
+
+  # THE SHAREWARE'S EMPTY SLOTS ARE NOT EMPTY. They hold a scrap of noise, which played as a scream
+  # is a pop every time a guard falls.
+  def test_a_slot_holding_only_a_scrap_is_a_sound_this_copy_does_not_have
+    two, others = Sounds::DEATH_SCREAMS.partition { |n| n < 20 }
+    heard = screams_heard(chunks: Chunks.new(ALL, scraps: others))
 
     refute_empty heard, "he still cries out"
     assert_empty heard - two.map { |n| name_of(n) }

@@ -69,6 +69,11 @@ module Wolf3D
                                     gretel: 44, schabbs: 24, fake: 26, mecha: 33, hitler: 19, gift: 36,
                                     fat: 45 })
 
+    # THE SHAREWARE KEEPS THE SLOTS OF THE SOUNDS IT LEFT OUT, each holding the same scrap of a few
+    # bytes. Played, that is a click, so anything this short is a sound this copy does not have. The
+    # shortest real one runs to about a third of a second.
+    SHORTEST_RECORDING = 256
+
     # THE ADLIB EFFECTS THIS GAME PLAYS, by the numbers of audiowl6.h and where wl_agent.cpp,
     # wl_act1.cpp, wl_game.cpp and wl_inter.cpp play them.
     ADLIB_EFFECT_NUMBERS = Ractor.make_shareable({ hit_wall: 0, no_way: 6, player_death: 9, key: 12, knife: 23, machine_gun: 30,
@@ -153,13 +158,18 @@ module Wolf3D
       end
     end
 
-    def bites = say(voice(DOG_BITES))
-    def tread = say(voice(MACHINE_TREAD))
-    def slurp
-      say(voice(SLURP)) if @held_voices.include?(SLURP)
+    def bites = say_chunk(DOG_BITES)
+    def tread = say_chunk(MACHINE_TREAD)
+    def slurp = say_chunk(SLURP)
+    def rare_scream = say_chunk(RARE_SCREAM)
+    def yeah = say_chunk(YEAH)
+
+    # A number written into the game has to name a sound the list holds, so one this copy lacks is
+    # not asked for at all.
+    def say_chunk(chunk)
+      say(voice(chunk)) if @held_voices.include?(chunk)
     end
-    def rare_scream = say(voice(RARE_SCREAM))
-    def yeah = say(voice(YEAH))
+
     def door_opens = retrigger(DOOR_OPENS)
     def door_shuts = retrigger(DOOR_SHUTS)
     def secret_wall = retrigger(SECRET_WALL)
@@ -306,7 +316,7 @@ module Wolf3D
       return unless chunk < @vswap.sound_count
 
       sound = @vswap.sound(chunk)
-      sound unless sound.length.zero?
+      sound if sound.length >= SHORTEST_RECORDING
     end
 
     # THE ORIGINAL GIVES THE PLAYER'S WEAPONS ONE MIXER CHANNEL. Its map of digitised sounds

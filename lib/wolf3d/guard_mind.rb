@@ -64,6 +64,10 @@ module Wolf3D
     # A GHOST'S TOUCH. Within a whole cell on each axis (MINACTORDIST) it takes two for every unit of
     # the original's time.
     TOUCHING = 1.0
+
+    # How near a man counts as near enough to look closer, and how many passes that answer lasts.
+    NEARBY_CELLS = 3.0
+    NEARBY_PASSES = 4
     TOUCH_WOUND = 2 * Enemy::TICKS_PER_THINK / Enemy::SCALE
 
     # WHETHER HE FIRES is a chance against distance, taken every frame he has a clear line —
@@ -273,6 +277,8 @@ module Wolf3D
       @dx, @dy, @absx, @absy, @far, @pace, @fwd, @sideways =
         %i[gdx gdy gabsx gabsy gfar gpace gfwd gsideways].map { |name| b.var(:"_#{name}", 0.0) }
       @man_in_step = b.var :_gman_in_step, 0
+      @man_nearby = b.var :_gman_nearby, 0
+      @nearby_wait = b.var :_gnearby_wait, 0
       @step_to_x = b.var :_gstep_to_x, 0.0
       @step_to_y = b.var :_gstep_to_y, 0.0
 
@@ -1160,19 +1166,45 @@ module Wolf3D
         @man_in_step = 0
         @pool.each { |man| refuse_step_at(man) }
       end
+      @b.func(:look_for_men_nearby) do
+        @man_nearby = 0
+        @pool.each { |man| note_man_nearby(man) }
+      end
     end
 
     public
 
+    # A WALK OVER EVERY MAN FOR EVERY STEP IS DEAR, and on most steps nobody is near. So this looks
+    # for anybody within NEARBY_CELLS every few passes, and steps look closer only when somebody is.
+    # Nobody crosses the gap between that and a cell away in the passes between two looks.
+    def update_men_nearby
+      @nearby_wait -= 1
+      if @nearby_wait <= 0
+        @nearby_wait = NEARBY_PASSES
+        @b.call :look_for_men_nearby
+      end
+    end
+
     # IS A MAN IN THE WAY OF A STEP THE PLAYER WANTS TO TAKE TO (x, y)?
     def man_in_step?(x, y)
-      @step_to_x = x
-      @step_to_y = y
-      @b.call :check_man_in_step
+      @man_in_step = 0
+      if @man_nearby == 1
+        @step_to_x = x
+        @step_to_y = y
+        @b.call :check_man_in_step
+      end
       @man_in_step == 1
     end
 
     private
+
+    def note_man_nearby(man)
+      if man.hp > 0
+        @dx = @player.x - man.x
+        @dy = @player.y - man.y
+        @man_nearby = 1 if @dx.abs < NEARBY_CELLS && @dy.abs < NEARBY_CELLS
+      end
+    end
 
     # TRYMOVE REFUSES A STEP THAT ENDS WITHIN A CELL OF A MAN ON BOTH AXES (MINACTORDIST). A body has
     # no hit points and the man inside the machine is not on the floor, so neither is in the way.
