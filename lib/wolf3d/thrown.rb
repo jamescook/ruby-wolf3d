@@ -68,8 +68,8 @@ module Wolf3D
     # its speeds are 0x2000 and 0x1200 of 0x10000. In the order Enemy::THROWN numbers them.
     STARTS = Ractor.make_shareable([[:needle1, 0x2000], [:rocket, 0x2000], [:fire1, 0x1200]])
 
-    # A pass of this game is worth seven sixths of the original's units, which is the same bargain
-    # every enemy is on. So everything here counts sixths and comes down by seven.
+    # A pass of this game is one of the original's units, as it is for every enemy. Everything here
+    # counts sixths of one and comes down by Enemy::SIXTHS_A_PASS.
     SIXTHS = Enemy::SIXTHS
     PER_PASS = Enemy::SIXTHS_A_PASS
     def self.speed_of(raw) = raw * PER_PASS / SIXTHS / Enemy::CELL.to_f

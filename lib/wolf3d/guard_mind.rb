@@ -408,7 +408,7 @@ module Wolf3D
 
     # A state with no length never runs down — that is how standing goes on forever. One step a
     # think is enough for every other: the shortest state in the table is nine of these units
-    # long and a think is worth seven, so a think can never step clean over one.
+    # long and a think is worth six, so a think can never step clean over one.
     def step_the_state(guard)
       if @ticks_of[@state] > 0
         guard.ticks -= Enemy::TICKS_PER_THINK
@@ -546,7 +546,7 @@ module Wolf3D
       @dy = @player.y - guard.y
       line_of_sight(guard)
       if @clear == 1
-        how_far_away(guard)
+        measure_distance(guard)
         @away = @away * 2 / 3 if @better_shot[@state] == 1
         @odds = CHANCES - (@away * 8)
         @odds = CHANCES - (@away * 16) if guard.shown == 1
@@ -934,7 +934,7 @@ module Wolf3D
 
     # Too close, and it goes the other way. Otherwise it comes on as a guard does.
     def select_chase_or_run_dir(guard)
-      how_far_away(guard)
+      measure_distance(guard)
       if @away < TOO_CLOSE
         select_run_dir(guard)
       else
@@ -977,18 +977,16 @@ module Wolf3D
       @dy = @player.y - guard.y
       line_of_sight(guard)
       if @clear == 1
-        how_far_away(guard)
-        if @away == 1 && @dx.abs < BESIDE_CELLS && @dy.abs < BESIDE_CELLS
-          start_attacking(guard)
-        elsif @b.rand(0..CHANCES - 1) < @shot[@away]
-          start_attacking(guard)
-        end
+        measure_distance(guard)
+        start_attacking(guard) if beside_player? || @b.rand(0..CHANCES - 1) < @shot[@away]
       end
     end
 
+    def beside_player? = @away == 1 && @dx.abs < BESIDE_CELLS && @dy.abs < BESIDE_CELLS
+
     # How far away in whole cells, taken on whichever of the two axes is the bigger — which is
     # the distance the original's guards judge a shot by.
-    def how_far_away(guard)
+    def measure_distance(guard)
       @cellx = @player.x.to_i - guard.x.to_i
       @cellx = 0 - @cellx if @cellx < 0
       @celly = @player.y.to_i - guard.y.to_i

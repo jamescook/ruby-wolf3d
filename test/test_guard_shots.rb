@@ -10,7 +10,7 @@ class TestGuardShots < Minitest::Test
   BARREL = Wolf3D::Scenery::FIRST_CODE + 2
   WEST = Wolf3D::Guards::FACINGS.index(:west)
   HEALTH = Wolf3D::FirstPerson::START_HEALTH
-  SPRITES = 300
+  SPRITES = Enemy::ALL.flat_map(&:pictures).max + 1 + Wolf3D::WeaponAtlas::COUNT
 
   def fixture = @fixture ||= Wolf3D::Fixture::Release.new(sprites: SPRITES)
 
@@ -25,7 +25,9 @@ class TestGuardShots < Minitest::Test
   def hemmed_in(x, y) = [-1, 0, 1].product([-1, 0, 1]).reject { |pair| pair == [0, 0] }.to_h { |dx, dy| [[x + dx, y + dy], BARREL] }
 
   def worst_wound(kind)
-    level = arena(player: [9, 8], things: hemmed_in(11, 8).merge([11, 8] => Enemy[kind].standing + WEST))
+    # A boss has one code. A man has one for each way he can face.
+    code = Enemy[kind].standing + (kind == :hans ? 0 : WEST)
+    level = arena(player: [9, 8], things: hemmed_in(11, 8).merge([11, 8] => code))
     healths = [HEALTH]
     run = Reference.new
     run.input_each_frame do
@@ -40,6 +42,10 @@ class TestGuardShots < Minitest::Test
   # calls them better shots.
   def test_an_ss_man_two_cells_away_hits_as_one_beside_you
     assert_operator worst_wound(:ss), :>, MOST_AT_TWO_CELLS
+  end
+
+  def test_hans_two_cells_away_hits_as_one_beside_you
+    assert_operator worst_wound(:hans), :>, MOST_AT_TWO_CELLS
   end
 
   def test_a_guard_two_cells_away_does_not

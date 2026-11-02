@@ -360,6 +360,14 @@ class TestGuards < Minitest::Test
     assert_operator guard, :<=, turning * 1.1, "nor faster than it"
   end
 
+  # THE WALK AND THE GUN SETTLE IT EXACTLY: each does one of the original's units in one pass, so a
+  # guard's clock does too, or he gets more done against you than the original lets him.
+  def test_a_pass_is_one_of_the_originals_units_on_the_walk_the_gun_and_a_guards_clock
+    assert_in_delta 1.0, FP::WALK / ORIGINAL_WALK, 0.001
+    assert_equal 6, Wolf3D::Weapons::STAGE_PASSES, "attackinfo gives each stage of the gun six units"
+    assert_in_delta 1.0, Enemy::TICKS_PER_THINK / Enemy::SCALE.to_f / 2, 0.001
+  end
+
   # WHAT THE PLAYER SEES IT AS, which is the reading that made this worth chasing down: how far
   # he can walk while a guard he shot is falling over. The original gives him three and a half
   # cells of it, and this is the number a wrong clock moves.

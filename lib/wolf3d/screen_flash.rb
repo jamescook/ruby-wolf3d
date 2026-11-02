@@ -25,8 +25,8 @@ module Wolf3D
     # The original's colour for each is out of 64 a channel: (64, 0, 0) and (64, 62, 0).
     GOLD = [31, 30, 0].freeze
 
-    # EVERYTHING COUNTS IN SIXTHS OF THE ORIGINAL'S UNIT and comes down by seven a pass, which is the
-    # bargain every enemy is on too.
+    # EVERYTHING COUNTS IN SIXTHS OF THE ORIGINAL'S UNIT and comes down by Enemy::SIXTHS_A_PASS, the
+    # clock every enemy is on too.
     SIXTHS = Enemy::SIXTHS
     PER_PASS = Enemy::SIXTHS_A_PASS
 
