@@ -18,10 +18,11 @@ module Wolf3D
   # open, it walks on for a moment after a man comes into sight, and it fires at once only when he is
   # on top of it or has just hurt it.
   #
-  # A BOSS IS BEATEN THE OLD WAY. His shots are dice with no bullet to dodge, so sidestepping does
-  # nothing (T_Shoot). What stops a shot is a wall. So stock up first, in the secret room his floor
-  # keeps for it, then fight from beside a corner: out to shoot, back in when hurt. He also carries
-  # the key to the way out, so the floor cannot be finished round him.
+  # A BOSS IS BEATEN THE OLD WAY. His shots are dice with no bullet to dodge, and going from side to
+  # side in a fight costs more in missed shots than it saves (T_Shoot). What stops a shot is a wall. So
+  # stock up first, in the secret room his floor keeps for it, then fight from beside a corner: out to
+  # shoot, back in when hurt. He also carries the key to the way out, so the floor cannot be finished
+  # round him.
   class Pilot
     # The game is over and there is nothing left to steer.
     class Lost < StandardError; end
@@ -64,6 +65,7 @@ module Wolf3D
     REACTION_FRAMES = 30
     POINT_BLANK_CELLS = 2.0
     HURT_FRAMES = 60
+    HELD_UP_FRAMES = 15
 
     # Below this, every fight is from behind something.
     COVER_BELOW_HEALTH = 70
@@ -254,11 +256,18 @@ module Wolf3D
       target = pick_target
       @sight_frames = target ? @sight_frames + 1 : 0
       return fight_from_corner(*@boss_at) if boss_awake?
-      return travel unless target && reacted_to?(target)
+      return fight(target) if target && running_past? && in_the_way?(target)
+      return travel if running_past? || !(target && reacted_to?(target))
 
       needs_cover = @health < COVER_BELOW_HEALTH || @men_in_sight > 1
       needs_cover ? fight_from_corner(target[0], target[1]) : fight(target)
     end
+
+    # ON THE HARDEST SETTING THERE ARE MORE MEN THAN BULLETS, so once it has a gun that can clear a
+    # way it stops to shoot only at whoever blocks the way. A moving player is also harder to hit.
+    def running_past? = @hardest && @best_weapon >= Weapons::MACHINE_GUN
+
+    def in_the_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_frames > HELD_UP_FRAMES
 
     def reacted_to?((x, y, _hit_points))
       @sight_frames >= REACTION_FRAMES || @hurt_frames.positive? || distance_to(x, y) < POINT_BLANK_CELLS
@@ -370,9 +379,18 @@ module Wolf3D
     def walk_towards(ahead)
       error = view_error_to(ahead[0] + 0.5, ahead[1] + 0.5)
       buttons = turn_buttons(error, WALK_AIM)
-      buttons << :up if error.abs <= WALK_ON_TURNING
-      buttons << :a if (@level.door?(*ahead) || @stuck_frames > STUCK_FRAMES) && press_at_intervals?
-      buttons
+      return buttons unless error.abs <= WALK_ON_TURNING
+
+      buttons + [:up] + run_or_open(ahead)
+    end
+
+    # A DOES BOTH JOBS: held it runs, and pressed it opens a door. A door reads the press on its edge,
+    # so it is let go on the way to one, and when walking has stopped getting anywhere.
+    def run_or_open(ahead)
+      blocked = @level.door?(*ahead) || @stuck_frames > STUCK_FRAMES
+      return [:a] unless blocked
+
+      press_at_intervals? ? [:a] : []
     end
 
     def next_way_point
@@ -606,12 +624,12 @@ module Wolf3D
 
     def step_to_cover_or_sight(x, y, wants_sight)
       first_step = nearest_cell_where { |cell| clear_line?(cell[0] + 0.5, cell[1] + 0.5, x, y) == wants_sight }
-      return step_buttons(first_step) if first_step
+      return step_buttons(first_step) + run_or_open(first_step) if first_step
 
       @path = path_to([x.floor, y.floor])
       return [] unless @path && @path[1]
 
-      step_buttons(@path[1]) + (press_at_intervals? ? [:a] : [])
+      step_buttons(@path[1]) + run_or_open(@path[1])
     end
 
     # A step in any direction without turning, so the gun stays on him.
