@@ -87,7 +87,7 @@ module Wolf3D
     AMMO_FULL = 99
     HEALTH_FULL = 100
     HEALTH_WORTH_FETCHING = 85
-    SCAVENGE_AMMO_BELOW = 30
+    SCAVENGE_AMMO_BELOW = 60
     LOW_AMMO = 40
 
     # Hit points no ordinary man has.
@@ -237,7 +237,7 @@ module Wolf3D
         y = ys[n] / FRACTION.to_f
         @drops << [x.floor, y.floor] if dropped[n].to_i.nonzero?
         note_boss(n, x, y, hit_points[n].to_i)
-        [x, y, hit_points[n]] if hit_points[n].to_i.positive?
+        [x, y, hit_points[n], n] if hit_points[n].to_i.positive?
       end
     end
 
@@ -291,7 +291,10 @@ module Wolf3D
       end
       seen = @people.select { |x, y, _| distance_to(x, y) < SIGHT_CELLS && clear_line?(@x, @y, x, y) }
       @men_in_sight = seen.length
-      seen.min_by { |x, y, _| distance_to(x, y) }
+      # It finishes the man it is shooting: turning to whoever is nearest this moment wastes the gun.
+      target = seen.find { |man| man[3] == @target_number } || seen.min_by { |x, y, _| distance_to(x, y) }
+      @target_number = target&.last
+      target
     end
 
     def distance_to(x, y) = Math.hypot(x - @x, y - @y)
@@ -408,14 +411,16 @@ module Wolf3D
     end
 
     def detour_goal
-      @detour = nil if @detour && @taken[@detour]
+      @detour = nil if @detour == @cell || (@detour && @taken[@detour] && !@drops.include?(@detour))
       return @detour if @detour
 
       steps = steps_from_here
       wanted = @report.pickups.select { |piece| fetch_on_the_way?(piece) }
                       .to_h { |piece| [[piece.x, piece.y], furthest_for(piece)] }
+      wanted = wanted.reject { |cell, _| @taken[cell] }
+      # Something a man dropped is on the floor however often this cell has been walked.
       wanted.merge!(@drops.to_h { |cell| [cell, DETOUR_STEPS] }) if @ammo < SCAVENGE_AMMO_BELOW
-      @detour = wanted.keys.select { |cell| !@taken[cell] && steps[cell].to_i.between?(1, wanted[cell] - 1) }
+      @detour = wanted.keys.select { |cell| steps[cell].to_i.between?(1, wanted[cell] - 1) }
                       .min_by { |cell| steps[cell] }
     end
 
