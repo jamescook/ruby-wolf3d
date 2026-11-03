@@ -14,6 +14,8 @@
 #                                                    it came out the same
 #   ruby tools/play_shareware.rb --tape run.tape     writes the tape there
 #   ruby tools/play_shareware.rb --verbose           if BJ loses his last life, shows all the output
+#   ruby tools/play_shareware.rb --run-log run.jsonl writes what happened in play there, one JSON
+#                                                    line an event. tools/pilot_hot_spots.rb sums them
 #
 # --on logic is the rules alone, with no picture, no sound and no tape, so it takes neither --window
 # nor --repeat.
@@ -44,6 +46,7 @@ OptionParser.new do |parser|
   parser.on("--difficulty SETTING") { |setting| options[:difficulty] = setting }
   parser.on("--music") { options[:music] = true }
   parser.on("--verbose") { options[:verbose] = true }
+  parser.on("--run-log PATH") { |path| options[:run_log] = File.expand_path(path) }
 end.parse!
 
 # What cannot go together is refused here, before a minute goes on the build.
@@ -63,6 +66,8 @@ asked = options.fetch(:difficulty, names.first)
 difficulty = names.index(asked) || (asked.match?(/\A[1-#{names.length}]\z/) ? asked.to_i - 1 : nil)
 abort "--difficulty cannot read #{asked.inspect}. The game has #{names.length} settings. Give #{names.join(', ')}, or 1 to #{names.length}." unless difficulty
 ENV["WOLF3D_PILOT_DIFFICULTY"] = difficulty.to_s
+ENV["WOLF3D_PILOT_SEED"] = options[:seed].to_s
+ENV["WOLF3D_PILOT_RUN_LOG"] = options[:run_log] if options[:run_log]
 
 unless Wolf3D::GameData.config_value(Wolf3D.home, "shareware")
   puts "Skipped: there is no copy of the shareware. Set shareware in #{Wolf3D::GameData::CONFIG_FILE}."

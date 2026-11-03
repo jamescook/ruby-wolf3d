@@ -8,6 +8,7 @@ require_relative "pilot/ambush"
 require_relative "pilot/boss_fight"
 require_relative "pilot/secret_plan"
 require_relative "pilot/floor_play"
+require_relative "pilot/run_log"
 
 module Wolf3D
   # A PLAYER MADE OF RUBY: asked before each frame what to press, it reads the running game and
@@ -66,10 +67,11 @@ module Wolf3D
 
     # +maps+ are the floors of the copy on the cartridge, in the order they are played.
     # +difficulty+ is the row of the difficulty screen, counted from nought. +log+ is told each floor
-    # that starts and each death.
-    def initialize(maps, difficulty: 0, log: $stderr)
+    # that starts and each death. +run_log+, a RunLog, is told everything that happens in play.
+    def initialize(maps, difficulty: 0, log: $stderr, run_log: nil)
       @difficulty = difficulty
       @log = log
+      @run_log = run_log
       @levels = Array.new(maps.count) { |n| maps[n] }
       @reports = @levels.map { |level| FloorReport.new(level) }
       @scenery = @levels.map { |level| Scenery.new(level) }
@@ -86,13 +88,16 @@ module Wolf3D
     def buttons_for(game)
       @frame += 1
       screen = game.var(:screen)
-      return :done if screen == Menus::WINNING
+      return finish_run(won: true) if screen == Menus::WINNING
       return menu_buttons(screen) unless screen == Menus::PLAYING
       return press_periodically(:a) if tally_showing?(game)
 
       floor = game.var(:floor)
       lives = game.var(:lives)
-      raise Lost, "The pilot lost its last life on floor #{floor + 1}, on frame #{@frame}." if lost?(game)
+      if lost?(game)
+        finish_run(won: false)
+        raise Lost, "The pilot lost its last life on floor #{floor + 1}, on frame #{@frame}."
+      end
 
       # Dying puts the floor back as it was, and a life won by score or by a pickup changes nothing.
       if floor != @floor || lives < @lives
@@ -100,6 +105,8 @@ module Wolf3D
         begin_floor(floor)
       end
       @lives = lives
+      @run_log&.record(game, floor: floor, level: @levels.fetch(floor), report: @reports.fetch(floor), frame: @frame,
+                             tactic: @floor_play.tactic, difficulty: @difficulty)
       return [] if game.var(:health) <= 0
       return @buttons unless advance_pass(game)
 
@@ -129,6 +136,13 @@ module Wolf3D
       @frames_on_pass = 0
       @pass += 1
       true
+    end
+
+    # Tells the run log once, and answers :done for the steering.
+    def finish_run(won:)
+      @run_log&.finish(won: won, frame: @frame) unless @finished
+      @finished = true
+      :done
     end
 
     # A won game ends through the same flag as a lost one.

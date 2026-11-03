@@ -22,24 +22,41 @@ module Wolf3D
         @secret_plan = SecretPlan.new(report, @route, @sight, @walker, @supplies)
       end
 
+      # What it chose to do on the last pass, one of TACTICS. The run log reads it.
+      attr_reader :tactic
+
+      TACTICS = %i[boss_fight hold_door clear_way run_past hunt travel fight_in_open fight_from_cover].freeze
+
       def choose_buttons(game, pass:)
         @sight.read(game, pass: pass)
         @boss_fight.note(@sight.guards)
         @gunfight.update
         @boss_fight.update
-        return @boss_fight.fight if @boss_fight.awake?
-
         target = @gunfight.target
-        return hold_door(target) if @ambush
-        return @gunfight.fight(target) if target && running_past? && @gunfight.blocking_way?(target)
-        return travel_firing_at(target) if running_past? && !(target && @gunfight.close_by?(target))
-        return @gunfight.fight_from_corner(*@gunfight.last_seen) if target.nil? && !running_past? && @gunfight.last_seen
-        return travel unless target && @gunfight.reacted_to?(target)
-
-        @sight.ammo.zero? ? @gunfight.fight(target) : @gunfight.fight_from_corner(target.x, target.y)
+        @tactic = choose_tactic(target)
+        case @tactic
+        when :boss_fight then @boss_fight.fight
+        when :hold_door then hold_door(target)
+        when :clear_way, :fight_in_open then @gunfight.fight(target)
+        when :run_past then travel_firing_at(target)
+        when :hunt then @gunfight.fight_from_corner(*@gunfight.last_seen)
+        when :travel then travel
+        else @gunfight.fight_from_corner(target.x, target.y)
+        end
       end
 
       private
+
+      def choose_tactic(target)
+        return :boss_fight if @boss_fight.awake?
+        return :hold_door if @ambush
+        return :clear_way if target && running_past? && @gunfight.blocking_way?(target)
+        return :run_past if running_past? && !(target && @gunfight.close_by?(target))
+        return :hunt if target.nil? && !running_past? && @gunfight.last_seen
+        return :travel unless target && @gunfight.reacted_to?(target)
+
+        @sight.ammo.zero? ? :fight_in_open : :fight_from_cover
+      end
 
       # ON THE HARDEST SETTING THERE ARE MORE MEN THAN BULLETS, so once it has a gun that can clear a
       # way it stops to shoot only at whoever blocks the way. A moving player is also harder to hit.

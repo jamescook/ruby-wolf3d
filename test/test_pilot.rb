@@ -156,8 +156,8 @@ class TestPilot < Minitest::Test
   def test_a_badly_hurt_player_walks_any_distance_for_health
     level = arena(side: 48, things: { [44, 3] => FIRST_AID }, player: [3, 3])
 
-    assert_nil detour_on(level, at: [3, 3], health: 60)
-    assert_equal [44, 3], detour_on(level, at: [3, 3], health: 40)
+    assert_nil detour_on(level, at: [3, 3], health: 75)
+    assert_equal [44, 3], detour_on(level, at: [3, 3], health: 65)
   end
 
   def test_a_one_up_is_always_a_detour_and_a_cross_never

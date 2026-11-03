@@ -3,6 +3,8 @@
 # THE SHAREWARE PLAYED BY Wolf3D::Pilot, as a script for `vblank play`. tools/play_shareware.rb is
 # the way to run it, and says which copy to read. WOLF3D_PILOT_FLOORS stops it after that many floors,
 # and WOLF3D_PILOT_DIFFICULTY picks the row of the difficulty screen, counted from nought.
+# WOLF3D_PILOT_RUN_LOG names a file for Wolf3D::Pilot::RunLog, and WOLF3D_PILOT_SEED goes on its
+# first line.
 
 #
 # It does not require the game. `vblank play` loads this file first and the game file after, and a
@@ -16,9 +18,13 @@ floors_before_the_last = 8
 stop_after = ENV.fetch("WOLF3D_PILOT_FLOORS", nil)&.to_i
 plays_to_the_end = stop_after.nil? || stop_after > floors_before_the_last
 floors_played = (1..floors_before_the_last).select { |floor| plays_to_the_end || floor <= stop_after }
+run_log_path = ENV.fetch("WOLF3D_PILOT_RUN_LOG", nil)
 pilot = nil
 pilot_buttons = lambda do |game|
-  pilot ||= Wolf3D::Pilot.new(Wolf3D.maps, difficulty: ENV.fetch("WOLF3D_PILOT_DIFFICULTY", "0").to_i)
+  pilot ||= begin
+    run_log = (Wolf3D::Pilot::RunLog.new(File.open(run_log_path, "w"), about: { seed: ENV.fetch("WOLF3D_PILOT_SEED", nil) }) if run_log_path)
+    Wolf3D::Pilot.new(Wolf3D.maps, difficulty: ENV.fetch("WOLF3D_PILOT_DIFFICULTY", "0").to_i, run_log: run_log)
+  end
   pilot.buttons_for(game)
 end
 
