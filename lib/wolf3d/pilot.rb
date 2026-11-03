@@ -635,35 +635,34 @@ module Wolf3D
     def walk_map = @walk_maps[[@opened, @wall_ends, @keys]] ||= { neighbours: {}, steps: nil, steps_from: nil }
 
     def measure_steps
-      steps = { @cell => 0 }
-      queue = [@cell]
-      until queue.empty?
-        here = queue.shift
-        neighbours(here).each do |cell|
-          next if steps.key?(cell)
-
-          steps[cell] = steps[here] + 1
-          queue << cell
-        end
-      end
+      steps = {}
+      search_floor { |cell, distance, _came_from| steps[cell] = distance }
       steps
     end
 
     def path_to(goal)
+      search_floor { |cell, _distance, came_from| return path_back(cell, came_from) if cell == goal }
+      nil
+    end
+
+    # EVERY CELL THAT CAN BE WALKED TO FROM HERE, nearest first, breadth first with ties broken in
+    # the order of FloorReport::STEPS. The block is given each cell, its distance in steps and the
+    # trail behind it, and stops the search by leaving. +avoiding+ is any cell the walk must not cross.
+    def search_floor(avoiding: nil)
       came_from = { @cell => nil }
+      distance = { @cell => 0 }
       queue = [@cell]
       until queue.empty?
         here = queue.shift
-        return path_back(here, came_from) if here == goal
-
+        yield here, distance[here], came_from
         neighbours(here).each do |cell|
-          next if came_from.key?(cell)
+          next if came_from.key?(cell) || avoiding&.call(cell)
 
           came_from[cell] = here
+          distance[cell] = distance[here] + 1
           queue << cell
         end
       end
-      nil
     end
 
     def path_back(here, came_from)
@@ -712,8 +711,8 @@ module Wolf3D
       look_for_secret if @stage == :planning || (@stage == :on_foot && @cell != @searched_from)
       case @stage
       when :to_secret then @cell == @secret.from || @pushing_passes.positive? ? :push_wall : @secret.from
-      when :stocking then next_stock_piece
-      when :looting then next_stash_piece
+      when :stocking then next_piece_of(@report.pickups)
+      when :looting then next_piece_of(@stash)
       end
     end
 
@@ -795,20 +794,11 @@ module Wolf3D
       end
     end
 
-    def next_stash_piece
+    # The nearest of +pieces+ still worth having, or, when none is, the end of this stage.
+    def next_piece_of(pieces)
       steps = steps_from_here
-      wanted = @stash.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
+      wanted = pieces.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
                      .select { |cell| steps[cell] && !@walked[cell] }
-      return wanted.min_by { |cell| steps[cell] } unless wanted.empty?
-
-      @stage = :on_foot
-      nil
-    end
-
-    def next_stock_piece
-      steps = steps_from_here
-      wanted = @report.pickups.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
-                      .select { |cell| steps[cell] && !@walked[cell] }
       return wanted.min_by { |cell| steps[cell] } unless wanted.empty?
 
       @stage = :on_foot
@@ -943,20 +933,9 @@ module Wolf3D
 
     # The first step towards the nearest cell the block likes, within a few steps.
     def nearest_cell_where
-      came_from = { @cell => nil }
-      queue = [@cell]
-      until queue.empty?
-        here = queue.shift
-        path = path_back(here, came_from)
-        break if path.length > PEEK_STEPS + 1
-        return path[1] if here != @cell && yield(here)
-
-        neighbours(here).each do |cell|
-          next if came_from.key?(cell) || beside_foe?(cell)
-
-          came_from[cell] = here
-          queue << cell
-        end
+      search_floor(avoiding: method(:beside_foe?)) do |cell, distance, came_from|
+        return nil if distance > PEEK_STEPS
+        return path_back(cell, came_from)[1] if cell != @cell && yield(cell)
       end
       nil
     end
