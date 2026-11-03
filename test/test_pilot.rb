@@ -53,7 +53,7 @@ class TestPilot < Minitest::Test
   end
 
   def read_game(sight, pass: 2, **game)
-    sight.read(RunningGame.new(**game), pass: pass, frame: pass)
+    sight.read(RunningGame.new(**game), pass: pass)
     sight
   end
 
@@ -98,6 +98,21 @@ class TestPilot < Minitest::Test
 
     assert_nil walker_on(level, sight_on(level, at: [3, ROW])).path_to([10, ROW])
     assert_includes walker_on(level, sight_on(level, at: [3, ROW], keys: 1)).path_to([10, ROW]), [7, ROW]
+  end
+
+  # A pass takes a different number of frames on each way of running, so this is counted in passes.
+  def test_with_no_way_to_the_goal_it_presses_use_every_few_passes
+    level = arena(walls: wall_down_column_seven(except: nil), player: [3, ROW])
+    sight = sight_on(level, at: [3, ROW])
+    walker = walker_on(level, sight)
+    every = Sight::PRESS_EVERY_PASSES
+
+    presses = (every..(every * 3) - 1).select do |pass|
+      read_game(sight, pass: pass, at: [3, ROW])
+      walker.follow_path_to([10, ROW]) == [:a]
+    end
+
+    assert_equal [every, every * 2], presses
   end
 
   def test_the_nearest_cell_search_stops_at_its_limit

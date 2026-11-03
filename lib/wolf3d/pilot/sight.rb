@@ -28,7 +28,7 @@ module Wolf3D
 
       LINE_STEP_CELLS = 0.15
 
-      attr_reader :x, :y, :view, :cell, :health, :ammo, :keys, :weapon, :best_weapon, :pass, :frame,
+      attr_reader :x, :y, :view, :cell, :health, :ammo, :keys, :weapon, :best_weapon, :pass,
                   :stuck_passes, :trail, :men, :guards, :drops
 
       def initialize(level, doors)
@@ -45,9 +45,8 @@ module Wolf3D
 
       # What the game says this pass. Men and doors cost far more to read than the player, so they
       # are read every other pass, unless nobody has been found yet.
-      def read(game, pass:, frame:)
+      def read(game, pass:)
         @pass = pass
-        @frame = frame
         read_player(game)
         read_men(game) if pass.even? || @men.empty?
       end

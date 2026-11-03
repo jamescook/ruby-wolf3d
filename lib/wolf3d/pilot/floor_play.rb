@@ -32,8 +32,8 @@ module Wolf3D
         format("last at %s with %d near, gun %d ammo %d", @sight.cell.inspect, near, @sight.best_weapon.to_i, @sight.ammo.to_i)
       end
 
-      def choose_buttons(game, pass:, frame:)
-        @sight.read(game, pass: pass, frame: frame)
+      def choose_buttons(game, pass:)
+        @sight.read(game, pass: pass)
         @boss_fight.note(@sight.guards)
         @gunfight.update
         @boss_fight.update

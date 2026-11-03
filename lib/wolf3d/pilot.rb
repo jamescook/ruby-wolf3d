@@ -95,7 +95,7 @@ module Wolf3D
       return [] if game.var(:health) <= 0
       return @buttons unless advance_pass(game)
 
-      @buttons = @floor_play.choose_buttons(game, pass: @pass, frame: @frame)
+      @buttons = @floor_play.choose_buttons(game, pass: @pass)
     end
 
     # What to hold on the screens after the win, which a person reads before pressing on, or :done

@@ -89,7 +89,7 @@ module Wolf3D
         if goal != @goal || @path.nil? || !@path.include?(@sight.cell)
           @goal = goal
           @path = path_to(goal)
-          return press_on_edge_by_frame unless @path
+          return press_use unless @path
         end
         ahead = @path[@path.index(@sight.cell) + 1]
         @before_step.call(ahead) if ahead
@@ -195,10 +195,10 @@ module Wolf3D
         blocked = @level.door?(*ahead) || @sight.stuck_passes > STUCK_PRESS_USE_PASSES
         return [:a] unless blocked
 
-        @sight.press_at_intervals? ? [:a] : []
+        press_use
       end
 
-      def press_on_edge_by_frame = (@sight.frame % MENU_PRESS_EVERY_FRAMES) < PRESS_FRAMES ? [:a] : []
+      def press_use = @sight.press_at_intervals? ? [:a] : []
     end
   end
 end
