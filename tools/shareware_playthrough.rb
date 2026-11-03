@@ -14,7 +14,8 @@ frames_on_the_scores = 300
 frames_for_a_screen_to_show = 120
 floors_before_the_last = 8
 stop_after = ENV.fetch("WOLF3D_PILOT_FLOORS", nil)&.to_i
-floors_played = (1..floors_before_the_last).select { |floor| stop_after.nil? || floor <= stop_after }
+plays_to_the_end = stop_after.nil? || stop_after > floors_before_the_last
+floors_played = (1..floors_before_the_last).select { |floor| plays_to_the_end || floor <= stop_after }
 pilot = nil
 pilot_buttons = lambda do |game|
   pilot ||= Wolf3D::Pilot.new(Wolf3D.maps, difficulty: ENV.fetch("WOLF3D_PILOT_DIFFICULTY", "0").to_i)
@@ -30,7 +31,7 @@ VBlank.playthrough "the shareware" do
     end
     moment :"floor_#{floor}_done"
   end
-  if stop_after.nil?
+  if plays_to_the_end
     steer("reach the winning screen", within: frames_for_a_floor, &pilot_buttons)
     moment :won
     wait frames: frames_for_a_screen_to_show
