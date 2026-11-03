@@ -96,10 +96,7 @@ module Wolf3D
       def stash_behind(secret)
         walkable = @walker.steps_from_here
         reachable = @walker.with_secret_open(secret) { @walker.steps_from_here }
-        @supplies.pieces.select do |piece|
-          cell = Supplies.cell_of(piece)
-          reachable[cell] && !walkable[cell]
-        end
+        @supplies.pieces.select { |piece| reachable[piece.cell] && !walkable[piece.cell] }
       end
 
       def secrets_from(walkable)
