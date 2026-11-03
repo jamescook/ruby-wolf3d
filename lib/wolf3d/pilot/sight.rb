@@ -1,0 +1,156 @@
+# frozen_string_literal: true
+
+module Wolf3D
+  class Pilot
+    # WHAT THE PILOT KNOWS OF THE RUNNING GAME THIS PASS, and what can be worked out from it alone:
+    # where it is, who is about, what lies in a straight line, and which way to turn to face a place.
+    # Everything else in the Pilot reads the game through this, one floor's worth at a time.
+    class Sight
+      # One of the men on the floor. +number+ is his slot in the pool of guards.
+      Man = Data.define(:x, :y, :hit_points, :number) do
+        def alive? = hit_points.positive?
+      end
+
+      # What the running game keeps its fractions in, and what a full turn is on `view`.
+      FIXED_POINT_SCALE = 1 << VBlank::DSL::Fraction::DEFAULT_BITS
+      VIEW_UNITS_PER_TURN = 1024
+
+      # `view` moves in twelves, so a target narrower than half of that can never be met.
+      FINEST_AIM_VIEW_UNITS = 7
+      GUARD_HALF_WIDTH_CELLS = 0.12
+
+      # The turn is held less often near the target, so it does not swing past.
+      GENTLE_TURN_VIEW_UNITS = 60
+
+      # How long a wound keeps it alert, and how often in play it presses a button read on its edge.
+      HURT_PASSES = 30
+      PRESS_EVERY_PASSES = 8
+
+      LINE_STEP_CELLS = 0.15
+
+      attr_reader :x, :y, :view, :cell, :health, :ammo, :keys, :weapon, :best_weapon, :pass, :frame,
+                  :stuck_passes, :trail, :men, :guards, :drops
+
+      def initialize(level, doors)
+        @level = level
+        @door_numbers = doors.each_with_index.to_h
+        @men = []
+        @guards = []
+        @drops = []
+        @walked = {}
+        @trail = []
+        @stuck_passes = 0
+        @hurt_passes = 0
+      end
+
+      # What the game says this pass. Men and doors cost far more to read than the player, so they
+      # are read every other pass, unless nobody has been found yet.
+      def read(game, pass:, frame:)
+        @pass = pass
+        @frame = frame
+        read_player(game)
+        read_men(game) if pass.even? || @men.empty?
+      end
+
+      def hurt? = @hurt_passes.positive?
+      def walked?(cell) = @walked.key?(cell)
+      def holds_key?(key) = @keys.anybits?(FirstPerson::KEY_BITS.fetch(key))
+
+      def distance_to(x, y) = Math.hypot(x - @x, y - @y)
+      def distance_to_man(man) = distance_to(man.x, man.y)
+
+      def clear_line?(from_x, from_y, x, y)
+        steps = (Math.hypot(x - from_x, y - from_y) / LINE_STEP_CELLS).ceil
+        (1...steps).all? do |n|
+          cell_x = (from_x + ((x - from_x) * n / steps)).floor
+          cell_y = (from_y + ((y - from_y) * n / steps)).floor
+          end_of_line = [[from_x.floor, from_y.floor], [x.floor, y.floor]].include?([cell_x, cell_y])
+          end_of_line || see_through?(cell_x, cell_y)
+        end
+      end
+
+      def clear_line_to?(x, y) = clear_line?(@x, @y, x, y)
+
+      # Has this door started to open at all?
+      def door_ajar?(cell) = @doors_open[@door_numbers.fetch(cell)].to_i.positive?
+
+      # How far `view` is from pointing at a place, the short way round.
+      def view_error_to(x, y)
+        wanted = (Math.atan2(y - @y, x - @x) / (2 * Math::PI) * VIEW_UNITS_PER_TURN).round
+        view_error_from(wanted)
+      end
+
+      def view_error_from(wanted) = ((wanted - @view + (VIEW_UNITS_PER_TURN / 2)) % VIEW_UNITS_PER_TURN) - (VIEW_UNITS_PER_TURN / 2)
+
+      def turn_buttons(error, tolerance)
+        return [] if error.abs <= tolerance
+        return [] if error.abs < GENTLE_TURN_VIEW_UNITS && @pass.odd?
+
+        [error.positive? ? :right : :left]
+      end
+
+      def aim_tolerance(distance)
+        [(Math.atan2(GUARD_HALF_WIDTH_CELLS, distance) / (2 * Math::PI) * VIEW_UNITS_PER_TURN).round, FINEST_AIM_VIEW_UNITS].max
+      end
+
+      def in_aim?(man) = view_error_to(man.x, man.y).abs <= aim_tolerance(distance_to_man(man))
+
+      # A TRIGGER IS READ ON ITS EDGE, so a gun at rest needs the button let go between presses, and
+      # an automatic in the middle of its cycle needs it held to go round again (Weapons).
+      def trigger_down?
+        return @weapon >= Weapons::MACHINE_GUN if @attack_stage >= 0
+
+        @pass.even?
+      end
+
+      def press_at_intervals? = (@pass % PRESS_EVERY_PASSES).zero?
+
+      private
+
+      def read_player(game)
+        @x = game.var(:px) / FIXED_POINT_SCALE.to_f
+        @y = game.var(:py) / FIXED_POINT_SCALE.to_f
+        @view = game.var(:view)
+        @health = game.var(:health)
+        @ammo = game.var(:ammo)
+        @keys = game.var(:keys)
+        @weapon = game.var(:weapon)
+        @best_weapon = game.var(:weapon_best)
+        @attack_stage = game.var(:weapon_stage)
+        @hurt_passes = @last_health && @health < @last_health ? HURT_PASSES : [@hurt_passes - 1, 0].max
+        @last_health = @health
+        note_cell([@x.floor, @y.floor])
+      end
+
+      def note_cell(cell)
+        @cell = cell
+        @walked[cell] = true
+        @stuck_passes = cell == @last_cell ? @stuck_passes + 1 : 0
+        @trail << cell unless cell == @last_cell
+        @last_cell = cell
+      end
+
+      # +guards+ is every slot in use, the fallen too, for only they say where a boss ended. +men+ is
+      # those still standing.
+      def read_men(game)
+        @doors_open = game.list(:door_open)
+        xs, ys, hit_points, dropped = %i[x y hp dropped].map { |field| game.pool(:guard, field) }
+        slots = xs.each_index.select { |n| xs[n] }
+        @guards = slots.map do |n|
+          Man.new(x: xs[n] / FIXED_POINT_SCALE.to_f, y: ys[n] / FIXED_POINT_SCALE.to_f, hit_points: hit_points[n].to_i, number: n)
+        end
+        @men = @guards.select(&:alive?)
+        @drops = slots.zip(@guards).select { |n, _| dropped[n].to_i.nonzero? }.map { |_, man| [man.x.floor, man.y.floor] }
+      end
+
+      def see_through?(x, y) = !@level.solid?(x, y) && (!@level.door?(x, y) || door_open?(x, y))
+
+      def door_open?(x, y)
+        number = @door_numbers[[x, y]]
+        return false unless number && @doors_open
+
+        @doors_open[number].to_i >= FirstPerson::DOOR_WIDE * FIXED_POINT_SCALE
+      end
+    end
+  end
+end
