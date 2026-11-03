@@ -28,13 +28,15 @@ class TestPlayShareware < Minitest::Test
 
   def test_the_pilot_finishes_two_floors_and_its_tape_repeats
     shareware_or_skip
-    tape = File.join(Dir.tmpdir, "wolf3d-pilot-#{Process.pid}.tape")
-    said, status = Open3.capture2e(RUBY, TOOL, "--floors", "2", "--repeat", "--tape", tape)
+    name = "wolf3d-pilot-#{Process.pid}.tape"
+    tape = File.join(Dir.tmpdir, name)
+    said, status = Open3.capture2e(RUBY, TOOL, "--floors", "2", "--repeat", "--tape", name, chdir: Dir.tmpdir)
 
     assert_predicate status, :success?, said
     assert_match(/floor_1_done\s+frame \d+/, said)
     assert_match(/floor_2_done\s+frame \d+/, said)
     assert_includes said, "The tape played back the same."
+    assert_path_exists tape, "a relative --tape is relative to where the tool was run from"
   ensure
     FileUtils.rm_f(tape) if tape
   end

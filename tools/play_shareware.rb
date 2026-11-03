@@ -17,6 +17,7 @@
 # one on a computer. A tape is a list of presses and holds nothing of the game's own, so it plays only
 # on the way it was recorded on, built with the same settings.
 
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
 require "bundler/setup"
 require "English"
 require "fileutils"
@@ -30,7 +31,7 @@ OptionParser.new do |parser|
   parser.on("--window") { options[:window] = true }
   parser.on("--floors N", Integer) { |n| options[:floors] = n }
   parser.on("--repeat") { options[:repeat] = true }
-  parser.on("--tape PATH") { |path| options[:tape] = path }
+  parser.on("--tape PATH") { |path| options[:tape] = File.expand_path(path) }
   parser.on("--seed N", Integer) { |n| options[:seed] = n }
   parser.on("--difficulty SETTING") { |setting| options[:difficulty] = setting }
   parser.on("--music") { options[:music] = true }
