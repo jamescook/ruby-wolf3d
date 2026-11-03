@@ -43,6 +43,7 @@ VBlank.playthrough "the shareware" do
     end
     wait frames: frames_for_a_screen_to_show
     moment :article
+    # This step goes on through the screen for a name, when the run has earned a row on the table.
     steer("read the article", within: frames_for_a_floor) { |game| pilot.ending_buttons(game) }
     wait frames: frames_on_the_scores
     moment :scores

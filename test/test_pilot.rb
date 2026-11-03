@@ -488,12 +488,33 @@ class TestPilot < Minitest::Test
 
   # --- the ending ---------------------------------------------------------------------------
 
-  def test_the_ending_reads_each_screen_before_pressing_on
+  def test_the_ending_gives_the_summary_as_long_as_a_page_of_the_article
+    [Wolf3D::Menus::WINNING, Wolf3D::Menus::ARTICLE].each do |screen|
+      pilot = Pilot.new([arena])
+      game = RunningGame.new(screen: screen)
+      first_press = (1..Pilot::ENDING_SCREEN_FRAMES * 2).find { pilot.ending_buttons(game) == [:a] }
+
+      assert_equal Pilot::ENDING_SCREEN_FRAMES, first_press
+    end
+  end
+
+  def test_a_new_screen_is_read_for_as_long_as_the_last
     pilot = Pilot.new([arena])
     summary = RunningGame.new(screen: Wolf3D::Menus::WINNING)
-    presses = (1..Pilot::ENDING_SCREEN_FRAMES * 2).select { |frame| pilot.ending_buttons(summary) == [:a] && frame }
+    article = RunningGame.new(screen: Wolf3D::Menus::ARTICLE)
+    (Pilot::ENDING_SCREEN_FRAMES - 1).times { pilot.ending_buttons(summary) }
 
-    assert_operator presses.each_cons(2).map { |first, second| second - first }.max, :>=, Pilot::ENDING_SCREEN_FRAMES - 2
+    assert_empty pilot.ending_buttons(article)
+  end
+
+  # Each press comes up before the next, and A finishes: BJ is B, two up from the blank, and J, ten.
+  def test_a_row_on_the_table_gets_a_name
+    pilot = Pilot.new([arena])
+    naming = RunningGame.new(screen: Wolf3D::Menus::NAMING)
+    held = Array.new(Pilot::SCREEN_SETTLE_FRAMES + (Pilot::HELD_PRESS_SPACING_FRAMES * 20)) { pilot.ending_buttons(naming) }
+    presses = held.each_cons(2).filter_map { |before, now| now.first if before.empty? && now.any? }
+
+    assert_equal ([:up] * 2) + [:right] + ([:up] * 10) + %i[right a], presses.first(15)
   end
 
   def test_the_ending_is_over_past_the_article

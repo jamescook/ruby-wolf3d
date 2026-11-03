@@ -49,14 +49,20 @@ module Wolf3D
     DIFFICULTY_NAMES = %w[baby easy medium hard].freeze
     HARDEST_DIFFICULTY = DIFFICULTY_NAMES.length - 1
 
-    # The difficulty screen starts on its top row, and each row down is one press. It fades in first,
-    # and it reads a press on a pass that can take a few frames, so each press is held and spaced.
-    DIFFICULTY_SETTLE_FRAMES = 40
-    DIFFICULTY_PRESS_FRAMES = 4
-    DIFFICULTY_PRESS_SPACING = 24
+    # The difficulty screen starts on its top row, and each row down is one press. That screen and
+    # the one for a name fade in first, and they read a press on a pass that can take a few frames,
+    # so each press is held and spaced.
+    SCREEN_SETTLE_FRAMES = 40
+    HELD_PRESS_FRAMES = 4
+    HELD_PRESS_SPACING_FRAMES = 24
 
     # How long a person stays on each screen after the win. It is long enough to read a page.
     ENDING_SCREEN_FRAMES = 600
+
+    # WHAT IT PUTS ON THE TABLE. On a pad up walks the alphabet from a blank and right moves to the
+    # next letter (HighScores), so a name is a list of presses, and A finishes it.
+    TABLE_NAME = "BJ"
+    NAME_PRESSES = (TABLE_NAME.chars.flat_map { |letter| ([:up] * HighScores::ALPHABET.index(letter)) + [:right] } + [:a]).freeze
 
     # +maps+ are the floors of the copy on the cartridge, in the order they are played.
     # +difficulty+ is the row of the difficulty screen, counted from nought. +log+ is told each floor
@@ -72,6 +78,8 @@ module Wolf3D
       @frames_on_pass = 0
       @buttons = []
       @difficulty_frames = 0
+      @name_frames = 0
+      @reading_frames = 0
     end
 
     # What to hold for the next frame, or :done on the screen that says you won.
@@ -98,13 +106,15 @@ module Wolf3D
       @buttons = @floor_play.choose_buttons(game, pass: @pass)
     end
 
-    # What to hold on the screens after the win, which a person reads before pressing on, or :done
-    # when they are over: the summary, then each page of the article the episode ends on.
+    # What to hold on the screens after the win, or :done when they are over: the summary and each
+    # page of the article, which a person reads before pressing on, and a name for the table if the
+    # run earned a row.
     def ending_buttons(game)
-      @frame += 1
-      return :done unless [Menus::WINNING, Menus::ARTICLE].include?(game.var(:screen))
+      screen = game.var(:screen)
+      return name_buttons if screen == Menus::NAMING
+      return :done unless [Menus::WINNING, Menus::ARTICLE].include?(screen)
 
-      press_periodically(:a, every: ENDING_SCREEN_FRAMES)
+      reading_buttons(screen)
     end
 
     private
@@ -135,11 +145,31 @@ module Wolf3D
       return press_periodically(:a) unless screen == Menus::DIFFICULTY && @difficulty.positive?
 
       @difficulty_frames += 1
-      waited = @difficulty_frames - DIFFICULTY_SETTLE_FRAMES
+      waited = @difficulty_frames - SCREEN_SETTLE_FRAMES
       return [] if waited.negative?
-      return press_periodically(:a) if waited >= @difficulty * DIFFICULTY_PRESS_SPACING
+      return press_periodically(:a) if waited >= @difficulty * HELD_PRESS_SPACING_FRAMES
 
-      (waited % DIFFICULTY_PRESS_SPACING) < DIFFICULTY_PRESS_FRAMES ? [:down] : []
+      (waited % HELD_PRESS_SPACING_FRAMES) < HELD_PRESS_FRAMES ? [:down] : []
+    end
+
+    # A reader's own count of frames, for the script waits on these screens with nobody asking.
+    def reading_buttons(screen)
+      @reading_frames = 0 if screen != @reading_screen
+      @reading_screen = screen
+      @reading_frames += 1
+      return [] if @reading_frames < ENDING_SCREEN_FRAMES
+
+      @reading_frames = 0 if @reading_frames >= ENDING_SCREEN_FRAMES + PRESS_FRAMES
+      [:a]
+    end
+
+    # The name a press at a time, and A again for as long as the screen stays up.
+    def name_buttons
+      @name_frames += 1
+      press, held_for = (@name_frames - SCREEN_SETTLE_FRAMES).divmod(HELD_PRESS_SPACING_FRAMES)
+      return [] if press.negative? || held_for >= HELD_PRESS_FRAMES
+
+      [NAME_PRESSES.fetch(press, :a)]
     end
 
     def press_periodically(button, every: MENU_PRESS_EVERY_FRAMES) = (@frame % every) < PRESS_FRAMES ? [button] : []
