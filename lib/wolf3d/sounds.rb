@@ -353,8 +353,9 @@ module Wolf3D
     # in no group, so two different screams overlap as they do there. The one difference is the
     # same scream twice at once: an effect asked for again while it sounds starts again, so the
     # first is cut off, where the original would sound both. We take that, because the second
-    # scream covers the first anyway and two copies of one recording only read as a louder one. It
-    # is a judgement from how the two work, and nobody has listened to a firefight to check it.
+    # scream covers the first anyway and two copies of one recording only read as a louder one. A
+    # chain gun into a room of guards on the shareware, which holds only two screams, sounds right
+    # by ear: the cut-off is not heard.
     #
     # A SCREAM NOW OUTRANKS A GUARD'S SHOUT OR SHOT when the mixer runs out of voices, because the
     # game's samples rank below every effect. It also starts a frame after it is asked for.
