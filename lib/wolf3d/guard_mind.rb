@@ -1307,18 +1307,20 @@ module Wolf3D
 
     # --- being shot at ---------------------------------------------------------------
 
-    # THE PLAYER FIRES. A pistol shot goes to the NEAREST guard who is in the sights and has
-    # nothing between him and you — not to whatever the middle strip of the view happens to be
-    # pointing at, which is a rule people expect and the original does not have.
+    # THE PLAYER FIRES. A shot goes to the NEAREST guard on the screen who is in the sights — not
+    # to whatever the middle strip of the view happens to be pointing at, which is a rule people
+    # expect and the original does not have. If the line to HIM is blocked the shot is lost,
+    # even with another man in the sights further off: the original looks again only for someone
+    # nearer than the one it could not reach, and there is nobody (GunAttack, wl_agent.cpp).
     #
     # "In the sights" is a tenth of the screen either side of the middle, as a slope: how far
     # he is to the side of the line you are looking down, against how far in front of you he
     # is. Written that way it is a multiply and a comparison and never a divide.
     #
     # +with_knife+ is true while the knife is the thing in your hands, or nil on a game with one
-    # weapon — and then none of the knife's own arm is emitted. What it changes is the DAMAGE
-    # and the REACH, never the search: a knife goes for the same man down the same line, and the
-    # only question it asks differently is whether he is near enough to touch.
+    # weapon — and then none of the knife's own arm is emitted. A knife goes for the same man and
+    # walks no line at all (KnifeAttack): what it asks instead is whether he is near enough to
+    # touch.
     def shoot(with_knife: nil)
       @target = NOBODY
       @nearest = FAR_AWAY
@@ -1333,7 +1335,7 @@ module Wolf3D
     # The furthest anything can be, so the first candidate always beats it.
     FAR_AWAY = 1000.0
 
-    # Is this one in the sights, in the open, and nearer than the best so far?
+    # Is this one in the sights and nearer than the best so far?
     #
     # THE FIRST QUESTION IS ONE THE DRAWING ALREADY ANSWERED, and it is the cheapest thing here
     # by a long way: one byte read and one comparison against work the renderer did anyway. A
@@ -1353,13 +1355,11 @@ module Wolf3D
       measure_him(guard) if guard.shown == 1 && guard.hp > 0
     end
 
-    # Where he is in front of the eye and to the side of it, and — if that puts him in the sights
-    # and nearer than the best so far — whether the line to him is clear.
+    # Where he is in front of the eye and to the side of it, and whether that puts him in the
+    # sights nearer than the best so far.
     def measure_him(guard)
-      x = guard.x
-      y = guard.y
-      @dx = x - @player.x
-      @dy = y - @player.y
+      @dx = guard.x - @player.x
+      @dy = guard.y - @player.y
 
       @fwd = @dx * @player.cos
       @fwd += @dy * @player.sin
@@ -1367,15 +1367,8 @@ module Wolf3D
       @sideways -= @dx * @player.sin
 
       if @fwd > 0.0 && @fwd < @nearest && @sideways.abs < (@fwd * AIM)
-        # Only now is a line worth walking, and it is walked from him toward you — the same
-        # line either way.
-        @dx = @player.x - x
-        @dy = @player.y - y
-        walk_the_sight_line_from(x, y)
-        if @clear == 1
-          @nearest = @fwd
-          @target = guard.index
-        end
+        @nearest = @fwd
+        @target = guard.index
       end
     end
 
@@ -1395,7 +1388,11 @@ module Wolf3D
       if with_knife
         what_a_knife_does
       else
-        what_a_gun_does
+        # The line is walked from him toward you, and with nothing in the way the dice are
+        # rolled; with something, they are not, as in the original.
+        @wound = 0
+        walk_the_sight_line_from(x, y)
+        what_a_gun_does if @clear == 1
       end
       wound_a_guard if @wound > 0
     end
