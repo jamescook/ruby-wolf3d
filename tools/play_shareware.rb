@@ -61,8 +61,10 @@ way = ["--on", options[:on]]
 run = play + ["--script", "tools/shareware_playthrough.rb"] + way
 run << "--window" if options[:window]
 run += ["--write-tape", options[:tape]] unless options[:on] == "logic"
-screens = File.join(Dir.mktmpdir("shareware"), "played")
-run += ["--pictures-in", screens] if options[:repeat]
+# Only a repeat compares pictures, so only a repeat needs a place for them.
+pictures = Dir.mktmpdir("shareware") if options[:repeat]
+at_exit { FileUtils.remove_entry(pictures) if pictures }
+run += ["--pictures-in", File.join(pictures, "played")] if options[:repeat]
 
 # Each floor the pilot starts, and what the player says about the run, which begins at this line.
 # The rest is what the build says of its speed.
@@ -117,7 +119,8 @@ exit 1 unless status.success?
 # THE SAME RUN IS THE SAME SCREENS. A tape says on which frame each moment falls whatever it plays
 # on, so the frames prove nothing. The picture at each moment is what the game really came to.
 if options[:repeat]
-  replayed = File.join(File.dirname(screens), "replayed")
+  screens = File.join(pictures, "played")
+  replayed = File.join(pictures, "replayed")
   status = play_showing_report.call(play + ["--tape", options[:tape], "--pictures-in", replayed] + way + seed)
   files = Dir.children(screens).sort
   same = status.success? && files.any? && files == Dir.children(replayed).sort &&
