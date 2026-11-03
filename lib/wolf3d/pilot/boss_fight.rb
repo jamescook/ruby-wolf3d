@@ -2,9 +2,9 @@
 
 module Wolf3D
   class Pilot
-    # A BOSS IS BEATEN FROM A STOCK. On the easiest setting it fights him from beside a corner: out to
-    # shoot, back in when hurt. On the hardest he outlasts that, so it holds him at range and keeps
-    # moving, and runs for what is left of the stock when short.
+    # A BOSS IS BEATEN FROM A STOCK, one of two ways, and the Strategy says which. From beside a
+    # corner: out to shoot, back in when hurt. Or, where he outlasts that, held at range while it
+    # keeps moving, running for what is left of the stock when short.
     class BossFight
       # THE FEWEST HIT POINTS A BOSS STARTS WITH, on any setting. The pool of guards does not say
       # what kind a man is, but no ordinary man has this many. Pac-Man's ghosts are bosses by the
@@ -24,12 +24,11 @@ module Wolf3D
       # The cell he stands in, or nil until he has been read.
       attr_reader :cell
 
-      def initialize(sight, walker, gunfight, supplies, hardest:)
+      def initialize(sight, walker, gunfight, supplies)
         @sight = sight
         @walker = walker
         @gunfight = gunfight
         @supplies = supplies
-        @hardest = hardest
         @hit_points = 0
         @full_hit_points = 0
         @seen = false
@@ -54,7 +53,13 @@ module Wolf3D
       def awake? = !@at.nil? && @hit_points.positive? && @seen
       def dead? = !@number.nil? && !@hit_points.positive?
 
-      def fight = @hardest ? kite(*@at) : @gunfight.fight_from_corner(*@at)
+      def fight_from_corner = @gunfight.fight_from_corner(*@at)
+
+      # HE HAS MORE HIT POINTS THAN PEEKING FROM A CORNER LEAVES BULLETS FOR on the hardest setting.
+      # What saves you there is T_Shoot's sums. From six cells a shot of his does a quarter of the
+      # harm one does beside you, and a running player is harder to hit. So it keeps him at range,
+      # gun on him, and never stands still.
+      def kite = kite_from(*@at)
 
       private
 
@@ -67,11 +72,7 @@ module Wolf3D
         @full_hit_points = [@full_hit_points, guard.hit_points].max
       end
 
-      # ON THE HARDEST SETTING NO CORNER SAVES YOU: he has more hit points than a fight of peeking
-      # leaves bullets for. What saves you is T_Shoot's sums. From six cells a shot of his does a
-      # quarter of the harm one does beside you, and a running player is harder to hit. So it keeps
-      # him at range, gun on him, and never stands still.
-      def kite(x, y)
+      def kite_from(x, y)
         supply = nearest_supply
         return @walker.follow_path_to(supply) if supply
 

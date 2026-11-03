@@ -349,17 +349,18 @@ class TestPilot < Minitest::Test
 
   # --- a boss -------------------------------------------------------------------------------
 
-  def boss_fight_on(level, sight, hardest: true)
+  def boss_fight_on(level, sight)
     walker = walker_on(level, sight)
     gunfight = Pilot::Gunfight.new(sight, walker)
     supplies = Pilot::Supplies.new(Wolf3D::Scenery.new(level), sight, walker)
-    Pilot::BossFight.new(sight, walker, gunfight, supplies, hardest: hardest)
+    Pilot::BossFight.new(sight, walker, gunfight, supplies)
   end
 
-  def fight_pass(boss_fight, sight)
+  # One pass of the fight, held at range (the hardest setting's way) or from a corner.
+  def fight_pass(boss_fight, sight, kite: true)
     boss_fight.note(sight.guards)
     boss_fight.update
-    boss_fight.fight
+    kite ? boss_fight.kite : boss_fight.fight_from_corner
   end
 
   HANS = [[12.5, ROW + 0.5, BOSS_HIT_POINTS]].freeze
@@ -473,14 +474,14 @@ class TestPilot < Minitest::Test
     sight = sight_on(level, at: [3, 6], men: HANS, view: FACING_SOUTH, health: 50,
                             pass: Pilot::Gunfight::PEEK_OUT_PASSES)
 
-    assert_empty fight_pass(boss_fight_on(level, sight, hardest: false), sight)
+    assert_empty fight_pass(boss_fight_on(level, sight), sight, kite: false)
   end
 
   def test_going_back_into_a_boss_sight_it_faces_the_way_it_walks
     level = floor_with_a_gap_at_his_row
     sight = sight_on(level, at: [3, 6], men: HANS, view: FACING_EAST)
 
-    assert_includes fight_pass(boss_fight_on(level, sight, hardest: false), sight), :right, "turning south"
+    assert_includes fight_pass(boss_fight_on(level, sight), sight, kite: false), :right, "turning south"
   end
 
   def test_too_close_to_a_boss_it_backs_away

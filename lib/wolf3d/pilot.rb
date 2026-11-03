@@ -7,6 +7,7 @@ require_relative "pilot/gunfight"
 require_relative "pilot/ambush"
 require_relative "pilot/boss_fight"
 require_relative "pilot/secret_plan"
+require_relative "pilot/strategy"
 require_relative "pilot/floor_play"
 require_relative "pilot/run_log"
 
@@ -201,7 +202,7 @@ module Wolf3D
       @floor = floor
       @buttons = []
       @floor_play = FloorPlay.new(level: @levels.fetch(floor), report: @reports.fetch(floor), scenery: @scenery.fetch(floor),
-                                  hardest: @difficulty == HARDEST_DIFFICULTY)
+                                  strategy: Strategy.for(@difficulty))
     end
   end
 end

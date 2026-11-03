@@ -3,29 +3,40 @@
 module Wolf3D
   class Pilot
     # ONE LIFE ON ONE FLOOR. Made new when a floor starts and when a death puts one back as it was,
-    # so all it remembers is true of this go at this floor, and everything goes when it goes. It
-    # decides what matters most this pass, and the parts it holds answer the buttons.
+    # so all it remembers is true of this go at this floor, and everything goes when it goes. Each
+    # pass its parts read the game, its Strategy picks a tactic, and it carries the tactic out.
     class FloorPlay
       LEVER_WALL_CODE = Elevator::SWITCH
 
-      def initialize(level:, report:, scenery:, hardest:)
+      # +strategy+ is the Strategy subclass for the setting being played.
+      def initialize(level:, report:, scenery:, strategy:)
         @level = level
         @route = report.route
-        @hardest = hardest
         @way_points = @route.cells.select { |x, y| level.key_at(x, y) } + [@route.cells.last]
         @ambushed = {}
         @sight = Sight.new(level, report.doors)
         @walker = Walker.new(level, scenery, @sight, before_step: method(:ambush_if_crowded))
         @supplies = Supplies.new(scenery, @sight, @walker)
         @gunfight = Gunfight.new(@sight, @walker)
-        @boss_fight = BossFight.new(@sight, @walker, @gunfight, @supplies, hardest: hardest)
+        @boss_fight = BossFight.new(@sight, @walker, @gunfight, @supplies)
         @secret_plan = SecretPlan.new(report, @route, @sight, @walker, @supplies)
+        @strategy = strategy.new(level: level, sight: @sight, gunfight: @gunfight, boss_fight: @boss_fight)
       end
 
       # What it chose to do on the last pass, one of TACTICS. The run log reads it.
       attr_reader :tactic
 
-      TACTICS = %i[boss_fight hold_door clear_way run_past hunt travel fight_in_open fight_from_cover].freeze
+      # Every tactic a strategy can choose, and what each is:
+      #   boss_fight        the boss, from beside a corner
+      #   kite_boss         the boss, held at range and circled
+      #   hold_door         an Ambush under way
+      #   clear_way         stand and shoot a man in the way
+      #   run_past          walk on, shooting whoever happens to be in front
+      #   hunt              back out to where a man it was fighting was last seen
+      #   travel            walk on
+      #   fight_in_open     stand and shoot, walking at him with no rounds
+      #   fight_from_cover  out sideways to shoot, back in when hurt
+      TACTICS = %i[boss_fight kite_boss hold_door clear_way run_past hunt travel fight_in_open fight_from_cover].freeze
 
       def choose_buttons(game, pass:)
         @sight.read(game, pass: pass)
@@ -33,9 +44,10 @@ module Wolf3D
         @gunfight.update
         @boss_fight.update
         target = @gunfight.target
-        @tactic = choose_tactic(target)
+        @tactic = @strategy.choose_tactic(target, holding_door: !@ambush.nil?)
         case @tactic
-        when :boss_fight then @boss_fight.fight
+        when :boss_fight then @boss_fight.fight_from_corner
+        when :kite_boss then @boss_fight.kite
         when :hold_door then hold_door(target)
         when :clear_way, :fight_in_open then @gunfight.fight(target)
         when :run_past then travel_firing_at(target)
@@ -47,21 +59,6 @@ module Wolf3D
 
       private
 
-      def choose_tactic(target)
-        return :boss_fight if @boss_fight.awake?
-        return :hold_door if @ambush
-        return :clear_way if target && running_past? && @gunfight.blocking_way?(target)
-        return :run_past if running_past? && !(target && @gunfight.close_by?(target))
-        return :hunt if target.nil? && !running_past? && @gunfight.last_seen
-        return :travel unless target && @gunfight.reacted_to?(target)
-
-        @sight.ammo.zero? ? :fight_in_open : :fight_from_cover
-      end
-
-      # ON THE HARDEST SETTING THERE ARE MORE MEN THAN BULLETS, so once it has a gun that can clear a
-      # way it stops to shoot only at whoever blocks the way. A moving player is also harder to hit.
-      def running_past? = @hardest && @sight.best_weapon >= Weapons::MACHINE_GUN
-
       # Whoever happens to stand in front of a running gun gets shot, at no cost in time.
       def travel_firing_at(target)
         buttons = travel
@@ -71,7 +68,7 @@ module Wolf3D
       end
 
       def ambush_if_crowded(ahead)
-        return unless @level.door?(*ahead) && !@ambushed[ahead] && Ambush.worth_holding?(ahead, @sight, @level)
+        return unless @level.door?(*ahead) && !@ambushed[ahead] && @strategy.hold_door?(ahead)
 
         @ambush = Ambush.new(ahead, @sight, @walker, @gunfight)
       end
