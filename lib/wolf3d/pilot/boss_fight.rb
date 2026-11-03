@@ -75,14 +75,15 @@ module Wolf3D
         supply = nearest_supply
         return @walker.follow_path_to(supply) if supply
 
+        return @walker.walk_path_to(approach_cell(x, y)) unless @sight.clear_line_to?(x, y)
+
         distance = @sight.distance_to(x, y)
-        sees_him = @sight.clear_line_to?(x, y)
         error = @sight.view_error_to(x, y)
         tolerance = @sight.aim_tolerance(distance)
         buttons = @sight.turn_buttons(error, tolerance)
-        buttons << :b if sees_him && error.abs <= tolerance && @sight.trigger_down?
-        @firing_cell = @sight.cell if sees_him && distance >= KITE_NEAR_CELLS
-        return buttons + approach_buttons(approach_cell(x, y)) if !sees_him || distance > KITE_FAR_CELLS
+        buttons << :b if error.abs <= tolerance && @sight.trigger_down?
+        @firing_cell = @sight.cell if distance >= KITE_NEAR_CELLS
+        return buttons + approach_buttons(approach_cell(x, y)) if distance > KITE_FAR_CELLS
 
         away = distance < KITE_NEAR_CELLS ? step_away_from(x, y) : nil
         buttons + (away || strafe_buttons(x, y)) + [:a]
@@ -98,9 +99,10 @@ module Wolf3D
         @supplies.nearest_of_kinds(kinds)
       end
 
-      # OUT OF HIS SIGHT IT GOES BACK TO WHERE IT LAST HAD A SHOT FROM, at range. Walking on towards
-      # him is only for when that place shows nothing either, which means his door has shut: beside
-      # him is where his chain gun does its worst.
+      # OUT OF HIS SIGHT IT GOES BACK TO WHERE IT LAST HAD A SHOT FROM, at range, facing the way it
+      # walks: the view does not follow him through a wall. Walking on towards him is only for when
+      # that place shows nothing either, which means his door has shut: beside him is where his chain
+      # gun does its worst.
       def approach_cell(x, y)
         return @firing_cell if @firing_cell && @firing_cell != @sight.cell
 

@@ -110,6 +110,20 @@ module Wolf3D
         @path = nil
       end
 
+      # One step of the way to +cell+, facing the way it goes.
+      def walk_path_to(cell)
+        way = path_to(cell)
+        way && way[1] ? walk_towards(way[1]) : []
+      end
+
+      def walk_towards(ahead)
+        error = @sight.view_error_to(ahead[0] + 0.5, ahead[1] + 0.5)
+        buttons = @sight.turn_buttons(error, WALK_AIM_VIEW_UNITS)
+        return buttons unless error.abs <= WALK_WITHIN_VIEW_UNITS
+
+        buttons + [:up] + run_or_open(ahead)
+      end
+
       # A step in any direction without turning, so the gun stays where it is pointing.
       def step_buttons((x, y))
         error = @sight.view_error_to(x + 0.5, y + 0.5)
@@ -180,14 +194,6 @@ module Wolf3D
       end
 
       def enterable_neighbours((x, y)) = FloorReport::STEPS.map { |dx, dy| [x + dx, y + dy] }.select { |cell| enterable?(cell) }
-
-      def walk_towards(ahead)
-        error = @sight.view_error_to(ahead[0] + 0.5, ahead[1] + 0.5)
-        buttons = @sight.turn_buttons(error, WALK_AIM_VIEW_UNITS)
-        return buttons unless error.abs <= WALK_WITHIN_VIEW_UNITS
-
-        buttons + [:up] + run_or_open(ahead)
-      end
 
       # A DOES BOTH JOBS: held it runs, and pressed it opens a door. A door reads the press on its
       # edge, so it is let go on the way to one, and when walking has stopped getting anywhere.

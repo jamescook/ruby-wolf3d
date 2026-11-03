@@ -85,18 +85,19 @@ module Wolf3D
         buttons
       end
 
-      # Out to shoot and back in when hurt, keeping the gun on him all the while.
+      # Out to shoot and back in when hurt, with the gun on him while it can see him. With a wall
+      # between them the view does not follow him: it faces the way it walks.
       def fight_from_corner(x, y)
         @fight_passes += 1
-        error = @sight.view_error_to(x, y)
-        tolerance = @sight.aim_tolerance(@sight.distance_to(x, y))
         in_his_sight = @sight.clear_line_to?(x, y)
         hiding = @sight.health < PEEK_FROM_HEALTH && (@sight.pass % PEEK_PASSES) >= PEEK_OUT_PASSES
-        buttons = @sight.turn_buttons(error, tolerance)
-        buttons << :b if in_his_sight && error.abs <= tolerance && @sight.trigger_down?
-        return buttons if in_his_sight != hiding
+        return hiding ? [] : step_into_sight(x, y) unless in_his_sight
 
-        buttons + step_to_cover_or_sight(x, y, !hiding)
+        error = @sight.view_error_to(x, y)
+        tolerance = @sight.aim_tolerance(@sight.distance_to(x, y))
+        buttons = @sight.turn_buttons(error, tolerance)
+        buttons << :b if error.abs <= tolerance && @sight.trigger_down?
+        hiding ? buttons + step_into_cover(x, y) : buttons
       end
 
       private
@@ -125,13 +126,22 @@ module Wolf3D
         men.find { |man| man.number == @target_number } || men.min_by { |man| @sight.distance_to_man(man) }
       end
 
-      def step_to_cover_or_sight(x, y, wants_sight)
-        beside_him = ->((cell_x, cell_y)) { Math.hypot(cell_x + 0.5 - x, cell_y + 0.5 - y) < PEEK_NEAREST_CELLS }
-        first_step = @walker.first_step_towards_nearest(within: PEEK_STEPS, avoiding: beside_him) do |cell|
-          @sight.clear_line?(cell[0] + 0.5, cell[1] + 0.5, x, y) == wants_sight
-        end
-        first_step ||= @walker.set_path_to([x.floor, y.floor])
+      def step_into_sight(x, y)
+        first_step = first_step_to_line(x, y, wants_line: true) || @walker.set_path_to([x.floor, y.floor])
+        first_step ? @walker.walk_towards(first_step) : []
+      end
+
+      def step_into_cover(x, y)
+        first_step = first_step_to_line(x, y, wants_line: false) || @walker.set_path_to([x.floor, y.floor])
         first_step ? @walker.step_or_open_buttons(first_step) : []
+      end
+
+      # The first step to the nearest cell that has a line to him, or has none.
+      def first_step_to_line(x, y, wants_line:)
+        beside_him = ->((cell_x, cell_y)) { Math.hypot(cell_x + 0.5 - x, cell_y + 0.5 - y) < PEEK_NEAREST_CELLS }
+        @walker.first_step_towards_nearest(within: PEEK_STEPS, avoiding: beside_him) do |cell|
+          @sight.clear_line?(cell[0] + 0.5, cell[1] + 0.5, x, y) == wants_line
+        end
       end
     end
   end

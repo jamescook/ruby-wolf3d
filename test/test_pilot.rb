@@ -419,6 +419,36 @@ class TestPilot < Minitest::Test
     assert_includes fight_pass(boss_fight, sight), :up, "south, back to the cell it fired from"
   end
 
+  FACING_SOUTH = 256
+
+  # He is to the east of it through the wall, and walking south needs no turn. A turn would be the
+  # view following him.
+  def test_out_of_his_sight_the_view_does_not_follow_him
+    level = floor_with_a_gap_at_his_row
+    sight = sight_on(level, at: [3, ROW], men: HANS, view: FACING_EAST)
+    boss_fight = boss_fight_on(level, sight)
+    fight_pass(boss_fight, sight)
+
+    read_game(sight, at: [3, 6], men: HANS, view: FACING_SOUTH)
+
+    refute_includes fight_pass(boss_fight, sight), :left
+  end
+
+  def test_hiding_from_a_boss_the_view_does_not_follow_him
+    level = floor_with_a_gap_at_his_row
+    sight = sight_on(level, at: [3, 6], men: HANS, view: FACING_SOUTH, health: 50,
+                            pass: Pilot::Gunfight::PEEK_OUT_PASSES)
+
+    assert_empty fight_pass(boss_fight_on(level, sight, hardest: false), sight)
+  end
+
+  def test_going_back_into_a_boss_sight_it_faces_the_way_it_walks
+    level = floor_with_a_gap_at_his_row
+    sight = sight_on(level, at: [3, 6], men: HANS, view: FACING_EAST)
+
+    assert_includes fight_pass(boss_fight_on(level, sight, hardest: false), sight), :right, "turning south"
+  end
+
   def test_too_close_to_a_boss_it_backs_away
     level = arena(player: [8, ROW])
     men = [[10.5, ROW + 0.5, BOSS_HIT_POINTS]]
