@@ -17,6 +17,15 @@ class TestPlayShareware < Minitest::Test
   TOOL = File.expand_path("../tools/play_shareware.rb", __dir__)
   RUBY = RbConfig.ruby
 
+  # Asked before the tool looks for a copy, so it says the same on every machine.
+  def test_a_difficulty_the_game_does_not_have_is_refused
+    said, status = Open3.capture2e(RUBY, TOOL, "--difficulty", "nightmare")
+
+    refute_predicate status, :success?
+    assert_includes said, "--difficulty"
+    assert_includes said, "baby, easy, medium, hard"
+  end
+
   def test_the_pilot_finishes_two_floors_and_its_tape_repeats
     shareware_or_skip
     tape = File.join(Dir.tmpdir, "wolf3d-pilot-#{Process.pid}.tape")
