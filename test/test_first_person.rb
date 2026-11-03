@@ -20,21 +20,24 @@ class TestFirstPerson < Minitest::Test
   end
 
   # HOW FAST YOU TURN is the original's: left or right adds BASEMOVE 35 a tic walking and RUNMOVE 70
-  # with run held (wl_play.cpp PollKeyboardMove), and the angle moves that many twentieths of a
-  # degree (ANGLESCALE in wl_agent.cpp ControlMovement). A held A is run here. A pass is one tic.
-  TURN_PASSES = 20
-
+  # with run held (wl_play.cpp, PollKeyboardMove), and the angle moves that many twentieths of a
+  # degree (wl_agent.cpp, ControlMovement: ANGLESCALE). A held A is run here, and a pass is one
+  # tic. The moment is TurningScene's, which films/turning.rb shows.
   def turning_program = @turning_program ||= view_of(@level, standing: false, drawing: false)
 
-  def measure_turn_degrees_per_pass(*held)
-    start = Reference.new.run(turning_program, frames: TURN_PASSES)[:view]
-    turned = Reference.new.hold(*held).run(turning_program, frames: TURN_PASSES)[:view]
-    ((turned - start) % FP::TURN) * 360.0 / FP::TURN / TURN_PASSES
+  def view_after(frames)
+    Reference.new.input_each_frame { |f| TurningScene.keys(f) }.run(turning_program, frames: frames)[:view]
+  end
+
+  def measure_turn_degrees_per_pass(from, to)
+    ((view_after(to) - view_after(from)) % FP::TURN) * 360.0 / FP::TURN / (to - from)
   end
 
   def test_turning_goes_at_the_originals_rate_walking_and_running
-    assert_in_delta 1.75, measure_turn_degrees_per_pass(:right), 0.1, "walking"
-    assert_in_delta 3.5, measure_turn_degrees_per_pass(:right, :a), 0.2, "running"
+    scene = TurningScene
+
+    assert_in_delta 1.75, measure_turn_degrees_per_pass(scene::STILL_FRAMES, scene.walk_ends), 0.05, "walking"
+    assert_in_delta 3.5, measure_turn_degrees_per_pass(scene.walk_ends, scene.run_ends), 0.1, "running"
   end
 
   def test_the_atlas_holds_only_the_walls_the_level_builds_with

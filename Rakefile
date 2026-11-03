@@ -50,6 +50,21 @@ namespace :test do
   end
 end
 
+# A FILM: an MP4 of the frames that show one thing, for the operator to watch without running
+# anything. Each is a file in films/ that hands VBlank::Diagnostics::Film what to play; this runs
+# it and writes .cache/films/<name>.mp4, which git never sees. It needs ImageMagick and ffmpeg,
+# and says which one is missing.
+desc "Make the film films/NAME.rb as .cache/films/NAME.mp4"
+task :film do
+  name = ENV.fetch("NAME") { abort "Give the film's name: rake film NAME=turning. The films are in films/." }
+  script = "films/#{name}.rb"
+  abort "There is no #{script}. The films are: #{Dir['films/*.rb'].map { |f| File.basename(f, '.rb') }.join(', ')}." unless File.exist?(script)
+
+  mkdir_p ".cache/films"
+  ruby script, ".cache/films/#{name}.mp4"
+  puts "Wrote .cache/films/#{name}.mp4"
+end
+
 desc "Build wolf3d.gba"
 task :build do
   ruby "wolf3d.rb"

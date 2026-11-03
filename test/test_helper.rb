@@ -7,6 +7,7 @@ require_relative "../lib/wolf3d"
 # test writes are not, because a test names its own helpers and a game has no reason to.
 require "vblank/testing"
 require_relative "support/field"
+require_relative "support/turning_scene"
 VBlank.require_game_file "support/counting_worlds"
 
 module Wolf3DTest
