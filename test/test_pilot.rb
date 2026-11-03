@@ -299,6 +299,16 @@ class TestPilot < Minitest::Test
     assert target_of(level, sight_on(level, at: [3, ROW], men: EAST_OF_IT, view: FACING_EAST))
   end
 
+  # A door between them stops the line by the game's own rule (GuardMind#blocked_by): a door on
+  # row eight is seen through at its middle once it is 8.5/256 open, and not while it is shut.
+  def test_a_door_hides_a_man_only_until_it_cracks_open
+    level = two_rooms(player: [3, ROW], door: [7, ROW])
+    crack = (0.05 * SCALE).to_i
+
+    assert sight_on(level, at: [3, ROW], doors_open: [crack]).clear_line_to?(11.5, ROW + 0.5), "a crack open is a line"
+    refute sight_on(level, at: [3, ROW], doors_open: [0]).clear_line_to?(11.5, ROW + 0.5), "a shut door is not"
+  end
+
   def test_a_man_behind_it_is_not_seen
     level = arena(player: [3, ROW])
 

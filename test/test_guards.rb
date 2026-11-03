@@ -211,6 +211,21 @@ class TestGuards < Minitest::Test
     assert_in_delta 12.5, guard_at(run, :x), 0.001, "so he has not moved"
   end
 
+  # ...AND A DOOR HIDES YOU ONLY WHILE IT IS SHUT, more or less. The original's line passes a door
+  # where the point it crosses the door at is less than doorposition, and it measures that point
+  # from the edge of the MAP, not of the door (CheckLine, wl_state.cpp). So a door on row eight
+  # lets a line through at its middle once it is about 8.5/256 open, a crack, and the guard behind
+  # it has seen you within a few passes of your pressing it open.
+  def test_a_guard_sees_you_through_a_door_as_soon_as_it_cracks_open
+    level = two_rooms(player: [6, 8], door: [7, 8], guards: [[11, 8, :west]])
+    run = Reference.new.input_each_frame { |f| f == 1 ? [:a] : [] }
+                   .run(view_of(level, drawing: false), frames: 8)
+    door = run.list(:door_open)[0] / ONE
+
+    assert_operator door, :<, 0.5, "the door is still well short of open"
+    assert pool_field(run, :wait).positive? || state_of(run) != STAND, "and he has already seen you through it"
+  end
+
   # ...and not behind him either. A guard facing away sees nothing that way, which is what
   # makes sneaking up on one possible.
   def test_a_guard_does_not_see_you_behind_him

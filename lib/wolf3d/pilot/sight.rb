@@ -36,7 +36,7 @@ module Wolf3D
       # less often than HURT_PASSES, so one at its back would otherwise be forgotten between shots.
       ON_GUARD_PASSES = 150
 
-      LINE_STEP_CELLS = 0.15
+      MOST_SLOPE = GuardMind::MOST_SLOPE
 
       attr_reader :x, :y, :view, :cell, :health, :ammo, :keys, :weapon, :best_weapon, :pass,
                   :stuck_passes, :trail, :men, :guards, :drops
@@ -77,14 +77,12 @@ module Wolf3D
       def distance_to(x, y) = Math.hypot(x - @x, y - @y)
       def distance_to_man(man) = distance_to(man.x, man.y)
 
+      # IS THERE A LINE BETWEEN BJ, STANDING AT +from+, AND A MAN AT +x+, +y+? The game's own answer:
+      # the original's CheckLine, walked from the man, a column at a time and then a row at a time
+      # (GuardMind#walk_the_sight_line).
       def clear_line?(from_x, from_y, x, y)
-        steps = (Math.hypot(x - from_x, y - from_y) / LINE_STEP_CELLS).ceil
-        (1...steps).all? do |n|
-          cell_x = (from_x + ((x - from_x) * n / steps)).floor
-          cell_y = (from_y + ((y - from_y) * n / steps)).floor
-          end_of_line = [[from_x.floor, from_y.floor], [x.floor, y.floor]].include?([cell_x, cell_y])
-          end_of_line || see_through?(cell_x, cell_y)
-        end
+        crossings_clear?(x, y, from_x, from_y) { |cell_x, cell_y, middle| see_through?(cell_x, cell_y, middle) } &&
+          crossings_clear?(y, x, from_y, from_x) { |cell_y, cell_x, middle| see_through?(cell_x, cell_y, middle) }
       end
 
       def clear_line_to?(x, y) = clear_line?(@x, @y, x, y)
@@ -166,16 +164,39 @@ module Wolf3D
         @drops = slots.zip(@guards).select { |n, _| dropped[n].to_i.nonzero? }.map { |_, man| [man.x.floor, man.y.floor] }
       end
 
-      def see_through?(x, y) = !@level.solid?(x, y) && (!@level.door?(x, y) || door_open?(x, y))
+      # ONE OF CheckLine's TWO WALKS, a column (or a row) at a time from the man toward BJ. +along+
+      # is the axis it steps on and +across+ the other; the block is given each cell entered, as
+      # [along, across], and the line's crossing at the middle of that step.
+      def crossings_clear?(along_from, across_from, along_to, across_to)
+        cell = along_from.floor
+        last = along_to.floor
+        return true if cell == last
 
-      # A DOOR IS SEEN THROUGH WHERE A GUARD SEES THROUGH IT, open far enough to walk through
-      # (GuardMind#blocked_by). A stricter door would have it think itself behind cover while the
+        way = last > cell ? 1 : -1
+        slope = ((across_to - across_from) / (along_to - along_from).abs).clamp(-MOST_SLOPE, MOST_SLOPE)
+        edge = along_from - cell
+        edge = 1 - edge if way == 1
+        cross = across_from + (slope * edge)
+        loop do
+          cell += way
+          across = cross.floor
+          cross += slope
+          return false unless yield(cell, across, cross - (slope / 2))
+          return true if cell == last
+        end
+      end
+
+      def see_through?(x, y, middle) = !@level.solid?(x, y) && (!@level.door?(x, y) || door_open_at?(x, y, middle))
+
+      # A DOOR IS SEEN THROUGH WHERE A GUARD SEES THROUGH IT, with the original's slip: the line's
+      # crossing, counted from the map's edge in cells, against how far open the door is times 256
+      # (GuardMind#blocked_by). Any other door would have it think itself behind cover while the
       # man on the other side shoots it.
-      def door_open?(x, y)
+      def door_open_at?(x, y, middle)
         number = @door_numbers[[x, y]]
         return false unless number && @doors_open
 
-        @doors_open[number].to_i >= FirstPerson::DOOR_WALKABLE * FIXED_POINT_SCALE
+        middle <= @doors_open[number].to_i * 256.0 / FIXED_POINT_SCALE
       end
     end
   end

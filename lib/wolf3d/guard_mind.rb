@@ -311,8 +311,6 @@ module Wolf3D
       @homey = b.var :_ghomey, 0
       @away = b.var :_gaway, 0
       @target = b.var :_gtarget, 0
-      @stepx = b.var :_gstepx, 0.0
-      @stepy = b.var :_gstepy, 0.0
       @atx = b.var :_gatx, 0.0
       @aty = b.var :_gaty, 0.0
       @nearest = b.var :_gnearest, 0.0
@@ -321,6 +319,11 @@ module Wolf3D
       @man_x = b.var :_gman_x, 0.0
       @man_y = b.var :_gman_y, 0.0
       @shut_door = b.var :_gshut_door, 0
+      @line_end = b.var :_gline_end, 0
+      @line_dir = b.var :_gline_dir, 0
+      @line_slope = b.var :_gline_slope, 0.0
+      @line_cross = b.var :_gline_cross, 0.0
+      @line_middle = b.var :_gline_middle, 0.0
     end
 
     # ONE GUARD, ONE FRAME. Count his state down, move him on when it runs out, then let him
@@ -743,82 +746,92 @@ module Wolf3D
       @b.func(:walk_the_sight_line) { walk_the_sight_line }
     end
 
-    # The line itself, walked from wherever it was told to start — a guard looking for you, or a
-    # bullet on its way to him.
+    # THE LINE ITSELF, the original's CheckLine (wl_state.cpp), walked from wherever it was told
+    # to start, a guard looking for you or a bullet on its way to him, to the player.
+    #
+    # IT IS TWO WALKS, and both have to come through. The first goes a column at a time and looks
+    # in each column the line enters, from the one after the guard's to the player's own, at the
+    # row it enters by. The second does the same a row at a time. A column the line crosses on a
+    # slant is entered once by the first walk and the rows it crosses inside that column are the
+    # second walk's, so between them every cell the line touches is looked at.
     def walk_the_sight_line
-      b = @b
-      aim_along_the_line(@fromx, @fromy)
-      @tx = @player.x.to_i
-      @ty = @player.y.to_i
       @clear = 1
-      @done = 0
+      cross_columns
+      cross_rows if @clear == 1
+    end
 
-      b.repeat(@reach, stop_when: @done == 1) do
-        @atx += @stepx
-        @aty += @stepy
-        @cellx = @atx.to_i
-        @celly = @aty.to_i
+    # STEEPER THAN THIS IS AS STEEP: the original keeps its slope in a signed sixteen bits of
+    # 1/256 of a cell, 0x7fff.
+    MOST_SLOPE = 0x7fff / 256.0
 
-        if @cellx == @tx && @celly == @ty
-          @done = 1
-        else
+    def cross_columns
+      b = @b
+      @cellx = @fromx.to_i
+      @line_end = @player.x.to_i
+      if @cellx != @line_end
+        @line_dir = 1
+        @line_dir = -1 if @line_end < @cellx
+        @absx = (@player.x - @fromx).abs
+        @line_slope = (@player.y - @fromy) / @absx
+        @line_slope.clamp!(-MOST_SLOPE, MOST_SLOPE)
+        # Where it leaves the guard's own column: the part of his cell between him and that edge.
+        @atx = @fromx - @cellx.to_f
+        @atx = 1.0 - @atx if @line_dir == 1
+        @line_cross = @fromy + (@line_slope * @atx)
+        @done = 0
+        b.repeat(@reach, stop_when: @done == 1) do
+          @cellx += @line_dir
+          @celly = @line_cross.to_i
+          @line_cross += @line_slope
           @ahead = @this_floor.cell_at(@cellx, @celly)
           blocked_by(@ahead) if @ahead > 0
-          @done = 1 if @clear == 0
+          @done = 1 if @clear == 0 || @cellx == @line_end
         end
       end
     end
 
-    # A step along the line from the guard toward the player, sized so the longer of the two
-    # directions moves one whole cell each time — which is what makes the walk visit every cell
-    # the line passes through without visiting any twice.
-    # ONE DIVIDE AT MOST, NOT TWO, and the one that goes was never doing any work.
-    #
-    # The step is the direction scaled so the LONGER of the two moves one whole cell. Which
-    # means the longer one's step is one whole cell — plus or minus — by construction, and
-    # dividing it by its own size can only ever give back the one it already is. So it is set
-    # from the sign instead, and only the shorter of the two is divided.
-    #
-    # That matters here because dividing a number holding a fraction by another is the dearest
-    # arithmetic there is — about nine times an ordinary step, where every other divide is a
-    # third to three — and these two were a fifth of everything a guard spends in a frame. The
-    # walk that follows is unchanged, step for step.
-    #
-    # And when the two are both under a cell apart the scaling is held at one, so neither is
-    # divided at all: the step IS the direction. That is the near case, which is the one a guard
-    # about to shoot you is in.
-    def aim_along_the_line(fromx, fromy)
-      # HOW FAR EACH IS FROM NOUGHT, KEPT in a variable rather than asked for where it is read:
-      # a bare `abs` is a new number and works it out afresh at every mention, and these two are
-      # read five times between them.
-      @absx = @dx.abs
-      @absy = @dy.abs
-
-      @stepx = @dx
-      @stepy = @dy
-      if @absx > @absy
-        if @absx > 1.0
-          @stepx = 1.0
-          @stepx = -1.0 if @dx < 0.0
-          @stepy = @dy / @absx
+    # ...and the same a row at a time, with x and y the other way about.
+    def cross_rows
+      b = @b
+      @celly = @fromy.to_i
+      @line_end = @player.y.to_i
+      if @celly != @line_end
+        @line_dir = 1
+        @line_dir = -1 if @line_end < @celly
+        @absy = (@player.y - @fromy).abs
+        @line_slope = (@player.x - @fromx) / @absy
+        @line_slope.clamp!(-MOST_SLOPE, MOST_SLOPE)
+        @aty = @fromy - @celly.to_f
+        @aty = 1.0 - @aty if @line_dir == 1
+        @line_cross = @fromx + (@line_slope * @aty)
+        @done = 0
+        b.repeat(@reach, stop_when: @done == 1) do
+          @celly += @line_dir
+          @cellx = @line_cross.to_i
+          @line_cross += @line_slope
+          @ahead = @this_floor.cell_at(@cellx, @celly)
+          blocked_by(@ahead) if @ahead > 0
+          @done = 1 if @clear == 0 || @celly == @line_end
         end
-      elsif @absy > 1.0
-        @stepy = 1.0
-        @stepy = -1.0 if @dy < 0.0
-        @stepx = @dx / @absy
       end
-
-      @atx = fromx
-      @aty = fromy
     end
 
-    # Something is in this cell. A wall stops the line; a doorway stops it only while its panel
-    # is still across the way. A cell a secret wall could reach counts as clear, because the
-    # wall is usually not in it and a guard blinded by a wall that is not there would be odd.
+    # Something is in this cell. A wall stops the line. A cell a secret wall could reach counts
+    # as clear, because the wall is usually not in it and a guard blinded by a wall that is not
+    # there would be odd.
+    #
+    # A DOOR STOPS IT UNLESS THE LINE CROSSES IT WHERE THE PANEL HAS ALREADY SLID AWAY, judged at
+    # the middle of the cell. That is the original's rule with the original's slip in it: it holds
+    # the crossing point, counted in 1/256 of a cell FROM THE EDGE OF THE MAP, against how far the
+    # door is open counted in 1/65536 of its width. So a door lets the line by once it is open
+    # (row or column it is crossed at) / 256 of the way: a crack for a door near the top or left
+    # of a map, a quarter for one at the far side. That is how far through a door a guard sees,
+    # and so how far a bullet goes, in the game everybody played.
     def blocked_by(cell)
       @this_floor.sort_out(cell, door: lambda {
         @slot = @this_floor.door_in(cell)
-        @clear = 0 if @open[@slot] < FirstPerson::DOOR_WALKABLE
+        @line_middle = @line_cross - (@line_slope * 0.5)
+        @clear = 0 if @line_middle > @open[@slot] * 256
       }, wall: -> { @clear = 0 })
     end
 
