@@ -88,6 +88,7 @@ module Wolf3D
 
       # Out to shoot and back in when hurt, keeping the gun on him all the while.
       def fight_from_corner(x, y)
+        @fight_passes += 1
         error = @sight.view_error_to(x, y)
         tolerance = @sight.aim_tolerance(@sight.distance_to(x, y))
         in_his_sight = @sight.clear_line_to?(x, y)

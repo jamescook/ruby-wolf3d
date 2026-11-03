@@ -269,6 +269,22 @@ class TestPilot < Minitest::Test
     assert_equal [12, ROW], goal_of(plan)
   end
 
+  # --- a fight ------------------------------------------------------------------------------
+
+  # A long fight that hurts nobody means a man behind something, from a corner as much as standing.
+  def test_a_futile_fight_from_a_corner_is_given_up
+    level = arena(player: [3, ROW])
+    sight = sight_on(level, at: [3, ROW], men: [[9.5, ROW + 0.5, 25]])
+    gunfight = Pilot::Gunfight.new(sight, walker_on(level, sight), target_number: nil)
+    gunfight.update
+
+    assert gunfight.target
+    (Pilot::Gunfight::FUTILE_FIGHT_PASSES + 1).times { gunfight.fight_from_corner(9.5, ROW + 0.5) }
+    gunfight.update
+
+    assert_nil gunfight.target
+  end
+
   # --- a boss -------------------------------------------------------------------------------
 
   def boss_fight_on(level, sight, hardest: true)
