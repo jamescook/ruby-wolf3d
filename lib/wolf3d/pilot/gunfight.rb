@@ -11,11 +11,11 @@ module Wolf3D
       REACTION_PASSES = 15
       POINT_BLANK_CELLS = 2.0
 
+      # A man this near is fought even by a player running past the rest.
+      CLOSE_BY_CELLS = 4.0
+
       # How long it can stand in one cell before whoever is near counts as in the way.
       STUCK_SHOOT_PASSES = 8
-
-      # Below this, every fight is from behind something.
-      COVER_BELOW_HEALTH = 70
 
       # This much shooting that hurts nobody means a man behind something, so it ignores everybody
       # for half as long and walks on.
@@ -36,6 +36,9 @@ module Wolf3D
       PEEK_FROM_HEALTH = 90
       PEEK_STEPS = 5
       PEEK_NEAREST_CELLS = 1.6
+
+      # How long a man who stepped out of sight stays where it thinks he is.
+      REMEMBER_PASSES = 120
 
       attr_reader :target
 
@@ -61,17 +64,28 @@ module Wolf3D
           @target_number = @target&.number
         end
         @sight_passes = @target ? @sight_passes + 1 : 0
+        note_last_seen
+      end
+
+      # WHERE IT LAST SAW THE MAN IT WAS FIGHTING, while that is fresh and he is still standing. Out
+      # of sight behind a doorway he is not forgotten: it keeps the gun on that spot and steps out
+      # to it again.
+      def last_seen
+        return nil unless @last_seen && @passes_unseen <= REMEMBER_PASSES
+        return nil unless @sight.men.any? { |man| man.number == @last_seen_number }
+
+        @last_seen
       end
 
       def blocking_way?(man)
         @sight.distance_to_man(man) < POINT_BLANK_CELLS || @sight.stuck_passes > STUCK_SHOOT_PASSES
       end
 
+      def close_by?(man) = @sight.distance_to_man(man) < CLOSE_BY_CELLS
+
       def reacted_to?(man)
         @sight_passes >= REACTION_PASSES || @sight.hurt? || @sight.distance_to_man(man) < POINT_BLANK_CELLS
       end
-
-      def needs_cover? = @sight.health < COVER_BELOW_HEALTH || @men_in_sight.length > 1
 
       # Stand and shoot.
       def fight(man)
@@ -85,8 +99,9 @@ module Wolf3D
         buttons
       end
 
-      # Out to shoot and back in when hurt, with the gun on him while it can see him. With a wall
-      # between them the view does not follow him: it faces the way it walks.
+      # HIT AND RUN. Out sideways to shoot and back in when hurt, the gun on him while it can see
+      # him. With a wall between them the view stays on the spot it last saw him or was told of,
+      # and never follows him through the wall.
       def fight_from_corner(x, y)
         @fight_passes += 1
         in_his_sight = @sight.clear_line_to?(x, y)
@@ -126,9 +141,25 @@ module Wolf3D
         men.find { |man| man.number == @target_number } || men.min_by { |man| @sight.distance_to_man(man) }
       end
 
+      def note_last_seen
+        if @target
+          @last_seen = [@target.x, @target.y]
+          @last_seen_number = @target.number
+          @passes_unseen = 0
+        elsif @last_seen
+          @passes_unseen += 1
+        end
+      end
+
+      # A MAN WHO SEES YOU TAKES A MOMENT TO SHOOT, and so does turning. So it turns behind cover, and
+      # steps out sideways only once the gun is on the spot: the first pass he is in line is a shot.
       def step_into_sight(x, y)
+        error = @sight.view_error_to(x, y)
+        tolerance = @sight.aim_tolerance(@sight.distance_to(x, y))
+        return @sight.turn_buttons(error, tolerance) if error.abs > tolerance
+
         first_step = first_step_to_line(x, y, wants_line: true) || @walker.set_path_to([x.floor, y.floor])
-        first_step ? @walker.walk_towards(first_step) : []
+        first_step ? @walker.step_or_open_buttons(first_step) : []
       end
 
       def step_into_cover(x, y)

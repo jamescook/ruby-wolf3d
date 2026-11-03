@@ -32,10 +32,11 @@ module Wolf3D
         target = @gunfight.target
         return hold_door(target) if @ambush
         return @gunfight.fight(target) if target && running_past? && @gunfight.blocking_way?(target)
-        return travel_firing_at(target) if running_past?
+        return travel_firing_at(target) if running_past? && !(target && @gunfight.close_by?(target))
+        return @gunfight.fight_from_corner(*@gunfight.last_seen) if target.nil? && !running_past? && @gunfight.last_seen
         return travel unless target && @gunfight.reacted_to?(target)
 
-        @gunfight.needs_cover? ? @gunfight.fight_from_corner(target.x, target.y) : @gunfight.fight(target)
+        @sight.ammo.zero? ? @gunfight.fight(target) : @gunfight.fight_from_corner(target.x, target.y)
       end
 
       private
