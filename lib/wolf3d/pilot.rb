@@ -135,6 +135,9 @@ module Wolf3D
     KITE_HEALTH_BELOW = 50
     KITE_ROUNDS_BELOW = 25
 
+    # One of the men on the floor, alive. +number+ is his slot in the pool of guards.
+    Man = Data.define(:x, :y, :hit_points, :number)
+
     # A SECRET WALL WORTH OPENING: the one that stands between here and a better gun. +from+ is where
     # to push it, +view+ which way that faces, +opens+ the cells it leaves and +wall_ends+ where it
     # stops, which stays shut. A wall slides two cells, or one with something behind it.
@@ -242,7 +245,7 @@ module Wolf3D
     def count_men_near
       return 0 unless @cell
 
-      @people.count { |x, y, _| distance_to(x, y) < NEAR_CELLS }
+      @people.count { |man| distance_to(man.x, man.y) < NEAR_CELLS }
     end
 
     def begin_floor(floor)
@@ -320,7 +323,7 @@ module Wolf3D
         y = ys[n] / FIXED_POINT_SCALE.to_f
         @drops << [x.floor, y.floor] if dropped[n].to_i.nonzero?
         note_boss(n, x, y, hit_points[n].to_i)
-        [x, y, hit_points[n], n] if hit_points[n].to_i.positive?
+        Man.new(x: x, y: y, hit_points: hit_points[n], number: n) if hit_points[n].to_i.positive?
       end
     end
 
@@ -336,16 +339,17 @@ module Wolf3D
     end
 
     def choose_buttons
-      target = pick_target
+      target = update_target
       @sight_passes = target ? @sight_passes + 1 : 0
+      note_boss_seen
       return fight_boss(*@boss_at) if boss_awake?
       return hold_door(target) if @ambush
       return fight(target) if target && running_past? && blocking_way?(target)
       return travel_firing_at(target) if running_past?
       return travel unless target && reacted_to?(target)
 
-      needs_cover = @health < COVER_BELOW_HEALTH || @men_in_sight > 1
-      needs_cover ? fight_from_corner(target[0], target[1]) : fight(target)
+      needs_cover = @health < COVER_BELOW_HEALTH || @men_in_sight.length > 1
+      needs_cover ? fight_from_corner(target.x, target.y) : fight(target)
     end
 
     # ON THE HARDEST SETTING THERE ARE MORE MEN THAN BULLETS, so once it has a gun that can clear a
@@ -360,34 +364,45 @@ module Wolf3D
       target_in_aim?(target) && trigger_down? ? buttons + [:b] : buttons
     end
 
-    def blocking_way?((x, y, _hit_points)) = distance_to(x, y) < POINT_BLANK_CELLS || @stuck_passes > STUCK_SHOOT_PASSES
+    def blocking_way?(man) = distance_to(man.x, man.y) < POINT_BLANK_CELLS || @stuck_passes > STUCK_SHOOT_PASSES
 
-    def reacted_to?((x, y, _hit_points))
-      @sight_passes >= REACTION_PASSES || @hurt_passes.positive? || distance_to(x, y) < POINT_BLANK_CELLS
+    def reacted_to?(man)
+      @sight_passes >= REACTION_PASSES || @hurt_passes.positive? || distance_to(man.x, man.y) < POINT_BLANK_CELLS
     end
 
     # --- seeing and aiming --------------------------------------------------------------------
 
-    # The nearest man with a clear line, unless shooting has stopped doing any good.
-    def pick_target
-      total = @people.sum { |_, _, hit_points| hit_points }
-      @fight_passes = 0 if total != @hit_points_left
-      @hit_points_left = total
-      if @fight_passes > FUTILE_FIGHT_PASSES
-        @ignore_men_passes = IGNORE_MEN_PASSES
-        @fight_passes = 0
-      end
+    # The man to deal with this pass, unless shooting has stopped doing any good.
+    def update_target
+      start_ignoring_men_after_futile_fight
       if @ignore_men_passes.positive?
         @ignore_men_passes -= 1
-        @men_in_sight = 0
+        @men_in_sight = []
         return nil
       end
-      seen = @people.select { |x, y, _| distance_to(x, y) < SIGHT_CELLS && clear_line?(@x, @y, x, y) }
-      @men_in_sight = seen.length
-      # It finishes the man it is shooting: turning to whoever is nearest this moment wastes the gun.
-      target = seen.find { |man| man[3] == @target_number } || seen.min_by { |x, y, _| distance_to(x, y) }
-      @target_number = target&.last
+      @men_in_sight = men_with_clear_line
+      target = pick_target(@men_in_sight)
+      @target_number = target&.number
       target
+    end
+
+    def start_ignoring_men_after_futile_fight
+      total = @people.sum(&:hit_points)
+      @fight_passes = 0 if total != @hit_points_left
+      @hit_points_left = total
+      return unless @fight_passes > FUTILE_FIGHT_PASSES
+
+      @ignore_men_passes = IGNORE_MEN_PASSES
+      @fight_passes = 0
+    end
+
+    def men_with_clear_line
+      @people.select { |man| distance_to(man.x, man.y) < SIGHT_CELLS && clear_line?(@x, @y, man.x, man.y) }
+    end
+
+    # It finishes the man it is shooting: turning to whoever is nearest this moment wastes the gun.
+    def pick_target(men)
+      men.find { |man| man.number == @target_number } || men.min_by { |man| distance_to(man.x, man.y) }
     end
 
     def distance_to(x, y) = Math.hypot(x - @x, y - @y)
@@ -440,10 +455,10 @@ module Wolf3D
 
     # --- an ordinary man ----------------------------------------------------------------------
 
-    def fight((x, y, _hit_points))
+    def fight(man)
       @fight_passes += 1
-      distance = distance_to(x, y)
-      error = view_error_to(x, y)
+      distance = distance_to(man.x, man.y)
+      error = view_error_to(man.x, man.y)
       tolerance = aim_tolerance(distance)
       buttons = turn_buttons(error, tolerance)
       buttons << :b if error.abs <= tolerance && trigger_down?
@@ -460,7 +475,7 @@ module Wolf3D
       return false unless @level.door?(*cell) && !@ambushed[cell]
       return false unless @best_weapon >= Weapons::CHAIN_GUN && @ammo >= AMBUSH_ROUNDS
 
-      @people.count { |x, y, _| Math.hypot(x - cell[0], y - cell[1]) < AMBUSH_CROWD_CELLS } >= AMBUSH_MEN
+      @people.count { |man| Math.hypot(man.x - cell[0], man.y - cell[1]) < AMBUSH_CROWD_CELLS } >= AMBUSH_MEN
     end
 
     def begin_ambush(door)
@@ -521,13 +536,14 @@ module Wolf3D
       turn_buttons(view_error_to(x + 0.5, y + 0.5), WALK_AIM_VIEW_UNITS)
     end
 
-    def target_in_aim?((x, y)) = view_error_to(x, y).abs <= aim_tolerance(distance_to(x, y))
+    def target_in_aim?(man) = view_error_to(man.x, man.y).abs <= aim_tolerance(distance_to(man.x, man.y))
 
     # --- walking ------------------------------------------------------------------------------
 
     # With the boss dead the floor has nothing left to survive, so it takes his key and leaves.
     def travel
-      goal = boss_dead? ? next_way_point : stock_goal || detour_goal || next_way_point
+      drop_reached_way_points
+      goal = boss_dead? ? way_point : stock_goal || choose_detour || way_point
       return push_secret_wall if goal == :push_wall
       return pull_lever if goal == :lever
 
@@ -565,8 +581,11 @@ module Wolf3D
       press_at_intervals? ? [:a] : []
     end
 
-    def next_way_point
+    def drop_reached_way_points
       @way_points.shift while @way_points.length > 1 && (@walked[@way_points.first] || key_held?(@way_points.first))
+    end
+
+    def way_point
       goal = @way_points.first
       return :lever if goal == @route.cells.last && @route.ends_at == :lever && @cell == goal
       return goal if @boss_cell.nil? || holds_key?(FloorReport::BOSS_KEY)
@@ -581,7 +600,7 @@ module Wolf3D
 
     def holds_key?(key) = @keys.anybits?(KEY_BITS.fetch(key))
 
-    def detour_goal
+    def choose_detour
       @detour = nil if @detour == @cell || (@detour && @walked[@detour] && !@drops.include?(@detour))
       return @detour if @detour
 
@@ -709,12 +728,14 @@ module Wolf3D
 
     def stock_goal
       look_for_secret if @stage == :planning || (@stage == :on_foot && @cell != @searched_from)
+      @stage = :on_foot if taking_pieces? && next_piece.nil?
       case @stage
       when :to_secret then @cell == @secret.from || @pushing_passes.positive? ? :push_wall : @secret.from
-      when :stocking then next_piece_of(@report.pickups)
-      when :looting then next_piece_of(@stash)
+      when :stocking, :looting then next_piece
       end
     end
+
+    def taking_pieces? = %i[stocking looting].include?(@stage)
 
     def look_for_secret
       @searched_from = @cell
@@ -794,15 +815,13 @@ module Wolf3D
       end
     end
 
-    # The nearest of +pieces+ still worth having, or, when none is, the end of this stage.
-    def next_piece_of(pieces)
+    # The nearest piece of what this stage is after that is still worth having.
+    def next_piece
       steps = steps_from_here
-      wanted = pieces.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
-                     .select { |cell| steps[cell] && !@walked[cell] }
-      return wanted.min_by { |cell| steps[cell] } unless wanted.empty?
-
-      @stage = :on_foot
-      nil
+      pieces = @stage == :stocking ? @report.pickups : @stash
+      pieces.select { |piece| stock?(piece) }.map { |piece| [piece.x, piece.y] }
+            .select { |cell| steps[cell] && !@walked[cell] }
+            .min_by { |cell| steps[cell] }
     end
 
     def stock?(piece)
@@ -820,13 +839,15 @@ module Wolf3D
 
     def boss_dead? = !@boss.nil? && !@boss_hp.positive?
 
-    def boss_awake?
-      return false unless @boss_at && @boss_hp.positive?
+    def note_boss_seen
+      return unless @boss_at && @boss_hp.positive?
 
       @boss_seen ||= @boss_hp < @boss_full_hp ||
                      Math.hypot(@boss_at[0] - @boss_home[0], @boss_at[1] - @boss_home[1]) > BOSS_MOVED_CELLS ||
                      (distance_to(*@boss_at) < BOSS_SEEN_CELLS && clear_line?(@x, @y, *@boss_at))
     end
+
+    def boss_awake? = !@boss_at.nil? && @boss_hp.positive? && @boss_seen
 
     def fight_boss(x, y) = @hardest ? kite_boss(x, y) : fight_from_corner(x, y)
 
