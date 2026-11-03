@@ -159,7 +159,17 @@ module Wolf3D
         return @sight.turn_buttons(error, tolerance) if error.abs > tolerance
 
         first_step = first_step_to_line(x, y, wants_line: true) || @walker.set_path_to([x.floor, y.floor])
-        first_step ? @walker.step_or_open_buttons(first_step) : []
+        return [] unless first_step
+
+        buttons = @walker.step_or_open_buttons(first_step)
+        pull_early?(first_step, x, y) ? buttons + [:b] : buttons
+      end
+
+      # A GUN FIRES A STAGE AFTER ITS TRIGGER (Weapons::STAGE_PASSES), so the trigger goes down
+      # behind cover when the very next step is into his line: the round leaves as it arrives,
+      # not a stage later while he has it in his sights.
+      def pull_early?(step, x, y)
+        @sight.ammo.positive? && @sight.trigger_down? && @sight.clear_line?(step[0] + 0.5, step[1] + 0.5, x, y)
       end
 
       def step_into_cover(x, y)
