@@ -201,7 +201,7 @@ class TestLastingState < Minitest::Test
   LOAD = %i[l r select].freeze
   STILL = %i[l r].freeze
 
-  QUARTER_TURN = ((FP::TURN / 4) / FP::TURN_SPEED.to_f).ceil
+  QUARTER_TURN = ((FP::TURN / 4) / FP::TURN_UNITS_WALKING.to_f).ceil
   ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # The fixture's room, which the second floor is: the player starts in the middle facing north,

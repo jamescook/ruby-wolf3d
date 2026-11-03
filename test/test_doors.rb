@@ -28,7 +28,7 @@ class TestDoors < Minitest::Test
   def program = view_of(@level, standing: false, drawing: false)
 
   # Half a turn, so the player faces the door in the room's south wall.
-  def about_turn = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil
+  def about_turn = ((FP::TURN / 2) / FP::TURN_UNITS_WALKING.to_f).ceil
 
   # Turn around, walk at the door, and press the open button once on +press+ if given.
   def walk_at_the_door(frames, press: nil)
@@ -130,7 +130,7 @@ class TestDoors < Minitest::Test
     refute_nil locked, "the fixture floor should have a gold-locked door"
 
     # Turn left a quarter to face the room's west wall, then walk into it and press.
-    quarter = ((FP::TURN / 4) / FP::TURN_SPEED.to_f).ceil
+    quarter = ((FP::TURN / 4) / FP::TURN_UNITS_WALKING.to_f).ceil
     run = Reference.new.input_each_frame do |f|
       next [:left] if f <= quarter
       next %i[up a] if f > quarter + 40
@@ -145,7 +145,7 @@ class TestDoors < Minitest::Test
   # The key lies one cell north of where the player starts, which is the way they already face.
   def test_walking_over_a_key_picks_it_up_and_then_the_locked_door_opens
     locked = @doors.doors.index { |door| door.lock == :gold }
-    quarter = ((FP::TURN / 4) / FP::TURN_SPEED.to_f).ceil
+    quarter = ((FP::TURN / 4) / FP::TURN_UNITS_WALKING.to_f).ceil
 
     got = Reference.new.hold(:up).run(program, frames: 20)
 

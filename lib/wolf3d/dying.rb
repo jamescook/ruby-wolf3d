@@ -28,7 +28,10 @@ module Wolf3D
     # him — which is the only test that needs no angle worked out, and no arctangent exists here
     # to work one out with. The cap is a half turn's worth of steps and a couple over, so a
     # killer standing exactly behind you still finishes.
-    STEP_ANGLE = FirstPerson::TURN_SPEED
+    #
+    # A STEP IS THE ORIGINAL'S, DEATHROTATE two degrees a tic (wl_game.cpp Died), which of a
+    # 1024-unit turn is nearest six.
+    STEP_ANGLE = 6
     MOST_TURNS = (FirstPerson::TURN / (2 * STEP_ANGLE)) + 2
 
     # ...and then the view is drawn a couple more times before the dots start. Both pages have to

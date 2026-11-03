@@ -165,7 +165,7 @@ class TestLives < Minitest::Test
 
   # Turn about, walk at the door in the room's south wall, and open it.
   def test_a_door_you_opened_is_shut_again
-    opened, back = either_side_of_a_restart(at: 120) do |f|
+    opened, back = either_side_of_a_restart(at: about_turn + 70) do |f|
       next [:left] if f <= about_turn
       next %i[up a] if f == about_turn + 40
 
@@ -303,8 +303,8 @@ class TestLives < Minitest::Test
     [at % Wolf3D::Fixture::Release::GRID, at / Wolf3D::Fixture::Release::GRID]
   end
 
-  def quarter_turn = ((FP::TURN / 4) / FP::TURN_SPEED.to_f).ceil
-  def about_turn = ((FP::TURN / 2) / FP::TURN_SPEED.to_f).ceil
+  def quarter_turn = ((FP::TURN / 4) / FP::TURN_UNITS_WALKING.to_f).ceil
+  def about_turn = ((FP::TURN / 2) / FP::TURN_UNITS_WALKING.to_f).ceil
 
   def list(run, name, index) = run.list(name)[index]
   def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]

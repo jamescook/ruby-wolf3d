@@ -19,6 +19,24 @@ class TestFirstPerson < Minitest::Test
     @view_program ||= view_of(@level, standing: false)
   end
 
+  # HOW FAST YOU TURN is the original's: left or right adds BASEMOVE 35 a tic walking and RUNMOVE 70
+  # with run held (wl_play.cpp PollKeyboardMove), and the angle moves that many twentieths of a
+  # degree (ANGLESCALE in wl_agent.cpp ControlMovement). A held A is run here. A pass is one tic.
+  TURN_PASSES = 20
+
+  def turning_program = @turning_program ||= view_of(@level, standing: false, drawing: false)
+
+  def degrees_a_pass(*held)
+    start = Reference.new.run(turning_program, frames: TURN_PASSES)[:view]
+    turned = Reference.new.hold(*held).run(turning_program, frames: TURN_PASSES)[:view]
+    ((turned - start) % FP::TURN) * 360.0 / FP::TURN / TURN_PASSES
+  end
+
+  def test_turning_goes_at_the_originals_rate_walking_and_running
+    assert_in_delta 1.75, degrees_a_pass(:right), 0.1, "walking"
+    assert_in_delta 3.5, degrees_a_pass(:right, :a), 0.2, "running"
+  end
+
   def test_the_atlas_holds_only_the_walls_the_level_builds_with
     atlas = Wolf3D::WallAtlas.new(Wolf3D::Vswap.new(fixture.files["VSWAP"]),
                                   Wolf3D::Palette.game, @level)
@@ -107,23 +125,23 @@ class TestFirstPerson < Minitest::Test
   # depends on the angle, and a player stops on the last step that keeps their feet out of the
   # wall — so where that leaves them is the remainder of the distance divided by the step, which
   # is a different sliver for every approach. Walking straight in leaves seven hundredths of a
-  # cell and looks fine. Eleven turn-steps first leaves almost nothing, and the wall vanishes.
+  # cell and looks fine. A turn of about an eighth first left almost nothing, and the wall
+  # vanished. Which turn does it depends on the size of a turn-step, so this walks in from a few
+  # turns either side of that.
   #
   # Read along the eye line, which crosses whatever is ahead at every distance.
-  SEE_THROUGH_TURNS = 11
-
-  def pressed_against_a_wall(frames)
-    ->(f) { f <= SEE_THROUGH_TURNS ? [:left] : [:up] }
-  end
+  SEE_THROUGH_TURNS = (24..28)
 
   def test_a_wall_you_are_pressed_against_still_fills_the_screen
-    run = Reference.new.input_each_frame(&pressed_against_a_wall(0))
-                   .run(view_program, frames: SEE_THROUGH_TURNS + 180)
-    through = (0...FP::ACROSS).count do |x|
-      [FP::CEILING, FP::FLOOR_COLOR].include?(run.screen.pixel(x, FP::HORIZON))
-    end
+    SEE_THROUGH_TURNS.each do |turns|
+      run = Reference.new.input_each_frame { |f| f <= turns ? [:left] : [:up] }
+                     .run(view_program, frames: turns + 180)
+      through = (0...FP::ACROSS).count do |x|
+        [FP::CEILING, FP::FLOOR_COLOR].include?(run.screen.pixel(x, FP::HORIZON))
+      end
 
-    assert_equal 0, through, "#{through} strips of the eye line are showing through the wall"
+      assert_equal 0, through, "after #{turns} turns, #{through} strips of the eye line show through the wall"
+    end
   end
 
   # THE WALLS MUST NOT JUDDER AS YOU WALK, and this is the test that the two distances a ray
@@ -145,7 +163,7 @@ class TestFirstPerson < Minitest::Test
   # leaning forward ask for different halves of the cell the eye stands in. A fan pointed into one
   # corner leans the same way on both axes for every ray in it, so one corner exercises one of the
   # four pairs and says nothing about the other three.
-  CORNERS = [[:left, 11], [:right, 11], [:left, 33], [:right, 33]].freeze
+  CORNERS = [[:left, 26], [:right, 26], [:left, 79], [:right, 79]].freeze # an eighth and three, in walking turn-steps
   WALKING_FRAMES = 14 # steps after the turn: far enough to carry the eye over a grid line
   JUDDER = 3          # pixels a strip's top edge may move in one frame at this walking speed
 

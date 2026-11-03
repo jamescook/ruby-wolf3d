@@ -125,12 +125,13 @@ module Wolf3D
     # How far a step goes in one pass, which is the original's BASEMOVE * MOVESCALE in one of its units.
     WALK = 0.0801
 
-    # How far a press of left or right turns you in one pass. Twelve of the turn's 1024 units
-    # is 4.2 degrees, which is what the original turns in one of its own units of time — and
-    # is the same speed this turned at before, when a unit was twice as big and six of them
-    # said it. A finer angle count does not mean a faster player; it means a smaller step is
-    # available, which is what let the view be cut into sixty strips without narrowing it.
-    TURN_SPEED = 12
+    # HOW FAR LEFT OR RIGHT TURNS YOU IN ONE PASS, in units of TURN, walking and with A held. The
+    # original adds BASEMOVE 35 a tic to its turn walking and RUNMOVE 70 running (wl_play.cpp,
+    # PollKeyboardMove), and the angle moves that many twentieths of a degree (ANGLESCALE, in
+    # wl_agent.cpp ControlMovement): 1.75 degrees and 3.5. Of a 1024-unit turn those are a hair
+    # under five and ten.
+    TURN_UNITS_WALKING = 5
+    TURN_UNITS_RUNNING = 10
 
     # What the player starts with. A hundred of health and eight bullets, which is what the
     # original hands you at the top of a floor.
@@ -1188,8 +1189,13 @@ module Wolf3D
     def walk
       b = @b
       @mind&.update_men_nearby
-      @player.angle -= TURN_SPEED if b.held(:left)
-      @player.angle += TURN_SPEED if b.held(:right)
+      if b.held(:a)
+        @player.angle -= TURN_UNITS_RUNNING if b.held(:left)
+        @player.angle += TURN_UNITS_RUNNING if b.held(:right)
+      else
+        @player.angle -= TURN_UNITS_WALKING if b.held(:left)
+        @player.angle += TURN_UNITS_WALKING if b.held(:right)
+      end
 
       @stepx = @sin[@player.angle + QUARTER] * WALK
       @stepy = @sin[@player.angle] * WALK

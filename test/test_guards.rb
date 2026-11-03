@@ -335,11 +335,11 @@ class TestGuards < Minitest::Test
   # unit was meant, and in play it shows only as guards moving at a different speed from the
   # world around them.
   ORIGINAL_WALK = 35 * 150 / 65_536.0 # BASEMOVE * MOVESCALE, in cells per unit of its time
-  ORIGINAL_TURN = 70 / 20.0           # RUNMOVE / ANGLESCALE, in degrees per unit
+  ORIGINAL_TURN = 70 / 20.0           # RUNMOVE / ANGLESCALE, in degrees per unit with run held
 
   def test_a_pass_is_worth_about_one_of_the_originals_units_of_time
     walking = FP::WALK / ORIGINAL_WALK
-    turning = (FP::TURN_SPEED * 360.0 / FP::TURN) / ORIGINAL_TURN
+    turning = (FP::TURN_UNITS_RUNNING * 360.0 / FP::TURN) / ORIGINAL_TURN
 
     assert_in_delta 1.0, walking, 0.2, "the player walks about a unit's worth of ground a pass"
     assert_in_delta 1.0, turning, 0.25, "and turns about a unit's worth of angle a pass"
@@ -353,7 +353,7 @@ class TestGuards < Minitest::Test
   # is landing outside them both, and that is what a clock set in seconds does.
   def test_a_guards_clock_runs_at_the_same_rate_the_player_moves_at
     walking = FP::WALK / ORIGINAL_WALK
-    turning = (FP::TURN_SPEED * 360.0 / FP::TURN) / ORIGINAL_TURN
+    turning = (FP::TURN_UNITS_RUNNING * 360.0 / FP::TURN) / ORIGINAL_TURN
     guard = Enemy::TICKS_PER_THINK / Enemy::SCALE.to_f / 2 # a think is every other pass
 
     assert_operator guard, :>=, walking * 0.9, "a guard is not slower than the world he is in"

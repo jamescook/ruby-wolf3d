@@ -30,7 +30,7 @@ class TestPushwalls < Minitest::Test
   def gone(run) = slot(run, :push_gone, 0)
 
   # A quarter turn, so the player faces the room's east wall where the push wall is.
-  def quarter_turn = ((FP::TURN / 4) / FP::TURN_SPEED.to_f).ceil
+  def quarter_turn = ((FP::TURN / 4) / FP::TURN_UNITS_WALKING.to_f).ceil
 
   # Turn right to face east, walk into the wall, and lean on it from +press+.
   def shove(frames, press: nil)
