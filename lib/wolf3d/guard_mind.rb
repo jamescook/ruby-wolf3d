@@ -83,10 +83,14 @@ module Wolf3D
     CHANCES = 256
 
     # HOW NEAR THE MIDDLE OF THE VIEW a guard has to be for a shot to be about him: a tenth of
-    # the screen either side, which is the original's. Turned into a slope so the test needs no
+    # the original's screen either side (shootdelta, wl_main.cpp). That is an ANGLE, the same on
+    # any screen: a tenth of the width is a fifth of the half-width, and the original's half-width
+    # has the tangent 0x8000 / (FOCALLENGTH 0x5700 + MINDIST 0x5800) (CalcProjection). A tenth of
+    # this game's narrower screen would be a narrower cone. Kept as a slope so the test needs no
     # divide — a guard is in the sights when how far he is to the side of the line you are
     # looking down is less than this much of how far in front of you he is.
-    AIM = (240 / 10) / FirstPerson::WALL_SCALE
+    ORIGINAL_HALF_VIEW_TANGENT = 0x8000 / (0x5700 + 0x5800).to_f
+    AIM = ORIGINAL_HALF_VIEW_TANGENT / 5
 
     # Nothing is a target.
     NOBODY = -1

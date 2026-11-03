@@ -304,6 +304,26 @@ class TestGuards < Minitest::Test
     assert_operator guard_hp(run), :<=, 0, "with nothing left"
   end
 
+  # HOW FAR OFF THE MIDDLE A SHOT STILL FINDS HIM is the original's angle, whatever this screen's
+  # width: GunAttack takes a man within shootdelta, a tenth of the view, of the middle, and the
+  # original's view has a half-width whose tangent is 0x8000 / (FOCALLENGTH + MINDIST)
+  # (wl_main.cpp CalcProjection). So a man is in the sights within about 8.3 degrees of the middle.
+  #
+  # He stands three cells ahead, near enough that no shot misses on the dice, and the player turns
+  # away from him a few steps before one shot. The first pass of a held turn is the game starting,
+  # so five passes held are four walking turn-steps, which put him 7.0 degrees off, and six put
+  # him 8.8.
+  def shoot_after_turning(turns)
+    script = ->(f) { f < turns ? [:left] : (f == turns + 1 ? [:b] : []) }
+    Reference.new.input_each_frame { |f| script.call(f) }
+             .run(view_of(arena(guards: [[5, 8, :west]], player: [2, 8])), frames: turns + A_SHOT)
+  end
+
+  def test_a_man_just_inside_the_originals_cone_is_hit_and_one_just_outside_is_not
+    assert_operator guard_hp(shoot_after_turning(5)), :<, Guards::HIT_POINTS, "7.0 degrees off is in the sights"
+    assert_equal Guards::HIT_POINTS, guard_hp(shoot_after_turning(6)), "8.8 degrees off is not"
+  end
+
   def test_a_guard_left_alone_keeps_his_hit_points
     run = watch(guards: [[10, 8, :west]], frames: 60)
 

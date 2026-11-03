@@ -40,8 +40,9 @@ module Wolf3D
     # a table. With 512 units in a turn, sixty strips one unit apart would have been a 42
     # degree view — a keyhole. Counting a turn in 1024 units instead makes each unit half as
     # much, so three of them is about what one of the old ones was, and sixty strips three
-    # apart is a 62 degree view: WIDER than the 56 this had before, and nearer the 60 the
-    # original uses.
+    # apart is a 62 degree view: WIDER than the 56 this had before, and nearer the original's,
+    # which is about 72 (the tangent of its half-width is 0x8000 / (FOCALLENGTH + MINDIST),
+    # wl_main.cpp CalcProjection).
     #
     # The tables that hold a sine and a distance for every angle double in length. They live
     # in the cartridge and are read, never written, so that costs nothing but room — and 1024
@@ -52,7 +53,8 @@ module Wolf3D
     CROSSINGS = 48        # grid lines a ray may cross before it gives up — about 24 cells
 
     # HOW WIDE THE VIEW IS: three angle units per strip, which over sixty strips is about 62
-    # degrees across — a shade wider than the 60 the original uses.
+    # degrees across, ten narrower than the original's. What a shot can reach does not follow
+    # it: that is the original's angle (GuardMind::AIM).
     #
     # A wide view is not a neutral choice. Perspective genuinely stretches whatever sits at
     # the edge of it, and that stretch is what reads as a bend when you look ALONG a wall
