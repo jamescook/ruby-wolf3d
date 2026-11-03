@@ -304,6 +304,67 @@ class TestPilot < Minitest::Test
 
   def floor_with_a_gap_at_his_row = arena(walls: wall_down_column_seven(except: [7, ROW]), player: [3, ROW])
 
+  def noted_boss(level, sight)
+    boss_fight_on(level, sight).tap do |boss_fight|
+      boss_fight.note(sight.guards)
+      boss_fight.update
+    end
+  end
+
+  def floor_with_him_walled_off = arena(walls: wall_down_column_seven(except: nil), player: [3, ROW])
+
+  def test_a_boss_it_can_see_starts_the_fight
+    level = floor_with_a_gap_at_his_row
+    close = [[9.5, ROW + 0.5, BOSS_HIT_POINTS]]
+
+    assert_predicate noted_boss(level, sight_on(level, at: [3, ROW], men: close)), :awake?
+  end
+
+  def test_a_boss_walking_about_behind_a_wall_starts_nothing
+    level = floor_with_him_walled_off
+    sight = sight_on(level, at: [3, ROW], men: HANS)
+    boss_fight = noted_boss(level, sight)
+    read_game(sight, at: [3, ROW], men: [[10.5, 3.5, BOSS_HIT_POINTS]])
+    boss_fight.note(sight.guards)
+    boss_fight.update
+
+    refute_predicate boss_fight, :awake?
+  end
+
+  def test_a_boss_it_has_hit_starts_the_fight_wherever_he_is
+    level = floor_with_him_walled_off
+    sight = sight_on(level, at: [3, ROW], men: HANS)
+    boss_fight = noted_boss(level, sight)
+    read_game(sight, at: [3, ROW], men: [[12.5, ROW + 0.5, BOSS_HIT_POINTS - 1]])
+    boss_fight.note(sight.guards)
+    boss_fight.update
+
+    assert_predicate boss_fight, :awake?
+  end
+
+  def test_a_wound_with_a_clear_line_to_him_starts_the_fight
+    level = floor_with_a_gap_at_his_row
+    far_off = [[14.5, ROW + 0.5, BOSS_HIT_POINTS]]
+    sight = sight_on(level, at: [3, ROW], men: far_off, health: 100)
+    boss_fight = noted_boss(level, sight)
+
+    refute_predicate boss_fight, :awake?
+    read_game(sight, at: [3, ROW], men: far_off, health: 90)
+    boss_fight.update
+
+    assert_predicate boss_fight, :awake?
+  end
+
+  def test_a_wound_with_a_wall_between_them_starts_nothing
+    level = floor_with_him_walled_off
+    sight = sight_on(level, at: [3, ROW], men: HANS, health: 100)
+    boss_fight = noted_boss(level, sight)
+    read_game(sight, at: [3, ROW], men: HANS, health: 90)
+    boss_fight.update
+
+    refute_predicate boss_fight, :awake?
+  end
+
   def test_a_boss_is_shot_from_range_with_the_gun_on_him
     level = floor_with_a_gap_at_his_row
     sight = sight_on(level, at: [3, ROW], men: HANS, view: 0)

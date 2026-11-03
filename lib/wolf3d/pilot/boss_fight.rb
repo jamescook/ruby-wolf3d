@@ -12,7 +12,6 @@ module Wolf3D
       LEAST_HIT_POINTS = Enemy::ALL.select(&:boss?).flat_map(&:hit_points).select(&:positive?).min
 
       SEEN_CELLS = 10.0
-      MOVED_CELLS = 0.3
 
       # The range it holds a boss at, how long one strafe lasts, and when it goes for more stock.
       KITE_NEAR_CELLS = 8.0
@@ -44,13 +43,12 @@ module Wolf3D
         end
       end
 
-      # Has he been seen yet?
+      # THE FIGHT STARTS ON WHAT IT CAN TELL FROM WHERE IT STANDS: it has seen him, it has hit him, or
+      # something hit it with a clear line to him. Where he walks unseen does not start it.
       def update
         return unless @at && @hit_points.positive?
 
-        @seen ||= @hit_points < @full_hit_points ||
-                  Math.hypot(@at[0] - @home[0], @at[1] - @home[1]) > MOVED_CELLS ||
-                  (@sight.distance_to(*@at) < SEEN_CELLS && @sight.clear_line_to?(*@at))
+        @seen ||= @hit_points < @full_hit_points || in_sight? || (@sight.hurt? && @sight.clear_line_to?(*@at))
       end
 
       def awake? = !@at.nil? && @hit_points.positive? && @seen
@@ -60,12 +58,13 @@ module Wolf3D
 
       private
 
+      def in_sight? = @sight.distance_to(*@at) < SEEN_CELLS && @sight.clear_line_to?(*@at)
+
       def note_position(guard)
         @at = [guard.x, guard.y]
         @cell = [guard.x.floor, guard.y.floor]
         @hit_points = guard.hit_points
         @full_hit_points = [@full_hit_points, guard.hit_points].max
-        @home ||= @at
       end
 
       # ON THE HARDEST SETTING NO CORNER SAVES YOU: he has more hit points than a fight of peeking
