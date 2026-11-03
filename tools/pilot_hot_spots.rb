@@ -19,7 +19,12 @@ of = ->(kind) { events.select { |event| event["event"] == kind } }
 wounds = of["wound"]
 damage = wounds.sum { |wound| wound["damage"] }
 
-def man_name(man) = man ? "#{man['kind']} from #{man['home']&.join(',')}" : "nobody with a line"
+# A man with no line by the pilot's reckoning is still the nearest, and the likeliest to have fired.
+def man_name(man)
+  return "nobody" unless man
+
+  "#{man['kind']} from #{man['home']&.join(',')}#{' (no line)' if man['no_line']}"
+end
 
 def show(title, rows, limit: 12)
   puts "\n#{title}"
@@ -58,7 +63,7 @@ show("WHO HURTS BJ MOST: floor, man, health, wounds", hurters.map do |(floor, ma
   [floor, man, list.sum { |wound| wound["damage"] }, list.length]
 end.sort_by { |row| -row[2] }.map { |floor, man, hurt, count| format("floor %-2d %-26s %5d health %4d wounds", floor, man, hurt, count) })
 
-show("WHO HURTS BJ, by kind", wounds.group_by { |wound| wound.dig("by", "kind") || "nobody with a line" }.map do |kind, list|
+show("WHO HURTS BJ, by kind", wounds.group_by { |wound| "#{wound.dig('by', 'kind') || 'nobody'}#{' (no line)' if wound.dig('by', 'no_line')}" }.map do |kind, list|
   hurt = list.sum { |wound| wound["damage"] }
   [kind, hurt, share(hurt, damage)]
 end.sort_by { |row| -row[1] }.map { |kind, hurt, pct| format("%-20s %5d health %3d%%", kind, hurt, pct) })
@@ -88,7 +93,7 @@ near = lambda do |distance|
 
   "7 cells or more"
 end
-show("HOW FAR OFF THE MAN WHO HURT BJ STOOD", wounds.group_by { |wound| near.call(wound.dig("by", "distance")) }.map do |where, list|
+show("HOW FAR OFF THE MAN WHO HURT BJ STOOD", wounds.group_by { |wound| wound.dig("by", "no_line") ? "no line (pilot's reckoning)" : near.call(wound.dig("by", "distance")) }.map do |where, list|
   hurt = list.sum { |wound| wound["damage"] }
   [where, hurt, share(hurt, damage)]
 end.sort_by { |row| -row[1] }.map { |where, hurt, pct| format("%-20s %5d health %3d%%", where, hurt, pct) })

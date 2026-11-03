@@ -15,7 +15,8 @@ module Wolf3D
       FIXED_POINT_SCALE = 1 << VBlank::DSL::Fraction::DEFAULT_BITS
       VIEW_UNITS_PER_TURN = 1024
 
-      # `view` moves in twelves, so a target narrower than half of that can never be met.
+      # `view` moves in tens with A held (FirstPerson::TURN_UNITS_RUNNING), so a target narrower than
+      # half of that can be stepped over.
       FINEST_AIM_VIEW_UNITS = 7
       GUARD_HALF_WIDTH_CELLS = 0.12
 
@@ -167,11 +168,14 @@ module Wolf3D
 
       def see_through?(x, y) = !@level.solid?(x, y) && (!@level.door?(x, y) || door_open?(x, y))
 
+      # A DOOR IS SEEN THROUGH WHERE A GUARD SEES THROUGH IT, open far enough to walk through
+      # (GuardMind#blocked_by). A stricter door would have it think itself behind cover while the
+      # man on the other side shoots it.
       def door_open?(x, y)
         number = @door_numbers[[x, y]]
         return false unless number && @doors_open
 
-        @doors_open[number].to_i >= FirstPerson::DOOR_WIDE * FIXED_POINT_SCALE
+        @doors_open[number].to_i >= FirstPerson::DOOR_WALKABLE * FIXED_POINT_SCALE
       end
     end
   end

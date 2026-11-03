@@ -101,13 +101,16 @@ module Wolf3D
 
       def men_with_line(sight) = sight.men.select { |man| sight.clear_line_to?(man.x, man.y) }
 
-      # The nearest man with a line to BJ is the likeliest to have fired.
+      # The nearest man with a line to BJ is the likeliest to have fired. With nobody in line, the
+      # nearest man at all, marked +no_line+: the pilot's line and the game's disagree about him.
       def shooter(sight)
-        man = men_with_line(sight).min_by { |m| sight.distance_to_man(m) }
+        in_line = men_with_line(sight).min_by { |m| sight.distance_to_man(m) }
+        man = in_line || sight.men.min_by { |m| sight.distance_to_man(m) }
         return nil unless man
 
-        @names.fetch(man.number, {}).merge(distance: sight.distance_to_man(man).round(1),
-                                           in_front: sight.in_view?(man.x, man.y))
+        named = @names.fetch(man.number, {}).merge(distance: sight.distance_to_man(man).round(1),
+                                                   in_front: sight.in_view?(man.x, man.y))
+        in_line ? named : named.merge(no_line: true)
       end
 
       # A hit can land on the frame the round goes, so a new shot is opened before hits are counted.
