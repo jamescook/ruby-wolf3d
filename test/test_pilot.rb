@@ -189,6 +189,15 @@ class TestPilot < Minitest::Test
     assert_nil supplies.choose_detour
   end
 
+  # The gun in hand can be the pistol with the bullets gone, or the knife, whatever it owns.
+  def test_only_a_better_gun_than_the_best_it_owns_is_stock
+    level = arena(things: { [6, 3] => MACHINE_GUN }, player: [3, 3])
+    sight = sight_on(level, at: [3, 3], weapon: PISTOL, weapon_best: Wolf3D::Weapons::MACHINE_GUN)
+    supplies = supplies_on(level, sight)
+
+    refute supplies.stock?(supplies.pieces.first)
+  end
+
   # --- the secret plan ----------------------------------------------------------------------
 
   def floor_behind_a_secret_wall(things)

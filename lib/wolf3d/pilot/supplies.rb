@@ -14,33 +14,33 @@ module Wolf3D
 
       # WHAT ONE KIND OF PIECE IS WORTH, each number against a reading of the player's own. A piece
       # is a detour while +reading+ is under +detour_below+, and it is worth stocking up on while
-      # +stock_reading+ is under +stock_below+. Under +short_below+ it is short of the thing, and
-      # walks +steps_when_short+ for one instead of +steps+.
-      Bonus = Data.define(:reading, :detour_below, :stock_reading, :stock_below, :short_below, :steps, :steps_when_short) do
+      # +reading+ is under +stock_below+. Under +short_below+ it is short of the thing, and walks
+      # +steps_when_short+ for one instead of +steps+.
+      Bonus = Data.define(:reading, :detour_below, :stock_below, :short_below, :steps, :steps_when_short) do
         def worth_detour?(sight) = sight.public_send(reading) < detour_below
-        def worth_stocking?(sight) = sight.public_send(stock_reading) < stock_below
+        def worth_stocking?(sight) = sight.public_send(reading) < stock_below
         def furthest_steps(sight) = sight.public_send(reading) < short_below ? steps_when_short : steps
       end
 
       def self.gun_bonus(gun)
-        Bonus.new(reading: :best_weapon, detour_below: gun, stock_reading: :weapon, stock_below: Weapons::CHAIN_GUN,
-                  short_below: NEVER, steps: ANY_DISTANCE_STEPS, steps_when_short: ANY_DISTANCE_STEPS)
+        Bonus.new(reading: :best_weapon, detour_below: gun, stock_below: gun, short_below: NEVER,
+                  steps: ANY_DISTANCE_STEPS, steps_when_short: ANY_DISTANCE_STEPS)
       end
 
       # A better gun is worth any walk, and another life nearly so. A hurt player walks further for
       # health. Everything else that lies about, treasure and scraps and keys, is walked over or not.
       BONUSES = Ractor.make_shareable(
-        { health: Bonus.new(reading: :health, detour_below: 85, stock_reading: :health, stock_below: Pickups::FULL_HEALTH,
-                            short_below: 50, steps: LONG_DETOUR_STEPS, steps_when_short: ANY_DISTANCE_STEPS),
-          ammunition: Bonus.new(reading: :ammo, detour_below: Pickups::MOST_AMMO, stock_reading: :ammo, stock_below: Pickups::MOST_AMMO,
-                                short_below: 40, steps: SHORT_DETOUR_STEPS, steps_when_short: LONG_DETOUR_STEPS),
-          extra_life: Bonus.new(reading: :health, detour_below: ALWAYS, stock_reading: :health, stock_below: ALWAYS,
-                                short_below: NEVER, steps: LIFE_DETOUR_STEPS, steps_when_short: LIFE_DETOUR_STEPS),
+        { health: Bonus.new(reading: :health, detour_below: 85, stock_below: Pickups::FULL_HEALTH, short_below: 50,
+                            steps: LONG_DETOUR_STEPS, steps_when_short: ANY_DISTANCE_STEPS),
+          ammunition: Bonus.new(reading: :ammo, detour_below: Pickups::MOST_AMMO, stock_below: Pickups::MOST_AMMO, short_below: 40,
+                                steps: SHORT_DETOUR_STEPS, steps_when_short: LONG_DETOUR_STEPS),
+          extra_life: Bonus.new(reading: :health, detour_below: ALWAYS, stock_below: ALWAYS, short_below: NEVER,
+                                steps: LIFE_DETOUR_STEPS, steps_when_short: LIFE_DETOUR_STEPS),
           machine_gun: gun_bonus(Weapons::MACHINE_GUN),
           chain_gun: gun_bonus(Weapons::CHAIN_GUN) }
       )
       WORTH_NOTHING = Ractor.make_shareable(
-        Bonus.new(reading: :health, detour_below: NEVER, stock_reading: :health, stock_below: NEVER, short_below: NEVER,
+        Bonus.new(reading: :health, detour_below: NEVER, stock_below: NEVER, short_below: NEVER,
                   steps: SHORT_DETOUR_STEPS, steps_when_short: SHORT_DETOUR_STEPS)
       )
       GUNS = %i[machine_gun chain_gun].freeze
