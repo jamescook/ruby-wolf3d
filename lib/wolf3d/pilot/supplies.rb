@@ -48,20 +48,20 @@ module Wolf3D
       # Below this it picks up what the men dropped.
       SCAVENGE_AMMO_BELOW = 60
 
-      # One thing to pick up, from the floor's own list.
-      Piece = Data.define(:cell, :kind, :bonus)
+      # One thing to pick up. +number+ is its place in Scenery#pieces, which is how the game says
+      # whether it has been taken.
+      Piece = Data.define(:cell, :kind, :bonus, :number)
 
-      def self.piece_from(scenery_piece)
+      def self.piece_from(scenery_piece, number)
         kind, what = scenery_piece.bonus
         kind = what if kind == :weapon
-        Piece.new(cell: [scenery_piece.x, scenery_piece.y], kind: kind, bonus: BONUSES.fetch(kind, WORTH_NOTHING))
+        Piece.new(cell: [scenery_piece.x, scenery_piece.y], kind: kind, bonus: BONUSES.fetch(kind, WORTH_NOTHING), number: number)
       end
 
       attr_reader :pieces
 
-      # +scenery_pieces+ are FloorReport#pickups.
-      def initialize(scenery_pieces, sight, walker)
-        @pieces = scenery_pieces.map { |piece| self.class.piece_from(piece) }
+      def initialize(scenery, sight, walker)
+        @pieces = scenery.pieces.each_with_index.filter_map { |piece, number| self.class.piece_from(piece, number) if piece.bonus }
         @sight = sight
         @walker = walker
       end
@@ -69,7 +69,7 @@ module Wolf3D
       # The nearest of +pieces+ that can be walked to and is still there.
       def nearest(pieces)
         steps = @walker.steps_from_here
-        pieces.map(&:cell).select { |cell| steps[cell] && !@sight.walked?(cell) }.min_by { |cell| steps[cell] }
+        pieces.select { |piece| steps[piece.cell] && !@sight.thing_gone?(piece.number) }.map(&:cell).min_by { |cell| steps[cell] }
       end
 
       # The nearest cell holding something of these kinds, whatever it is needed for.
@@ -83,7 +83,7 @@ module Wolf3D
 
       # Keep to the detour under way, or pick the nearest that pays for the walk. Answers the cell.
       def choose_detour
-        @detour = nil if @detour == @sight.cell || (@detour && @sight.walked?(@detour) && !@sight.drops.include?(@detour))
+        @detour = nil if @detour == @sight.cell || (@detour && !lying_at?(@detour))
         return @detour if @detour
 
         steps = @walker.steps_from_here
@@ -96,12 +96,14 @@ module Wolf3D
 
       # How far it will walk to each cell worth a detour.
       def detour_limits
-        wanted = @pieces.select { |piece| piece.bonus.worth_detour?(@sight) }
+        wanted = @pieces.select { |piece| !@sight.thing_gone?(piece.number) && piece.bonus.worth_detour?(@sight) }
                         .to_h { |piece| [piece.cell, piece.bonus.furthest_steps(@sight)] }
-        wanted = wanted.reject { |cell, _| @sight.walked?(cell) }
-        # Something a man dropped is on the floor however often this cell has been walked.
         wanted.merge!(@sight.drops.to_h { |cell| [cell, SHORT_DETOUR_STEPS] }) if @sight.ammo < SCAVENGE_AMMO_BELOW
         wanted
+      end
+
+      def lying_at?(cell)
+        @sight.drops.include?(cell) || @pieces.any? { |piece| piece.cell == cell && !@sight.thing_gone?(piece.number) }
       end
     end
   end

@@ -54,6 +54,11 @@ module Wolf3D
 
       def hurt? = @hurt_passes.positive?
       def walked?(cell) = @walked.key?(cell)
+
+      # Has the game taken this piece off the floor? +number+ is its place in Scenery#pieces. Walking
+      # over a piece says nothing: a full player leaves it lying (Pickups).
+      def thing_gone?(number) = !@things_gone[number].to_i.zero?
+
       def holds_key?(key) = @keys.anybits?(FirstPerson::KEY_BITS.fetch(key))
 
       def distance_to(x, y) = Math.hypot(x - @x, y - @y)
@@ -134,6 +139,7 @@ module Wolf3D
       # those still standing.
       def read_men(game)
         @doors_open = game.list(:door_open)
+        @things_gone = game.list(:thing_gone)
         xs, ys, hit_points, dropped = %i[x y hp dropped].map { |field| game.pool(:guard, field) }
         slots = xs.each_index.select { |n| xs[n] }
         @guards = slots.map do |n|

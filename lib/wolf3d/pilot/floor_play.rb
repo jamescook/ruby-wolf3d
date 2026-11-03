@@ -17,7 +17,7 @@ module Wolf3D
         @ambushed = {}
         @sight = Sight.new(level, report.doors)
         @walker = Walker.new(level, scenery, @sight, before_step: method(:ambush_if_crowded))
-        @supplies = Supplies.new(report.pickups, @sight, @walker)
+        @supplies = Supplies.new(scenery, @sight, @walker)
         @gunfight = Gunfight.new(@sight, @walker, target_number: target_number)
         @boss_fight = BossFight.new(@sight, @walker, @gunfight, @supplies, hardest: hardest)
         @secret_plan = SecretPlan.new(report, @route, @sight, @walker, @supplies)

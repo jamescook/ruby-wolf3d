@@ -64,7 +64,7 @@ class TestPilot < Minitest::Test
   end
 
   def supplies_on(level, sight)
-    Pilot::Supplies.new(Wolf3D::FloorReport.new(level).pickups, sight, walker_on(level, sight))
+    Pilot::Supplies.new(Wolf3D::Scenery.new(level), sight, walker_on(level, sight))
   end
 
   def wall_down_column_seven(except:) = (0...SIDE).map { |y| [7, y] } - [except].compact
@@ -163,6 +163,32 @@ class TestPilot < Minitest::Test
     assert_nil detour_on(level, at: [6, 3])
   end
 
+  # A FULL PLAYER LEAVES IT WHERE IT IS (Pickups): only the game's own list says it has gone.
+  def test_a_piece_walked_over_at_full_health_is_still_a_detour_once_hurt
+    level = arena(things: { [6, 3] => FIRST_AID }, player: [3, 3])
+    sight = sight_on(level, at: [6, 3], health: FULL_HEALTH)
+    read_game(sight, at: [3, 3], health: 60)
+
+    assert_equal [6, 3], supplies_on(level, sight).choose_detour
+  end
+
+  def test_a_piece_the_game_has_taken_is_no_detour
+    level = arena(things: { [6, 3] => FIRST_AID }, player: [3, 3])
+
+    assert_nil detour_on(level, at: [3, 3], health: 60, gone: [1])
+  end
+
+  def test_a_detour_ends_when_the_piece_goes
+    level = arena(things: { [6, 3] => FIRST_AID }, player: [3, 3])
+    sight = sight_on(level, at: [3, 3], health: 60)
+    supplies = supplies_on(level, sight)
+
+    assert_equal [6, 3], supplies.choose_detour
+    read_game(sight, at: [4, 3], health: 60, gone: [1])
+
+    assert_nil supplies.choose_detour
+  end
+
   # --- the secret plan ----------------------------------------------------------------------
 
   def floor_behind_a_secret_wall(things)
@@ -174,7 +200,7 @@ class TestPilot < Minitest::Test
     report = Wolf3D::FloorReport.new(level)
     walker = walker_on(level, sight)
     route = Wolf3D::FloorReport::Route.new(cells: [], ends_at: ends_at)
-    Pilot::SecretPlan.new(report, route, sight, walker, Pilot::Supplies.new(report.pickups, sight, walker))
+    Pilot::SecretPlan.new(report, route, sight, walker, Pilot::Supplies.new(Wolf3D::Scenery.new(level), sight, walker))
   end
 
   def goal_of(plan)
@@ -224,7 +250,7 @@ class TestPilot < Minitest::Test
   def boss_fight_on(level, sight, hardest: true)
     walker = walker_on(level, sight)
     gunfight = Pilot::Gunfight.new(sight, walker, target_number: nil)
-    supplies = Pilot::Supplies.new(Wolf3D::FloorReport.new(level).pickups, sight, walker)
+    supplies = Pilot::Supplies.new(Wolf3D::Scenery.new(level), sight, walker)
     Pilot::BossFight.new(sight, walker, gunfight, supplies, hardest: hardest)
   end
 
