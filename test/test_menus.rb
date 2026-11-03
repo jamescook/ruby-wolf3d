@@ -705,7 +705,7 @@ class TestMenus < Minitest::Test
     # Holds every track, each a short square wave, for a test of which song goes where.
     class EveryTrack
       def writes(_number) = [[0, 0, 0]]
-      def recording(_number) = (([60] * 40) + ([-60] * 40)).cycle.first(3500).pack("c*")
+      def recording(_number, rate:) = (([60] * 40) + ([-60] * 40)).cycle.first(3500).pack("c*")
     end
 
     def with_music(floors:, starting_on:, name:)

@@ -72,6 +72,8 @@ module Wolf3D
       @tracks = tracks
       @floors = floors
       @setting = setting
+      # A computer has room for the music at the most a speaker takes; the console at less.
+      @rate = build.built_for_computer? ? Opl2Track::COMPUTER_SAMPLE_RATE : Opl2Track::CONSOLE_SAMPLE_RATE
       declare
     end
 
@@ -108,10 +110,10 @@ module Wolf3D
     end
 
     def score_of(track)
-      pcm = @tracks.recording(track)
+      pcm = @tracks.recording(track, rate: @rate)
       name = :"music_#{track}"
-      @b.instrument name, pcm: pcm, rate: Opl2Track::RATE
-      frames = ((pcm.length.to_f / Opl2Track::RATE) * AdlibSounds::FRAMES_PER_SECOND).ceil
+      @b.instrument name, pcm: pcm, rate: @rate
+      frames = ((pcm.length.to_f / @rate) * AdlibSounds::FRAMES_PER_SECOND).ceil
       note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames)
       VBlank::Audio::Score.new(
         tempo: FRAME_TICKS, parts: [VBlank::Audio::Score::Part.new(plays: name, volume: MUSIC_VOLUME, notes: [note])]

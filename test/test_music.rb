@@ -13,7 +13,7 @@ class TestMusic < Minitest::Test
   class HeldTracks
     def initialize(*numbers) = @numbers = numbers
     def writes(number) = @numbers.include?(number) ? [[0, 0, 0]] : []
-    def recording(_number) = (([60] * 40) + ([-60] * 40)).cycle.first(3500).pack("c*")
+    def recording(_number, rate:) = (([60] * 40) + ([-60] * 40)).cycle.first(3500).pack("c*")
   end
 
   Floor = Data.define(:index)

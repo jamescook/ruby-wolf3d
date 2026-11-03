@@ -16,13 +16,17 @@ module Wolf3D
   # NOT HERE: the rhythm section of register 0xBD. The game's music never turns it on.
   class Opl2Track
     TICKS_PER_SECOND = 700
-    RATE = Opl2::RENDER_RATE
 
-    # Each sample written is this many of the operators', averaged, which keeps out the high notes
-    # that would otherwise fold back down as noise. Fewer than the seven an effect takes, since a
-    # track has up to eighteen operators and lasts minutes.
-    STEPS_A_SAMPLE = 4
-    STEP_RATE = RATE * STEPS_A_SAMPLE
+    # SAMPLES A SECOND, by what plays them. A byte at the rate sound effects use is static and a
+    # muffle when it is music; the console can afford this much, and a computer the most a speaker
+    # takes. Both divide STEP_RATE.
+    CONSOLE_SAMPLE_RATE = 22_050
+    COMPUTER_SAMPLE_RATE = 44_100
+
+    # The operators are stepped this often, a little under twice the chip's own clock, and each
+    # sample written is the average of the steps it covers. That keeps out the high notes that would
+    # otherwise fold back down as noise.
+    STEP_RATE = 88_200
     STEPS_PER_TICK = STEP_RATE.to_f / TICKS_PER_SECOND
 
     # Which channel and which of its two operators each cell of the chip is. Cells 6, 7, 14 and 15
@@ -46,9 +50,14 @@ module Wolf3D
     FEEDBACK_TOP_CYCLES = 2.0
     FEEDBACK_SETTINGS = 7
 
-    # Nine channels at full level would be far past a byte, and in the music four or five sound at
-    # once, each well below full.
-    GAIN = Opl2::FULL_SAMPLE * 0.8
+    # THE LOUDEST MOMENT OF A TRACK IS PUT AT THE TOP OF A BYTE, less one step for the dither, since a
+    # byte has so few steps that a quiet track uses half of them and is heard as static.
+    LOUDEST_SAMPLE = Opl2::FULL_SAMPLE - 1
+
+    # DITHER: noise of under one step, from a fixed seed, is added before rounding. Rounding alone
+    # leaves an error that follows the music, which the ear hears as static; with the noise it is a
+    # steady hiss far below the music. The seed makes the same track the same bytes every build.
+    DITHER_SEED = 1992
 
     # TWO OPERATORS AND HOW THEY ARE JOINED.
     class Channel
@@ -122,10 +131,16 @@ module Wolf3D
       def retune = @operators.each { |operator| operator.tune(@block, fnum) }
     end
 
-    def self.render(writes) = new(writes).render
+    # +rate+ is the samples a second, CONSOLE_SAMPLE_RATE or COMPUTER_SAMPLE_RATE.
+    def self.render(writes, rate:) = new(writes, rate: rate).render
 
-    def initialize(writes)
+    def initialize(writes, rate:)
+      unless (STEP_RATE % rate).zero?
+        raise ArgumentError, "Opl2Track cannot play at #{rate} samples a second. Give a rate that divides #{STEP_RATE}."
+      end
+
       @writes = writes
+      @steps_a_sample = STEP_RATE / rate
       @channels = Array.new(CHANNELS) { Channel.new }
       @vibrato_depth = Opl2::VIBRATO_DEPTH
       @tremolo_decibels = Opl2::TREMOLO_DECIBELS
@@ -135,14 +150,14 @@ module Wolf3D
       @sum = 0.0
     end
 
-    # Signed bytes at RATE, as long as the track is.
+    # Signed bytes at the rate asked for, as long as the track is.
     def render
       @writes.each do |register, value, wait|
         write(register, value)
         @due += wait * STEPS_PER_TICK
         play_step while @due >= 1.0
       end
-      @out
+      to_bytes
     end
 
     private
@@ -184,10 +199,20 @@ module Wolf3D
       wobble = @vibrato_depth * Math.sin(2 * Math::PI * Opl2::VIBRATO_HERTZ * time)
       tremor = @tremolo_decibels * (1 + Math.sin(2 * Math::PI * Opl2::TREMOLO_HERTZ * time)) / 2
       @channels.each { |channel| @sum += channel.step(wobble, tremor) unless channel.silent? }
-      return unless (@steps % STEPS_A_SAMPLE).zero?
+      return unless (@steps % @steps_a_sample).zero?
 
-      @out << (@sum / STEPS_A_SAMPLE * GAIN).round.clamp(-128, 127)
+      @out << (@sum / @steps_a_sample)
       @sum = 0.0
+    end
+
+    # Triangular noise, the sum of two draws, spans one step either way and averages nothing.
+    def to_bytes
+      loudest = @out.map(&:abs).max.to_f
+      return @out.map { 0 } unless loudest.positive?
+
+      scale = LOUDEST_SAMPLE / loudest
+      noise = Random.new(DITHER_SEED)
+      @out.map { |sample| ((sample * scale) + noise.rand - noise.rand).round.clamp(-128, 127) }
     end
   end
 end

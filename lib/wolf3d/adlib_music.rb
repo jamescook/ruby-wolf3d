@@ -34,14 +34,15 @@ module Wolf3D
       @audio.byteslice(from + 2, length).unpack("CCv" * (length / WRITE_BYTES)).each_slice(3).to_a
     end
 
-    # Track +number+ played through the chip, as a byte String of signed samples. Kept on disk,
-    # named for the writes and for the code that plays them, so a change to either makes it again.
-    # It is written to one side and moved in, so builds running at once never read half of one.
-    def recording(number)
-      path = File.join(Wolf3D.home, RECORDINGS_DIR, "#{Digest::SHA256.hexdigest(fingerprint(number))}.pcm")
+    # Track +number+ played through the chip at +rate+ samples a second, as a byte String of signed
+    # samples. Kept on disk, named for the writes, the rate and the code that plays them, so a change
+    # to any of them makes it again. It is written to one side and moved in, so builds running at
+    # once never read half of one.
+    def recording(number, rate:)
+      path = File.join(Wolf3D.home, RECORDINGS_DIR, "#{Digest::SHA256.hexdigest(fingerprint(number, rate))}.pcm")
       return File.binread(path) if File.exist?(path)
 
-      pcm = Opl2Track.render(writes(number)).pack("c*")
+      pcm = Opl2Track.render(writes(number), rate: rate).pack("c*")
       FileUtils.mkdir_p(File.dirname(path))
       unfinished = "#{path}.#{Process.pid}.#{Ractor.current.object_id}"
       File.binwrite(unfinished, pcm)
@@ -51,9 +52,9 @@ module Wolf3D
 
     private
 
-    def fingerprint(number)
+    def fingerprint(number, rate)
       code = %w[opl2 opl2_track].map { |file| File.read(File.join(__dir__, "#{file}.rb")) }
-      [writes(number).inspect, *code].join
+      [writes(number).inspect, rate, *code].join
     end
   end
 end

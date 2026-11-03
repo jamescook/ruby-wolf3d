@@ -22,36 +22,52 @@ class TestOpl2Track < Minitest::Test
     samples.each_cons(2).count { |before, after| before.negative? && !after.negative? }
   end
 
-  def test_a_track_lasts_as_long_as_its_delays_say_at_seven_hundred_ticks_a_second
-    samples = Wolf3D::Opl2Track.render(a_held_note)
+  CONSOLE = Wolf3D::Opl2Track::CONSOLE_SAMPLE_RATE
+  COMPUTER = Wolf3D::Opl2Track::COMPUTER_SAMPLE_RATE
 
-    assert_in_delta Wolf3D::Opl2::RENDER_RATE, samples.length, 2
+  def render(writes, rate: CONSOLE) = Wolf3D::Opl2Track.render(writes, rate: rate)
+
+  def test_a_track_lasts_as_long_as_its_delays_say_at_seven_hundred_ticks_a_second
+    assert_in_delta CONSOLE, render(a_held_note).length, 2
+    assert_in_delta COMPUTER, render(a_held_note, rate: COMPUTER).length, 2
   end
 
   def test_a_note_sounds_at_the_pitch_its_registers_name
-    samples = Wolf3D::Opl2Track.render(a_held_note)
     # fnum * 49716 * 2^(block - 20): the chip's data sheet, and this one comes to about 440 Hz.
     hertz = 0x241 * 49_716 * (2.0**(4 - 20))
 
-    assert_in_delta hertz, rises_across_nought(samples), 3
+    assert_in_delta hertz, rises_across_nought(render(a_held_note)), 3
+    assert_in_delta hertz, rises_across_nought(render(a_held_note, rate: COMPUTER)), 3
+  end
+
+  # A byte has little room, so the loudest moment of a track is put at the top of it.
+  def test_a_track_is_as_loud_as_a_byte_holds
+    assert_operator render(a_held_note).map(&:abs).max, :>=, 120
+  end
+
+  # Noise is added below the last step of a byte, which turns the static of rounding into a hiss. It
+  # comes from a fixed seed, so the same track is the same bytes on every build.
+  def test_the_same_track_renders_the_same_bytes
+    assert_equal render(a_held_note), render(a_held_note)
   end
 
   def test_a_key_let_go_falls_silent
     released = a_held_note + [[0xb0, 0x00, 700]]
-    samples = Wolf3D::Opl2Track.render(released)
+    samples = render(released)
     last_tenth = samples.last(samples.length / 10)
 
     assert_operator samples.first(samples.length / 2).map(&:abs).max, :>, 20
     assert_operator last_tenth.map(&:abs).max, :<, 3
   end
 
+  # The second channel plays the octave above: one block higher. Together the two cross nought as
+  # often as the higher note does alone, where the lower one by itself crosses half as often.
   def test_two_channels_sound_together
-    one = Wolf3D::Opl2Track.render(a_held_note)
-    second = a_held_note.map { |register, value, wait| [channel_one(register), value, wait] }
+    second = a_held_note.map { |register, value, wait| [channel_one(register), register == 0xb0 ? value + 4 : value, wait] }
     # The first note's wait is taken out so both start together.
-    both = Wolf3D::Opl2Track.render(a_held_note.map { |r, v, _| [r, v, 0] } + second)
+    both = render(a_held_note.map { |r, v, _| [r, v, 0] } + second)
 
-    assert_operator both.map(&:abs).max, :>, one.map(&:abs).max
+    assert_operator rises_across_nought(both), :>, rises_across_nought(render(a_held_note)) * 3 / 2
   end
 
   # Channel one's cells sit one past channel nought's, and so do its pitch registers.
@@ -61,7 +77,7 @@ class TestOpl2Track < Minitest::Test
     audible_modulator = [[0xc0, 0x01, 0], [0x40, 0x00, 0], [0x20, 0x21, 0], [0x60, 0xf0, 0], [0x80, 0x0f, 0]]
     quiet_carrier = [[0x43, 0x3f, 0], [0x63, 0xf0, 0], [0x83, 0x0f, 0]]
     key = [[0xa0, 0x41, 0], [0xb0, 0x32, 700]]
-    samples = Wolf3D::Opl2Track.render(audible_modulator + quiet_carrier + key)
+    samples = render(audible_modulator + quiet_carrier + key)
 
     assert_operator samples.map(&:abs).max, :>, 20
   end
@@ -70,9 +86,9 @@ class TestOpl2Track < Minitest::Test
   # the original's 700 ticks a second, and it would run a hundred at the 560 of other games' files.
   def test_a_real_track_lasts_as_long_as_seven_hundred_ticks_a_second_makes_it
     music = Wolf3D::AdlibMusic.from(game_data_or_skip)
-    samples = Wolf3D::Opl2Track.render(music.writes(Wolf3D::Music::GETTHEM).first(200))
+    samples = render(music.writes(Wolf3D::Music::GETTHEM).first(200))
     ticks = music.writes(Wolf3D::Music::GETTHEM).first(200).sum(&:last)
 
-    assert_in_delta ticks * Wolf3D::Opl2Track::RATE / 700.0, samples.length, 2
+    assert_in_delta ticks * CONSOLE / 700.0, samples.length, 2
   end
 end
