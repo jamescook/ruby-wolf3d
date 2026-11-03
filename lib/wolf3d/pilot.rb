@@ -146,8 +146,9 @@ module Wolf3D
 
     def begin_floor(floor)
       @floor = floor
+      @buttons = []
       @floor_play = FloorPlay.new(level: @levels.fetch(floor), report: @reports.fetch(floor), scenery: @scenery.fetch(floor),
-                                  hardest: @difficulty == HARDEST_DIFFICULTY, target_number: @floor_play&.target_number)
+                                  hardest: @difficulty == HARDEST_DIFFICULTY)
     end
   end
 end

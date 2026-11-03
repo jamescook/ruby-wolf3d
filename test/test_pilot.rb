@@ -275,7 +275,7 @@ class TestPilot < Minitest::Test
   def test_a_futile_fight_from_a_corner_is_given_up
     level = arena(player: [3, ROW])
     sight = sight_on(level, at: [3, ROW], men: [[9.5, ROW + 0.5, 25]])
-    gunfight = Pilot::Gunfight.new(sight, walker_on(level, sight), target_number: nil)
+    gunfight = Pilot::Gunfight.new(sight, walker_on(level, sight))
     gunfight.update
 
     assert gunfight.target
@@ -289,7 +289,7 @@ class TestPilot < Minitest::Test
 
   def boss_fight_on(level, sight, hardest: true)
     walker = walker_on(level, sight)
-    gunfight = Pilot::Gunfight.new(sight, walker, target_number: nil)
+    gunfight = Pilot::Gunfight.new(sight, walker)
     supplies = Pilot::Supplies.new(Wolf3D::Scenery.new(level), sight, walker)
     Pilot::BossFight.new(sight, walker, gunfight, supplies, hardest: hardest)
   end
@@ -336,6 +336,16 @@ class TestPilot < Minitest::Test
     sight = sight_on(level, at: [3, ROW], men: HANS, view: 768, health: 30)
 
     assert_includes fight_pass(boss_fight_on(level, sight), sight), :up, "north, to the first aid"
+  end
+
+  # --- a floor ------------------------------------------------------------------------------
+
+  # What it was holding was for the floor it left, and a pass may not have gone by yet.
+  def test_nothing_held_on_one_floor_is_held_on_the_next
+    pilot = Pilot.new([way_out_level, way_out_level])
+
+    refute_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, _gturn: 1))
+    assert_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, _gturn: 1))
   end
 
   # --- the ending ---------------------------------------------------------------------------

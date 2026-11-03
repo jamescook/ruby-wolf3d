@@ -9,7 +9,7 @@ module Wolf3D
       LEVER_WALL_CODE = Elevator::SWITCH
       NEAR_CELLS = 6.0
 
-      def initialize(level:, report:, scenery:, hardest:, target_number:)
+      def initialize(level:, report:, scenery:, hardest:)
         @level = level
         @route = report.route
         @hardest = hardest
@@ -18,13 +18,10 @@ module Wolf3D
         @sight = Sight.new(level, report.doors)
         @walker = Walker.new(level, scenery, @sight, before_step: method(:ambush_if_crowded))
         @supplies = Supplies.new(scenery, @sight, @walker)
-        @gunfight = Gunfight.new(@sight, @walker, target_number: target_number)
+        @gunfight = Gunfight.new(@sight, @walker)
         @boss_fight = BossFight.new(@sight, @walker, @gunfight, @supplies, hardest: hardest)
         @secret_plan = SecretPlan.new(report, @route, @sight, @walker, @supplies)
       end
-
-      # The man it was last shooting.
-      def target_number = @gunfight.target_number
 
       # What it was doing when this floor ended, for the report.
       def last_seen

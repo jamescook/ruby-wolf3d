@@ -37,12 +37,11 @@ module Wolf3D
       PEEK_STEPS = 5
       PEEK_NEAREST_CELLS = 1.6
 
-      attr_reader :target, :target_number
+      attr_reader :target
 
-      def initialize(sight, walker, target_number:)
+      def initialize(sight, walker)
         @sight = sight
         @walker = walker
-        @target_number = target_number
         @sight_passes = 0
         @fight_passes = 0
         @ignore_men_passes = 0
