@@ -78,9 +78,9 @@ pictures = Dir.mktmpdir("shareware") if options[:repeat]
 at_exit { FileUtils.remove_entry(pictures) if pictures }
 run += ["--pictures-in", File.join(pictures, "played")] if options[:repeat]
 
-# Each floor the pilot starts, and what the player says about the run, which begins at this line.
-# The rest is what the build says of its speed.
-report_line = lambda { |line| line.match?(/\A(frame \d+:|Played|  \w+ +frame)/) || line.include?("tape") }
+# Each floor the pilot starts, each death, and what the player says about the run. The rest is what
+# the build says of its speed.
+report_line = lambda { |line| line.match?(/\A(floor \d+ starts|BJ died|Played|  \w+ +frame|Wrote the tape)/) }
 
 # A whole run takes minutes, so each line is shown as it comes. All of it is shown if the run fails,
 # unless it failed because BJ died for the last time, which one line says, or --verbose asks for it.

@@ -468,10 +468,22 @@ class TestPilot < Minitest::Test
 
   # What it was holding was for the floor it left, and a pass may not have gone by yet.
   def test_nothing_held_on_one_floor_is_held_on_the_next
-    pilot = Pilot.new([way_out_level, way_out_level])
+    pilot = Pilot.new([way_out_level, way_out_level], log: StringIO.new)
 
     refute_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, _gturn: 1))
     assert_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, _gturn: 1))
+  end
+
+  def test_a_new_floor_and_a_death_are_reported_in_their_own_words
+    log = StringIO.new
+    pilot = Pilot.new([way_out_level, way_out_level], log: log)
+    pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, lives: 3, health: 90, ammo: 72))
+    pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, lives: 2))
+    pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, lives: 2, health: 40, ammo: 8))
+    pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, lives: 1))
+
+    assert_equal ["floor 1 starts: 3 lives, health 90, ammo 72", "BJ died on floor 1: 2 lives left",
+                  "floor 2 starts: 2 lives, health 40, ammo 8", "BJ died on floor 2: 1 life left"], log.string.lines(chomp: true)
   end
 
   # --- the ending ---------------------------------------------------------------------------

@@ -7,7 +7,6 @@ module Wolf3D
     # decides what matters most this pass, and the parts it holds answer the buttons.
     class FloorPlay
       LEVER_WALL_CODE = Elevator::SWITCH
-      NEAR_CELLS = 6.0
 
       def initialize(level:, report:, scenery:, hardest:)
         @level = level
@@ -21,12 +20,6 @@ module Wolf3D
         @gunfight = Gunfight.new(@sight, @walker)
         @boss_fight = BossFight.new(@sight, @walker, @gunfight, @supplies, hardest: hardest)
         @secret_plan = SecretPlan.new(report, @route, @sight, @walker, @supplies)
-      end
-
-      # What it was doing when this floor ended, for the report.
-      def last_seen
-        near = @sight.cell ? @sight.men.count { |man| @sight.distance_to_man(man) < NEAR_CELLS } : 0
-        format("last at %s with %d near, gun %d ammo %d", @sight.cell.inspect, near, @sight.best_weapon.to_i, @sight.ammo.to_i)
       end
 
       def choose_buttons(game, pass:)

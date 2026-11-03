@@ -59,9 +59,11 @@ module Wolf3D
     ENDING_SCREEN_FRAMES = 600
 
     # +maps+ are the floors of the copy on the cartridge, in the order they are played.
-    # +difficulty+ is the row of the difficulty screen, counted from nought.
-    def initialize(maps, difficulty: 0)
+    # +difficulty+ is the row of the difficulty screen, counted from nought. +log+ is told each floor
+    # that starts and each death.
+    def initialize(maps, difficulty: 0, log: $stderr)
       @difficulty = difficulty
+      @log = log
       @levels = Array.new(maps.count) { |n| maps[n] }
       @reports = @levels.map { |level| FloorReport.new(level) }
       @scenery = @levels.map { |level| Scenery.new(level) }
@@ -86,9 +88,7 @@ module Wolf3D
 
       # Dying puts the floor back as it was, and a life won by score or by a pickup changes nothing.
       if floor != @floor || lives < @lives
-        warn format("frame %d: floor %d, %d lives, health %d, ammo %d, gun %d, score %d, %s",
-                    @frame, floor + 1, lives, game.var(:health), game.var(:ammo), game.var(:weapon_best),
-                    game.var(:score), @floor_play&.last_seen)
+        report_floor(game, floor, lives)
         begin_floor(floor)
       end
       @lives = lives
@@ -143,6 +143,15 @@ module Wolf3D
     end
 
     def press_periodically(button, every: MENU_PRESS_EVERY_FRAMES) = (@frame % every) < PRESS_FRAMES ? [button] : []
+
+    def report_floor(game, floor, lives)
+      lives_left = lives == 1 ? "1 life" : "#{lives} lives"
+      @log.puts(if floor == @floor
+                  "BJ died on floor #{floor + 1}: #{lives_left} left"
+                else
+                  "floor #{floor + 1} starts: #{lives_left}, health #{game.var(:health)}, ammo #{game.var(:ammo)}"
+                end)
+    end
 
     def begin_floor(floor)
       @floor = floor
