@@ -116,7 +116,7 @@ module Wolf3D
       # to a man beside or behind it as well.
       def men_in_view
         @sight.men.select do |man|
-          @sight.distance_to_man(man) < SIGHT_CELLS && (@sight.hurt? || @sight.in_view?(man.x, man.y)) &&
+          @sight.distance_to_man(man) < SIGHT_CELLS && (@sight.on_guard? || @sight.in_view?(man.x, man.y)) &&
             @sight.clear_line_to?(man.x, man.y)
         end
       end

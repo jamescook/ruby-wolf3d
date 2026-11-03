@@ -26,6 +26,15 @@ module Wolf3D
       HURT_PASSES = 30
       PRESS_EVERY_PASSES = 8
 
+      # HOW FAR ROUND IT NOTICES A MAN. Wider than FirstPerson::HALF_VIEW, for a person playing sees the
+      # edge of a narrow picture, moves, and turns: a man just off the screen is one a turn away. A
+      # man behind it is not seen at all.
+      SEEN_HALF_VIEW_UNITS = VIEW_UNITS_PER_TURN / 6
+
+      # How long after a wound it looks for whoever gave it, beside it or behind it. A man shoots far
+      # less often than HURT_PASSES, so one at its back would otherwise be forgotten between shots.
+      ON_GUARD_PASSES = 150
+
       LINE_STEP_CELLS = 0.15
 
       attr_reader :x, :y, :view, :cell, :health, :ammo, :keys, :weapon, :best_weapon, :pass,
@@ -41,6 +50,7 @@ module Wolf3D
         @trail = []
         @stuck_passes = 0
         @hurt_passes = 0
+        @on_guard_passes = 0
       end
 
       # What the game says this pass. Men and doors cost far more to read than the player, so they
@@ -52,6 +62,9 @@ module Wolf3D
       end
 
       def hurt? = @hurt_passes.positive?
+
+      # Somebody has shot it, so it looks round for him whichever way he is.
+      def on_guard? = @on_guard_passes.positive?
       def walked?(cell) = @walked.key?(cell)
 
       # Has the game taken this piece off the floor? +number+ is its place in Scenery#pieces. Walking
@@ -75,8 +88,7 @@ module Wolf3D
 
       def clear_line_to?(x, y) = clear_line?(@x, @y, x, y)
 
-      # Is this place on the screen as it stands, the same width as the view draws?
-      def in_view?(x, y) = view_error_to(x, y).abs <= FirstPerson::HALF_VIEW
+      def in_view?(x, y) = view_error_to(x, y).abs <= SEEN_HALF_VIEW_UNITS
 
       # Has this door started to open at all?
       def door_ajar?(cell) = @doors_open[@door_numbers.fetch(cell)].to_i.positive?
@@ -124,7 +136,9 @@ module Wolf3D
         @weapon = game.var(:weapon)
         @best_weapon = game.var(:weapon_best)
         @attack_stage = game.var(:weapon_stage)
-        @hurt_passes = @last_health && @health < @last_health ? HURT_PASSES : [@hurt_passes - 1, 0].max
+        just_hurt = @last_health && @health < @last_health
+        @hurt_passes = just_hurt ? HURT_PASSES : [@hurt_passes - 1, 0].max
+        @on_guard_passes = just_hurt ? ON_GUARD_PASSES : [@on_guard_passes - 1, 0].max
         @last_health = @health
         note_cell([@x.floor, @y.floor])
       end

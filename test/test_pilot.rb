@@ -313,6 +313,18 @@ class TestPilot < Minitest::Test
     assert target_of(level, sight)
   end
 
+  def test_a_man_behind_it_is_looked_for_between_his_shots_and_then_forgotten
+    level = arena(player: [3, ROW])
+    sight = sight_on(level, at: [3, ROW], men: EAST_OF_IT, view: FACING_WEST, health: 100)
+    read_game(sight, at: [3, ROW], men: EAST_OF_IT, view: FACING_WEST, health: 90)
+    (Sight::HURT_PASSES + 1).times { read_game(sight, at: [3, ROW], men: EAST_OF_IT, view: FACING_WEST, health: 90) }
+
+    assert target_of(level, sight)
+    Sight::ON_GUARD_PASSES.times { read_game(sight, at: [3, ROW], men: EAST_OF_IT, view: FACING_WEST, health: 90) }
+
+    assert_nil target_of(level, sight)
+  end
+
   # --- a boss -------------------------------------------------------------------------------
 
   def boss_fight_on(level, sight, hardest: true)
