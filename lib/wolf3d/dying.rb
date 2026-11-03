@@ -31,8 +31,8 @@ module Wolf3D
     #
     # A STEP IS THE ORIGINAL'S, DEATHROTATE two degrees a tic (wl_game.cpp Died), which of a
     # 1024-unit turn is nearest six.
-    STEP_ANGLE = 6
-    MOST_TURNS = (FirstPerson::TURN / (2 * STEP_ANGLE)) + 2
+    STEP_ANGLE_UNITS = 6
+    MOST_TURNS = (FirstPerson::TURN / (2 * STEP_ANGLE_UNITS)) + 2
 
     # ...and then the view is drawn a couple more times before the dots start. Both pages have to
     # be holding the SAME settled picture when the drawing stops, or the display spends the whole
@@ -131,9 +131,9 @@ module Wolf3D
 
     def swing
       if @now == 1
-        @player.angle += STEP_ANGLE
+        @player.angle += STEP_ANGLE_UNITS
       else
-        @player.angle -= STEP_ANGLE
+        @player.angle -= STEP_ANGLE_UNITS
       end
     end
 

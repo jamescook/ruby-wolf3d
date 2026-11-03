@@ -40,9 +40,8 @@ module Wolf3D
     # a table. With 512 units in a turn, sixty strips one unit apart would have been a 42
     # degree view — a keyhole. Counting a turn in 1024 units instead makes each unit half as
     # much, so three of them is about what one of the old ones was, and sixty strips three
-    # apart is a 62 degree view: WIDER than the 56 this had before, and nearer the original's,
-    # which is about 72 (the tangent of its half-width is 0x8000 / (FOCALLENGTH + MINDIST),
-    # wl_main.cpp CalcProjection).
+    # apart is a 62 degree view, against the original's of about 72 (the tangent of its
+    # half-width is 0x8000 / (FOCALLENGTH + MINDIST); wl_main.cpp, CalcProjection).
     #
     # The tables that hold a sine and a distance for every angle double in length. They live
     # in the cartridge and are read, never written, so that costs nothing but room — and 1024
@@ -1078,6 +1077,7 @@ module Wolf3D
       b = @b
       @mind = GuardMind.new(build: b, guards: @guards, pool: @guard_pool&.pool, level: @level,
                             this_floor: @this_floor, door_open: @open, door_linger: @linger,
+                            pushwall_cell: method(:pushwall_cell),
                             things: @things, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
                             sounds: @sounds, rooms: @rooms, difficulty: @difficulty,
@@ -1342,14 +1342,17 @@ module Wolf3D
       @can == 1
     end
 
+    # WHERE PUSH WALL +slot+ OF THIS FLOOR STANDS NOW, as a flat cell number of the floor: where it
+    # started, moved on by however many cells it has gone.
+    def pushwall_cell(slot) = @push_home[@this_floor.pushwall(slot)] + (@push_gone[slot] * @push_step[slot])
+
     # A doorway you can fit through, or a cell a push wall has left. Everything else under a foot
     # is either plain floor, which is settled above, or something solid, which needs no test.
     def what_a_foot_finds
       @this_floor.sort_out(@foot, pushwall: lambda {
         # A cell a push wall could reach is floor unless the wall is standing in it now.
         @slot = @this_floor.pushwall_in(@foot)
-        @pcell = @push_home[@this_floor.pushwall(@slot)]
-        @pcell += @push_gone[@slot] * @push_step[@slot]
+        @pcell = pushwall_cell(@slot)
         @can = 1 if @pcell != @spot
       }, door: lambda {
         @slot = @this_floor.door_in(@foot)

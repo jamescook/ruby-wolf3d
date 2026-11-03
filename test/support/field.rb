@@ -16,6 +16,10 @@ module Wolf3DTest
     FLOOR = Wolf3D::Level::FLOOR
     WALL = Wolf3D::Fixture::Release::WALL
 
+    # How many passes of holding left or right, walking, turn the player +units+ of
+    # FirstPerson::TURN. A class constant can ask it too.
+    def self.walking_turn_passes(units) = (units / Wolf3D::FirstPerson::TURN_UNITS_WALKING.to_f).ceil
+
     def fixture = @fixture ||= Wolf3D::Fixture::Release.new
     def vswap = @vswap ||= Wolf3D::Vswap.new(fixture.files["VSWAP"])
     def palette = Wolf3D::Palette.game

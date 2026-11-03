@@ -83,9 +83,9 @@ module Wolf3D
     CHANCES = 256
 
     # HOW NEAR THE MIDDLE OF THE VIEW a guard has to be for a shot to be about him: a tenth of
-    # the original's screen either side (shootdelta, wl_main.cpp). That is an ANGLE, the same on
+    # the original's screen either side (wl_main.cpp, SetViewSize: shootdelta). That is an ANGLE, the same on
     # any screen: a tenth of the width is a fifth of the half-width, and the original's half-width
-    # has the tangent 0x8000 / (FOCALLENGTH 0x5700 + MINDIST 0x5800) (CalcProjection). A tenth of
+    # has the tangent 0x8000 / (FOCALLENGTH 0x5700 + MINDIST 0x5800) (wl_main.cpp, CalcProjection). A tenth of
     # this game's narrower screen would be a narrower cone. Kept as a slope so the test needs no
     # divide — a guard is in the sights when how far he is to the side of the line you are
     # looking down is less than this much of how far in front of you he is.
@@ -95,7 +95,7 @@ module Wolf3D
     # Nothing is a target.
     NOBODY = -1
 
-    def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, door_linger:, things:,
+    def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, door_linger:, things:, pushwall_cell: nil,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
                    rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash:,
                    scoring:, floor: nil, rare_scream_odds: RARE_SCREAM_ODDS)
@@ -123,6 +123,7 @@ module Wolf3D
       @player = player    # see Player
       @open = door_open   # how far each door has slid
       @linger = door_linger # how long each door has left standing open
+      @pushwall_cell = pushwall_cell # where a push wall stands now (FirstPerson#pushwall_cell), or nil
       declare
     end
 
@@ -723,7 +724,7 @@ module Wolf3D
     # The ceiling is the width of the map, which no line can exceed, and the walk leaves as soon
     # as it arrives — so what it usually costs is how far apart they are, not how far apart they
     # could ever be — and almost every line meets a wall almost at once.
-    def line_of_sight(guard) = walk_the_sight_line_from(guard.x, guard.y)
+    def line_of_sight(guard) = check_line_from(guard.x, guard.y)
 
     # ONE COPY OF THE WALK, NOT FOUR, and that is what this indirection buys.
     #
@@ -736,34 +737,39 @@ module Wolf3D
     #
     # Every one of its inputs is working room already, so all a caller has to hand over is where
     # the line starts.
-    def walk_the_sight_line_from(fromx, fromy)
+    def check_line_from(fromx, fromy)
       @fromx = fromx
       @fromy = fromy
-      @b.call :walk_the_sight_line
+      @b.call :check_line
     end
 
     def declare_the_line_walk
-      @b.func(:walk_the_sight_line) { walk_the_sight_line }
+      @b.func(:check_line) { check_line }
     end
 
-    # THE LINE ITSELF, the original's CheckLine (wl_state.cpp), walked from wherever it was told
-    # to start, a guard looking for you or a bullet on its way to him, to the player.
+    # THE LINE ITSELF, walked from wherever it was told to start, a guard looking for you or a
+    # bullet on its way to him, to the player. wl_state.cpp, CheckLine.
     #
     # IT IS TWO WALKS, and both have to come through. The first goes a column at a time and looks
     # in each column the line enters, from the one after the guard's to the player's own, at the
     # row it enters by. The second does the same a row at a time. A column the line crosses on a
     # slant is entered once by the first walk and the rows it crosses inside that column are the
     # second walk's, so between them every cell the line touches is looked at.
-    def walk_the_sight_line
+    def check_line
       @clear = 1
       cross_columns
       cross_rows if @clear == 1
     end
 
-    # STEEPER THAN THIS IS AS STEEP: the original keeps its slope in a signed sixteen bits of
-    # 1/256 of a cell, 0x7fff.
-    MOST_SLOPE = 0x7fff / 256.0
+    # THE ORIGINAL COUNTS A POSITION ALONG THE LINE in 1/256 of a cell, and keeps the slope in a
+    # signed sixteen bits of that, so no line is steeper than 0x7fff of them a cell.
+    CROSSING_STEPS_PER_CELL = 256
+    MOST_SLOPE_CELLS_PER_CELL = 0x7fff / CROSSING_STEPS_PER_CELL.to_f
 
+    # TWO WALKS AND NOT ONE WITH THE AXES SWAPPED, which is how Pilot::Sight does it in plain Ruby:
+    # each walk writes the cell it is in to @cellx and @celly the other way round, and a name holds
+    # a value, so one routine could only write them through a Hash. Each is emitted once, inside
+    # the one routine above, so the two cost no more room than one.
     def cross_columns
       b = @b
       @cellx = @fromx.to_i
@@ -773,7 +779,7 @@ module Wolf3D
         @line_dir = -1 if @line_end < @cellx
         @absx = (@player.x - @fromx).abs
         @line_slope = (@player.y - @fromy) / @absx
-        @line_slope.clamp!(-MOST_SLOPE, MOST_SLOPE)
+        @line_slope.clamp!(-MOST_SLOPE_CELLS_PER_CELL, MOST_SLOPE_CELLS_PER_CELL)
         # Where it leaves the guard's own column: the part of his cell between him and that edge.
         @atx = @fromx - @cellx.to_f
         @atx = 1.0 - @atx if @line_dir == 1
@@ -784,7 +790,7 @@ module Wolf3D
           @celly = @line_cross.to_i
           @line_cross += @line_slope
           @ahead = @this_floor.cell_at(@cellx, @celly)
-          blocked_by(@ahead) if @ahead > 0
+          stop_line_at(@ahead) if @ahead > 0
           @done = 1 if @clear == 0 || @cellx == @line_end
         end
       end
@@ -800,7 +806,7 @@ module Wolf3D
         @line_dir = -1 if @line_end < @celly
         @absy = (@player.y - @fromy).abs
         @line_slope = (@player.x - @fromx) / @absy
-        @line_slope.clamp!(-MOST_SLOPE, MOST_SLOPE)
+        @line_slope.clamp!(-MOST_SLOPE_CELLS_PER_CELL, MOST_SLOPE_CELLS_PER_CELL)
         @aty = @fromy - @celly.to_f
         @aty = 1.0 - @aty if @line_dir == 1
         @line_cross = @fromx + (@line_slope * @aty)
@@ -810,29 +816,33 @@ module Wolf3D
           @cellx = @line_cross.to_i
           @line_cross += @line_slope
           @ahead = @this_floor.cell_at(@cellx, @celly)
-          blocked_by(@ahead) if @ahead > 0
+          stop_line_at(@ahead) if @ahead > 0
           @done = 1 if @clear == 0 || @celly == @line_end
         end
       end
     end
 
-    # Something is in this cell. A wall stops the line. A cell a secret wall could reach counts
-    # as clear, because the wall is usually not in it and a guard blinded by a wall that is not
-    # there would be odd.
+    # Something is in this cell. A wall stops the line, and so does a secret wall: it is a wall in
+    # the original's map until it slides, and the map cell it slides into holds it after (wl_act1.cpp,
+    # MovePWalls). Here the map marks every cell one could reach, so the line asks the wall where it
+    # stands now (FirstPerson#pushwall_cell).
     #
     # A DOOR STOPS IT UNLESS THE LINE CROSSES IT WHERE THE PANEL HAS ALREADY SLID AWAY, judged at
     # the middle of the cell. That is the original's rule with the original's slip in it: it holds
-    # the crossing point, counted in 1/256 of a cell FROM THE EDGE OF THE MAP, against how far the
-    # door is open counted in 1/65536 of its width. So a door lets the line by once it is open
-    # (row or column it is crossed at) / 256 of the way: a crack for a door near the top or left
-    # of a map, a quarter for one at the far side. That is how far through a door a guard sees,
-    # and so how far a bullet goes, in the game everybody played.
-    def blocked_by(cell)
+    # the crossing point, counted in CROSSING_STEPS_PER_CELL FROM THE EDGE OF THE MAP, against how
+    # far the door is open counted in 1/65536 of its width. So a door lets the line by once it is
+    # open (row or column it is crossed at) / 256 of the way: a crack for a door near the top or
+    # left of a map, a quarter for one at the far side. That is how far through a door a guard
+    # sees, and so how far a bullet goes, in the game everybody played.
+    def stop_line_at(cell)
       @this_floor.sort_out(cell, door: lambda {
         @slot = @this_floor.door_in(cell)
         @line_middle = @line_cross - (@line_slope * 0.5)
-        @clear = 0 if @line_middle > @open[@slot] * 256
-      }, wall: -> { @clear = 0 })
+        @clear = 0 if @line_middle > @open[@slot] * CROSSING_STEPS_PER_CELL
+      }, pushwall: (lambda {
+        @slot = @this_floor.pushwall_in(cell)
+        @clear = 0 if @pushwall_cell.call(@slot) == (@celly * @width) + @cellx
+      } if @pushwall_cell), wall: -> { @clear = 0 })
     end
 
     # --- walking a beat --------------------------------------------------------------
@@ -1311,7 +1321,7 @@ module Wolf3D
     # to whatever the middle strip of the view happens to be pointing at, which is a rule people
     # expect and the original does not have. If the line to HIM is blocked the shot is lost,
     # even with another man in the sights further off: the original looks again only for someone
-    # nearer than the one it could not reach, and there is nobody (GunAttack, wl_agent.cpp).
+    # nearer than the one it could not reach, and there is nobody (wl_agent.cpp, GunAttack).
     #
     # "In the sights" is a tenth of the screen either side of the middle, as a slope: how far
     # he is to the side of the line you are looking down, against how far in front of you he
@@ -1319,7 +1329,7 @@ module Wolf3D
     #
     # +with_knife+ is true while the knife is the thing in your hands, or nil on a game with one
     # weapon — and then none of the knife's own arm is emitted. A knife goes for the same man and
-    # walks no line at all (KnifeAttack): what it asks instead is whether he is near enough to
+    # walks no line at all (wl_agent.cpp, KnifeAttack): what it asks instead is whether he is near enough to
     # touch.
     def shoot(with_knife: nil)
       @target = NOBODY
@@ -1352,12 +1362,12 @@ module Wolf3D
     # away costs one list read instead of two: most of a floor is men who are alive and not on
     # the screen, and the bodies are the few.
     def consider_as_a_target(guard)
-      measure_him(guard) if guard.shown == 1 && guard.hp > 0
+      measure_in_sights(guard) if guard.shown == 1 && guard.hp > 0
     end
 
     # Where he is in front of the eye and to the side of it, and whether that puts him in the
     # sights nearer than the best so far.
-    def measure_him(guard)
+    def measure_in_sights(guard)
       @dx = guard.x - @player.x
       @dy = guard.y - @player.y
 
@@ -1386,13 +1396,13 @@ module Wolf3D
       @away = @celly if @celly > @away
 
       if with_knife
-        what_a_knife_does
+        roll_knife_wound
       else
         # The line is walked from him toward you, and with nothing in the way the dice are
-        # rolled; with something, they are not, as in the original.
+        # rolled; with something, they are not (wl_agent.cpp, GunAttack).
         @wound = 0
-        walk_the_sight_line_from(x, y)
-        what_a_gun_does if @clear == 1
+        check_line_from(x, y)
+        roll_gun_wound if @clear == 1
       end
       wound_a_guard if @wound > 0
     end
@@ -1400,7 +1410,7 @@ module Wolf3D
     # ...AND WHAT A GUN DOES, by distance, where the third case can miss outright: past four
     # cells a roll has to beat the distance or the shot goes wide, which is why a pistol across
     # a room is a waste of a bullet and why backing away from a fight works.
-    def what_a_gun_does
+    def roll_gun_wound
       @wound = @b.rand(0..CHANCES - 1) / 4
       @wound = @b.rand(0..CHANCES - 1) / 6 if @away >= 2
       if @away >= 4
@@ -1415,7 +1425,7 @@ module Wolf3D
     #
     # The distance it asks about is the one the search already worked out — how far in FRONT of
     # the eye the man is, which is what the original measures a knife by too.
-    def what_a_knife_does
+    def roll_knife_wound
       @wound = 0
       @wound = @b.rand(0..CHANCES - 1) / 16 if @nearest < Weapons::KNIFE_REACH
     end

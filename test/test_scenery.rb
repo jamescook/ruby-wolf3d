@@ -255,7 +255,7 @@ class TestScenery < Minitest::Test
   # Walk over it, turn round and look back at where it was: standing ON a thing is too close to
   # draw it, so the only way to ask whether it is still there is from a step or two away.
   WALK_OVER = 25
-  ABOUT_TURN = ((FP::TURN / 2) / FP::TURN_UNITS_WALKING.to_f).ceil + 2
+  ABOUT_TURN = Wolf3DTest::Field.walking_turn_passes(FP::TURN / 2) + 2
 
   def test_a_key_you_have_picked_up_stops_being_drawn
     lying_there = look_at(things: { [9, 8] => GOLD_KEY })

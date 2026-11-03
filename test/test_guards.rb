@@ -211,9 +211,17 @@ class TestGuards < Minitest::Test
     assert_in_delta 12.5, guard_at(run, :x), 0.001, "so he has not moved"
   end
 
+  # ...nor through a secret wall that has not been pushed. Until it slides it is a wall in the
+  # original's map like any other, and CheckLine stops at it (wl_state.cpp, CheckLine).
+  def test_a_guard_cannot_see_you_through_a_secret_wall
+    run = watch(guards: [[12, 8, :west]], walls: [[10, 8]], things: { [10, 8] => Wolf3D::Level::PUSHWALL }, frames: 200)
+
+    assert_equal STAND, state_of(run), "a secret wall between them hides you"
+  end
+
   # ...AND A DOOR HIDES YOU ONLY WHILE IT IS SHUT, more or less. The original's line passes a door
   # where the point it crosses the door at is less than doorposition, and it measures that point
-  # from the edge of the MAP, not of the door (CheckLine, wl_state.cpp). So a door on row eight
+  # from the edge of the MAP, not of the door (wl_state.cpp, CheckLine). So a door on row eight
   # lets a line through at its middle once it is about 8.5/256 open, a crack, and the guard behind
   # it has seen you within a few passes of your pressing it open.
   def test_a_guard_sees_you_through_a_door_as_soon_as_it_cracks_open

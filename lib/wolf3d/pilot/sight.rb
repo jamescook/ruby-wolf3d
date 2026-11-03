@@ -36,7 +36,6 @@ module Wolf3D
       # less often than HURT_PASSES, so one at its back would otherwise be forgotten between shots.
       ON_GUARD_PASSES = 150
 
-      MOST_SLOPE = GuardMind::MOST_SLOPE
 
       attr_reader :x, :y, :view, :cell, :health, :ammo, :keys, :weapon, :best_weapon, :pass,
                   :stuck_passes, :trail, :men, :guards, :drops
@@ -79,7 +78,7 @@ module Wolf3D
 
       # IS THERE A LINE BETWEEN BJ, STANDING AT +from+, AND A MAN AT +x+, +y+? The game's own answer:
       # the original's CheckLine, walked from the man, a column at a time and then a row at a time
-      # (GuardMind#walk_the_sight_line).
+      # (GuardMind#check_line).
       def clear_line?(from_x, from_y, x, y)
         crossings_clear?(x, y, from_x, from_y) { |cell_x, cell_y, middle| see_through?(cell_x, cell_y, middle) } &&
           crossings_clear?(y, x, from_y, from_x) { |cell_y, cell_x, middle| see_through?(cell_x, cell_y, middle) }
@@ -173,7 +172,7 @@ module Wolf3D
         return true if cell == last
 
         way = last > cell ? 1 : -1
-        slope = ((across_to - across_from) / (along_to - along_from).abs).clamp(-MOST_SLOPE, MOST_SLOPE)
+        slope = ((across_to - across_from) / (along_to - along_from).abs).clamp(-GuardMind::MOST_SLOPE_CELLS_PER_CELL, GuardMind::MOST_SLOPE_CELLS_PER_CELL)
         edge = along_from - cell
         edge = 1 - edge if way == 1
         cross = across_from + (slope * edge)
@@ -189,14 +188,14 @@ module Wolf3D
       def see_through?(x, y, middle) = !@level.solid?(x, y) && (!@level.door?(x, y) || door_open_at?(x, y, middle))
 
       # A DOOR IS SEEN THROUGH WHERE A GUARD SEES THROUGH IT, with the original's slip: the line's
-      # crossing, counted from the map's edge in cells, against how far open the door is times 256
-      # (GuardMind#blocked_by). Any other door would have it think itself behind cover while the
-      # man on the other side shoots it.
+      # crossing, counted from the map's edge in cells, against how far open the door is times
+      # GuardMind::CROSSING_STEPS_PER_CELL (GuardMind#stop_line_at). Any other door would have it
+      # think itself behind cover while the man on the other side shoots it.
       def door_open_at?(x, y, middle)
         number = @door_numbers[[x, y]]
         return false unless number && @doors_open
 
-        middle <= @doors_open[number].to_i * 256.0 / FIXED_POINT_SCALE
+        middle <= @doors_open[number].to_i * GuardMind::CROSSING_STEPS_PER_CELL.to_f / FIXED_POINT_SCALE
       end
     end
   end

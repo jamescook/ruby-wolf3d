@@ -303,8 +303,8 @@ class TestLives < Minitest::Test
     [at % Wolf3D::Fixture::Release::GRID, at / Wolf3D::Fixture::Release::GRID]
   end
 
-  def quarter_turn = ((FP::TURN / 4) / FP::TURN_UNITS_WALKING.to_f).ceil
-  def about_turn = ((FP::TURN / 2) / FP::TURN_UNITS_WALKING.to_f).ceil
+  def quarter_turn = Wolf3DTest::Field.walking_turn_passes(FP::TURN / 4)
+  def about_turn = Wolf3DTest::Field.walking_turn_passes(FP::TURN / 2)
 
   def list(run, name, index) = run.list(name)[index]
   def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]

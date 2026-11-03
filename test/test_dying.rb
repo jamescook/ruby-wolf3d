@@ -121,7 +121,7 @@ class TestDying < Minitest::Test
     ran = Reference.new.run(dying_program, frames: Dying::MOST_TURNS + Dying::SETTLE + 3)
     north = FP::QUARTER * 3
 
-    assert_in_delta north, ran[:view] % FP::TURN, Dying::STEP_ANGLE * 2,
+    assert_in_delta north, ran[:view] % FP::TURN, Dying::STEP_ANGLE_UNITS * 2,
                     "it should be looking north, give or take the step it stopped on"
   end
 
@@ -180,7 +180,7 @@ class TestDying < Minitest::Test
                    .run(dying_program(saving: true), frames: LOADED_AND_KILLED.length + FRAMES)
     got = redness(->(x, y) { ran.screen.pixel(x, y) })
 
-    assert_in_delta FP::QUARTER * 3, ran[:view] % FP::TURN, Dying::STEP_ANGLE * 2,
+    assert_in_delta FP::QUARTER * 3, ran[:view] % FP::TURN, Dying::STEP_ANGLE_UNITS * 2,
                     "turned from east, where the load left the eye, to the killer in the north"
     assert_in_delta 1.0, got[:view], 0.0001, "and every pixel of the view red again"
   end

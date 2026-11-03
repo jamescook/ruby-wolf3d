@@ -26,15 +26,15 @@ class TestFirstPerson < Minitest::Test
 
   def turning_program = @turning_program ||= view_of(@level, standing: false, drawing: false)
 
-  def degrees_a_pass(*held)
+  def measure_turn_degrees_per_pass(*held)
     start = Reference.new.run(turning_program, frames: TURN_PASSES)[:view]
     turned = Reference.new.hold(*held).run(turning_program, frames: TURN_PASSES)[:view]
     ((turned - start) % FP::TURN) * 360.0 / FP::TURN / TURN_PASSES
   end
 
   def test_turning_goes_at_the_originals_rate_walking_and_running
-    assert_in_delta 1.75, degrees_a_pass(:right), 0.1, "walking"
-    assert_in_delta 3.5, degrees_a_pass(:right, :a), 0.2, "running"
+    assert_in_delta 1.75, measure_turn_degrees_per_pass(:right), 0.1, "walking"
+    assert_in_delta 3.5, measure_turn_degrees_per_pass(:right, :a), 0.2, "running"
   end
 
   def test_the_atlas_holds_only_the_walls_the_level_builds_with
@@ -125,12 +125,13 @@ class TestFirstPerson < Minitest::Test
   # depends on the angle, and a player stops on the last step that keeps their feet out of the
   # wall — so where that leaves them is the remainder of the distance divided by the step, which
   # is a different sliver for every approach. Walking straight in leaves seven hundredths of a
-  # cell and looks fine. A turn of about an eighth first left almost nothing, and the wall
-  # vanished. Which turn does it depends on the size of a turn-step, so this walks in from a few
-  # turns either side of that.
+  # cell and looks fine. A turn of about an eighth first can leave almost nothing, and then the
+  # wall would vanish. Which turn does it depends on the size of a turn-step, so this walks in
+  # from a few turns either side of an eighth.
   #
   # Read along the eye line, which crosses whatever is ahead at every distance.
-  SEE_THROUGH_TURNS = (24..28)
+  EIGHTH_TURN_PASSES = Wolf3DTest::Field.walking_turn_passes(FP::TURN / 8)
+  SEE_THROUGH_TURNS = ((EIGHTH_TURN_PASSES - 2)..(EIGHTH_TURN_PASSES + 2))
 
   def test_a_wall_you_are_pressed_against_still_fills_the_screen
     SEE_THROUGH_TURNS.each do |turns|
@@ -163,7 +164,9 @@ class TestFirstPerson < Minitest::Test
   # leaning forward ask for different halves of the cell the eye stands in. A fan pointed into one
   # corner leans the same way on both axes for every ray in it, so one corner exercises one of the
   # four pairs and says nothing about the other three.
-  CORNERS = [[:left, 26], [:right, 26], [:left, 79], [:right, 79]].freeze # an eighth and three, in walking turn-steps
+  THREE_EIGHTHS_TURN_PASSES = Wolf3DTest::Field.walking_turn_passes(FP::TURN * 3 / 8)
+  CORNERS = [[:left, EIGHTH_TURN_PASSES], [:right, EIGHTH_TURN_PASSES],
+             [:left, THREE_EIGHTHS_TURN_PASSES], [:right, THREE_EIGHTHS_TURN_PASSES]].freeze
   WALKING_FRAMES = 14 # steps after the turn: far enough to carry the eye over a grid line
   JUDDER = 3          # pixels a strip's top edge may move in one frame at this walking speed
 

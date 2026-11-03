@@ -299,7 +299,7 @@ class TestPilot < Minitest::Test
     assert target_of(level, sight_on(level, at: [3, ROW], men: EAST_OF_IT, view: FACING_EAST))
   end
 
-  # A door between them stops the line by the game's own rule (GuardMind#blocked_by): a door on
+  # A door between them stops the line by the game's own rule (GuardMind#stop_line_at): a door on
   # row eight is seen through at its middle once it is 8.5/256 open, and not while it is shut.
   def test_a_door_hides_a_man_only_until_it_cracks_open
     level = two_rooms(player: [3, ROW], door: [7, ROW])

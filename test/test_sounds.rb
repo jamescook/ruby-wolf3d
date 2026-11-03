@@ -318,7 +318,7 @@ class TestSounds < Minitest::Test
     Reference.new.run(@boss_view, frames: frames)
   end
 
-  def about_turn = ((FP::TURN / 2) / FP::TURN_UNITS_WALKING.to_f).ceil
+  def about_turn = Wolf3DTest::Field.walking_turn_passes(FP::TURN / 2)
 
   # Turn about, walk at the door in the room's south wall, open it — AND THEN STAND STILL. Walking
   # on into the doorway tops the door's count back up for as long as you stand there, which is the
