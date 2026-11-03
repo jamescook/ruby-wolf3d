@@ -15,11 +15,18 @@ module Wolf3D
       QUIET_PASSES = 120
       MOST_PASSES = 900
 
-      # Is the room behind this door full, with a gun to meet it?
-      def self.worth_holding?(door, sight)
+      # IS THE ROOM BEHIND THIS DOOR FULL, with a gun to meet it? Only the men in the room on the
+      # far side count, by the map's own room numbers (Level#area). Men around the door on its
+      # near side are in the room with BJ, and holding the door would have him stand among them
+      # with his gun on the empty side.
+      def self.worth_holding?(door, sight, level)
         return false unless sight.best_weapon >= Weapons::CHAIN_GUN && sight.ammo >= LEAST_ROUNDS
 
-        sight.men.count { |man| Math.hypot(man.x - door[0], man.y - door[1]) < CROWD_CELLS } >= LEAST_MEN
+        here = level.area(*sight.cell)
+        beyond = FloorReport::STEPS.filter_map { |dx, dy| level.area(door[0] + dx, door[1] + dy) }.uniq - [here]
+        sight.men.count do |man|
+          beyond.include?(level.area(man.x.floor, man.y.floor)) && Math.hypot(man.x - door[0], man.y - door[1]) < CROWD_CELLS
+        end >= LEAST_MEN
       end
 
       attr_reader :door

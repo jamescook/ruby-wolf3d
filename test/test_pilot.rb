@@ -309,6 +309,18 @@ class TestPilot < Minitest::Test
     refute sight_on(level, at: [3, ROW], doors_open: [0]).clear_line_to?(11.5, ROW + 0.5), "a shut door is not"
   end
 
+  # A door is held against a room full of men BEYOND it. The same men on BJ's side of it are in
+  # his room already, and holding the door would leave him among them looking the other way.
+  def test_a_door_is_held_only_against_men_on_its_far_side
+    level = two_rooms(player: [5, ROW], door: [7, ROW])
+    armed = { weapon: Wolf3D::Weapons::CHAIN_GUN, weapon_best: Wolf3D::Weapons::CHAIN_GUN, ammo: 60 }
+    beyond = [[9.5, ROW - 1.5, 25], [9.5, ROW + 0.5, 25], [9.5, ROW + 2.5, 25]]
+    near = [[3.5, ROW - 1.5, 25], [3.5, ROW + 0.5, 25], [3.5, ROW + 2.5, 25]]
+
+    assert Pilot::Ambush.worth_holding?([7, ROW], sight_on(level, at: [5, ROW], men: beyond, **armed), level), "men beyond"
+    refute Pilot::Ambush.worth_holding?([7, ROW], sight_on(level, at: [5, ROW], men: near, **armed), level), "men on its near side"
+  end
+
   def test_a_man_behind_it_is_not_seen
     level = arena(player: [3, ROW])
 

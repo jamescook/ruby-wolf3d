@@ -71,7 +71,7 @@ module Wolf3D
       end
 
       def ambush_if_crowded(ahead)
-        return unless @level.door?(*ahead) && !@ambushed[ahead] && Ambush.worth_holding?(ahead, @sight)
+        return unless @level.door?(*ahead) && !@ambushed[ahead] && Ambush.worth_holding?(ahead, @sight, @level)
 
         @ambush = Ambush.new(ahead, @sight, @walker, @gunfight)
       end
