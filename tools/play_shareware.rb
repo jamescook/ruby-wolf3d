@@ -5,13 +5,18 @@
 #
 #   ruby tools/play_shareware.rb                     on the emulator, as fast as it will go
 #   ruby tools/play_shareware.rb --window            in a window, at the console's frame rate
-#   ruby tools/play_shareware.rb --on native         or interpreter, web, ruby, emulator
+#   ruby tools/play_shareware.rb --on native         or logic, interpreter, web, ruby, emulator
 #   ruby tools/play_shareware.rb --floors 2          stops when two floors are done
 #   ruby tools/play_shareware.rb --difficulty hard   baby, easy, medium or hard, or 1 to 4. Default baby
+#   ruby tools/play_shareware.rb --seed 4            another run of the random numbers. Default 1
 #   ruby tools/play_shareware.rb --music             with effects and music on, whichever way it runs
 #   ruby tools/play_shareware.rb --repeat            plays the run back from its tape, and says if
 #                                                    it came out the same
 #   ruby tools/play_shareware.rb --tape run.tape     writes the tape there
+#   ruby tools/play_shareware.rb --verbose           if BJ loses his last life, shows all the output
+#
+# --on logic is the rules alone, with no picture, no sound and no tape, so it takes neither --window
+# nor --repeat.
 #
 # Each way of running is a run of its own, because a pass that takes two frames on the console takes
 # one on a computer. A tape is a list of presses and holds nothing of the game's own, so it plays only
