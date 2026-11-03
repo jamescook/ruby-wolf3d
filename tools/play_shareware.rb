@@ -31,11 +31,22 @@ OptionParser.new do |parser|
   parser.on("--window") { options[:window] = true }
   parser.on("--floors N", Integer) { |n| options[:floors] = n }
   parser.on("--repeat") { options[:repeat] = true }
-  parser.on("--tape PATH") { |path| options[:tape] = File.expand_path(path) }
+  parser.on("--tape PATH") do |path|
+    options[:tape] = File.expand_path(path)
+    options[:tape_asked] = true
+  end
   parser.on("--seed N", Integer) { |n| options[:seed] = n }
   parser.on("--difficulty SETTING") { |setting| options[:difficulty] = setting }
   parser.on("--music") { options[:music] = true }
 end.parse!
+
+# What cannot go together is refused here, before a minute goes on the build.
+logic = options[:on] == "logic"
+abort "--repeat cannot go with --on logic. That way writes no tape. Remove --repeat, or use --on emulator." if options[:repeat] && logic
+abort "--window cannot go with --on logic. That way has no picture. Remove --window, or use --on emulator." if options[:window] && logic
+if options[:window] && options[:repeat]
+  abort "--window cannot go with --repeat. A closed window leaves no tape to play back. Remove one of the two."
+end
 
 ENV["WOLF3D_COPY"] = "shareware"
 ENV["WOLF3D_PILOT_FLOORS"] = options[:floors].to_s if options[:floors]
@@ -60,7 +71,7 @@ seed = ["--set", "seed=#{options[:seed]}", *("music=on" if options[:music])]
 way = ["--on", options[:on]]
 run = play + ["--script", "tools/shareware_playthrough.rb"] + way
 run << "--window" if options[:window]
-run += ["--write-tape", options[:tape]] unless options[:on] == "logic"
+run += ["--write-tape", options[:tape]] unless logic
 # Only a repeat compares pictures, so only a repeat needs a place for them.
 pictures = Dir.mktmpdir("shareware") if options[:repeat]
 at_exit { FileUtils.remove_entry(pictures) if pictures }
@@ -111,6 +122,7 @@ puts format("The bot plays seed %d on the %s setting, way of running: %s, with %
             names[difficulty], options[:on], options[:music] ? "effects and music" : "the default sound")
 puts options[:window] ? "A window opens when the game is built." : "There is no window, so nothing appears on the screen. To watch, add --window."
 puts "The game builds first, which takes about a minute. Then each floor is shown as it starts."
+puts "--on logic writes no tape, so this run writes nothing to #{options[:tape]}." if logic && options[:tape_asked]
 began = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 status = play_showing_report.call(run + seed, building: "Still building", playing: "Still playing")
 puts format("%.0f seconds", Process.clock_gettime(Process::CLOCK_MONOTONIC) - began)

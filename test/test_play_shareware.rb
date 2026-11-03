@@ -26,6 +26,15 @@ class TestPlayShareware < Minitest::Test
     assert_includes said, "baby, easy, medium, hard"
   end
 
+  def test_flags_that_cannot_go_together_are_refused_by_their_own_names
+    [%w[--repeat --on logic], %w[--window --on logic], %w[--window --repeat]].each do |flags|
+      said, status = Open3.capture2e(RUBY, TOOL, *flags)
+
+      refute_predicate status, :success?, flags.join(" ")
+      assert_includes said, "#{flags.first} cannot go with #{flags.drop(1).join(' ')}"
+    end
+  end
+
   def test_the_pilot_finishes_two_floors_and_its_tape_repeats
     shareware_or_skip
     name = "wolf3d-pilot-#{Process.pid}.tape"
