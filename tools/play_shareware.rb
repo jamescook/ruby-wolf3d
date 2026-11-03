@@ -124,8 +124,17 @@ puts options[:window] ? "A window opens when the game is built." : "There is no 
 puts "The game builds first, which takes about a minute. Then each floor is shown as it starts."
 puts "--on logic writes no tape, so this run writes nothing to #{options[:tape]}." if logic && options[:tape_asked]
 began = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+old_tape_time = File.mtime(options[:tape]) if File.exist?(options[:tape])
 status = play_showing_report.call(run + seed, building: "Still building", playing: "Still playing")
 puts format("%.0f seconds", Process.clock_gettime(Process::CLOCK_MONOTONIC) - began)
+
+# A CLOSED WINDOW IS NOT A FAILURE, so vblank exits as it does at the end of a run. What tells them
+# apart is the tape, which is written only when the playing reaches the end.
+if status.success? && options[:window] && (!File.exist?(options[:tape]) || File.mtime(options[:tape]) == old_tape_time)
+  puts "The window was closed, so the run stopped. No tape was written."
+  exit 0
+end
+
 puts status.success? ? "The run is over." : "The run stopped before the end. The output above says why."
 exit 1 unless status.success?
 
