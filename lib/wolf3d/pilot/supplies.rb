@@ -30,7 +30,7 @@ module Wolf3D
       # A better gun is worth any walk, and another life nearly so. A hurt player walks further for
       # health. Everything else that lies about, treasure and scraps and keys, is walked over or not.
       BONUSES = Ractor.make_shareable(
-        { health: Bonus.new(reading: :health, detour_below: 85, stock_below: Pickups::FULL_HEALTH, short_below: 50,
+        { health: Bonus.new(reading: :health, detour_below: 85, stock_below: Pickups::FULL_HEALTH, short_below: 70,
                             steps: LONG_DETOUR_STEPS, steps_when_short: ANY_DISTANCE_STEPS),
           ammunition: Bonus.new(reading: :ammo, detour_below: Pickups::MOST_AMMO, stock_below: Pickups::MOST_AMMO, short_below: 40,
                                 steps: SHORT_DETOUR_STEPS, steps_when_short: LONG_DETOUR_STEPS),
