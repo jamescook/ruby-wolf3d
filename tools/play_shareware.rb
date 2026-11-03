@@ -38,6 +38,7 @@ OptionParser.new do |parser|
   parser.on("--seed N", Integer) { |n| options[:seed] = n }
   parser.on("--difficulty SETTING") { |setting| options[:difficulty] = setting }
   parser.on("--music") { options[:music] = true }
+  parser.on("--verbose") { options[:verbose] = true }
 end.parse!
 
 # What cannot go together is refused here, before a minute goes on the build.
@@ -81,8 +82,10 @@ run += ["--pictures-in", File.join(pictures, "played")] if options[:repeat]
 # The rest is what the build says of its speed.
 report_line = lambda { |line| line.match?(/\A(frame \d+:|Played|  \w+ +frame)/) || line.include?("tape") }
 
-# A whole run takes minutes, so each line is shown as it comes. All of it is shown if the run fails.
+# A whole run takes minutes, so each line is shown as it comes. All of it is shown if the run fails,
+# unless it failed because BJ died for the last time, which one line says, or --verbose asks for it.
 # +building+ and +playing+ say what is going on, before the first line of the report and after it.
+lost_run = nil
 play_showing_report = lambda do |command, building:, playing:|
   # A window is the player's own process, with this terminal as its own.
   if options[:window]
@@ -113,7 +116,8 @@ play_showing_report = lambda do |command, building:, playing:|
     waiting.kill
     thread.value
   end
-  puts said unless status.success?
+  lost_run = said[/The pilot lost its last life on floor \d+, on frame \d+\./]
+  puts said if !status.success? && (lost_run.nil? || options[:verbose])
   status
 end
 
@@ -135,7 +139,9 @@ if status.success? && options[:window] && (!File.exist?(options[:tape]) || File.
   exit 0
 end
 
-puts status.success? ? "The run is over." : "The run stopped before the end. The output above says why."
+puts lost_run if lost_run
+puts "The run is over." if status.success?
+puts "The run stopped before the end. The output above says why." unless status.success? || lost_run
 exit 1 unless status.success?
 
 # THE SAME RUN IS THE SAME SCREENS. A tape says on which frame each moment falls whatever it plays
