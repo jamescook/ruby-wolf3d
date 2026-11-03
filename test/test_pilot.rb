@@ -285,6 +285,34 @@ class TestPilot < Minitest::Test
     assert_nil gunfight.target
   end
 
+  def target_of(level, sight)
+    Pilot::Gunfight.new(sight, walker_on(level, sight)).tap(&:update).target
+  end
+
+  EAST_OF_IT = [[9.5, ROW + 0.5, 25]].freeze
+  FACING_EAST = 0
+  FACING_WEST = 512
+
+  def test_a_man_in_front_of_it_is_seen
+    level = arena(player: [3, ROW])
+
+    assert target_of(level, sight_on(level, at: [3, ROW], men: EAST_OF_IT, view: FACING_EAST))
+  end
+
+  def test_a_man_behind_it_is_not_seen
+    level = arena(player: [3, ROW])
+
+    assert_nil target_of(level, sight_on(level, at: [3, ROW], men: EAST_OF_IT, view: FACING_WEST))
+  end
+
+  def test_a_man_behind_it_who_has_just_hurt_it_is_turned_to
+    level = arena(player: [3, ROW])
+    sight = sight_on(level, at: [3, ROW], men: EAST_OF_IT, view: FACING_WEST, health: 100)
+    read_game(sight, at: [3, ROW], men: EAST_OF_IT, view: FACING_WEST, health: 90)
+
+    assert target_of(level, sight)
+  end
+
   # --- a boss -------------------------------------------------------------------------------
 
   def boss_fight_on(level, sight, hardest: true)
@@ -318,6 +346,13 @@ class TestPilot < Minitest::Test
     close = [[9.5, ROW + 0.5, BOSS_HIT_POINTS]]
 
     assert_predicate noted_boss(level, sight_on(level, at: [3, ROW], men: close)), :awake?
+  end
+
+  def test_a_boss_behind_it_starts_nothing
+    level = floor_with_a_gap_at_his_row
+    close = [[9.5, ROW + 0.5, BOSS_HIT_POINTS]]
+
+    refute_predicate noted_boss(level, sight_on(level, at: [3, ROW], men: close, view: FACING_WEST)), :awake?
   end
 
   def test_a_boss_walking_about_behind_a_wall_starts_nothing

@@ -58,7 +58,7 @@ module Wolf3D
 
       private
 
-      def in_sight? = @sight.distance_to(*@at) < SEEN_CELLS && @sight.clear_line_to?(*@at)
+      def in_sight? = @sight.distance_to(*@at) < SEEN_CELLS && @sight.in_view?(*@at) && @sight.clear_line_to?(*@at)
 
       def note_position(guard)
         @at = [guard.x, guard.y]

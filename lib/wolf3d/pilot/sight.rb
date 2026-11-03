@@ -75,6 +75,9 @@ module Wolf3D
 
       def clear_line_to?(x, y) = clear_line?(@x, @y, x, y)
 
+      # Is this place on the screen as it stands, the same width as the view draws?
+      def in_view?(x, y) = view_error_to(x, y).abs <= FirstPerson::HALF_VIEW
+
       # Has this door started to open at all?
       def door_ajar?(cell) = @doors_open[@door_numbers.fetch(cell)].to_i.positive?
 

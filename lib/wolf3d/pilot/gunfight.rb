@@ -56,7 +56,7 @@ module Wolf3D
           @men_in_sight = []
           @target = nil
         else
-          @men_in_sight = men_with_clear_line
+          @men_in_sight = men_in_view
           @target = pick_target(@men_in_sight)
           @target_number = @target&.number
         end
@@ -111,8 +111,13 @@ module Wolf3D
         @fight_passes = 0
       end
 
-      def men_with_clear_line
-        @sight.men.select { |man| @sight.distance_to_man(man) < SIGHT_CELLS && @sight.clear_line_to?(man.x, man.y) }
+      # Whoever it can see in front of it. A wound says somebody is there, so while it hurts it turns
+      # to a man beside or behind it as well.
+      def men_in_view
+        @sight.men.select do |man|
+          @sight.distance_to_man(man) < SIGHT_CELLS && (@sight.hurt? || @sight.in_view?(man.x, man.y)) &&
+            @sight.clear_line_to?(man.x, man.y)
+        end
       end
 
       # It finishes the man it is shooting: turning to whoever is nearest this moment wastes the gun.
