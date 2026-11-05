@@ -69,9 +69,12 @@ ENV["WOLF3D_PILOT_DIFFICULTY"] = difficulty.to_s
 ENV["WOLF3D_PILOT_SEED"] = options[:seed].to_s
 ENV["WOLF3D_PILOT_RUN_LOG"] = options[:run_log] if options[:run_log]
 
-unless Wolf3D::GameData.config_value(Wolf3D.home, "shareware")
-  puts "Skipped: there is no copy of the shareware. Set shareware in #{Wolf3D::GameData::CONFIG_FILE}."
-  exit 0
+# WOLF3D_COPY above makes this the shareware line. Nothing named, or a copy that will not do, stops
+# here with what to set.
+begin
+  Wolf3D.data || Wolf3D::GameData.locate
+rescue VBlank::Original::CopyError => e
+  abort e.message
 end
 
 Dir.chdir(File.expand_path("..", __dir__))

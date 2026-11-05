@@ -84,7 +84,7 @@ class TestVswapAgainstTheRealFile < Minitest::Test
   include Wolf3DTest
 
   def setup
-    @vswap = Wolf3D::Vswap.from(game_data_or_skip)
+    @vswap = Wolf3D::Vswap.from(real_copy)
   end
 
   def test_every_wall_is_four_thousand_and_ninety_six_bytes_of_palette_numbers

@@ -76,7 +76,5 @@ class TestRandomSeed < Minitest::Test
 
   def test_the_dial_reaches_the_game
     Wolf3D::GAME.program(settings: { seed: "7", floors: 1 })
-  rescue Wolf3D::Vanilla::Refused
-    skip("this copy of Wolfenstein 3D is one the build refuses")
   end
 end

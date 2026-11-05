@@ -36,20 +36,20 @@ class TestWhichEpisodes < Minitest::Test
   end
 
   def test_it_ships_every_episode_the_copy_holds_unless_told_otherwise
-    game_data_or_skip
+    real_copy
 
     assert_equal Wolf3D.maps.count, asking.length, "the whole game is the default"
   end
 
   def test_one_episode_is_that_episodes_floors_and_no_others
-    game_data_or_skip
+    real_copy
 
     assert_equal (0..9).to_a, asking(episodes: "1")
     assert_equal (10..19).to_a, asking(episodes: "2")
   end
 
   def test_a_list_and_a_range_both_read
-    game_data_or_skip
+    real_copy
 
     assert_equal (0..9).to_a + (20..29).to_a, asking(episodes: "1,3")
     assert_equal (10..39).to_a, asking(episodes: "2-4")
@@ -59,7 +59,7 @@ class TestWhichEpisodes < Minitest::Test
   # ...and the floor dials still trim what the episodes picked, which is what makes the fastest
   # possible build and what measuring a LATER floor's cost needs.
   def test_the_floor_dials_trim_the_episodes_that_were_picked
-    game_data_or_skip
+    real_copy
 
     assert_equal [0], asking(floors: "1")
     assert_equal [10], asking(episodes: "2", floors: "1")
@@ -67,7 +67,7 @@ class TestWhichEpisodes < Minitest::Test
   end
 
   def test_an_episode_that_is_not_there_says_how_many_are
-    game_data_or_skip
+    real_copy
     error = assert_raises(ArgumentError) { asking(episodes: "7") }
 
     assert_match(/episode 7/, error.message)
@@ -76,7 +76,7 @@ class TestWhichEpisodes < Minitest::Test
   end
 
   def test_something_that_is_not_a_number_says_what_one_looks_like
-    game_data_or_skip
+    real_copy
     error = assert_raises(ArgumentError) { asking(episodes: "two") }
 
     assert_match(/cannot read "two"/, error.message)
@@ -90,7 +90,7 @@ class TestWhereToStart < Minitest::Test
   include Wolf3DTest
 
   def test_the_first_floor_starts_where_it_was_told
-    game_data_or_skip
+    real_copy
     level = Wolf3D.maps[2]
     x, y = level.each_cell.find do |cx, cy|
       level.floor?(cx, cy) && !level.door?(cx, cy) && level.thing_code(cx, cy).zero?

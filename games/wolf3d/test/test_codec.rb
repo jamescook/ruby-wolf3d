@@ -8,7 +8,7 @@ class TestCodecAgainstRealMaps < Minitest::Test
   include Wolf3DTest
 
   def test_every_level_expands_to_a_64_by_64_grid_and_round_trips
-    data = game_data_or_skip
+    data = real_copy
     maphead = data.read("MAPHEAD")
     gamemaps = data.read("GAMEMAPS")
     rlew = IdSoftware::Codec::RLEW.new(tag: maphead[0, 2].unpack1("v"))

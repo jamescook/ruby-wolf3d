@@ -1,22 +1,18 @@
 # frozen_string_literal: true
 
-require "yaml"
+require "vblank/original/game"
 
 module Wolf3D
-  # Where your copy of Wolfenstein 3D is, and which release it is.
+  # YOUR COPY OF WOLFENSTEIN 3D: the folder its files are in, and which release they are.
   #
   # Nothing here is redistributable, so the build reads files you already own. Point at them with
-  # WOLF3D_DATA, or with a wolf3d.yml beside this game.
+  # WOLF3D_DATA, or with a wolf3d.yml beside this game. Finding the folder those name, and refusing
+  # it in words a person can act on, is the framework's (VBlank::Original::Game, made by
+  # .original); what is Wolfenstein's is here and in Vanilla: what the folder must hold, and which
+  # release it is.
   class GameData
-    class NotFound < StandardError; end
-
-    # NOTHING SAYS WHERE A COPY IS, which is the one way of not finding it that a build carries on
-    # from: it makes the holding screen. A copy that was named and cannot be used stops the build.
-    class NotSet < NotFound; end
-
     ENV_VAR = "WOLF3D_DATA"
     CONFIG_FILE = "wolf3d.yml"
-    EXAMPLE_FILE = "wolf3d.example.yml"
     COPY_VAR = "WOLF3D_COPY"
     COPY_KEYS = %w[data shareware].freeze
 
@@ -31,41 +27,59 @@ module Wolf3D
 
     STEMS = %w[VSWAP GAMEMAPS MAPHEAD VGAGRAPH VGADICT VGAHEAD AUDIOT AUDIOHED].freeze
 
-    attr_reader :dir, :set, :source, :home
+    attr_reader :dir, :set
 
-    # The data, or nil when there is none. For tests that skip rather than fail.
+    # WHERE YOUR COPY IS AND WHETHER IT WILL DO, asked the way every game made from an original asks
+    # it. The setting wins over the file, and a relative path in the file is read from this game's
+    # folder. A copy is accepted by what it holds: the files of one release, which Vanilla then
+    # checks are the release this game was written against.
     #
-    # +env+ is where WOLF3D_DATA is looked up: the process's environment unless somebody hands
-    # over their own, which is how a test points at a directory without changing it for everyone.
-    def self.find(home: Wolf3D.home, env: ENV)
+    # +env+ is where the settings are looked up: the process's environment unless somebody hands
+    # over their own, which is how a test points at a folder without changing it for everyone.
+    # WOLF3D_COPY=shareware there reads the shareware line of the file in place of the data line.
+    def self.original(home: Wolf3D.home, env: ENV)
+      VBlank::Original::Game.new(
+        title: "Wolfenstein 3D", setting: ENV_VAR, settings_file: File.join(home, CONFIG_FILE),
+        key: copy_key(env), env: env, not_set_help: not_set_help,
+        probe: ->(dir) { at(dir).tap { |data| Vanilla.check_files!(data) }.set }
+      )
+    end
+
+    # The copy the settings name, checked. VBlank::Original::NotSet when nothing names one, and
+    # VBlank::Original::WrongCopy when the one named will not do.
+    def self.locate(home: Wolf3D.home, env: ENV)
+      copy = original(home: home, env: env).copy
+      new(dir: copy.path, set: copy.release)
+    end
+
+    # The same, or nil when nothing names a copy: what makes the holding screen.
+    def self.locate_if_set(home: Wolf3D.home, env: ENV)
       locate(home: home, env: env)
-    rescue NotFound
+    rescue VBlank::Original::NotSet
       nil
     end
 
-    def self.locate(home: Wolf3D.home, env: ENV)
-      dir, source = configured_dir(home, env)
-      raise NotSet, unset_message(home) if dir.nil?
-      raise NotFound, missing_dir_message(dir, source) unless File.directory?(dir)
+    # The release in +dir+, as it is, without asking whether this game can use it: for a folder a
+    # test wrote, or one the settings named, before Vanilla is asked.
+    def self.at(dir)
+      raise VBlank::Original::WrongCopy, "#{dir} is a file. Name the folder that holds your copy's files." unless File.directory?(dir)
 
       sets = complete_sets(dir)
-      raise NotFound, no_files_message(dir, source) if sets.empty?
-      raise NotFound, ambiguous_message(dir, sets) if sets.length > 1
+      raise VBlank::Original::WrongCopy, no_files_message(dir) if sets.empty?
+      raise VBlank::Original::WrongCopy, ambiguous_message(dir, sets) if sets.length > 1
 
-      new(dir: dir, set: sets.first, source: source, home: home)
+      new(dir: dir, set: sets.first)
     end
 
-    def initialize(dir:, set:, source:, home: nil)
+    def initialize(dir:, set: nil)
       @dir = dir
-      @set = set
-      @source = source
-      @home = home
+      @set = set || self.class.at(dir).set
     end
 
     # The file for a stem, e.g. path("VSWAP"). Case is whatever the disk uses.
     def path(stem)
       found = self.class.file_in(@dir, stem, @set)
-      raise NotFound, "#{stem}.#{@set} is not in #{@dir}." if found.nil?
+      raise VBlank::Original::WrongCopy, "#{stem}.#{@set} is not in #{@dir}." if found.nil?
 
       found
     end
@@ -74,7 +88,7 @@ module Wolf3D
 
     def label = "#{SETS.fetch(@set, @set)} (#{@set})"
 
-    def describe = "Found #{label} in #{@dir}, set by #{@source}."
+    def describe = "Found #{label} in #{@dir}."
 
     # Every file of +set+ that is in +dir+, matched without regard to case — the files are
     # upper-case on the original disks and often lower-case after a copy through another system.
@@ -89,17 +103,6 @@ module Wolf3D
       SETS.keys.select { |set| STEMS.all? { |stem| file_in(dir, stem, set) } }
     end
 
-    def self.configured_dir(home, env)
-      from_env = env.fetch(ENV_VAR, nil)
-      return [File.expand_path(from_env), ENV_VAR] unless from_env.to_s.empty?
-
-      key = copy_key(env)
-      named = config_value(home, key)
-      return [nil, nil] if named.nil?
-
-      [File.expand_path(named, home), CONFIG_FILE]
-    end
-
     # WHICH LINE OF THE CONFIG FILE NAMES THE COPY. Two copies can sit there side by side, and
     # WOLF3D_COPY=shareware builds from the second.
     def self.copy_key(env)
@@ -107,55 +110,27 @@ module Wolf3D
       return "data" if asked.empty?
       return asked if COPY_KEYS.include?(asked)
 
-      raise NotFound, "#{COPY_VAR} is #{asked}. Set it to one of these: #{COPY_KEYS.join(', ')}."
+      raise VBlank::Original::WrongCopy, "#{COPY_VAR} is #{asked}. Set it to one of these: #{COPY_KEYS.join(', ')}."
     end
 
-    def self.config_value(home, key)
-      return nil if home.nil?
-
-      config = File.join(home, CONFIG_FILE)
-      return nil unless File.file?(config)
-
-      value = YAML.safe_load_file(config).then { |loaded| loaded.is_a?(Hash) ? loaded[key] : nil }
-      value.to_s.empty? ? nil : value
+    # What the framework's message about a copy nobody named adds: what the folder must hold.
+    def self.not_set_help
+      "The folder must hold these files: #{STEMS.join(', ')}. Each one must end in #{Vanilla::SETS}. #{Vanilla::NEEDED}"
     end
 
-    def self.unset_message(home)
-      <<~TEXT
-        Wolfenstein 3D game data is not set.
-
-        This game reads the data files from a copy of Wolfenstein 3D that you own. The files are
-        not free to give away, so they are not in this repository.
-
-        Do one of these two things:
-
-        1. Set the directory in the environment:
-             export #{ENV_VAR}="/path/to/wolfenstein"
-        2. Or copy #{EXAMPLE_FILE} to #{CONFIG_FILE} and put the directory in it:
-             #{File.join(home, CONFIG_FILE)}
-
-        The directory must hold these files: #{STEMS.join(', ')}.
-        Each one must end in #{Vanilla::SETS}. #{Vanilla::NEEDED}
-      TEXT
-    end
-
-    def self.missing_dir_message(dir, source)
-      "#{source} points at #{dir}. There is no directory there. Correct the path."
-    end
-
-    def self.no_files_message(dir, source)
+    def self.no_files_message(dir)
       present = begin
         Dir.children(dir).sort.first(12)
       rescue SystemCallError
         []
       end
       <<~TEXT
-        #{source} points at #{dir}. That directory holds no Wolfenstein 3D data.
+        #{dir} holds no Wolfenstein 3D data.
 
         A complete release has all of these files: #{STEMS.join(', ')}.
         Each one ends in #{Vanilla::SETS} — for example VSWAP.WL6.
 
-        #{present.empty? ? 'The directory is empty.' : "The directory holds: #{present.join(', ')}"}
+        #{present.empty? ? 'The folder is empty.' : "The folder holds: #{present.join(', ')}"}
       TEXT
     end
 
@@ -164,8 +139,8 @@ module Wolf3D
       <<~TEXT
         #{dir} holds more than one release: #{named}.
 
-        Point at one release. Put each in a directory of its own, or set #{ENV_VAR} to the
-        directory that holds only the release you want.
+        Point at one release. Put each in a folder of its own, or set #{ENV_VAR} to the
+        folder that holds only the release you want.
       TEXT
     end
   end

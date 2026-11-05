@@ -68,7 +68,7 @@ class TestMapViewOnHardware < Minitest::Test
   end
 
   def test_the_first_level_draws_where_the_grid_says
-    game_data_or_skip
+    real_copy
     level = Wolf3D.maps[0]
     view = Wolf3D::MapView
     gba = Verifier.new(views_rom(level), frames: 4)
@@ -87,7 +87,7 @@ class TestMapViewOnHardware < Minitest::Test
 
   # The game's own colours, on the console, read back one by one.
   def test_the_games_own_colours_reach_the_screen
-    game_data_or_skip
+    real_copy
     palette = Wolf3D.palette
     view = Wolf3D::PaletteView
     gba = Verifier.new(views_rom(Wolf3D.maps[0]), frames: 4)

@@ -137,7 +137,7 @@ class TestMapsAgainstRealLevels < Minitest::Test
   include Wolf3DTest
 
   def setup
-    @maps = Wolf3D::Maps.from(game_data_or_skip)
+    @maps = Wolf3D::Maps.from(real_copy)
   end
 
   def test_every_level_reads_and_is_named

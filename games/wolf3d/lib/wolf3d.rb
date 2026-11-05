@@ -127,7 +127,11 @@ module Wolf3D
   #
   # WHERE your copy is comes from WOLF3D_DATA or wolf3d.yml, and is not one of the build's
   # settings below: it is a fact about this machine, the same for every build made on it.
-  def self.data = Ractor.current[:wolf3d_data] ||= GameData.find
+  #
+  # A COPY THAT WAS NAMED AND WILL NOT DO STOPS THE BUILD HERE, whether the trouble is the copy or
+  # the place it was said to be (VBlank::Original::WrongCopy, see Vanilla). Nothing named at all is
+  # not trouble: it is the holding screen.
+  def self.data = Ractor.current[:wolf3d_data] ||= GameData.locate_if_set
 
   def self.maps = Ractor.current[:wolf3d_maps] ||= data && Maps.from(data)
 
@@ -307,18 +311,12 @@ module Wolf3D
 
   def self.palette = Palette.game
 
-  # A BUILD STOPS HERE on a copy of the game it cannot use, whether the trouble is the copy or the
-  # place it was said to be. See Vanilla. Nothing said at all is not trouble: see GameData::NotSet.
-  def self.check_the_copy!(home: self.home, env: ENV)
-    Vanilla.check_files!(GameData.locate(home: home, env: env))
-  rescue GameData::NotSet
-    nil
-  end
-
   # Say what the cartridge was built from, or how to fix it not knowing.
   def self.report(err = $stderr)
-    err.puts GameData.locate.describe
-  rescue GameData::NotSet => e
+    return err.puts(data.describe) if data
+
+    GameData.locate
+  rescue VBlank::Original::NotSet => e
     err.puts e.message
   end
 
@@ -346,7 +344,6 @@ module Wolf3D
     music_on = setting(:music, nil) == "on" || built_for_computer?
     Wolf3D.seed_random_numbers(self, setting(:seed, nil))
 
-    Wolf3D.check_the_copy!
     if Wolf3D.maps
       floors = Wolf3D.floors(Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many),
                              start: start)

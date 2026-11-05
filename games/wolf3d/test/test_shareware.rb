@@ -11,10 +11,10 @@ require_relative "test_helper"
 class TestShareware < Minitest::Test
   include Wolf3DTest
 
-  def shareware = Wolf3D::Vgagraph.from(shareware_or_skip)
+  def shareware = Wolf3D::Vgagraph.from(real_shareware)
 
   def test_a_real_copy_is_accepted
-    assert_nil Wolf3D::Vanilla.check_files!(shareware_or_skip)
+    assert_nil Wolf3D::Vanilla.check_files!(real_shareware)
   end
 
   def test_the_pictures_found_by_name_are_the_size_they_should_be
@@ -29,7 +29,7 @@ class TestShareware < Minitest::Test
 
   # EVERY NAME AGAINST THE SIX EPISODES, which are the same pictures: only the numbers moved.
   def test_every_name_is_the_same_picture_size_as_in_the_six_episodes
-    full = game_data_or_skip
+    full = real_copy
     skip("the suite's own copy is the shareware") unless full.set == "WL6"
     six = Wolf3D::Vgagraph.from(full)
     graph = shareware
@@ -39,7 +39,7 @@ class TestShareware < Minitest::Test
 
   # THE ADLIB EFFECTS AGAINST THE FILE: each one this game plays is there and comes out as sound.
   def test_every_adlib_effect_the_game_plays_makes_a_sound
-    adlib = Wolf3D::AdlibSounds.from(shareware_or_skip)
+    adlib = Wolf3D::AdlibSounds.from(real_shareware)
 
     Wolf3D::Sounds::ADLIB_EFFECT_NUMBERS.each do |name, number|
       refute_nil adlib.recording(number), name.to_s

@@ -96,7 +96,7 @@ class TestFloorReport < Minitest::Test
 
   # The real thing: every floor of the shareware can be finished.
   def test_every_floor_of_the_shareware_has_a_route
-    maps = Wolf3D::Maps.from(shareware_or_skip)
+    maps = Wolf3D::Maps.from(real_shareware)
 
     maps.count.times { |n| refute_nil Report.new(maps[n]).route, "floor #{n + 1}" }
   end

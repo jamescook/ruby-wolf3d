@@ -177,7 +177,7 @@ class TestVgagraph < Minitest::Test
 
   # --- against a real copy of the game ---------------------------------------------
 
-  def real = Wolf3D::Vgagraph.from(game_data_or_skip)
+  def real = Wolf3D::Vgagraph.from(real_copy)
 
   def test_a_real_release_reads_its_picture_table
     vg = real

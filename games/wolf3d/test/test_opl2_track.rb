@@ -85,7 +85,7 @@ class TestOpl2Track < Minitest::Test
   # Floor 1's theme is 56,000 ticks in the game's own file. That is the eighty seconds it runs for at
   # the original's 700 ticks a second, and it would run a hundred at the 560 of other games' files.
   def test_a_real_track_lasts_as_long_as_seven_hundred_ticks_a_second_makes_it
-    music = Wolf3D::AdlibMusic.from(game_data_or_skip)
+    music = Wolf3D::AdlibMusic.from(real_copy)
     samples = render(music.writes(Wolf3D::Music::GETTHEM).first(200))
     ticks = music.writes(Wolf3D::Music::GETTHEM).first(200).sum(&:last)
 

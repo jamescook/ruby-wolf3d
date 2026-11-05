@@ -478,7 +478,7 @@ class TestMenus < Minitest::Test
   # about. Checked against a real copy, because the fixture's alphabet is two characters wide on
   # purpose — it is there to catch a reader that assumes one width for a whole font.
   def test_the_rows_are_written_in_the_games_own_alphabet
-    game_data_or_skip
+    real_copy
     small = Wolf3D.vgagraph.font(0)
     art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
 
@@ -492,7 +492,7 @@ class TestMenus < Minitest::Test
   # for a screen two hundred and forty wide — so ANY squeeze across takes pixels out of the
   # words themselves, and every stroke there is two pixels wide.
   def test_the_full_screen_pictures_keep_every_column_they_were_painted_with
-    game_data_or_skip
+    real_copy
     art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
 
     %i[title credits].each do |name|
@@ -510,7 +510,7 @@ class TestMenus < Minitest::Test
   # forty need to go — so every row that arrives is a row that was painted, whole. Nothing is
   # blended and nothing is invented.
   def test_every_row_that_arrives_is_a_painted_row_whole
-    game_data_or_skip
+    real_copy
     painted = Wolf3D.vgagraph.picture(:credits)
     cut = Wolf3D::MenuArt.of(Wolf3D.vgagraph).picture(:credits, Wolf3D.palette)
     was_painted = (0...painted.height).map { |y|

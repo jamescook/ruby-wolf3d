@@ -12,6 +12,7 @@ VBlank.require_game_file "support/counting_worlds"
 
 module Wolf3DTest
   include Field
+  include VBlank::Testing
 
   # THE FRAMEWORK'S NAMES, SAID ONCE. Each of these lives a module or two down in VBlank, and
   # a test that spelled the whole path every time would wrap at every call. Naming them here
@@ -34,24 +35,19 @@ module Wolf3DTest
     test_class.include(VBlank::Testing::InRactors)
   end
 
-  # A real copy of the game, for the few tests that check us against the world rather than
-  # against ourselves. The suite never depends on one being here, and a copy the build refuses is
-  # no copy at all to these. Asked once per worker, because it reads every file.
-  def game_data_or_skip
-    data = Wolf3D::GameData.find ||
-           skip("no copy of Wolfenstein 3D found — set #{Wolf3D::GameData::ENV_VAR} to check against one")
-    Ractor.current[:wolf3d_copy_checked] ||= Wolf3D::Vanilla.check_files!(data) || true
-    data
-  rescue Wolf3D::Vanilla::Refused
-    skip("this copy of Wolfenstein 3D is one the build refuses")
-  end
+  # THE REAL COPY OF THE GAME, for the tests that check us against the world rather than against
+  # ourselves. The suite requires it: nothing set stops the test with what to set
+  # (VBlank::Original::NotSet), and a copy the build refuses stops it with why. It is the copy the
+  # game reads, checked once per worker, because checking it reads every file.
+  def real_copy = Wolf3D.data || original_copy(Wolf3D::GameData.original)
 
-  # A real copy of the shareware, named by the `shareware` line of wolf3d.yml, beside whatever
-  # copy the rest of the suite reads.
-  def shareware_or_skip
-    dir = Wolf3D::GameData.config_value(Wolf3D.home, "shareware") ||
-          skip("no copy of the shareware found — set shareware in #{Wolf3D::GameData::CONFIG_FILE} to check against one")
-    Wolf3D::GameData.locate(env: { Wolf3D::GameData::ENV_VAR => dir })
+  # THE REAL COPY OF THE SHAREWARE, named by the `shareware` line of wolf3d.yml, beside whatever
+  # copy the rest of the suite reads. Required as the other is.
+  def real_shareware
+    Ractor.current[:wolf3d_real_shareware] ||= begin
+      shareware = original_copy(Wolf3D::GameData.original(env: { Wolf3D::GameData::COPY_VAR => "shareware" }))
+      Wolf3D::GameData.new(dir: shareware.path, set: shareware.release)
+    end
   end
 
   # WHOLE CARTRIDGES, BUILT ONCE AND KEPT, in a folder git ignores because a cartridge holds your
@@ -71,7 +67,5 @@ module Wolf3DTest
   # building at the same moment sees it.
   def a_small_cartridge
     BUILDS.cartridge(Wolf3D::GAME, console: :gba, settings: { floors: 1 })
-  rescue Wolf3D::Vanilla::Refused
-    skip("this copy of Wolfenstein 3D is one the build refuses")
   end
 end

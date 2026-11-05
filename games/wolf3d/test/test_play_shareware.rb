@@ -36,7 +36,7 @@ class TestPlayShareware < Minitest::Test
   end
 
   def test_the_pilot_finishes_two_floors_and_its_tape_repeats
-    shareware_or_skip
+    real_shareware
     name = "wolf3d-pilot-#{Process.pid}.tape"
     tape = File.join(Dir.tmpdir, name)
     said, status = Open3.capture2e(RUBY, TOOL, "--floors", "2", "--repeat", "--tape", name, chdir: Dir.tmpdir)

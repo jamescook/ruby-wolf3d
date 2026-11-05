@@ -21,9 +21,11 @@ module Wolf3D
   # IT PROBES RATHER THAN CHECKSUMS. These are the counts the numbers depend on, and the sizes of a
   # few pictures found by number, which a shuffled file gets wrong. A person's edited copy that keeps
   # every one of them passes, and may well work.
+  #
+  # A copy it refuses raises the framework's VBlank::Original::WrongCopy, which is how every game
+  # made from an original says a copy will not do. It is GameData's probe, so the framework asks it
+  # of every copy it finds.
   class Vanilla
-    class Refused < GameData::NotFound; end
-
     # WHAT A COPY OF EACH RELEASE HOLDS that the others do not. The walls, sprites and sounds below
     # are the same in all of them, which is what lets one game read them.
     Release = Data.define(:floors, :pictures)
@@ -53,20 +55,20 @@ module Wolf3D
     def self.check_files!(game_data)
       check!(set: game_data.set, dir: game_data.dir, maps: Maps.from(game_data),
              vswap: Vswap.from(game_data), vgagraph: Vgagraph.from(game_data))
-    rescue Refused
+    rescue VBlank::Original::WrongCopy
       raise
     rescue StandardError
-      raise Refused, unreadable(game_data.set, game_data.dir)
+      raise VBlank::Original::WrongCopy, unreadable(game_data.set, game_data.dir)
     end
 
-    # Says nothing about a copy this game can use. Refused says why about any other. +maps+, +vswap+
+    # Says nothing about a copy this game can use. WrongCopy says why about any other. +maps+, +vswap+
     # and +vgagraph+ are the copy's files as read, and +dir+ is where they came from.
     def self.check!(set:, dir:, maps:, vswap:, vgagraph:)
-      release = RELEASES.fetch(set) { raise Refused, other_release(set, dir) }
+      release = RELEASES.fetch(set) { raise VBlank::Original::WrongCopy, other_release(set, dir) }
 
       probes(release, maps, vswap, vgagraph).each do |probe|
         got = probe.found.call
-        raise Refused, changed_copy(set, dir, probe, got) unless got == probe.wanted
+        raise VBlank::Original::WrongCopy, changed_copy(set, dir, probe, got) unless got == probe.wanted
       end
       nil
     end

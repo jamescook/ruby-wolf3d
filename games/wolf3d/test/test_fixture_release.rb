@@ -10,11 +10,11 @@ class TestFixtureRelease < Minitest::Test
 
   Release = Wolf3D::Fixture::Release
 
-  def test_a_written_release_is_one_the_locator_accepts
+  def test_a_written_release_is_found_as_a_release
     Dir.mktmpdir do |dir|
       Release.write(dir, set: "WL1")
 
-      data = Wolf3D::GameData.locate(home: dir, env: env(dir))
+      data = Wolf3D::GameData.at(dir)
       assert_equal "WL1", data.set
     end
   end
@@ -218,7 +218,4 @@ class TestFixtureRelease < Minitest::Test
       sprites: all[first_sprite...first_sound],
       sounds: all[first_sound...(count - 1)] }
   end
-
-  # An environment of this test's own that points at +dir+; the real one is shared.
-  def env(dir) = { Wolf3D::GameData::ENV_VAR => dir }
 end
