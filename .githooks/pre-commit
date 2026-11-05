@@ -1,0 +1,3 @@
+#!/bin/sh
+# Refuse a commit that stages the original game's data (VBlank::Original::DataGuard).
+bundle exec rake data_guard:check || exit 1

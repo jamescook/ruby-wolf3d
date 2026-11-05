@@ -5,6 +5,7 @@
 # activated ahead of it warns about being unresolved on the way past.
 require "bundler/setup"
 
+require "vblank/original/data_guard_tasks"
 require "vblank/testing/golden_task"
 require "vblank/testing/ractor_settings"
 require "vblank/testing/test_task"
@@ -48,6 +49,18 @@ end
 VBlank::Testing::GoldenTask.new(list: "#{GAME}/test/golden.txt", from: GAME) do |t|
   t.libs = LIBS.dup
   t.warning = false
+end
+
+# NONE OF WOLFENSTEIN'S DATA GOES IN A COMMIT. .gitignore keeps it out of `git add`; this is the
+# backstop for what gets staged anyway, run by .githooks/pre-commit (`rake data_guard:install` once
+# per clone). Besides the cartridges and saves the framework refuses for the Advance, it refuses:
+# the original's files, which end in the release they belong to (VSWAP.WL6), and its DOS program;
+# a palette written out of the copy; the folders a copy is dropped into or converted into, and the
+# ones the build, the music and the films write to.
+VBlank::Original::DataGuardTasks.new do |t|
+  t.consoles = %i[gba]
+  t.suffixes = %w[wl6 wl1 sod sdm exe pal]
+  t.folders = %w[data/ assets/ tmp/ /.cache/]
 end
 
 # A FILM: an MP4 of the frames that show one thing, for the operator to watch without running

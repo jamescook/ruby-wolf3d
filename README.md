@@ -61,9 +61,13 @@ the sampling starts, so a reading always shows how much of the time it is not lo
 ## Test it
 
 ```sh
-rake test                           # the suite, on every core
+rake test                           # the suite, on half the cores
 rake test TEST=games/wolf3d/test/test_maps.rb    # one file
+rake data_guard:install             # once per clone, before your first commit
 ```
+
+The last one makes git refuse a commit that holds any of Wolfenstein's own files, or anything
+made from them.
 
 The game is in `games/wolf3d/`: its code, its tests, its tools and its films. The repository's
 own `lib/` holds only what knows nothing about Wolfenstein, the compressions every id Software
