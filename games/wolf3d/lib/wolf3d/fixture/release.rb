@@ -67,7 +67,7 @@ module Wolf3D
         @sprites = sprites
         @sounds = sounds
         @adlib = adlib
-        @rlew = Codec::RLEW.new(tag: RLEW_TAG)
+        @rlew = IdSoftware::Codec::RLEW.new(tag: RLEW_TAG)
       end
 
       def write(dir)
@@ -178,7 +178,7 @@ module Wolf3D
 
       # RLEW first, then Carmack over the top, each preceded by how long it expands to.
       def squeeze(grid)
-        Codec::Carmack.compress([grid.bytesize].pack("v") + @rlew.compress(grid))
+        IdSoftware::Codec::Carmack.compress([grid.bytesize].pack("v") + @rlew.compress(grid))
       end
 
       # Walls, then sprites, then sounds — the header says where each kind starts. The last
@@ -381,7 +381,7 @@ module Wolf3D
           FONTS.each { |font| chunks << font_chunk(font) }
           sizes.each_with_index { |(w, h), i| chunks << picture_chunk(w, h, i) }
 
-          tree = Codec::Huffman::Tree.for(chunks.join)
+          tree = IdSoftware::Codec::Huffman::Tree.for(chunks.join)
           bodies = chunks.map { |chunk| [chunk.bytesize].pack("V") + tree.pack(chunk) }
 
           graph = bodies.join

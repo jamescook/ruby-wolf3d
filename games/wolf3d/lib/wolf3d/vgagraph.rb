@@ -30,7 +30,7 @@ module Wolf3D
     OFFSET_BYTES = 3
     # A chunk that was never made. Its offset is all ones.
     ABSENT = 0xFFFFFF
-    DICTIONARY_BYTES = Codec::Huffman::DICTIONARY_BYTES
+    DICTIONARY_BYTES = IdSoftware::Codec::Huffman::DICTIONARY_BYTES
 
     # The layout every release shares: the picture table, then two fonts, then pictures.
     PICTURE_TABLE = 0
@@ -230,7 +230,7 @@ module Wolf3D
               "The file is damaged or is not VGADICT."
       end
 
-      Codec::Huffman::Tree.from_dictionary(dictionary)
+      IdSoftware::Codec::Huffman::Tree.from_dictionary(dictionary)
     end
 
     def check!

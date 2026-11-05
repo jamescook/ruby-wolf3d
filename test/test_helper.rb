@@ -1,95 +1,17 @@
 # frozen_string_literal: true
 
+# The tests of the repository's own lib/, which knows nothing about Wolfenstein, so neither does
+# this: no copy of the game and no framework. The game's tests have a setup of their own, in
+# games/wolf3d/test/.
 require "minitest/autorun"
 require "minitest/ractor"
-require_relative "../lib/wolf3d"
-# AFTER THE GAME, so the game's own block is checked as any game's is. Past this line the blocks a
-# test writes are not, because a test names its own helpers and a game has no reason to.
-require "vblank/testing"
-require_relative "support/field"
-require_relative "support/turning_scene"
-VBlank.require_game_file "support/counting_worlds"
+require_relative "../lib/id_software"
 
-module Wolf3DTest
-  include Field
-
-  # THE FRAMEWORK'S NAMES, SAID ONCE. Each of these lives a module or two down in VBlank, and
-  # a test that spelled the whole path every time would wrap at every call. Naming them here
-  # also means the next time the framework moves one, one line moves with it.
-  Reference = VBlank::IR::Backends::Reference # the oracle: runs a program in-process
-  SaveImage = VBlank::IR::SaveImage # a cartridge's save memory, for Reference.new(save:)
-  GBA = VBlank::IR::Backends::GBA
-  Builder = VBlank::Builder
-  ROM = VBlank::Cartridge::ROM
-  Verifier = VBlank::Diagnostics::Verifier # the real cartridge, in the emulator
-  Constants = VBlank::Console::Hardware # KEY_UP and the rest of the hardware's names
-  Fraction = VBlank::DSL::Fraction # a number with a fractional part, kept in the low bits
-
-  # EVERY FIXTURE A TEST CLASS PARKS IN A CONSTANT IS FROZEN ALL THE WAY DOWN, the moment it is
-  # declared. The suite runs in Ractors — Ruby's way of using several cores in one process — and
-  # a worker may read a constant only when nothing in it can change. A `.freeze` on the outside
-  # is not enough: a frozen list of unfrozen lists is still refused.
-  #
-  # Ruby tells a class when a constant is added to it, so this is the whole rule, in one place,
-  # with nothing for a test file to remember. It reaches the constants declared after the file's
-  # `include Wolf3DTest`, which is the first line of every test class.
-  #
-  # A nested class or module is code, not a fixture, and is left alone. Anything that refuses to
-  # freeze — a block reaching for a variable around it — stops the file loading, naming the
-  # constant: left as it was, it would only be refused later, inside whichever test reached it.
-  module FreezesItsConstants
-    def const_added(name)
-      super
-      value = const_get(name, false)
-      return if value.is_a?(Module) || Ractor.shareable?(value)
-
-      shareable = Ractor.make_shareable(value)
-      return if shareable.equal?(value)
-
-      remove_const(name)
-      const_set(name, shareable)
-    rescue Ractor::IsolationError => e
-      raise Ractor::IsolationError, "#{self}::#{name} cannot be frozen for the Ractors: #{e.message}"
-    end
-  end
-
+# Every test here runs in the pool of Ractors the game's suite runs in, so each class takes a
+# share of the cores, and a constant it holds must be frozen all the way down.
+module IdSoftwareTest
   def self.included(test_class)
     super
-    test_class.extend(FreezesItsConstants)
     test_class.parallelize_me!
-  end
-
-  # A real copy of the game, for the few tests that check us against the world rather than
-  # against ourselves. The suite never depends on one being here, and a copy the build refuses is
-  # no copy at all to these. Asked once per worker, because it reads every file.
-  def game_data_or_skip
-    data = Wolf3D::GameData.find ||
-           skip("no copy of Wolfenstein 3D found — set #{Wolf3D::GameData::ENV_VAR} to check against one")
-    Ractor.current[:wolf3d_copy_checked] ||= Wolf3D::Vanilla.check_files!(data) || true
-    data
-  rescue Wolf3D::Vanilla::Refused
-    skip("this copy of Wolfenstein 3D is one the build refuses")
-  end
-
-  # A real copy of the shareware, named by the `shareware` line of wolf3d.yml, beside whatever
-  # copy the rest of the suite reads.
-  def shareware_or_skip
-    dir = Wolf3D::GameData.config_value(Wolf3D.home, "shareware") ||
-          skip("no copy of the shareware found — set shareware in #{Wolf3D::GameData::CONFIG_FILE} to check against one")
-    Wolf3D::GameData.locate(env: { Wolf3D::GameData::ENV_VAR => dir })
-  end
-
-  # THE SMALLEST CARTRIDGE THAT IS STILL THIS GAME, for the two tests that build the whole
-  # thing rather than a floor of their own.
-  #
-  # The build ships every episode your copy holds, which is right for playing and wrong here:
-  # on the registered release that is sixty floors, an 8MB cartridge and about a minute, and
-  # what these tests want to know is only that the wiring works. One floor is a few seconds and
-  # proves the same thing. The setting is handed to this build alone, so nothing another test is
-  # building at the same moment sees it.
-  def a_small_cartridge
-    Wolf3D.build_rom(out: StringIO.new, err: StringIO.new, settings: { floors: 1 })
-  rescue Wolf3D::Vanilla::Refused
-    skip("this copy of Wolfenstein 3D is one the build refuses")
   end
 end

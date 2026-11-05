@@ -21,7 +21,7 @@ module Wolf3D
 
     def initialize(maphead:, gamemaps:)
       @gamemaps = gamemaps
-      @rlew = Codec::RLEW.new(tag: maphead[0, 2].unpack1("v"))
+      @rlew = IdSoftware::Codec::RLEW.new(tag: maphead[0, 2].unpack1("v"))
       @offsets = maphead[2..].unpack("V*").take_while(&:positive?)
       @levels = {}
     end
@@ -90,7 +90,7 @@ module Wolf3D
     # Carmack first, then RLEW. Each carries how long it expands to in its own first word, and
     # both are checked rather than trusted.
     def plane(at, length, cells)
-      carmacked = Codec::Carmack.expand(@gamemaps[at, length])
+      carmacked = IdSoftware::Codec::Carmack.expand(@gamemaps[at, length])
       wanted = carmacked[0, 2].unpack1("v")
       grid = @rlew.expand(carmacked[2..])
 

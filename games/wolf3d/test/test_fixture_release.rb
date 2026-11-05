@@ -110,7 +110,7 @@ class TestFixtureRelease < Minitest::Test
     release = Release.new
     graph, dictionary, head = release.send(:vgagraph)
     offsets = head.bytes.each_slice(3).map { |a, b, c| a | (b << 8) | (c << 16) }
-    tree = Wolf3D::Codec::Huffman::Tree.from_dictionary(dictionary)
+    tree = IdSoftware::Codec::Huffman::Tree.from_dictionary(dictionary)
 
     assert_equal graph.bytesize, offsets.last, "the last offset marks the end of the file"
 
@@ -203,8 +203,8 @@ class TestFixtureRelease < Minitest::Test
     at = head[0, 12].unpack("V3")[plane]
     length = head[12, 6].unpack("v3")[plane]
 
-    rlew = Wolf3D::Codec::RLEW.new(tag: Release::RLEW_TAG)
-    rlew.expand(Wolf3D::Codec::Carmack.expand(maps[at, length])[2..]).unpack("v*")
+    rlew = IdSoftware::Codec::RLEW.new(tag: Release::RLEW_TAG)
+    rlew.expand(IdSoftware::Codec::Carmack.expand(maps[at, length])[2..]).unpack("v*")
   end
 
   def vswap_chunks(release)

@@ -28,46 +28,52 @@ require "rake/testtask"
 testopts = ENV.fetch("TESTOPTS", "")
 ENV["TESTOPTS"] = "--ractor #{testopts}".strip unless testopts.split.intersect?(%w[--ractor --no-ractor])
 
+# The game, its tests, its tools and its films. The repository's own lib/ and test/ are what knows
+# nothing about Wolfenstein.
+GAME = "games/wolf3d"
+
 Rake::TestTask.new(:test) do |t|
-  t.libs << "test" << "lib"
-  t.test_files = FileList["test/**/test_*.rb"]
+  t.libs = ["lib", "test", "#{GAME}/lib", "#{GAME}/test"]
+  t.test_files = FileList["test/**/test_*.rb", "#{GAME}/test/**/test_*.rb"]
   t.warning = false
-  t.description = 'Run the suite (one file with TEST=test/test_maps.rb, one test with ' \
+  t.description = "Run the suite (one file with TEST=#{GAME}/test/test_maps.rb, one test with " \
                   'TESTOPTS="--name=/pattern/")'
 end
 
-# THE CHECK BEFORE A COMMIT: the files test/golden.txt names, on the same run as the suite. Past five
-# minutes it fails however well the tests did, and the framework holds that limit, so every game
-# built on it has the same one and this run cannot grow into one nobody bothers with.
+# THE CHECK BEFORE A COMMIT: the files the game's test/golden.txt names, on the same run as the
+# suite. Past five minutes it fails however well the tests did, and the framework holds that limit,
+# so every game built on it has the same one and this run cannot grow into one nobody bothers with.
+# The list names its files from the game's own directory.
+GOLDEN_LIST = "#{GAME}/test/golden.txt"
+
 namespace :test do
-  desc "Run the golden path, the files test/golden.txt names, and fail past five minutes"
+  desc "Run the golden path, the files #{GOLDEN_LIST} names, and fail past five minutes"
   task :golden do
     require "vblank/testing/golden_limit"
 
-    list = "test/golden.txt"
-    ENV["TEST"] = File.readlines(list, chomp: true).grep(/\Atest/).join(",")
-    VBlank::Testing::GoldenLimit.hold(list: list) { Rake::Task["test"].invoke }
+    ENV["TEST"] = File.readlines(GOLDEN_LIST, chomp: true).grep(/\Atest/).map { "#{GAME}/#{_1}" }.join(",")
+    VBlank::Testing::GoldenLimit.hold(list: GOLDEN_LIST) { Rake::Task["test"].invoke }
   end
 end
 
 # A FILM: an MP4 of the frames that show one thing, for the operator to watch without running
-# anything. Each is a file in films/ that hands VBlank::Diagnostics::Film what to play; this runs
-# it and writes .cache/films/<name>.mp4, which git never sees. It needs ImageMagick and ffmpeg,
-# and says which one is missing.
-desc "Make the film films/NAME.rb as .cache/films/NAME.mp4"
+# anything. Each is a file in the game's films/ that hands VBlank::Diagnostics::Film what to play;
+# this runs it and writes .cache/films/<name>.mp4, which git never sees. It needs ImageMagick and
+# ffmpeg, and says which one is missing.
+desc "Make the film #{GAME}/films/NAME.rb as .cache/films/NAME.mp4"
 task :film do
-  name = ENV.fetch("NAME") { abort "Give the film's name: rake film NAME=turning. The films are in films/." }
-  script = "films/#{name}.rb"
-  abort "There is no #{script}. The films are: #{Dir['films/*.rb'].map { |f| File.basename(f, '.rb') }.join(', ')}." unless File.exist?(script)
+  films = Dir["#{GAME}/films/*.rb"].map { |f| File.basename(f, ".rb") }
+  name = ENV.fetch("NAME") { abort "Give the film's name: rake film NAME=turning. The films are: #{films.join(', ')}." }
+  abort "There is no film called #{name}. The films are: #{films.join(', ')}." unless films.include?(name)
 
   mkdir_p ".cache/films"
-  ruby script, ".cache/films/#{name}.mp4"
+  ruby "#{GAME}/films/#{name}.rb", ".cache/films/#{name}.mp4"
   puts "Wrote .cache/films/#{name}.mp4"
 end
 
-desc "Build wolf3d.gba"
+desc "Build #{GAME}/wolf3d.gba"
 task :build do
-  ruby "wolf3d.rb"
+  ruby "#{GAME}/wolf3d.rb"
 end
 
 # The WOLF3D_* dials that are set, as --set arguments for the framework's own `vblank` command.
@@ -75,7 +81,7 @@ end
 # the dials have to be handed over. Loading the library to learn their names costs a second, and
 # keeps one list of them.
 def dial_arguments
-  require_relative "lib/wolf3d"
+  require_relative "#{GAME}/lib/wolf3d"
   settings = Wolf3D.settings_from(ENV).map { |name, value| "#{name}=#{value}" }
   settings.empty? ? [] : ["--set", *settings]
 end
@@ -85,7 +91,7 @@ namespace :build do
   # buttons (mGBA's keys). The framework builds it — `vblank build --format=native`.
   desc "Build wolf3d-desktop, the game as a desktop app (the WOLF3D_* dials work as for build)"
   task :desktop do
-    sh "bundle", "exec", "vblank", "build", "wolf3d.rb", "--format=native", "--output=wolf3d-desktop",
+    sh "bundle", "exec", "vblank", "build", "#{GAME}/wolf3d.rb", "--format=native", "--output=wolf3d-desktop",
        *dial_arguments
   end
 
@@ -99,7 +105,7 @@ namespace :build do
       target = name.to_s.tr("_", "-")
       desc "Build #{output}, the desktop app for #{target} (the WOLF3D_* dials work as for build)"
       task name do
-        sh "bundle", "exec", "vblank", "build", "wolf3d.rb", "--format=native", "--target=#{target}",
+        sh "bundle", "exec", "vblank", "build", "#{GAME}/wolf3d.rb", "--format=native", "--target=#{target}",
            "--output=#{output}", *dial_arguments
       end
     end
@@ -115,7 +121,7 @@ namespace :build do
   desc 'Where the CARTRIDGE\'s frames go, run in the emulator (OPTS="--scene playing --keys up" ' \
        "passes vblank profile options)"
   task :gba_profile do
-    sh "bundle", "exec", "vblank", "profile", "wolf3d.rb", *dial_arguments, *ENV.fetch("OPTS", "").split
+    sh "bundle", "exec", "vblank", "profile", "#{GAME}/wolf3d.rb", *dial_arguments, *ENV.fetch("OPTS", "").split
   end
 
   # NOT the game's frames. This samples the BUILD — Ruby, on this machine, turning your copy of
@@ -123,7 +129,7 @@ namespace :build do
   # is a different question, and build:gba_profile answers that one.
   desc "Where the BUILD's time goes: sample a full build, for speedscope.app"
   task :profile do
-    ruby "tools/profile_build.rb"
+    ruby "#{GAME}/tools/profile_build.rb"
   end
 end
 

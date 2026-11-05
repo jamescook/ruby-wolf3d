@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Wolf3D
+module IdSoftware
   module Codec
     # Back-references over 16-bit words, named for the man who wrote it.
     #

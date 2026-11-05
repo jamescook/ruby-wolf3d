@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Wolf3D
+module IdSoftware
   module Codec
     # Run-length encoding over 16-bit words. A run becomes the tag word, a count, and the value.
     #

@@ -2,7 +2,7 @@
 
 # Wolfenstein 3D, built with VBlank. Needs a copy of the game you own — see README.md.
 
-# PUT THE BUNDLE ON THE LOAD PATH OURSELVES, so that plain `rake` and plain `ruby wolf3d.rb`
+# PUT THE BUNDLE ON THE LOAD PATH OURSELVES, so that plain `rake` and plain `ruby games/wolf3d/wolf3d.rb`
 # work and nobody has to remember `bundle exec`. This is an application rather than a library
 # — nothing else will ever require it from inside its own bundle — and every way into it goes
 # through this file, so saying it once here covers the build script, the Rakefile and a test
@@ -16,9 +16,9 @@ require "vblank"
 require "digest"
 require "fileutils"
 
-require_relative "wolf3d/codec/rlew"
-require_relative "wolf3d/codec/carmack"
-require_relative "wolf3d/codec/huffman"
+# The compressions every id Software game of the time keeps its data in, which know nothing about
+# this one. They are the repository's own lib/, beside games/.
+require_relative "../../../lib/id_software"
 require_relative "wolf3d/game_data"
 require_relative "wolf3d/vanilla"
 require_relative "wolf3d/palette"
@@ -132,7 +132,7 @@ module Wolf3D
   def self.maps = Ractor.current[:wolf3d_maps] ||= data && Maps.from(data)
 
   # THE DIALS, as the environment spells them and as the build is told them. A build is handed
-  # its settings (`GAME.program(settings: { floors: 1 })`, `vblank build wolf3d.rb --set
+  # its settings (`GAME.program(settings: { floors: 1 })`, `vblank build games/wolf3d/wolf3d.rb --set
   # floors=1`); the environment is read only where a cartridge is built from the command line —
   # wolf3d.rb's last line — so a test building one floor never changes what another build sees.
   DIALS = { episodes: "WOLF3D_EPISODES", from: "WOLF3D_FROM", floors: "WOLF3D_FLOORS",
@@ -208,7 +208,7 @@ module Wolf3D
   # cartridge boots on the first floor it holds, so the only way to read what a LATER floor
   # costs is to build one that begins there:
   #
-  #   bundle exec vblank profile wolf3d.rb --set from=1 --set floors=1
+  #   bundle exec vblank profile games/wolf3d/wolf3d.rb --set from=1 --set floors=1
   #
   # Floors differ enormously in what stands on them — the second floor of the first episode
   # carries three times the guards and three times the scenery of the first — so "what does a
@@ -223,7 +223,7 @@ module Wolf3D
   # same reason: the moments worth looking at are the far ones, and every one of them is a long
   # walk from where the map puts you.
   #
-  #   WOLF3D_FROM=8 WOLF3D_FLOORS=1 WOLF3D_START=34,17 ruby wolf3d.rb
+  #   WOLF3D_FROM=8 WOLF3D_FLOORS=1 WOLF3D_START=34,17 ruby games/wolf3d/wolf3d.rb
   #
   # puts you three cells from Hans Grosse on the boss floor of the first episode, facing him.
   # Add `,north` (or east, south, west) to say which way you are looking; without it you face
@@ -288,7 +288,7 @@ module Wolf3D
   # come round, and the episode list only exists on a cartridge carrying more than one episode,
   # so a cartridge that boots straight to the screen you want to look at saves a lot of waiting:
   #
-  #   WOLF3D_SCREEN=credits ruby wolf3d.rb
+  #   WOLF3D_SCREEN=credits ruby games/wolf3d/wolf3d.rb
   #
   # The screens are: notice, title, credits, menu, episodes, difficulty, playing, load, scores, won.
   def self.which_screen(asked) = Menus.screen_named(asked&.to_s)

@@ -24,7 +24,7 @@
 # one on a computer. A tape is a list of presses and holds nothing of the game's own, so it plays only
 # on the way it was recorded on, built with the same settings.
 
-ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../Gemfile", __dir__)
+ENV["BUNDLE_GEMFILE"] ||= File.expand_path("../../../Gemfile", __dir__)
 require "bundler/setup"
 require "English"
 require "fileutils"

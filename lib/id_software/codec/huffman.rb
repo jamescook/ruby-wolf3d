@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Wolf3D
+module IdSoftware
   module Codec
     # The packing VGAGRAPH uses. The tree lives in its own file (VGADICT) as exactly 255 nodes of
     # two 16-bit branches each: a branch below 256 is a byte to emit, anything higher is another

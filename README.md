@@ -25,13 +25,13 @@ The same game runs in several places. Pick one:
 
 | Where it runs | Command | What you get |
 |---|---|---|
-| A window, from Ruby | `bundle exec vblank run wolf3d.rb` | the game starts right away and leaves no file behind |
-| A browser, built on each reload | `bundle exec vblank preview wolf3d.rb` | an address to open in your browser. Press Ctrl-C to stop it |
+| A window, from Ruby | `bundle exec vblank run games/wolf3d/wolf3d.rb` | the game starts right away and leaves no file behind |
+| A browser, built on each reload | `bundle exec vblank preview games/wolf3d/wolf3d.rb` | an address to open in your browser. Press Ctrl-C to stop it |
 | A desktop app | `rake build:desktop` | `wolf3d-desktop`, for this computer. Needs zig 0.17 |
 | A desktop app for another computer | `rake build:desktop:windows`, `:linux` or `:linux_arm` | `wolf3d-windows-desktop.exe`, `wolf3d-linux-desktop` or `wolf3d-linux-arm-desktop` |
-| A web page | `bundle exec vblank build wolf3d.rb --format=web --output=wolf3d.html` | one HTML file |
-| One Ruby file | `bundle exec vblank build wolf3d.rb --format=ruby --output=wolf3d-play.rb` | a file to copy anywhere. Needs Ruby, the gem `fiddle` and SDL3 |
-| Game Boy Advance | `rake build` or `ruby wolf3d.rb` | `wolf3d.gba`, beside this README |
+| A web page | `bundle exec vblank build games/wolf3d/wolf3d.rb --format=web --output=wolf3d.html` | one HTML file |
+| One Ruby file | `bundle exec vblank build games/wolf3d/wolf3d.rb --format=ruby --output=wolf3d-play.rb` | a file to copy anywhere. Needs Ruby, the gem `fiddle` and SDL3 |
+| Game Boy Advance | `rake build` or `ruby games/wolf3d/wolf3d.rb` | `games/wolf3d/wolf3d.gba` |
 
 **Ruby, the desktop app and the web page play the game well.** The Game Boy Advance plays it, but
 not as well: a first-person view costs more than a frame holds, so the game runs at about 30
@@ -44,11 +44,11 @@ app's `--help` says which keys they are.
 ## Where the build's time goes
 
 ```sh
-rake build:profile   # samples a full build; writes tmp/build-<when>.json
+rake build:profile   # samples a full build; writes games/wolf3d/tmp/build-<when>.json
 ```
 
 Drop that JSON on [speedscope.app](https://speedscope.app), or open it locally with
-`npx speedscope tmp/build-<when>.json`. The run prints the heaviest routines too, so a reading
+`npx speedscope games/wolf3d/tmp/build-<when>.json`. The run prints the heaviest routines too, so a reading
 says something without a browser.
 
 This measures the BUILD — Ruby, on your machine, turning your copy of the game into a
@@ -62,8 +62,12 @@ the sampling starts, so a reading always shows how much of the time it is not lo
 
 ```sh
 rake test                           # the suite, on every core
-rake test TEST=test/test_maps.rb    # one file
+rake test TEST=games/wolf3d/test/test_maps.rb    # one file
 ```
+
+The game is in `games/wolf3d/`: its code, its tests, its tools and its films. The repository's
+own `lib/` holds only what knows nothing about Wolfenstein, the compressions every id Software
+game of the time keeps its data in, and `test/` tests that.
 
 The framework's own suite does not run this one and knows nothing about it. That is
 deliberate in both directions: much of what this checks needs game data nobody can
@@ -114,9 +118,9 @@ north end of the map, and there is a second, secret one that takes you to the hi
 All six episodes, by default. Say otherwise when you are building over and over:
 
 ```sh
-WOLF3D_EPISODES=1     ruby wolf3d.rb    # just the first
-WOLF3D_EPISODES=1,3   ruby wolf3d.rb    # the first and the third
-WOLF3D_EPISODES=2-4   ruby wolf3d.rb    # the second to the fourth
+WOLF3D_EPISODES=1     ruby games/wolf3d/wolf3d.rb    # just the first
+WOLF3D_EPISODES=1,3   ruby games/wolf3d/wolf3d.rb    # the first and the third
+WOLF3D_EPISODES=2-4   ruby games/wolf3d/wolf3d.rb    # the second to the fourth
 ```
 
 **Nothing about it reaches the frame rate** — it is ROM and build time and nothing else. Each
@@ -135,11 +139,11 @@ first N, because a cartridge boots on the first floor it holds and the only way 
 *later* floor costs is to build one that starts there:
 
 ```sh
-bundle exec vblank profile wolf3d.rb --set from=1 --set floors=1
+bundle exec vblank profile games/wolf3d/wolf3d.rb --set from=1 --set floors=1
 ```
 
 The profiler takes the dials as `--set` settings, named without the `WOLF3D_`: `episodes`,
-`from`, `floors`, `start`, `armed`, `ammo` and `screen`. `ruby wolf3d.rb` and `rake build` read
+`from`, `floors`, `start`, `armed`, `ammo` and `screen`. `ruby games/wolf3d/wolf3d.rb` and `rake build` read
 them from the environment as above.
 
 Floors differ enormously in what stands on them — the second floor of episode one carries three
@@ -190,7 +194,7 @@ Two of those are slow to reach, so the cartridge can be told to boot on any of t
 measuring dial, not a way to play:
 
 ```sh
-WOLF3D_SCREEN=credits ruby wolf3d.rb
+WOLF3D_SCREEN=credits ruby games/wolf3d/wolf3d.rb
 ```
 
 The names are `notice`, `title`, `credits`, `menu`, `episodes`, `difficulty`, `playing`, `load`, `scores` and `won`.
