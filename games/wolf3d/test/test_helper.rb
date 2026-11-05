@@ -54,6 +54,13 @@ module Wolf3DTest
     Wolf3D::GameData.locate(env: { Wolf3D::GameData::ENV_VAR => dir })
   end
 
+  # WHOLE CARTRIDGES, BUILT ONCE AND KEPT, in a folder git ignores because a cartridge holds your
+  # copy of the game. The key is the program the game's block builds, with its settings, so a
+  # change to the game, to the copy it reads or to the framework builds it again, and nothing else
+  # does. What the cache did is said at the end of the run.
+  BUILDS = VBlank::Testing::CartridgeCache.new(File.expand_path("../../../.cache/builds", __dir__))
+  Minitest.after_run { BUILDS.report }
+
   # THE SMALLEST CARTRIDGE THAT IS STILL THIS GAME, for the two tests that build the whole
   # thing rather than a floor of their own.
   #
@@ -63,7 +70,7 @@ module Wolf3DTest
   # proves the same thing. The setting is handed to this build alone, so nothing another test is
   # building at the same moment sees it.
   def a_small_cartridge
-    Wolf3D.build_rom(out: StringIO.new, err: StringIO.new, settings: { floors: 1 })
+    BUILDS.cartridge(Wolf3D::GAME, console: :gba, settings: { floors: 1 })
   rescue Wolf3D::Vanilla::Refused
     skip("this copy of Wolfenstein 3D is one the build refuses")
   end
