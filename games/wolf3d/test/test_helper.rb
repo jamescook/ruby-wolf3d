@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require "minitest/autorun"
-require "minitest/ractor"
 require_relative "../lib/wolf3d"
 # AFTER THE GAME, so the game's own block is checked as any game's is. Past this line the blocks a
 # test writes are not, because a test names its own helpers and a game has no reason to.
 require "vblank/testing"
+require "vblank/testing/in_ractors"
 require_relative "support/field"
 require_relative "support/turning_scene"
 VBlank.require_game_file "support/counting_worlds"
@@ -25,38 +25,13 @@ module Wolf3DTest
   Constants = VBlank::Console::Hardware # KEY_UP and the rest of the hardware's names
   Fraction = VBlank::DSL::Fraction # a number with a fractional part, kept in the low bits
 
-  # EVERY FIXTURE A TEST CLASS PARKS IN A CONSTANT IS FROZEN ALL THE WAY DOWN, the moment it is
-  # declared. The suite runs in Ractors — Ruby's way of using several cores in one process — and
-  # a worker may read a constant only when nothing in it can change. A `.freeze` on the outside
-  # is not enough: a frozen list of unfrozen lists is still refused.
-  #
-  # Ruby tells a class when a constant is added to it, so this is the whole rule, in one place,
-  # with nothing for a test file to remember. It reaches the constants declared after the file's
-  # `include Wolf3DTest`, which is the first line of every test class.
-  #
-  # A nested class or module is code, not a fixture, and is left alone. Anything that refuses to
-  # freeze — a block reaching for a variable around it — stops the file loading, naming the
-  # constant: left as it was, it would only be refused later, inside whichever test reached it.
-  module FreezesItsConstants
-    def const_added(name)
-      super
-      value = const_get(name, false)
-      return if value.is_a?(Module) || Ractor.shareable?(value)
-
-      shareable = Ractor.make_shareable(value)
-      return if shareable.equal?(value)
-
-      remove_const(name)
-      const_set(name, shareable)
-    rescue Ractor::IsolationError => e
-      raise Ractor::IsolationError, "#{self}::#{name} cannot be frozen for the Ractors: #{e.message}"
-    end
-  end
-
+  # THE SUITE RUNS IN RACTORS — Ruby's way of using several cores in one process — so including
+  # this hands the class to the pool and freezes every constant it declares after that line, all
+  # the way down, because a worker may read a constant only when nothing in it can change. The
+  # framework's InRactors is the whole of that rule.
   def self.included(test_class)
     super
-    test_class.extend(FreezesItsConstants)
-    test_class.parallelize_me!
+    test_class.include(VBlank::Testing::InRactors)
   end
 
   # A real copy of the game, for the few tests that check us against the world rather than
