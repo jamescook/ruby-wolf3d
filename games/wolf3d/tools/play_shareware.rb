@@ -3,9 +3,9 @@
 # THE SHAREWARE PLAYED START TO FINISH WITH NOBODY AT THE CONTROLS, on fixed random numbers. It says
 # the frame each floor ended on.
 #
-#   ruby tools/play_shareware.rb                     on the emulator, as fast as it will go
+#   ruby tools/play_shareware.rb                     built as Ruby, as fast as it will go
 #   ruby tools/play_shareware.rb --window            in a window, at the console's frame rate
-#   ruby tools/play_shareware.rb --on native         or logic, interpreter, web, ruby, emulator
+#   ruby tools/play_shareware.rb --on native         or logic, interpreter, js, ruby (vblank run's ways)
 #   ruby tools/play_shareware.rb --floors 2          stops when two floors are done
 #   ruby tools/play_shareware.rb --difficulty hard   baby, easy, medium or hard, or 1 to 4. Default baby
 #   ruby tools/play_shareware.rb --seed 4            another run of the random numbers. Default 1
@@ -32,7 +32,7 @@ require "open3"
 require "optparse"
 require "tmpdir"
 
-options = { on: "emulator", window: false, floors: nil, repeat: false, tape: "tmp/shareware.tape", seed: 1 }
+options = { on: "ruby", window: false, floors: nil, repeat: false, tape: "tmp/shareware.tape", seed: 1 }
 OptionParser.new do |parser|
   parser.on("--on WAY") { |way| options[:on] = way }
   parser.on("--window") { options[:window] = true }
@@ -51,8 +51,8 @@ end.parse!
 
 # What cannot go together is refused here, before a minute goes on the build.
 logic = options[:on] == "logic"
-abort "--repeat cannot go with --on logic. That way writes no tape. Remove --repeat, or use --on emulator." if options[:repeat] && logic
-abort "--window cannot go with --on logic. That way has no picture. Remove --window, or use --on emulator." if options[:window] && logic
+abort "--repeat cannot go with --on logic. That way writes no tape. Remove --repeat, or use --on ruby." if options[:repeat] && logic
+abort "--window cannot go with --on logic. That way has no picture. Remove --window, or use --on ruby." if options[:window] && logic
 if options[:window] && options[:repeat]
   abort "--window cannot go with --repeat. A closed window leaves no tape to play back. Remove one of the two."
 end
@@ -80,11 +80,11 @@ end
 Dir.chdir(File.expand_path("..", __dir__))
 FileUtils.mkdir_p(File.dirname(options[:tape]))
 
-play = %w[bundle exec vblank play wolf3d.rb]
+play = %w[bundle exec vblank run wolf3d.rb]
 seed = ["--set", "seed=#{options[:seed]}", *("music=on" if options[:music])]
 way = ["--on", options[:on]]
 run = play + ["--script", "tools/shareware_playthrough.rb"] + way
-run << "--window" if options[:window]
+run << (options[:window] ? "--window" : "--no-window")
 run += ["--write-tape", options[:tape]] unless logic
 # Only a repeat compares pictures, so only a repeat needs a place for them.
 pictures = Dir.mktmpdir("shareware") if options[:repeat]
@@ -163,7 +163,7 @@ if options[:repeat]
   screens = File.join(pictures, "played")
   replayed = File.join(pictures, "replayed")
   puts "The tape plays back now, to make sure that it gives the same run."
-  status = play_showing_report.call(play + ["--tape", options[:tape], "--pictures-in", replayed] + way + seed,
+  status = play_showing_report.call(play + ["--tape", options[:tape], "--no-window", "--pictures-in", replayed] + way + seed,
                                     building: "Still playing back", playing: "Still playing back")
   files = Dir.children(screens).sort
   same = status.success? && files.any? && files == Dir.children(replayed).sort &&
