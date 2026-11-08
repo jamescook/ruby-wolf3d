@@ -149,11 +149,14 @@ module Wolf3D
 
     # +floors+ is every floor the cartridge holds.
     # +sound_setting+ is the menu's own sound switch, or nil where there is no menu to turn it off.
+    # +pack+ is a whole build's data pack, which its floor tables are read from (FloorTables); a
+    # build without one bakes them.
     def initialize(build:, atlas:, floors:, things: nil, vswap: nil, adlib: nil, bar_art: nil, gun_art: nil,
                    lettering: nil, sound_setting: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil,
-                   rare_scream_odds: GuardMind::RARE_SCREAM_ODDS)
+                   rare_scream_odds: GuardMind::RARE_SCREAM_ODDS, pack: nil)
       @rare_scream_odds = rare_scream_odds
       @floors = floors
+      @pack = pack
       here = @floors.first_floor
       @b = build
       @atlas = atlas
@@ -597,7 +600,9 @@ module Wolf3D
 
       # THE FLOOR BEING PLAYED: the map, what stops a foot, and where its slice of every table
       # begins. The guards' own slices are kept with them, in GuardPool.
-      @this_floor = ThisFloor.new(build: b, floors: @floors, wall_picture: method(:wall_picture))
+      tables = FloorTables.for(build: b, floors: @floors, pack: @pack,
+                               wall_picture: ->(code) { wall_picture(code) })
+      @this_floor = ThisFloor.new(build: b, floors: @floors, tables: tables)
 
       # How far open each door is: 0 is shut, 1 is out of the way. A door is only ever moving
       # toward one or the other, so this one number is its whole state, and the count beside it

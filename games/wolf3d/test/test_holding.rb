@@ -55,19 +55,75 @@ class TestHolding < Minitest::Test
   end
 
   # THE SAME FLOOR LOOKS THE SAME held either way: the walls, the guards and the gun come from the
-  # whole row of pictures in place of the trimmed one, and nothing on the screen moves.
+  # whole row of pictures in place of the trimmed one, and the whole build reads its map from the
+  # data pack (FloorTables), and nothing on the screen moves. Looked at twice: standing in the first
+  # room, where the blue walls are, and after walking up to its door, which wears a picture of its
+  # own. The two blue stones differ only a little, so a wall read as its neighbour shows in a few
+  # hundred pixels of the first look, and in none of the second.
   def test_the_first_floor_looks_the_same_held_whole
     real_copy
-    walk = ->(f) { f.between?(60, 100) ? [:up] : [] }
-    trimmed = Reference.new.input_each_frame(&walk).run(first_floor(hold: "trimmed"), frames: 140)
-    whole = Reference.new.input_each_frame(&walk).run(first_floor(hold: "whole"), frames: 140)
+    trimmed = first_floor(hold: "trimmed")
+    whole = first_floor(hold: "whole")
 
-    differ = (0...160).sum { |y| (0...240).count { |x| trimmed.screen.pixel(x, y) != whole.screen.pixel(x, y) } }
-    refute trimmed.screen.pixel(120, 60).zero?, "the view should be drawn by then"
-    assert_equal 0, differ, "pixels that differ"
+    [STANDING_FRAMES, DOOR_FRAMES].each do |frames|
+      seen = [trimmed, whole].map { |program| Reference.new.input_each_frame(&WALK_KEYS).run(program, frames: frames).screen }
+
+      refute seen.first.pixel(120, 60).zero?, "the view should be drawn by frame #{frames}"
+      assert_equal 0, count_differing_pixels(*seen), "pixels that differ at frame #{frames}"
+    end
   end
+
+  # A BUILD STARTED FURTHER IN reads the floor it starts on from the pack, which holds every floor
+  # at its own number: the second floor's map, not the first's, under the second floor's doors.
+  def test_a_later_floor_looks_the_same_held_whole
+    real_copy
+    seen = %w[trimmed whole].map do |hold|
+      program = Wolf3D::GAME.program(settings: { floors: 1, from: 1, screen: "playing", hold: hold })
+      Reference.new.run(program, frames: STANDING_FRAMES).screen
+    end
+
+    refute seen.first.pixel(120, 60).zero?, "the view should be drawn by frame #{STANDING_FRAMES}"
+    assert_equal 0, count_differing_pixels(*seen), "pixels that differ"
+  end
+
+  # SOMETHING THAT STANDS IN THE WAY STOPS YOU held either way: the whole build reads which cells
+  # are blocked from the data pack. The player is put down two cells south of the first floor's
+  # first blocking piece with open floor between, facing it, and walks north until it stops them.
+  def test_a_piece_in_the_way_stops_the_player_held_whole
+    real_copy
+    piece, start = blocking_piece_with_room_south
+    stopped = %w[trimmed whole].map do |hold|
+      program = Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: hold, start: start })
+      Reference.new.input_each_frame { |frame| frame > STANDING_FRAMES ? [:up] : [] }.run(program, frames: WALKING_FRAMES)[:py]
+    end
+
+    assert_operator stopped.first, :>, piece.y + 1, "the trimmed build stops the player short of the piece's cell"
+    assert_equal stopped.first, stopped.last, "where the player stopped"
+  end
+
+  # The player stands still, then walks up to the first room's door.
+  WALK_KEYS = ->(frame) { frame.between?(60, 100) ? [:up] : [] }
+  STANDING_FRAMES = 59
+  DOOR_FRAMES = 140
+  # ...or walks north for long enough to cross two cells and be stopped.
+  WALKING_FRAMES = 200
 
   private
 
   def first_floor(hold:) = Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: hold })
+
+  def count_differing_pixels(one, other)
+    (0...160).sum { |y| (0...240).count { |x| one.pixel(x, y) != other.pixel(x, y) } }
+  end
+
+  # The first floor's first piece that blocks, with two open cells south of it holding nothing,
+  # and where to start (WOLF3D_START's x,y,facing) two cells south facing it.
+  def blocking_piece_with_room_south
+    level = Wolf3D.maps[0]
+    scenery = Wolf3D::Scenery.new(level)
+    piece = scenery.pieces.find do |p|
+      p.blocks && [1, 2].all? { |down| !level.solid?(p.x, p.y + down) && scenery.index_at(p.x, p.y + down).nil? }
+    end
+    [piece, "#{piece.x},#{piece.y + 2},north"]
+  end
 end

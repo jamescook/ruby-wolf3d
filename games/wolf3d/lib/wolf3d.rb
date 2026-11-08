@@ -58,6 +58,8 @@ require_relative "wolf3d/menu_art"
 VBlank.require_game_file "wolf3d/status_bar"
 # ...and before every part of the game that declares state a saved game holds.
 VBlank.require_game_file "wolf3d/this_floor"
+# ...and where its tables come from, which knows what ThisFloor's numbers mean.
+VBlank.require_game_file "wolf3d/floor_tables"
 # ...and the same numbers worked out by the game itself, for a whole build's data pack.
 VBlank.require_game_file "wolf3d/floor_unpacking"
 require_relative "wolf3d/lasting_state"
@@ -372,6 +374,9 @@ module Wolf3D
       # then the cartridge boots straight into the game, because there is nothing to write a
       # menu with. The same pictures hold the lettering of the screen between floors.
       menu_art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
+      # A WHOLE BUILD READS ITS FLOORS FROM A DATA PACK, which FloorUnpacking fills from the copy:
+      # here as the build is made, in a shell at LOAD ROM. A trimmed one bakes them (FloorTables).
+      pack = holding.whole? ? Wolf3D::FloorUnpacking.declare_pack(self, from: Wolf3D::GameData.original) : nil
       # WHAT THE SOUND ROW IS SET TO, which every one of the game's sounds and songs is played
       # under. Declared here rather than inside either of them because both need it and neither
       # owns it.
@@ -387,7 +392,8 @@ module Wolf3D
                                      lettering: menu_art,
                                      sound_setting: sound_setting,
                                      armed_with: Wolf3D.armed_with(armed),
-                                     ammo: Wolf3D.starting_ammo(ammo))
+                                     ammo: Wolf3D.starting_ammo(ammo),
+                                     pack: pack)
       if menu_art
         music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_setting,
                                   holding: holding)

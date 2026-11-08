@@ -221,10 +221,9 @@ class TestFloorUnpacking < Minitest::Test
   end
 
   def unpacked(original)
-    unpacking = VBlank::Builder.new.data_pack(from: original, version: "1", formats: [Wolf3D::MapPlaneFormat]) do |slots|
-      Unpacking.declare(slots)
-      slots.fill_from_copy { |copy, pack, release| Unpacking.new(self, copy, pack, release).fill }
-    end.unpacking
+    # The pack a whole build declares, whose routine is run here on its own, not read back from
+    # the packs kept between builds.
+    unpacking = Unpacking.declare_pack(VBlank::Builder.new, from: original).unpacking
     # The routine waits a frame every 256 bytes it writes (VBlank's progress bar), and writes each
     # byte of the pack about once, with a few frames more for each block it unpacks.
     unpacking.slot_bytes_in(Reference.new.run(unpacking.program, frames: (unpacking.byte_size / 256) + 400))

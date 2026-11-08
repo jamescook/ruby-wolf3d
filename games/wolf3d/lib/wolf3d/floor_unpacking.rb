@@ -43,6 +43,25 @@ module Wolf3D
     # patrols, which are rules of the game and not data in the copy.
     GUARD_SLOTS = %i[guard_x guard_y guard_kind guard_dir guard_patrolling guard_ambush guard_from].freeze
 
+    # THE DATA PACK'S VERSION, which names this build of the game in the pack's header. Must change
+    # whenever the slots or what the routine writes into them change, so a player's pack is made
+    # again.
+    PACK_VERSION = "1"
+
+    # Where packs are kept between builds, out of git, so only the first build from a copy runs the
+    # routine: the repository's own .cache, wherever the build was started from.
+    def self.pack_cache = File.expand_path("../../.cache/packs", Wolf3D.home)
+
+    # THE DATA PACK OF A WHOLE BUILD, declared on +game+ (a build's self) and filled from +from+
+    # (an Original::Game naming the copy). Hands back the pack's handle.
+    def self.declare_pack(game, from:)
+      game.data_pack(from: from, version: PACK_VERSION, formats: [MapPlaneFormat], cache: pack_cache) do |slots|
+        declare(slots)
+        # The routine is a program of its own, and the block runs on its builder: self here.
+        slots.fill_from_copy { |copy, pack, release| FloorUnpacking.new(self, copy, pack, release).fill }
+      end
+    end
+
     # The slots the floors take, declared on +slots+ (the data pack's).
     def self.declare(slots)
       slots.numbers :floor_count, count: 1, width: :byte, signed: false, layout: :gba
@@ -142,7 +161,7 @@ module Wolf3D
       floors
     end
 
-    # WHAT EACH CELL OF FLOOR +n+ MEANS TO THE WALK (ThisFloor#number_for): a door's number above
+    # WHAT EACH CELL OF FLOOR +n+ MEANS TO THE WALK (FloorTables::Baked#encode_cell): a door's number above
     # ThisFloor::DOOR, a wall that moves above PUSH, a lever above LIFT, else a wall's lit picture
     # counting from one, or nought for floor. Doors and levers are numbered in the order the map
     # is read, a row at a time, as Doors and Elevator number them.
