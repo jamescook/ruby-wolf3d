@@ -24,6 +24,8 @@ class TestFloorUnpacking < Minitest::Test
 
       assert_equal maps.count, pack.fetch(:floor_count).getbyte(0)
       assert_same_world maps, pack
+      assert_same_pushwalls maps, pack
+      assert_same_lifts maps, pack
     end
   end
 
@@ -36,9 +38,38 @@ class TestFloorUnpacking < Minitest::Test
     assert_equal Wolf3D.maps.count, pack.fetch(:floor_count).getbyte(0)
     assert_same_world Wolf3D.maps, pack
     assert_same_doors Wolf3D.maps, Wolf3D.vswap, pack
+    assert_same_pushwalls Wolf3D.maps, pack
+    assert_same_lifts Wolf3D.maps, pack
   end
 
   private
+
+  # Each floor's walls that move, in a run of Unpacking::PUSHWALLS from the floor's start: the
+  # readers' count, and for each wall the cell it starts in and the page of its lit face in the
+  # whole row of wall pictures (WallAtlas: a code's lit face is page (code - 1) * 2).
+  def assert_same_pushwalls(maps, pack)
+    homes = pack.fetch(:push_home).unpack("v*")
+    maps.count.times do |n|
+      walls = Wolf3D::Pushwalls.new(maps[n])
+      at = Unpacking::PUSHWALLS * n
+      faces = walls.codes.map { |code| Wolf3D::WallAtlas.texture_index(code, Wolf3D::WallAtlas::LIT) }
+
+      assert_equal walls.count, pack.fetch(:pushwall_count).getbyte(n), "floor #{n}'s walls that move"
+      assert_equal walls.homes, homes[at, walls.count], "floor #{n}'s walls that move"
+      assert_equal faces, pack.fetch(:push_face).bytes[at, walls.count], "floor #{n}'s walls that move"
+    end
+  end
+
+  # Each floor's levers, and the cell that sends a lift to the secret floor, or minus one.
+  def assert_same_lifts(maps, pack)
+    cars = pack.fetch(:secret_car).unpack("s<*")
+    maps.count.times do |n|
+      lifts = Wolf3D::Elevator.new(maps[n])
+
+      assert_equal lifts.count, pack.fetch(:lift_count).getbyte(n), "floor #{n}'s levers"
+      assert_equal lifts.secret_cars.first || -1, cars[n], "floor #{n}'s secret lift"
+    end
+  end
 
   # Each floor's doors, in a run of Unpacking::DOORS from the floor's start: the readers' count,
   # and for each door its picture's page, which way it runs and the key it wants.

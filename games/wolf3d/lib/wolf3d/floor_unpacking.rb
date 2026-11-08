@@ -21,6 +21,8 @@ module Wolf3D
     # A FLOOR'S DOORS ARE A FIXED RUN OF THIS MANY in each door slot, floor n's from n times it, so
     # nothing has to add up the floors before it. The original's own limit (Holding::ROOM).
     DOORS = Holding::ROOM.fetch(:doors)
+    # ...and the walls that move, the same way.
+    PUSHWALLS = Holding::ROOM.fetch(:pushwalls)
 
     # The slots the floors take, declared on +slots+ (the data pack's).
     def self.declare(slots)
@@ -28,10 +30,16 @@ module Wolf3D
       slots.numbers :wall_plane, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
       slots.numbers :thing_plane, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
       slots.numbers :world, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
-      slots.numbers :door_count, count: FLOORS, width: :byte, signed: false, layout: :gba
+      %i[door_count pushwall_count lift_count].each do |name|
+        slots.numbers name, count: FLOORS, width: :byte, signed: false, layout: :gba
+      end
       %i[door_picture door_across door_lock].each do |name|
         slots.numbers name, count: DOORS * FLOORS, width: :byte, signed: false, layout: :gba
       end
+      slots.numbers :push_home, count: PUSHWALLS * FLOORS, width: :half, signed: false, layout: :gba
+      slots.numbers :push_face, count: PUSHWALLS * FLOORS, width: :byte, signed: false, layout: :gba
+      # Minus one where a floor has no secret lift, because nought is a real cell (ThisFloor).
+      slots.numbers :secret_car, count: FLOORS, width: :half, signed: true, layout: :gba
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.
@@ -89,12 +97,16 @@ module Wolf3D
       levers = counter(:levers)
       code = counter(:code)
       number = counter(:number)
+      car = counter(:secret_car)
       base.store!(CELLS * n)
       doors.store!(0)
       levers.store!(0)
+      car.store!(-1)
       @b.repeat(CELLS) do |cell|
         code.store!(wall_code(base + cell))
         number.store!(0)
+        # The first cell in the map's order marked as the secret lift's car (Elevator#secret_cars).
+        car.store!(cell) if code == Elevator::SECRET_CAR && car < 0
         if door?(code)
           number.store!(ThisFloor::DOOR + doors)
           write_door((DOORS * n) + doors, code, first_door) if doors < DOORS
@@ -108,7 +120,11 @@ module Wolf3D
         write_world(base + cell, number)
       end
       @pack[:door_count][n] = doors
-      fill_pushwalls(base)
+      @pack[:lift_count][n] = levers
+      @pack[:secret_car][n * 2] = car
+      @pack[:secret_car][(n * 2) + 1] = car >> 8
+      @copy.count_written 4
+      fill_pushwalls(n, base)
     end
 
     # DOOR +at+ IN THE DOOR SLOTS, from its wall +code+ (Doors#door_at): the picture it wears, at its
@@ -133,14 +149,15 @@ module Wolf3D
 
     # A WALL THAT MOVES CLAIMS ITS OWN CELL AND UP TO TWO EACH WAY, while the floor goes on
     # (Pushwalls#reachable_from), and the first in the map's order keeps a cell two of them reach. A
-    # door's cell stays the door's.
-    def fill_pushwalls(base)
+    # door's cell stays the door's. Each wall's home cell and face go in floor +n+'s run.
+    def fill_pushwalls(n, base)
       pushed = counter(:pushed)
       x = counter(:x)
       y = counter(:y)
       pushed.store!(0)
       @b.repeat(CELLS) do |cell|
         if thing_code(base + cell) == Level::PUSHWALL && solid?(base, cell % 64, cell / 64)
+          write_pushwall((PUSHWALLS * n) + pushed, cell, wall_code(base + cell)) if pushed < PUSHWALLS
           claim(base, cell % 64, cell / 64, pushed)
           [[1, 0], [-1, 0], [0, 1], [0, -1]].each do |dx, dy|
             x.store!((cell % 64) + dx)
@@ -155,6 +172,18 @@ module Wolf3D
           pushed.increase!(1)
         end
       end
+      @pack[:pushwall_count][n] = pushed
+      @copy.count_written 1
+    end
+
+    # WALL THAT MOVES +at+ IN ITS SLOTS: the cell it starts in, counted within its own floor, and
+    # the page of its lit face. It is made of an ordinary wall, so it wears that wall's picture
+    # (FirstPerson#push_pictures), and a code's lit face is page (code - 1) * 2 in the whole row.
+    def write_pushwall(at, cell, code)
+      @pack[:push_home][at * 2] = cell
+      @pack[:push_home][(at * 2) + 1] = cell >> 8
+      @pack[:push_face][at] = (code - 1) * 2
+      @copy.count_written 3
     end
 
     # Cell +x+, +y+ of the floor at +base+ for wall that moves +pushed+, unless a door or an earlier
