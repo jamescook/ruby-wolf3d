@@ -58,6 +58,8 @@ require_relative "wolf3d/menu_art"
 VBlank.require_game_file "wolf3d/status_bar"
 # ...and before every part of the game that declares state a saved game holds.
 VBlank.require_game_file "wolf3d/this_floor"
+# ...and the same numbers worked out by the game itself, for a whole build's data pack.
+VBlank.require_game_file "wolf3d/floor_unpacking"
 require_relative "wolf3d/lasting_state"
 require_relative "wolf3d/player"
 VBlank.require_game_file "wolf3d/guard_pool"

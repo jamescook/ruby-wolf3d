@@ -30,6 +30,9 @@ module Wolf3D
     WALL_PAGES = 134
     SPRITES = 436
 
+    # The most floors a release has: the six episodes' sixty. MAPHEAD keeps room for a hundred.
+    FLOORS = 60
+
     def self.trimmed = new(whole: false)
     def self.whole = new(whole: true)
 
