@@ -18,12 +18,20 @@ module Wolf3D
     # Where a floor's header names its first plane, in GAMEMAPS: three plane starts, four bytes each.
     THINGS_PLANE_AT = 4
 
+    # A FLOOR'S DOORS ARE A FIXED RUN OF THIS MANY in each door slot, floor n's from n times it, so
+    # nothing has to add up the floors before it. The original's own limit (Holding::ROOM).
+    DOORS = Holding::ROOM.fetch(:doors)
+
     # The slots the floors take, declared on +slots+ (the data pack's).
     def self.declare(slots)
       slots.numbers :floor_count, count: 1, width: :byte, signed: false, layout: :gba
       slots.numbers :wall_plane, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
       slots.numbers :thing_plane, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
       slots.numbers :world, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
+      slots.numbers :door_count, count: FLOORS, width: :byte, signed: false, layout: :gba
+      %i[door_picture door_across door_lock].each do |name|
+        slots.numbers name, count: DOORS * FLOORS, width: :byte, signed: false, layout: :gba
+      end
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.
@@ -42,7 +50,11 @@ module Wolf3D
     # a cell.
     def fill
       floors = unpack_planes
-      @b.repeat(floors) { |n| fill_world(n) }
+      first_door = counter(:first_door)
+      # The doors' pictures are the last eight pages before the sprites (Doors::DOOR_PICTURES), and
+      # VSWAP's header says where the sprites start: its second word.
+      first_door.store!(@copy.file("VSWAP.#{@release}").half(2) - Doors::DOOR_PICTURES)
+      @b.repeat(floors) { |n| fill_world(n, first_door) }
     end
 
     private
@@ -71,7 +83,7 @@ module Wolf3D
     # ThisFloor::DOOR, a wall that moves above PUSH, a lever above LIFT, else a wall's lit picture
     # counting from one, or nought for floor. Doors and levers are numbered in the order the map
     # is read, a row at a time, as Doors and Elevator number them.
-    def fill_world(n)
+    def fill_world(n, first_door)
       base = counter(:base)
       doors = counter(:doors)
       levers = counter(:levers)
@@ -85,6 +97,7 @@ module Wolf3D
         number.store!(0)
         if door?(code)
           number.store!(ThisFloor::DOOR + doors)
+          write_door((DOORS * n) + doors, code, first_door) if doors < DOORS
           doors.increase!(1)
         elsif code == Elevator::SWITCH
           number.store!(ThisFloor::LIFT + levers)
@@ -94,7 +107,28 @@ module Wolf3D
         end
         write_world(base + cell, number)
       end
+      @pack[:door_count][n] = doors
       fill_pushwalls(base)
+    end
+
+    # DOOR +at+ IN THE DOOR SLOTS, from its wall +code+ (Doors#door_at): the picture it wears, at its
+    # page, which way its panel runs, and the key bit it wants (FirstPerson::KEY_BITS). An even code
+    # runs across x; a lift's door and a locked one wear pictures of their own.
+    def write_door(at, code, first_door)
+      kind = counter(:door_kind)
+      kind.store!(Doors::FACE)
+      kind.store!(Doors::ELEVATOR) if code == Level::ELEVATOR_DOORS[0] || code == Level::ELEVATOR_DOORS[1]
+      kind.store!(Doors::LOCKED) if code >= Level::LOCKED_DOORS.first && code <= Level::LOCKED_DOORS.last
+      @pack[:door_picture][at] = first_door + kind + (code & 1)
+      @pack[:door_across][at] = code & 1
+      lock = counter(:door_lock)
+      lock.store!(0)
+      # The locked codes run in pairs, gold's then silver's (Level#lock_at).
+      gold, _, silver, = Level::LOCKED_DOORS
+      lock.store!(FirstPerson::KEY_BITS.fetch(:gold)) if code == gold || code == gold + 1
+      lock.store!(FirstPerson::KEY_BITS.fetch(:silver)) if code == silver || code == silver + 1
+      @pack[:door_lock][at] = lock
+      @copy.count_written 3
     end
 
     # A WALL THAT MOVES CLAIMS ITS OWN CELL AND UP TO TWO EACH WAY, while the floor goes on

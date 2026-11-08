@@ -35,9 +35,24 @@ class TestFloorUnpacking < Minitest::Test
 
     assert_equal Wolf3D.maps.count, pack.fetch(:floor_count).getbyte(0)
     assert_same_world Wolf3D.maps, pack
+    assert_same_doors Wolf3D.maps, Wolf3D.vswap, pack
   end
 
   private
+
+  # Each floor's doors, in a run of Unpacking::DOORS from the floor's start: the readers' count,
+  # and for each door its picture's page, which way it runs and the key it wants.
+  def assert_same_doors(maps, vswap, pack)
+    maps.count.times do |n|
+      doors = Wolf3D::Doors.new(maps[n], vswap)
+      run = (Unpacking::DOORS * n)...((Unpacking::DOORS * n) + doors.count)
+      wanted = doors.doors.map { |door| [doors.picture_for(door), door.across, Wolf3D::FirstPerson::KEY_BITS[door.lock] || 0] }
+
+      assert_equal doors.count, pack.fetch(:door_count).getbyte(n), "floor #{n}'s doors"
+      assert_equal wanted, %i[door_picture door_across door_lock].map { |slot| pack.fetch(slot).bytes[run] }.transpose,
+                   "floor #{n}'s doors"
+    end
+  end
 
   def unpacked(original)
     unpacking = VBlank::Builder.new.data_pack(from: original, version: "1", formats: [Wolf3D::MapPlaneFormat]) do |slots|
