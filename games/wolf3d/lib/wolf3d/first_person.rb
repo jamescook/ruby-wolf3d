@@ -617,21 +617,20 @@ module Wolf3D
       #
       # ...and every floor's doors end to end, reached by adding where this floor's start. That
       # is the shape of every table from here down.
-      @door_picture = b.table :door_picture, Floors.at_least_one(over_floors { |f| door_pictures(f) }), width: :byte
-      @door_across = b.table :door_across, Floors.at_least_one(over_floors { |f| f.doors.doors.map(&:across) }),
-                             width: :byte
+      @door_picture = tables.declare_items(:door_picture, width: :byte) { |f| door_pictures(f) }
+      @door_across = tables.declare_items(:door_across, width: :byte) { |f| f.doors.doors.map(&:across) }
       # Which key each door wants, as the bit the player carries. Nought wants none.
-      @door_lock = b.table :door_lock,
-                           Floors.at_least_one(over_floors { |f| f.doors.doors.map { |d| KEY_BITS[d.lock] || 0 } }),
-                           width: :byte
+      @door_lock = tables.declare_items(:door_lock, width: :byte) do |f|
+        f.doors.doors.map { |d| KEY_BITS[d.lock] || 0 }
+      end
 
       # A push wall: where it started, what it is made of, and — as the game runs — which way
       # it was shoved, how far it has got, and how long until its next cell.
       #
       # WHERE IT STARTED IS A CELL OF ITS OWN FLOOR, with nothing added, because it is compared
       # against cells the game works out while playing that floor and those are local too.
-      @push_home = b.table :push_home, Floors.at_least_one(over_floors { |f| f.pushwalls.homes })
-      @push_face = b.table :push_face, Floors.at_least_one(over_floors { |f| push_pictures(f) }), width: :byte
+      @push_home = tables.declare_items(:push_home) { |f| f.pushwalls.homes }
+      @push_face = tables.declare_items(:push_face, width: :byte) { |f| push_pictures(f) }
       # A BYTE EACH, which a saved game is the reason for: a step is one row of a map at most.
       @push_step = @lasting.list :push_step, capacity: @floors.room_for(:pushwalls), width: :byte
       @push_gone = @lasting.list :push_gone, capacity: @floors.room_for(:pushwalls), width: :byte
@@ -962,7 +961,7 @@ module Wolf3D
       declare_the_march
       @standing = Billboards.new(build: @b, things: @things, scenery: @scenery, march: @march,
                                  floors: (@floors if @floors.count > 1), this_floor: @this_floor,
-                                 rooms: @rooms, piece_room: declare_the_pieces_rooms,
+                                 rooms: @rooms, piece_room: declare_piece_rooms,
                                  guards: @guards, pool: @guard_pool&.pool, mind: @mind,
                                  pickups: @pickups, player: @player)
     end
@@ -977,14 +976,15 @@ module Wolf3D
     # WHICH ROOM EACH PIECE OF SCENERY STANDS IN, worked out while building because a lamp does not
     # move. One byte each, every floor end to end like everything else, so the walk over them can
     # ask whether a piece is even worth looking at before it works out where on the screen it goes.
-    def declare_the_pieces_rooms
+    # Read by the piece's number, so it lies where the pieces do (FloorTables).
+    def declare_piece_rooms
       return nil if @rooms.nil?
 
-      @b.table :thing_room, Floors.at_least_one(over_floors { |floor|
+      @this_floor.tables.declare_items(:thing_room, slot: :piece_room, width: :byte) do |floor|
         (floor.scenery&.pieces || []).map do |piece|
           (floor.level.area(piece.x, piece.y)&.+(1)) || Rooms::NOWHERE
         end
-      }), width: :byte
+      end
     end
 
     # Does anything stand in ANY floor the cartridge holds? A game with nothing anywhere pays for

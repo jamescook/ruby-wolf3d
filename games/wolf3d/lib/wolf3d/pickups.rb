@@ -215,23 +215,23 @@ module Wolf3D
       # EVERY FLOOR'S CELLS END TO END, like the map, and the number in a cell is the piece's own
       # number WITHIN ITS FLOOR — because what it reaches is whether that piece has been taken,
       # which is state a floor is played with and is sized for one floor.
-      @lying_at = b.table :lying_at,
-                          @floors.flat_map { |floor| cells_with_something_on_them(floor) },
-                          width: :half
+      tables = @this_floor.tables
+      @lying_at = tables.declare_lying_at { |floor| number_pickup_cells(floor) }
 
       # ...and what each of them gives. Every floor's pieces end to end, reached by adding where
       # this floor's begin — settled things rather than played-with ones, so they go the other
-      # way from the numbers above.
+      # way from the numbers above. What a piece gives follows from which piece it is, so a whole
+      # build keeps it once per kind of piece (FloorTables).
       #
       # A table must hold something and a floor need hold nothing, so an empty game gets one
       # entry that nothing ever reads — the table above names no piece for it to be reached by.
       everything = @floors.flat_map { |floor| scenery_of(floor).pieces }
-      @gives_kind = b.table :gives_kind, Floors.at_least_one(everything.map { |p| kind_of(p) }), width: :byte
-      @gives_amount = b.table :gives_amount, Floors.at_least_one(everything.map { |p| amount_of(p) }),
-                              width: :half
+      @gives_kind = tables.declare_piece_rule(:gives_kind, pieces: everything, width: :byte) { |p| kind_of(p) }
+      @gives_amount = tables.declare_piece_rule(:gives_amount, pieces: everything, width: :half) { |p| amount_of(p) }
       if @sounds
-        @gives_sound = b.table :gives_sound, Floors.at_least_one(everything.map { |p| @sounds.adlib_number(sound_of(p)) }),
-                               width: :byte
+        @gives_sound = tables.declare_piece_rule(:gives_sound, pieces: everything, width: :byte) do |p|
+          @sounds.adlib_number(sound_of(p))
+        end
       end
 
       # WHAT HAS BEEN TAKEN, which is the only thing about a floor's things that ever changes.
@@ -433,7 +433,9 @@ module Wolf3D
 
     # --- the tables, worked out while the cartridge is built --------------------------
 
-    def cells_with_something_on_them(floor)
+    # Each cell of +floor+ with something to take on it, as the piece's number counting from one;
+    # nought everywhere else.
+    def number_pickup_cells(floor)
       level = floor.level
       cells = Array.new(level.width * level.height, 0)
       scenery_of(floor).pieces.each_with_index do |piece, at|

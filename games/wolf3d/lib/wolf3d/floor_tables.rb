@@ -14,6 +14,22 @@ module Wolf3D
   # numbers for the same floor, and asks where floor n's run starts; it never asks which kind of
   # build it is in. A table nothing on any floor needs may come back nil, which only a baked build
   # can know: a pack is filled after the build, so its tables are always there.
+  #
+  # WHAT IT ANSWERS:
+  # - map_base(n), run_start(kind, n): where the +n+th floor the build holds starts in a table laid
+  #   out like the map, and in a run of one kind (:doors, :pushwalls, :pieces). Plain numbers.
+  # - fetch_floor_value(what, n): a number a floor has, (:doors, :pushwalls or :pieces for how
+  #   many it holds, :secret_car for the cell of its secret lift or minus one): a plain number
+  #   baked, a table read packed. declare_floor_value(name, what) is a variable holding the first
+  #   floor's, from power-on.
+  # - declare_world, declare_blocked, declare_lying_at: the tables laid out like the map.
+  # - declare_items(name, ...) { |floor| values }: a run of one kind per floor, the block naming
+  #   what each item of a floor holds, which a baked build runs and a packed one reads instead.
+  # - declare_piece_rule(name, ...) { |piece| value }: something about a piece that follows from
+  #   which of Scenery's pieces it is (what it gives, its picture), read by the piece's number.
+  # - one_floor?: whether the build holds one floor and knows its counts while building, so a walk
+  #   over its things can be counted by a plain number. none?(kind): whether it knows while
+  #   building that no floor has any, so it can leave out what they would need.
   module FloorTables
     # The source a build reads: from +pack+ (the data pack's handle) where it has one, else baked
     # from +floors+, every floor the build holds. +wall_picture+ answers where a wall code's lit
@@ -34,6 +50,38 @@ module Wolf3D
       # Where the +n+th floor the build holds starts in a table laid out like the map: the floors
       # it holds, end to end.
       def map_base(n) = @floors.map_base(n)
+
+      # ...and in a run of +kind+: after every item of the floors before it.
+      def run_start(kind, n) = @floors.first_of(kind, n)
+
+      def fetch_floor_value(what, n)
+        return @floors[n].lifts&.secret_cars&.first || -1 if what == :secret_car
+
+        @floors.count_of(what, n)
+      end
+
+      def declare_floor_value(name, what) = @b.var(name, fetch_floor_value(what, 0))
+
+      def one_floor? = @floors.count == 1
+
+      # Whether no floor the build holds has any of +kind+.
+      def none?(kind) = @floors.counts_of(kind).all?(&:zero?)
+
+      # A run of items per floor, every floor's end to end; a table must hold something, so a build
+      # with none gets one entry nothing reads. +slot:+ and +plus:+ are for a packed build only.
+      def declare_items(name, width: nil, slot: nil, plus: nil, &values) # rubocop:disable Lint/UnusedMethodArgument
+        @b.table name, Floors.at_least_one(@floors.flat_map(&values)), width: width
+      end
+
+      # Something about each piece, run over +pieces+ (every floor's, end to end) and read by the
+      # piece's place in them.
+      def declare_piece_rule(name, pieces:, width: nil, &rule)
+        @b.table name, Floors.at_least_one(pieces.map(&rule)), width: width
+      end
+
+      # What lies on each cell, counted from one, laid out like the world; +cells+ answers a
+      # floor's.
+      def declare_lying_at(&cells) = @b.table(:lying_at, @floors.flat_map(&cells), width: :half)
 
       # WHAT EACH CELL OF EACH FLOOR SAYS TO THE WALK, every floor end to end (ThisFloor, where the
       # table is read, says what the numbers mean).
@@ -100,14 +148,70 @@ module Wolf3D
       # holds a few from the middle.
       def map_base(n) = @floors[n].index * FloorUnpacking::CELLS
 
+      # ...and in a run of +kind+: a fixed run per floor, so at its own number times the run.
+      def run_start(kind, n) = @floors[n].index * PER_FLOOR.fetch(kind)
+
+      # Read from the pack as the game runs, since it is not known until the copy is read.
+      def fetch_floor_value(what, n) = declare(FLOOR_VALUES.fetch(what))[@floors[n].index]
+
+      # ...so a variable holding the first floor's starts at nought and is given it at power-on:
+      # this is written where the build declares it, before the game loop, which runs once.
+      def declare_floor_value(name, what)
+        held = { value: @b.var(name, 0) } # a Hash, since a name holds a value
+        held[:value] = fetch_floor_value(what, 0)
+        held[:value]
+      end
+
+      def one_floor? = false
+
+      # Never known before the copy is read.
+      def none?(_kind) = false
+
       def declare_world = declare(:world)
 
       # Always a table: whether anything blocks is not known until the copy is read.
       def declare_blocked = declare(:blocked)
 
+      def declare_lying_at = declare(:lying_at)
+
+      # The slot +slot+ holds the run, read through +plus+ where it keeps a raw number the baked
+      # table holds worked (a cell, where the table holds its middle).
+      def declare_items(name, slot: name, plus: nil, width: nil) # rubocop:disable Lint/UnusedMethodArgument
+        table = @b.table(name, @pack[slot])
+        plus ? Plus.new(table, plus) : table
+      end
+
+      # The rule run over each of Scenery's pieces, read by which one a piece is (piece_kind).
+      def declare_piece_rule(name, pieces: nil, width: nil, &rule) # rubocop:disable Lint/UnusedMethodArgument
+        rules = @b.table(name, (0...Scenery::PICTURES.length).map { |kind| rule.call(Scenery.make_piece(kind)) },
+                         width: width)
+        ByKind.new(rules, declare(:piece_kind))
+      end
+
+      # Where each kind's runs sit in the pack (FloorUnpacking's per-floor limits).
+      PER_FLOOR = {
+        doors: FloorUnpacking::DOORS_PER_FLOOR, pushwalls: FloorUnpacking::PUSHWALLS_PER_FLOOR,
+        pieces: FloorUnpacking::PIECES_PER_FLOOR
+      }.freeze
+
+      # The slot each number a floor has is kept in.
+      FLOOR_VALUES = { doors: :door_count, pushwalls: :pushwall_count, pieces: :piece_count,
+                       secret_car: :secret_car }.freeze
+
+      # A table read with a number added: a cell's middle, from the cell.
+      Plus = Data.define(:table, :plus) do
+        def [](at) = table[at].to_f + plus
+      end
+
+      # A table of rules read by which kind an item is, from a table of the items' kinds.
+      ByKind = Data.define(:rules, :kinds) do
+        def [](at) = rules[kinds[at]]
+      end
+
       private
 
-      def declare(slot) = @b.table(slot, @pack[slot])
+      # Each slot's table, declared the first time anything asks for it.
+      def declare(slot) = (@declared ||= {})[slot] ||= @b.table(slot, @pack[slot])
     end
   end
 end

@@ -49,19 +49,23 @@ module Wolf3D
     # The cell that means the secret lift on this floor, or minus one where it has none.
     attr_reader :secret_car
 
+    # Where every part of the game gets its per-floor tables (FloorTables): the view, the pickups
+    # and the drawing of what stands in the rooms all ask.
+    attr_reader :tables
+
     # POINT EVERYTHING AT FLOOR +n+, a number known while building: this writes that floor's own
     # numbers in. The caller picks which arm runs — see FirstPerson#select_floor.
     def go_to(n)
       @map_base = @tables.map_base(n)
-      @door_first = @floors.first_of(:doors, n)
-      @door_count = @floors.count_of(:doors, n)
-      @push_first = @floors.first_of(:pushwalls, n)
-      @pushwall_count = @floors.count_of(:pushwalls, n)
-      @secret_car = secret_car_of(@floors[n])
+      @door_first = @tables.run_start(:doors, n)
+      @door_count = @tables.fetch_floor_value(:doors, n)
+      @push_first = @tables.run_start(:pushwalls, n)
+      @pushwall_count = @tables.fetch_floor_value(:pushwalls, n)
+      @secret_car = @tables.fetch_floor_value(:secret_car, n)
       return if @piece_first.nil?
 
-      @piece_first = @floors.first_of(:pieces, n)
-      @piece_count = @floors.count_of(:pieces, n)
+      @piece_first = @tables.run_start(:pieces, n)
+      @piece_count = @tables.fetch_floor_value(:pieces, n)
     end
 
     # --- finding a slice -----------------------------------------------------------------
@@ -163,24 +167,24 @@ module Wolf3D
       @blocked = @tables.declare_blocked
 
       @map_base = @b.var :_map_base, @tables.map_base(0)
-      @door_first = @b.var :_door_first, @floors.first_of(:doors, 0)
-      @door_count = @b.var :_door_count, @floors.count_of(:doors, 0)
-      @push_first = @b.var :_push_first, @floors.first_of(:pushwalls, 0)
-      @pushwall_count = @b.var :_push_count, @floors.count_of(:pushwalls, 0)
-      @secret_car = @b.var :_secret_car, secret_car_of(@floors.first_floor)
-      declare_the_pieces
+      @door_first = @b.var :_door_first, @tables.run_start(:doors, 0)
+      @door_count = @tables.declare_floor_value(:_door_count, :doors)
+      @push_first = @b.var :_push_first, @tables.run_start(:pushwalls, 0)
+      @pushwall_count = @tables.declare_floor_value(:_push_count, :pushwalls)
+      @secret_car = @tables.declare_floor_value(:_secret_car, :secret_car)
+      declare_pieces
     end
 
     # A cartridge of one floor has its pieces from nought and knows how many while building, so
     # the walk over them is counted by a plain number and needs neither variable.
-    def declare_the_pieces
-      @piece_count = @floors.count_of(:pieces, 0)
-      return if @floors.count == 1
+    def declare_pieces
+      if @tables.one_floor?
+        @piece_count = @tables.fetch_floor_value(:pieces, 0)
+        return
+      end
 
-      @piece_first = @b.var :_piece_first, @floors.first_of(:pieces, 0)
-      @piece_count = @b.var :_piece_count, @piece_count
+      @piece_first = @b.var :_piece_first, @tables.run_start(:pieces, 0)
+      @piece_count = @tables.declare_floor_value(:_piece_count, :pieces)
     end
-
-    def secret_car_of(floor) = floor.lifts&.secret_cars&.first || -1
   end
 end

@@ -95,6 +95,14 @@ module Wolf3D
     # that is only something to look at.
     Piece = Data.define(:x, :y, :picture, :blocks, :bonus)
 
+    # PIECE +kind+ AS IT IS WHEREVER IT STANDS: its picture, whether it blocks, what it gives.
+    # Asked by a whole build (FloorTables::Packed), whose tables of those are made over the kinds
+    # rather than over the pieces of a floor it has not read yet.
+    def self.make_piece(kind)
+      Piece.new(x: 0, y: 0, picture: picture_of(FIRST_CODE + kind), blocks: BLOCKING.include?(kind),
+                bonus: BONUSES[kind])
+    end
+
     attr_reader :pieces
 
     def initialize(level)

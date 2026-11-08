@@ -151,7 +151,7 @@ module Wolf3D
       @last_row = b.table :thing_bottom, @things.sprites.map { |p| @things.last_row(p) },
                           width: :byte
 
-      declare_the_scenery
+      declare_scenery
       declare_what_guards_leave
       declare_the_guards
 
@@ -239,16 +239,22 @@ module Wolf3D
     # kept by Pickups rather than here: it is a fact about the game, and this only asks.
     # ...and every floor's pieces end to end, reached by adding where this floor's begin. That
     # number was settled when the floor started and does not move while it is played.
-    def declare_the_scenery
+    #
+    # A piece stands in the middle of its cell, and wears the picture of whichever piece it is
+    # (FloorTables keeps that once per kind of piece in a whole build).
+    def declare_scenery
       pieces = every_floors_pieces
-      return if pieces.empty?
+      return if pieces.empty? && @this_floor.tables.none?(:pieces)
 
-      b = @b
-      @piece_x = b.table :thing_x, pieces.map { |p| p.x + 0.5 }
-      @piece_y = b.table :thing_y, pieces.map { |p| p.y + 0.5 }
-      @piece_shape = b.table :thing_shape, pieces.map { |p| @things.position_of(p.picture) },
-                             width: :half
+      tables = @this_floor.tables
+      @piece_x = tables.declare_items(:thing_x, slot: :piece_x, plus: 0.5) { |f| pieces_of(f).map { |p| p.x + 0.5 } }
+      @piece_y = tables.declare_items(:thing_y, slot: :piece_y, plus: 0.5) { |f| pieces_of(f).map { |p| p.y + 0.5 } }
+      @piece_shape = tables.declare_piece_rule(:thing_shape, pieces: pieces, width: :half) do |p|
+        @things.position_of(p.picture)
+      end
     end
+
+    def pieces_of(floor) = floor.scenery&.pieces || []
 
     # A one-floor game has only the scenery it was handed.
     def every_floors_pieces

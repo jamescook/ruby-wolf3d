@@ -91,39 +91,138 @@ class TestHolding < Minitest::Test
   # first blocking piece with open floor between, facing it, and walks north until it stops them.
   def test_a_piece_in_the_way_stops_the_player_held_whole
     real_copy
-    piece, start = blocking_piece_with_room_south
-    stopped = %w[trimmed whole].map do |hold|
-      program = Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: hold, start: start })
-      Reference.new.input_each_frame { |frame| frame > STANDING_FRAMES ? [:up] : [] }.run(program, frames: WALKING_FRAMES)[:py]
-    end
+    piece = first_piece_with_room_south(&:blocks)
+    stopped = play_both(start: "#{piece.x},#{piece.y + 2},north", keys: WALK_NORTH_KEYS).map { |run| run[:py] }
 
     assert_operator stopped.first, :>, piece.y + 1, "the trimmed build stops the player short of the piece's cell"
     assert_equal stopped.first, stopped.last, "where the player stopped"
+  end
+
+  # SOMETHING LYING ON THE FLOOR IS PICKED UP held either way: the whole build reads where it lies
+  # and what it gives from the data pack. The player walks north onto the first floor's first
+  # clip or treasure with open floor south of it (food heals nothing at full health).
+  def test_a_pickup_gives_the_same_held_whole
+    real_copy
+    piece = first_piece_with_room_south { |p| %i[ammunition treasure].include?(p.bonus&.first) }
+    given = play_both(start: "#{piece.x},#{piece.y + 2},north", keys: WALK_NORTH_KEYS).map do |run|
+      %i[ammo score health].map { |name| run[name] }
+    end
+
+    refute_equal [Wolf3D::FirstPerson::START_AMMO, 0, Wolf3D::FirstPerson::START_HEALTH], given.first,
+                 "the trimmed build gives something for #{piece.bonus.inspect}"
+    assert_equal given.first, given.last, "ammunition, score and health"
+  end
+
+  # A SECRET WALL MOVES held either way: the whole build reads where each starts and the floor's
+  # count from the data pack. The player is put down beside the first floor's first wall that
+  # moves, facing it, and pushes.
+  def test_a_secret_wall_is_found_held_whole
+    real_copy
+    start = beside_first_secret_wall
+    found = play_both(start: start, keys: PUSH_KEYS).map { |run| run[:secrets] }
+
+    assert_equal 1, found.first, "the trimmed build counts the wall pushed from #{start}"
+    assert_equal found.first, found.last, "secrets found"
+  end
+
+  # A DOOR OPENS held either way: the whole build reads the floor's doors and their count from the
+  # data pack. From the first floor's start, facing east, the player walks up to its door, opens
+  # it and walks on.
+  def test_a_door_opens_held_whole
+    real_copy
+    walked = play_both(keys: THROUGH_THE_DOOR_KEYS).map { |run| run[:px] }
+    at_the_door = Reference.new.input_each_frame(&WALK_KEYS).run(first_floor(hold: "trimmed"), frames: DOOR_FRAMES)[:px]
+
+    assert_operator walked.first, :>, at_the_door + 1, "the trimmed build walks on through the door"
+    assert_equal walked.first, walked.last, "where the player got to"
+  end
+
+  # A DOOR JOINS TWO ROOMS held either way, on a floor after the first: the whole build reads which
+  # rooms each door joins from the data pack, at that floor's own run. The player is put down
+  # beside the second floor's first door between two rooms, opens it, and walks through into the
+  # room beyond, whose guards and things are drawn only once the door has joined it to the
+  # player's.
+  def test_a_door_joins_two_rooms_on_a_later_floor_held_whole
+    real_copy
+    start = beside_first_door_between_rooms(Wolf3D.maps[1])
+    seen = %w[trimmed whole].map do |hold|
+      settings = { floors: 1, from: 1, screen: "playing", hold: hold, start: start }
+      Reference.new.input_each_frame(&OPEN_AND_WALK_KEYS).run(Wolf3D::GAME.program(settings: settings), frames: PLAYING_FRAMES)
+    end
+
+    refute seen.first.screen.pixel(120, 60).zero?, "the view should be drawn"
+    assert_equal 0, count_differing_pixels(*seen.map(&:screen)), "pixels that differ in the room beyond the door"
   end
 
   # The player stands still, then walks up to the first room's door.
   WALK_KEYS = ->(frame) { frame.between?(60, 100) ? [:up] : [] }
   STANDING_FRAMES = 59
   DOOR_FRAMES = 140
+  # ...or opens that door and walks through it.
+  THROUGH_THE_DOOR_KEYS = ->(frame) { frame == 110 ? [:a] : WALK_KEYS.call(frame) + (frame.between?(150, 200) ? [:up] : []) }
   # ...or walks north for long enough to cross two cells and be stopped.
-  WALKING_FRAMES = 200
+  WALK_NORTH_KEYS = ->(frame) { frame > STANDING_FRAMES ? [:up] : [] }
+  # ...or pushes what is in front of it, then waits while it slides.
+  PUSH_KEYS = ->(frame) { frame == 70 ? [:a] : [] }
+  # ...or opens the door in front of it, waits for it to open, and walks through.
+  OPEN_AND_WALK_KEYS = ->(frame) { frame == 70 ? [:a] : (frame.between?(110, 150) ? [:up] : []) }
+  PLAYING_FRAMES = 220
 
   private
 
   def first_floor(hold:) = Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: hold })
 
+  # The same keys on the first floor held trimmed, then whole, each run for PLAYING_FRAMES.
+  def play_both(keys:, start: nil)
+    %w[trimmed whole].map do |hold|
+      settings = { floors: 1, screen: "playing", hold: hold, start: start }.compact
+      Reference.new.input_each_frame(&keys).run(Wolf3D::GAME.program(settings: settings), frames: PLAYING_FRAMES)
+    end
+  end
+
+  # The first floor's first piece the block picks, with two empty cells south of it, so the
+  # player can be put down two cells south facing it.
+  def first_piece_with_room_south
+    level = Wolf3D.maps[0]
+    Wolf3D::Scenery.new(level).pieces.find do |p|
+      yield(p) && [1, 2].all? { |down| empty_floor?(level, p.x, p.y + down) }
+    end
+  end
+
+  # WOLF3D_START's x,y,facing for an empty cell beside the first floor's first wall that moves,
+  # facing it.
+  def beside_first_secret_wall
+    level = Wolf3D.maps[0]
+    facing = { [0, 1] => :north, [0, -1] => :south, [1, 0] => :west, [-1, 0] => :east }
+    Wolf3D::Pushwalls.new(level).walls.each do |wall|
+      facing.each do |(dx, dy), face|
+        x = wall.x + dx
+        y = wall.y + dy
+        return "#{x},#{y},#{face}" if empty_floor?(level, x, y)
+      end
+    end
+  end
+
+  # WOLF3D_START's x,y,facing for an empty cell beside +level+'s first door with a different room
+  # on each side, across its panel (Rooms#joins), facing it.
+  def beside_first_door_between_rooms(level)
+    doors = Wolf3D::Doors.new(level, Struct.new(:wall_count).new(Wolf3D::Holding::WALL_PAGES)).doors
+    doors.each do |door|
+      sides = door.across == Wolf3D::Doors::ACROSS_X ? [[-1, 0, :east], [1, 0, :west]] : [[0, -1, :south], [0, 1, :north]]
+      rooms = sides.map { |dx, dy, _| level.area(door.x + dx, door.y + dy) }
+      next if rooms.include?(nil) || rooms.uniq.length == 1
+
+      sides.each do |dx, dy, face|
+        return "#{door.x + dx},#{door.y + dy},#{face}" if empty_floor?(level, door.x + dx, door.y + dy)
+      end
+    end
+  end
+
+  # Floor with nothing on it: no piece, no guard, no start (Level#starting_at refuses the rest).
+  def empty_floor?(level, x, y) = !level.solid?(x, y) && level.thing_code(x, y).zero?
+
   def count_differing_pixels(one, other)
     (0...160).sum { |y| (0...240).count { |x| one.pixel(x, y) != other.pixel(x, y) } }
   end
 
-  # The first floor's first piece that blocks, with two open cells south of it holding nothing,
-  # and where to start (WOLF3D_START's x,y,facing) two cells south facing it.
-  def blocking_piece_with_room_south
-    level = Wolf3D.maps[0]
-    scenery = Wolf3D::Scenery.new(level)
-    piece = scenery.pieces.find do |p|
-      p.blocks && [1, 2].all? { |down| !level.solid?(p.x, p.y + down) && scenery.index_at(p.x, p.y + down).nil? }
-    end
-    [piece, "#{piece.x},#{piece.y + 2},north"]
-  end
 end

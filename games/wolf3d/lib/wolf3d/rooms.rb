@@ -152,10 +152,14 @@ module Wolf3D
 
       # WHICH TWO ROOMS EACH DOOR JOINS, worked out while building because a door never moves.
       # A door that does not have a room on both sides joins nothing and is simply never followed.
-      sides = @floors.flat_map { |floor| floor.doors.doors.map { |door| joins(floor.level, door) } }
-      sides = [[NOWHERE, NOWHERE]] if sides.empty?
-      @side_a = b.table :door_side_a, sides.map(&:first), width: :byte
-      @side_b = b.table :door_side_b, sides.map(&:last), width: :byte
+      # Read by the door's number, so it lies where the doors do (FloorTables).
+      tables = @this_floor.tables
+      @side_a = tables.declare_items(:door_side_a, width: :byte) do |floor|
+        floor.doors.doors.map { |door| joins(floor.level, door).first }
+      end
+      @side_b = tables.declare_items(:door_side_b, width: :byte) do |floor|
+        floor.doors.doors.map { |door| joins(floor.level, door).last }
+      end
 
       # WHICH ROOMS ARE OPEN RIGHT NOW, one entry a room. Written every frame, so it is a list
       # rather than a table. Worked out from the doors and where the player stands, so a saved
