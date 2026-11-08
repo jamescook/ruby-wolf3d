@@ -23,6 +23,8 @@ module Wolf3D
     DOORS = Holding::ROOM.fetch(:doors)
     # ...and the walls that move, the same way.
     PUSHWALLS = Holding::ROOM.fetch(:pushwalls)
+    # ...and the scenery and pickups.
+    PIECES = Holding::ROOM.fetch(:pieces)
 
     # The slots the floors take, declared on +slots+ (the data pack's).
     def self.declare(slots)
@@ -40,6 +42,20 @@ module Wolf3D
       slots.numbers :push_face, count: PUSHWALLS * FLOORS, width: :byte, signed: false, layout: :gba
       # Minus one where a floor has no secret lift, because nought is a real cell (ThisFloor).
       slots.numbers :secret_car, count: FLOORS, width: :half, signed: true, layout: :gba
+      declare_pieces(slots)
+    end
+
+    # A piece's cell, which of Scenery's pieces it is (its code less Scenery::FIRST_CODE: what it
+    # gives you is looked up by that), and its picture. Then two tables laid out like the map: one
+    # for a cell a foot cannot pass, one for a cell with something to pick up, as the piece's number
+    # in its floor counting from one. A floor can hold more pieces than a byte counts.
+    def self.declare_pieces(slots)
+      slots.numbers :piece_count, count: FLOORS, width: :half, signed: false, layout: :gba
+      %i[piece_x piece_y piece_kind piece_picture].each do |name|
+        slots.numbers name, count: PIECES * FLOORS, width: :byte, signed: false, layout: :gba
+      end
+      slots.numbers :blocked, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
+      slots.numbers :lying_at, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.
@@ -125,6 +141,47 @@ module Wolf3D
       @pack[:secret_car][(n * 2) + 1] = car >> 8
       @copy.count_written 4
       fill_pushwalls(n, base)
+      fill_pieces(n, base)
+    end
+
+    # WHAT STANDS IN THE ROOMS OF FLOOR +n+ (Scenery): every cell whose thing code names one of
+    # Scenery's pieces, in the map's order. Only a cell with something on it is written; the rest
+    # of the two map-shaped tables stays nought.
+    def fill_pieces(n, base)
+      pieces = counter(:pieces)
+      kind = counter(:piece_kind)
+      pieces.store!(0)
+      @b.repeat(CELLS) do |cell|
+        kind.store!(thing_code(base + cell) - Scenery::FIRST_CODE)
+        if kind >= 0 && kind < Scenery::PICTURES.length
+          write_piece((PIECES * n) + pieces, cell, kind) if pieces < PIECES
+          @pack[:blocked][base + cell] = 1 if any_of?(kind, Scenery::BLOCKING)
+          pieces.increase!(1)
+          if any_of?(kind, Scenery::BONUSES.keys)
+            @pack[:lying_at][(base + cell) * 2] = pieces
+            @pack[:lying_at][((base + cell) * 2) + 1] = pieces >> 8
+          end
+          @copy.count_written 3
+        end
+      end
+      @pack[:piece_count][n * 2] = pieces
+      @pack[:piece_count][(n * 2) + 1] = pieces >> 8
+      @copy.count_written 2
+    end
+
+    # PIECE +at+ IN ITS SLOTS. Its picture is Scenery.picture_of: each piece wears the picture
+    # of its own number, but for the few in Scenery::PICTURES that borrow another's.
+    def write_piece(at, cell, kind)
+      picture = counter(:piece_picture)
+      picture.store!(Scenery::FIRST_PICTURE + kind)
+      Scenery::PICTURES.each_with_index do |worn, own|
+        picture.store!(Scenery::FIRST_PICTURE + worn) if worn != own && kind == own
+      end
+      @pack[:piece_x][at] = cell % 64
+      @pack[:piece_y][at] = cell / 64
+      @pack[:piece_kind][at] = kind
+      @pack[:piece_picture][at] = picture
+      @copy.count_written 4
     end
 
     # DOOR +at+ IN THE DOOR SLOTS, from its wall +code+ (Doors#door_at): the picture it wears, at its
@@ -201,8 +258,10 @@ module Wolf3D
 
     def solid_code?(code) = code < Level::FLOOR && !door?(code) && code != Level::AMBUSH
 
-    # One of Level::DOORS, asked as the routine runs.
-    def door?(code) = Level::DOORS.map { |door| code == door }.reduce(:|)
+    def door?(code) = any_of?(code, Level::DOORS)
+
+    # Is +value+, a number the routine reads, one of +numbers+? One comparison each, as it runs.
+    def any_of?(value, numbers) = numbers.map { |number| value == number }.reduce(:|)
 
     def wall_code(at) = word(:wall_plane, at)
     def thing_code(at) = word(:thing_plane, at)

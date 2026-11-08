@@ -26,6 +26,8 @@ class TestFloorUnpacking < Minitest::Test
       assert_same_world maps, pack
       assert_same_pushwalls maps, pack
       assert_same_lifts maps, pack
+      assert_same_pieces maps, pack
+      assert_same_footing maps, pack
     end
   end
 
@@ -40,9 +42,45 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_doors Wolf3D.maps, Wolf3D.vswap, pack
     assert_same_pushwalls Wolf3D.maps, pack
     assert_same_lifts Wolf3D.maps, pack
+    assert_same_pieces Wolf3D.maps, pack
+    assert_same_footing Wolf3D.maps, pack
   end
 
   private
+
+  # Each floor's scenery and pickups, in a run of Unpacking::PIECES from the floor's start: the
+  # readers' count, and for each piece its cell, which of Scenery's pieces it is and its picture.
+  def assert_same_pieces(maps, pack)
+    counts = pack.fetch(:piece_count).unpack("v*")
+    maps.count.times do |n|
+      pieces = Wolf3D::Scenery.new(maps[n]).pieces
+      run = (Unpacking::PIECES * n)...((Unpacking::PIECES * n) + pieces.length)
+      wanted = pieces.map do |piece|
+        [piece.x, piece.y, maps[n].thing_code(piece.x, piece.y) - Wolf3D::Scenery::FIRST_CODE, piece.picture]
+      end
+
+      assert_equal pieces.length, counts[n], "floor #{n}'s pieces"
+      assert_equal wanted, %i[piece_x piece_y piece_kind piece_picture].map { |slot| pack.fetch(slot).bytes[run] }.transpose,
+                   "floor #{n}'s pieces"
+    end
+  end
+
+  # Each floor's cells a foot cannot pass for what stands in them (Scenery#blocks?), and the
+  # cells with something to pick up, as the piece's number in its floor counting from one
+  # (Pickups' lying_at), both laid out like the map.
+  def assert_same_footing(maps, pack)
+    blocked = pack.fetch(:blocked).bytes
+    lying = pack.fetch(:lying_at).unpack("v*")
+    maps.count.times do |n|
+      scenery = Wolf3D::Scenery.new(maps[n])
+      want_lying = Array.new(CELLS, 0)
+      scenery.pieces.each_with_index { |piece, at| want_lying[(piece.y * 64) + piece.x] = at + 1 if piece.bonus }
+
+      assert_equal maps[n].each_cell.map { |x, y| scenery.blocks?(x, y) ? 1 : 0 }, blocked[CELLS * n, CELLS],
+                   "floor #{n}'s blocked cells"
+      assert_equal want_lying, lying[CELLS * n, CELLS], "floor #{n}'s things to pick up"
+    end
+  end
 
   # Each floor's walls that move, in a run of Unpacking::PUSHWALLS from the floor's start: the
   # readers' count, and for each wall the cell it starts in and the page of its lit face in the
