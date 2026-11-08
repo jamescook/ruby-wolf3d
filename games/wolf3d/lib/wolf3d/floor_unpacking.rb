@@ -11,7 +11,8 @@ module Wolf3D
   # This file is game code (VBlank.require_game_file): a `while` or an `if` on a number the routine
   # reads is a loop or a branch in it, and a local it changes is one of its variables.
   class FloorUnpacking
-    CELLS = 64 * 64
+    WIDTH = 64 # Cells across a floor, and down it
+    CELLS = WIDTH * WIDTH
     FLOORS = Holding::FLOORS
     PLANE_BYTES = CELLS * 2
 
@@ -20,13 +21,17 @@ module Wolf3D
 
     # A FLOOR'S DOORS ARE A FIXED RUN OF THIS MANY in each door slot, floor n's from n times it, so
     # nothing has to add up the floors before it. The original's own limit (Holding::ROOM).
-    DOORS = Holding::ROOM.fetch(:doors)
-    # ...and the walls that move, the same way.
-    PUSHWALLS = Holding::ROOM.fetch(:pushwalls)
-    # ...and the scenery and pickups.
-    PIECES = Holding::ROOM.fetch(:pieces)
-    # ...and the guards.
-    GUARDS = Holding::ROOM.fetch(:guards)
+    #
+    # A floor past one of these limits is never unpacked: the original quits on one, and the pack is
+    # only ever made from a copy Vanilla::RELEASES names by its SHA-1, whose every floor the tests
+    # hold to the readers. So past a limit the lists stop and the maps go on, unchecked.
+    DOORS_PER_FLOOR = Holding::ROOM.fetch(:doors)
+    PUSHWALLS_PER_FLOOR = Holding::ROOM.fetch(:pushwalls)
+    PIECES_PER_FLOOR = Holding::ROOM.fetch(:pieces)
+    GUARDS_PER_FLOOR = Holding::ROOM.fetch(:guards)
+
+    # The lowest thing code any enemy answers to; nearly every cell holds one below it.
+    LOWEST_GUARD_CODE = Enemy::ALL.select { |enemy| enemy.codes.positive? }.map(&:standing).min
 
     # The pieces the screen between floors counts as treasure: the four treasures and the one-up
     # (Pickups::COUNTS_AS_TREASURE), as Scenery's kinds.
@@ -48,17 +53,17 @@ module Wolf3D
         slots.numbers name, count: FLOORS, width: :byte, signed: false, layout: :gba
       end
       %i[door_picture door_across door_lock door_side_a door_side_b].each do |name|
-        slots.numbers name, count: DOORS * FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: DOORS_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba
       end
-      slots.numbers :push_home, count: PUSHWALLS * FLOORS, width: :half, signed: false, layout: :gba
+      slots.numbers :push_home, count: PUSHWALLS_PER_FLOOR * FLOORS, width: :half, signed: false, layout: :gba
       %i[push_face push_room_a push_room_b].each do |name|
-        slots.numbers name, count: PUSHWALLS * FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: PUSHWALLS_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba
       end
       # Minus one where a floor has no secret lift, because nought is a real cell (ThisFloor).
       slots.numbers :secret_car, count: FLOORS, width: :half, signed: true, layout: :gba
       declare_pieces(slots)
       slots.numbers :guard_count, count: FLOORS, width: :byte, signed: false, layout: :gba
-      GUARD_SLOTS.each { |name| slots.numbers name, count: GUARDS * FLOORS, width: :byte, signed: false, layout: :gba }
+      GUARD_SLOTS.each { |name| slots.numbers name, count: GUARDS_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba }
       declare_rooms(slots)
     end
 
@@ -81,7 +86,7 @@ module Wolf3D
     def self.declare_pieces(slots)
       slots.numbers :piece_count, count: FLOORS, width: :half, signed: false, layout: :gba
       %i[piece_x piece_y piece_kind piece_picture piece_room].each do |name|
-        slots.numbers name, count: PIECES * FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: PIECES_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba
       end
       slots.numbers :blocked, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
       slots.numbers :lying_at, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
@@ -156,7 +161,7 @@ module Wolf3D
         car.store!(cell) if code == Elevator::SECRET_CAR && car < 0
         if door?(code)
           number.store!(ThisFloor::DOOR + doors)
-          write_door((DOORS * n) + doors, code, first_door, base, cell) if doors < DOORS
+          write_door((DOORS_PER_FLOOR * n) + doors, code, first_door, base, cell) if doors < DOORS_PER_FLOOR
           doors.increase!(1)
         elsif code == Elevator::SWITCH
           number.store!(ThisFloor::LIFT + levers)
@@ -205,7 +210,7 @@ module Wolf3D
     # THE ROOM AT CELL +x+, +y+ of the floor at +base+, into +into+: nought outside the map.
     def room_at(base, x, y, into)
       into.store!(0)
-      into.store!(@pack[:room_of][base + (y * 64) + x]) if x >= 0 && y >= 0 && x < 64 && y < 64
+      into.store!(@pack[:room_of][base + (y * WIDTH) + x]) if x >= 0 && y >= 0 && x < WIDTH && y < WIDTH
       into
     end
 
@@ -221,7 +226,7 @@ module Wolf3D
       @b.repeat(CELLS) do |cell|
         read_guard(thing_code(base + cell), wall_code(base + cell))
         if counter(:guard_kind) >= 0
-          write_guard((GUARDS * n) + guards, cell) if guards < GUARDS
+          write_guard((GUARDS_PER_FLOOR * n) + guards, cell) if guards < GUARDS_PER_FLOOR
           guards.increase!(1)
           # A man to kill on every setting from the easiest he turns up on (Guards#to_kill).
           kills.each_with_index { |count, setting| count.increase!(1) if counter(:guard_from) <= setting }
@@ -230,7 +235,7 @@ module Wolf3D
           # (Enemy#counted?): the machine was.
           if counter(:guard_kind) == kind_number(:mecha)
             counter(:guard_kind).store!(kind_number(:hitler))
-            write_guard((GUARDS * n) + guards, cell) if guards < GUARDS
+            write_guard((GUARDS_PER_FLOOR * n) + guards, cell) if guards < GUARDS_PER_FLOOR
             guards.increase!(1)
           end
         end
@@ -247,7 +252,7 @@ module Wolf3D
       code.store!(thing)
       counter(:guard_kind).store!(-1)
       # Nearly every cell holds a code below every kind's, and asks no more than this.
-      read_guard_kind(code, floor_code) if code >= Enemy::ALL.select { |enemy| enemy.codes.positive? }.map(&:standing).min
+      read_guard_kind(code, floor_code) if code >= LOWEST_GUARD_CODE
     end
 
     # ...for a code that can be somebody's: one arm per block of every kind.
@@ -292,8 +297,8 @@ module Wolf3D
 
     # GUARD +at+ IN ITS SLOTS, from the guard_ counters, standing in +cell+.
     def write_guard(at, cell)
-      @pack[:guard_x][at] = cell % 64
-      @pack[:guard_y][at] = cell / 64
+      @pack[:guard_x][at] = cell % WIDTH
+      @pack[:guard_y][at] = cell / WIDTH
       (GUARD_SLOTS - %i[guard_x guard_y]).each { |slot| @pack[slot][at] = counter(slot) }
       @copy.count_written GUARD_SLOTS.length
     end
@@ -312,7 +317,7 @@ module Wolf3D
       @b.repeat(CELLS) do |cell|
         kind.store!(thing_code(base + cell) - Scenery::FIRST_CODE)
         if kind >= 0 && kind < Scenery::PICTURES.length
-          write_piece((PIECES * n) + pieces, base, cell, kind) if pieces < PIECES
+          write_piece((PIECES_PER_FLOOR * n) + pieces, base, cell, kind) if pieces < PIECES_PER_FLOOR
           treasures.increase!(1) if any_of?(kind, TREASURE_KINDS)
           @pack[:blocked][base + cell] = 1 if any_of?(kind, Scenery::BLOCKING)
           pieces.increase!(1)
@@ -333,14 +338,14 @@ module Wolf3D
     # PIECE +at+ IN ITS SLOTS. Its picture is Scenery.picture_of: each piece wears the picture
     # of its own number, but for the few in Scenery::PICTURES that borrow another's.
     def write_piece(at, base, cell, kind)
-      @pack[:piece_room][at] = room_at(base, cell % 64, cell / 64, counter(:piece_room))
+      @pack[:piece_room][at] = room_at(base, cell % WIDTH, cell / WIDTH, counter(:piece_room))
       picture = counter(:piece_picture)
       picture.store!(Scenery::FIRST_PICTURE + kind)
       Scenery::PICTURES.each_with_index do |worn, own|
         picture.store!(Scenery::FIRST_PICTURE + worn) if worn != own && kind == own
       end
-      @pack[:piece_x][at] = cell % 64
-      @pack[:piece_y][at] = cell / 64
+      @pack[:piece_x][at] = cell % WIDTH
+      @pack[:piece_y][at] = cell / WIDTH
       @pack[:piece_kind][at] = kind
       @pack[:piece_picture][at] = picture
       @copy.count_written 5
@@ -351,8 +356,8 @@ module Wolf3D
     # runs across x; a lift's door and a locked one wear pictures of their own. It joins the rooms
     # either side of its panel (Rooms#joins): west and east of one across x, else north and south.
     def write_door(at, code, first_door, base, cell)
-      x = cell % 64
-      y = cell / 64
+      x = cell % WIDTH
+      y = cell / WIDTH
       if (code & 1) == Doors::ACROSS_X
         @pack[:door_side_a][at] = room_at(base, x - 1, y, counter(:side))
         @pack[:door_side_b][at] = room_at(base, x + 1, y, counter(:side))
@@ -386,15 +391,15 @@ module Wolf3D
       y = counter(:y)
       pushed.store!(0)
       @b.repeat(CELLS) do |cell|
-        if thing_code(base + cell) == Level::PUSHWALL && solid?(base, cell % 64, cell / 64)
-          if pushed < PUSHWALLS
-            write_pushwall((PUSHWALLS * n) + pushed, cell, wall_code(base + cell))
-            write_pushwall_rooms((PUSHWALLS * n) + pushed, base, cell)
+        if thing_code(base + cell) == Level::PUSHWALL && solid?(base, cell % WIDTH, cell / WIDTH)
+          if pushed < PUSHWALLS_PER_FLOOR
+            write_pushwall((PUSHWALLS_PER_FLOOR * n) + pushed, cell, wall_code(base + cell))
+            write_pushwall_rooms((PUSHWALLS_PER_FLOOR * n) + pushed, base, cell)
           end
-          claim(base, cell % 64, cell / 64, pushed)
+          claim(base, cell % WIDTH, cell / WIDTH, pushed)
           [[1, 0], [-1, 0], [0, 1], [0, -1]].each do |dx, dy|
-            x.store!((cell % 64) + dx)
-            y.store!((cell / 64) + dy)
+            x.store!((cell % WIDTH) + dx)
+            y.store!((cell / WIDTH) + dy)
             unless solid?(base, x, y)
               claim(base, x, y, pushed)
               x.increase!(dx)
@@ -431,7 +436,7 @@ module Wolf3D
       far.store!(0)
       more.store!(0)
       [[1, 0], [-1, 0], [0, 1], [0, -1]].each do |dx, dy|
-        room_at(base, (cell % 64) + dx, (cell / 64) + dy, room)
+        room_at(base, (cell % WIDTH) + dx, (cell / WIDTH) + dy, room)
         if room > 0
           if near == 0
             near.store!(room)
@@ -453,13 +458,13 @@ module Wolf3D
     # wall that moves has it.
     def claim(base, x, y, pushed)
       held = counter(:held)
-      held.store!(world_at(base + (y * 64) + x))
-      write_world(base + (y * 64) + x, ThisFloor::PUSH + pushed) unless held >= ThisFloor::DOOR && held < ThisFloor::LIFT
+      held.store!(world_at(base + (y * WIDTH) + x))
+      write_world(base + (y * WIDTH) + x, ThisFloor::PUSH + pushed) unless held >= ThisFloor::DOOR && held < ThisFloor::LIFT
     end
 
     # Level#solid?, on the unpacked plane: outside the map, or a wall that is not a door or an ambush.
     def solid?(base, x, y)
-      x < 0 || y < 0 || x >= 64 || y >= 64 || solid_code?(wall_code(base + (y * 64) + x))
+      x < 0 || y < 0 || x >= WIDTH || y >= WIDTH || solid_code?(wall_code(base + (y * WIDTH) + x))
     end
 
     def solid_code?(code) = code < Level::FLOOR && !door?(code) && code != Level::AMBUSH

@@ -22,37 +22,40 @@ class TestFloorUnpacking < Minitest::Test
       maps = Wolf3D::Maps.new(maphead: release.files["MAPHEAD"], gamemaps: release.files["GAMEMAPS"])
       pack = unpacked(made_up_original(dir))
 
-      assert_equal maps.count, pack.fetch(:floor_count).getbyte(0)
-      assert_same_world maps, pack
-      assert_same_pushwalls maps, pack
-      assert_same_lifts maps, pack
-      assert_same_pieces maps, pack
-      assert_same_footing maps, pack
-      assert_same_guards maps, pack
-      assert_same_rooms maps, pack
-      assert_same_totals maps, pack
+      assert_same_floors maps, Wolf3D::Vswap.new(release.files["VSWAP"]), pack
     end
   end
 
-  def test_every_floor_of_the_real_copy_means_what_the_readers_say
-    data = real_copy
-    pack = unpacked(VBlank::Original::Game.new(title: "Wolfenstein 3D", setting: "WOLF3D_DATA", settings_file: "/dev/null",
-                                               env: { "WOLF3D_DATA" => data.dir }, key: "data",
-                                               releases: Wolf3D::Vanilla::RELEASES, platform: :pc))
+  def test_every_floor_of_the_six_episodes_means_what_the_readers_say
+    assert_same_floors Wolf3D.maps, Wolf3D.vswap, unpacked(real_original(real_copy))
+  end
 
-    assert_equal Wolf3D.maps.count, pack.fetch(:floor_count).getbyte(0)
-    assert_same_world Wolf3D.maps, pack
-    assert_same_doors Wolf3D.maps, Wolf3D.vswap, pack
-    assert_same_pushwalls Wolf3D.maps, pack
-    assert_same_lifts Wolf3D.maps, pack
-    assert_same_pieces Wolf3D.maps, pack
-    assert_same_footing Wolf3D.maps, pack
-    assert_same_guards Wolf3D.maps, pack
-    assert_same_rooms Wolf3D.maps, pack
-    assert_same_totals Wolf3D.maps, pack
+  # The shareware's ten floors fill the same slots, and the pack says it has ten.
+  def test_every_floor_of_the_shareware_means_what_the_readers_say
+    data = real_shareware
+    assert_same_floors Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), unpacked(real_original(data))
   end
 
   private
+
+  def assert_same_floors(maps, vswap, pack)
+    assert_equal maps.count, pack.fetch(:floor_count).getbyte(0)
+    assert_same_world maps, pack
+    assert_same_doors maps, vswap, pack
+    assert_same_pushwalls maps, pack
+    assert_same_lifts maps, pack
+    assert_same_pieces maps, pack
+    assert_same_footing maps, pack
+    assert_same_guards maps, pack
+    assert_same_rooms maps, pack
+    assert_same_totals maps, pack
+  end
+
+  def real_original(data)
+    VBlank::Original::Game.new(title: "Wolfenstein 3D", setting: "WOLF3D_DATA", settings_file: "/dev/null",
+                               env: { "WOLF3D_DATA" => data.dir }, key: "data",
+                               releases: Wolf3D::Vanilla::RELEASES, platform: :pc)
+  end
 
   NOWHERE = Wolf3D::Rooms::NOWHERE
 
@@ -74,7 +77,7 @@ class TestFloorUnpacking < Minitest::Test
         steps = door.across == Wolf3D::Doors::ACROSS_X ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]]
         steps.map { |dx, dy| room.call(door.x + dx, door.y + dy) }
       end
-      at = Unpacking::DOORS * n
+      at = Unpacking::DOORS_PER_FLOOR * n
       assert_equal sides, %i[door_side_a door_side_b].map { |slot| pack.fetch(slot).bytes[at, doors.length] }.transpose,
                    "floor #{n}'s door sides"
 
@@ -83,13 +86,13 @@ class TestFloorUnpacking < Minitest::Test
         round = [[1, 0], [-1, 0], [0, 1], [0, -1]].map { |dx, dy| room.call(wall.x + dx, wall.y + dy) }.uniq - [NOWHERE]
         round.length == 2 ? round : [NOWHERE, NOWHERE]
       end
-      at = Unpacking::PUSHWALLS * n
+      at = Unpacking::PUSHWALLS_PER_FLOOR * n
       assert_equal between, %i[push_room_a push_room_b].map { |slot| pack.fetch(slot).bytes[at, walls.length] }.transpose,
                    "floor #{n}'s rooms either side of a wall that moves"
 
       pieces = Wolf3D::Scenery.new(level).pieces
       assert_equal pieces.map { |piece| room.call(piece.x, piece.y) },
-                   pack.fetch(:piece_room).bytes[Unpacking::PIECES * n, pieces.length], "floor #{n}'s pieces' rooms"
+                   pack.fetch(:piece_room).bytes[Unpacking::PIECES_PER_FLOOR * n, pieces.length], "floor #{n}'s pieces' rooms"
 
       exits = level.exits.map { |x, y| (y * 64) + x }
       assert_equal [exits.min || 1, exits.max || 0], [firsts[n], lasts[n]], "floor #{n}'s way out"
@@ -113,13 +116,13 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
-  # Each floor's guards, in a run of Unpacking::GUARDS from the floor's start, as Guards reads
+  # Each floor's guards, in a run of Unpacking::GUARDS_PER_FLOOR from the floor's start, as Guards reads
   # them: cell, kind (its place in Enemy::ALL), the way it faces as the original numbers
   # directions, whether it patrols, whether it lies in wait, and the easiest setting it turns up on.
   def assert_same_guards(maps, pack)
     maps.count.times do |n|
       guards = Wolf3D::Guards.new(maps[n]).guards
-      run = (Unpacking::GUARDS * n)...((Unpacking::GUARDS * n) + guards.length)
+      run = (Unpacking::GUARDS_PER_FLOOR * n)...((Unpacking::GUARDS_PER_FLOOR * n) + guards.length)
       wanted = guards.map do |g|
         [g.x, g.y, Wolf3D::Enemy::ALL.index { |kind| kind.name == g.kind }, Wolf3D::Guards.direction_of(g.facing),
          g.patrolling ? 1 : 0, g.ambush ? 1 : 0, g.from]
@@ -130,13 +133,13 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
-  # Each floor's scenery and pickups, in a run of Unpacking::PIECES from the floor's start: the
+  # Each floor's scenery and pickups, in a run of Unpacking::PIECES_PER_FLOOR from the floor's start: the
   # readers' count, and for each piece its cell, which of Scenery's pieces it is and its picture.
   def assert_same_pieces(maps, pack)
     counts = pack.fetch(:piece_count).unpack("v*")
     maps.count.times do |n|
       pieces = Wolf3D::Scenery.new(maps[n]).pieces
-      run = (Unpacking::PIECES * n)...((Unpacking::PIECES * n) + pieces.length)
+      run = (Unpacking::PIECES_PER_FLOOR * n)...((Unpacking::PIECES_PER_FLOOR * n) + pieces.length)
       wanted = pieces.map do |piece|
         [piece.x, piece.y, maps[n].thing_code(piece.x, piece.y) - Wolf3D::Scenery::FIRST_CODE, piece.picture]
       end
@@ -164,14 +167,14 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
-  # Each floor's walls that move, in a run of Unpacking::PUSHWALLS from the floor's start: the
+  # Each floor's walls that move, in a run of Unpacking::PUSHWALLS_PER_FLOOR from the floor's start: the
   # readers' count, and for each wall the cell it starts in and the page of its lit face in the
   # whole row of wall pictures (WallAtlas: a code's lit face is page (code - 1) * 2).
   def assert_same_pushwalls(maps, pack)
     homes = pack.fetch(:push_home).unpack("v*")
     maps.count.times do |n|
       walls = Wolf3D::Pushwalls.new(maps[n])
-      at = Unpacking::PUSHWALLS * n
+      at = Unpacking::PUSHWALLS_PER_FLOOR * n
       faces = walls.codes.map { |code| Wolf3D::WallAtlas.texture_index(code, Wolf3D::WallAtlas::LIT) }
 
       assert_equal walls.count, pack.fetch(:pushwall_count).getbyte(n), "floor #{n}'s walls that move"
@@ -191,12 +194,12 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
-  # Each floor's doors, in a run of Unpacking::DOORS from the floor's start: the readers' count,
+  # Each floor's doors, in a run of Unpacking::DOORS_PER_FLOOR from the floor's start: the readers' count,
   # and for each door its picture's page, which way it runs and the key it wants.
   def assert_same_doors(maps, vswap, pack)
     maps.count.times do |n|
       doors = Wolf3D::Doors.new(maps[n], vswap)
-      run = (Unpacking::DOORS * n)...((Unpacking::DOORS * n) + doors.count)
+      run = (Unpacking::DOORS_PER_FLOOR * n)...((Unpacking::DOORS_PER_FLOOR * n) + doors.count)
       wanted = doors.doors.map { |door| [doors.picture_for(door), door.across, Wolf3D::FirstPerson::KEY_BITS[door.lock] || 0] }
 
       assert_equal doors.count, pack.fetch(:door_count).getbyte(n), "floor #{n}'s doors"
