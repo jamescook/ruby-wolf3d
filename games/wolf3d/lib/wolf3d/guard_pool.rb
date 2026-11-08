@@ -61,10 +61,12 @@ module Wolf3D
 
     # +behaviour+ is every state of every kind this cartridge ships, which is what a guard's
     # starting state and toughness are read from. +difficulty+ is how tough the game is set,
-    # which decides who stands up when a floor starts.
-    def initialize(build:, floors:, behaviour:, lasting:, difficulty:)
+    # which decides who stands up when a floor starts. +tables+ is where every floor's guards
+    # come from (FloorTables).
+    def initialize(build:, floors:, tables:, behaviour:, lasting:, difficulty:)
       @b = build
       @floors = floors
+      @tables = tables
       @behaviour = behaviour
       @lasting = lasting
       @difficulty = difficulty
@@ -78,8 +80,8 @@ module Wolf3D
     # POINT AT FLOOR +n+'S SLICE of the tables of where everybody started. Written inside the
     # arm the view runs for that floor as it starts; see FirstPerson#select_floor.
     def select_floor(n)
-      @count = @floors.count_of(:guards, n)
-      @first = @floors.first_of(:guards, n)
+      @count = @tables.fetch_floor_value(:guards, n)
+      @first = @tables.run_start(:guards, n)
     end
 
     # EVERYBODY OUT, THEN THIS FLOOR'S PEOPLE IN.
@@ -131,8 +133,8 @@ module Wolf3D
       # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE of the tables below, set as each floor starts
       # (#select_floor). They start at the first floor's own numbers, because at boot no floor has
       # been STARTED — the game simply begins on the first one.
-      @first = @b.var :_guard_first, @floors.first_of(:guards, 0)
-      @count = @b.var :_guard_count, @floors.count_of(:guards, 0)
+      @first = @b.var :_guard_first, @tables.run_start(:guards, 0)
+      @count = @tables.declare_floor_value(:_guard_count, :guards)
 
       # +dropped+ is whether he is lying beside the clip of ammunition he left when he fell. It is
       # a field of his rather than a place of its own because where the clip lies is where he
@@ -150,8 +152,10 @@ module Wolf3D
       @pool = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
                             hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0, noticed: 0, door: 0,
                             capacity: @floors.room_for(:guards), widths: widths
-      stand_up_the_first_floor
+      first_guards = @tables.known_first_guards(Guards::DEFAULT_DIFFICULTY)
+      stand_up_first_floor(first_guards) if first_guards
       declare_where_they_start
+      stand_up_first_floor_from_tables unless first_guards
     end
 
     # HOW WIDE EACH SLOT OF A GUARD HAS TO BE, given what this cartridge can really put down.
@@ -170,8 +174,8 @@ module Wolf3D
     # tough the game is set is still exactly the number the variable was declared with — a fact
     # known while the cartridge is built. So the ones that setting names are written out and the
     # rest are simply not, which is also why this costs no more than the guards it writes.
-    def stand_up_the_first_floor
-      (@floors.first_floor.guards&.at(Guards::DEFAULT_DIFFICULTY) || []).each_with_index do |guard, n|
+    def stand_up_first_floor(guards)
+      guards.each_with_index do |guard, n|
         # A guard stands in the middle of his cell, like the player does.
         state = @behaviour.starting_state(guard)
         @pool.spawn x: guard.x + 0.5, y: guard.y + 0.5,
@@ -186,46 +190,64 @@ module Wolf3D
       end
     end
 
+    # ...OR, WHERE THE BUILD DOES NOT KNOW THEM (a whole build, whose floors are read from the pack
+    # after it is built), the first floor's guards stood up from the tables at power-on, as #refill
+    # stands up every later floor's. This is written where the pool is declared, before the game
+    # loop, which runs once. The counts it keeps are its own: the floor's tally is set when play
+    # starts.
+    def stand_up_first_floor_from_tables
+      refill(slot: @b.var(:_guard_boot_slot, 0), kill_total: @b.var(:_guard_boot_kill_total, 0),
+             kills: @b.var(:_guard_boot_kills, 0))
+    end
+
     # WHERE EVERY GUARD STARTED, so a floor can be started again. All of it is settled while the
     # cartridge is built and none of it ever changes, so it lives in the cartridge — the same
     # facts the first floor's spawns are made of, kept where a routine can read them back by
     # number. Every floor's guards end to end, in the order the floors are played.
+    #
+    # WHERE HE STANDS AND HOW is a floor's own (FloorTables#declare_items); WHAT HE STARTS AS follows
+    # from his kind and whether he patrols, so a whole build keeps that once for each
+    # (FloorTables#declare_guard_rule).
     def declare_where_they_start
-      b = @b
-      everyone = @floors.flat_map { |floor| floor.guards&.guards || [] }
-      starting = everyone.map { |guard| @behaviour.starting_state(guard) }
-      @home_x = b.table :guard_home_x, Floors.at_least_one(everyone.map { |g| g.x + 0.5 })
-      @home_y = b.table :guard_home_y, Floors.at_least_one(everyone.map { |g| g.y + 0.5 })
-      @home_dir = b.table :guard_home_dir,
-                          Floors.at_least_one(everyone.map { |g| Guards.direction_of(g.facing) }),
-                          width: :byte
-      @home_state = b.table :guard_home_state, Floors.at_least_one(starting), width: @behaviour.width
+      tables = @tables
+      everyone = @floors.flat_map { |floor| guards_of(floor) }
+      @home_x = tables.declare_items(:guard_home_x, slot: :guard_x, plus: 0.5) { |f| guards_of(f).map { |g| g.x + 0.5 } }
+      @home_y = tables.declare_items(:guard_home_y, slot: :guard_y, plus: 0.5) { |f| guards_of(f).map { |g| g.y + 0.5 } }
+      @home_dir = tables.declare_items(:guard_home_dir, slot: :guard_dir, width: :byte) do |f|
+        guards_of(f).map { |g| Guards.direction_of(g.facing) }
+      end
+      @home_state = tables.declare_guard_rule(:guard_home_state, guards: everyone, width: @behaviour.width) do |g|
+        @behaviour.starting_state(g)
+      end
       # ...and whether he is one of the men to kill. All of them are but the man inside the machine.
-      @home_counted = b.table :guard_home_counted,
-                              Floors.at_least_one(everyone.map { |g| Enemy[g.kind].counted? ? 1 : 0 }),
-                              width: :byte
+      @home_counted = tables.declare_guard_rule(:guard_home_counted, guards: everyone, width: :byte) do |g|
+        Enemy[g.kind].counted? ? 1 : 0
+      end
       # ...and whether he counts as one already killed. See Enemy#killed_from_the_start?.
-      @home_killed = b.table :guard_home_killed,
-                             Floors.at_least_one(everyone.map { |g| Enemy[g.kind].killed_from_the_start? ? 1 : 0 }),
-                             width: :byte
-      @home_ticks = b.table :guard_home_ticks,
-                            Floors.at_least_one(starting.map { |s| @behaviour.state_at(s).ticks }),
-                            width: @behaviour.ticks_width
-      @home_ambush = b.table :guard_home_ambush,
-                             Floors.at_least_one(everyone.map { |g| g.ambush ? 1 : 0 }), width: :byte
+      @home_killed = tables.declare_guard_rule(:guard_home_killed, guards: everyone, width: :byte) do |g|
+        Enemy[g.kind].killed_from_the_start? ? 1 : 0
+      end
+      @home_ticks = tables.declare_guard_rule(:guard_home_ticks, guards: everyone, width: @behaviour.ticks_width) do |g|
+        @behaviour.state_at(@behaviour.starting_state(g)).ticks
+      end
+      @home_ambush = tables.declare_items(:guard_home_ambush, slot: :guard_ambush, width: :byte) do |f|
+        guards_of(f).map { |g| g.ambush ? 1 : 0 }
+      end
       # ...and the easiest setting each one turns up on, which is the whole of how a harder game
       # is a fuller floor. Every floor carries every guard it can ever hold; this is the column
       # that says which of them a given game stands up. See Guards::FROM.
-      @home_from = b.table :guard_home_from, Floors.at_least_one(everyone.map(&:from)), width: :byte
+      @home_from = tables.declare_items(:guard_home_from, slot: :guard_from, width: :byte) { |f| guards_of(f).map(&:from) }
       # HOW MUCH KILLING EACH ONE TAKES, which needs two tables and not one: the mutant is the
       # one kind a harder game toughens, and how hard the game is set is picked long after the
       # cartridge is built. So each one carries where ITS four numbers begin, and the floor's
       # start reads the one the setting names.
-      @home_tough = b.table :guard_home_tough,
-                            Floors.at_least_one(everyone.map { |g| @behaviour.hit_points_at(g.kind) }),
-                            width: :byte
-      @hit_points = b.table :guard_hit_points, @behaviour.hit_points, width: :half
+      @home_tough = tables.declare_guard_rule(:guard_home_tough, guards: everyone, width: :byte) do |g|
+        @behaviour.hit_points_at(g.kind)
+      end
+      @hit_points = @b.table :guard_hit_points, @behaviour.hit_points, width: :half
     end
+
+    def guards_of(floor) = floor.guards&.guards || []
 
     # A table must hold something, and a floor may hold nobody; nothing ever reads the one
     # unused entry because nobody is ever spawned from it.

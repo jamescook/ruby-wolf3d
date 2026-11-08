@@ -1072,7 +1072,7 @@ module Wolf3D
     def declare_the_guards
       return unless GuardPool.needed?(@floors)
 
-      @guard_pool = GuardPool.new(build: @b, floors: @floors, behaviour: @behaviour,
+      @guard_pool = GuardPool.new(build: @b, floors: @floors, tables: @this_floor.tables, behaviour: @behaviour,
                                   lasting: @lasting, difficulty: @difficulty)
     end
 

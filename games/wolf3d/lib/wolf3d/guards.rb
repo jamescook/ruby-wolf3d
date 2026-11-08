@@ -117,6 +117,19 @@ module Wolf3D
     # +from+ is the easiest setting it turns up on — see FROM.
     Guard = Data.define(:x, :y, :kind, :facing, :patrolling, :ambush, :from)
 
+    # CAN A FLOOR PUT DOWN ONE OF +kind+ THIS WAY? A boss only waits (and the man inside the
+    # machine waits too); the rank and file patrol, and stand where the kind stands at all (a dog
+    # never does). Asked by a whole build (FloorTables::Packed), which keeps what follows from a
+    # guard's kind once for each way he can be put down.
+    def self.can_stand_up?(kind, patrolling) = kind.boss? ? !patrolling : (patrolling || kind.stands)
+
+    # ONE OF +kind+ PUT DOWN THAT WAY, standing nowhere in particular, for asking what follows from
+    # his kind alone (his first state, how tough he is).
+    def self.make_guard(kind, patrolling)
+      Guard.new(x: 0, y: 0, kind: kind.name, facing: kind.boss? ? nil : FACINGS.first, patrolling: patrolling,
+                ambush: kind.boss?, from: FROM.first)
+    end
+
     # EVERYONE THE FLOOR CAN HOLD, at any setting, because how hard the game is set is not known
     # while the cartridge is built. So all of them are read and each carries the setting it
     # needs; which of them stand up is settled when a floor starts.

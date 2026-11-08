@@ -113,6 +113,21 @@ class TestHolding < Minitest::Test
     assert_equal given.first, given.last, "ammunition, score and health"
   end
 
+  # A GUARD STANDS, SEES YOU AND FALLS held either way: the whole build reads where each guard
+  # stands and how from the data pack, and what he starts as from his kind. The player is put down
+  # two cells south of the first floor's first guard with open floor between, facing him, and
+  # fires until the gun is empty.
+  def test_a_guard_is_shot_held_whole
+    real_copy
+    guard = first_guard_with_room_south
+    played = play_both(start: "#{guard.x},#{guard.y + 2},north", keys: FIRE_KEYS)
+    seen = played.map { |run| [run[:kills], run[:health], run[:ammo]] }
+
+    assert_operator seen.first.first, :>, 0, "the trimmed build kills the guard at #{guard.x},#{guard.y}"
+    assert_equal seen.first, seen.last, "kills, health and ammunition"
+    assert_equal 0, count_differing_pixels(*played.map(&:screen)), "pixels that differ"
+  end
+
   # A SECRET WALL MOVES held either way: the whole build reads where each starts and the floor's
   # count from the data pack. The player is put down beside the first floor's first wall that
   # moves, facing it, and pushes.
@@ -164,6 +179,8 @@ class TestHolding < Minitest::Test
   WALK_NORTH_KEYS = ->(frame) { frame > STANDING_FRAMES ? [:up] : [] }
   # ...or pushes what is in front of it, then waits while it slides.
   PUSH_KEYS = ->(frame) { frame == 70 ? [:a] : [] }
+  # ...or fires, a press every few frames.
+  FIRE_KEYS = ->(frame) { frame > STANDING_FRAMES && (frame % 12).zero? ? [:b] : [] }
   # ...or opens the door in front of it, waits for it to open, and walks through.
   OPEN_AND_WALK_KEYS = ->(frame) { frame == 70 ? [:a] : (frame.between?(110, 150) ? [:up] : []) }
   PLAYING_FRAMES = 220
@@ -186,6 +203,14 @@ class TestHolding < Minitest::Test
     level = Wolf3D.maps[0]
     Wolf3D::Scenery.new(level).pieces.find do |p|
       yield(p) && [1, 2].all? { |down| empty_floor?(level, p.x, p.y + down) }
+    end
+  end
+
+  # The first floor's first guard standing on every setting, with two empty cells south of him.
+  def first_guard_with_room_south
+    level = Wolf3D.maps[0]
+    Wolf3D::Guards.new(level).at(:baby).find do |g|
+      g.kind == :guard && [1, 2].all? { |down| empty_floor?(level, g.x, g.y + down) }
     end
   end
 

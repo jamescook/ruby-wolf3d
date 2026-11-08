@@ -79,6 +79,14 @@ module Wolf3D
         @b.table name, Floors.at_least_one(pieces.map(&rule)), width: width
       end
 
+      # ...and about each guard, the same way.
+      def declare_guard_rule(name, guards:, width: nil, &rule)
+        @b.table name, Floors.at_least_one(guards.map(&rule)), width: width
+      end
+
+      # The first floor's guards a game set +difficulty+ stands up, known while building.
+      def known_first_guards(difficulty) = @floors.first_floor.guards&.at(difficulty) || []
+
       # What lies on each cell, counted from one, laid out like the world; +cells+ answers a
       # floor's.
       def declare_lying_at(&cells) = @b.table(:lying_at, @floors.flat_map(&cells), width: :half)
@@ -188,15 +196,28 @@ module Wolf3D
         ByKind.new(rules, declare(:piece_kind))
       end
 
+      # The rule run over each kind of enemy, standing and patrolling (two entries a kind, the
+      # standing one first), read by which kind a guard is and whether he patrols. A pair no floor
+      # can hold (a dog standing, a boss patrolling) is nought, and never read.
+      def declare_guard_rule(name, guards: nil, width: nil, &rule) # rubocop:disable Lint/UnusedMethodArgument
+        values = Enemy::ALL.flat_map do |kind|
+          [false, true].map { |patrolling| Guards.can_stand_up?(kind, patrolling) ? rule.call(Guards.make_guard(kind, patrolling)) : 0 }
+        end
+        GuardRule.new(@b.table(name, values, width: width), declare(:guard_kind), declare(:guard_patrolling))
+      end
+
+      # Not known: the pack is read after the build. The first floor is stood up from the tables.
+      def known_first_guards(_difficulty) = nil
+
       # Where each kind's runs sit in the pack (FloorUnpacking's per-floor limits).
       PER_FLOOR = {
         doors: FloorUnpacking::DOORS_PER_FLOOR, pushwalls: FloorUnpacking::PUSHWALLS_PER_FLOOR,
-        pieces: FloorUnpacking::PIECES_PER_FLOOR
+        pieces: FloorUnpacking::PIECES_PER_FLOOR, guards: FloorUnpacking::GUARDS_PER_FLOOR
       }.freeze
 
       # The slot each number a floor has is kept in.
       FLOOR_VALUES = { doors: :door_count, pushwalls: :pushwall_count, pieces: :piece_count,
-                       secret_car: :secret_car }.freeze
+                       guards: :guard_count, secret_car: :secret_car }.freeze
 
       # A table read with a number added: a cell's middle, from the cell.
       Plus = Data.define(:table, :plus) do
@@ -206,6 +227,11 @@ module Wolf3D
       # A table of rules read by which kind an item is, from a table of the items' kinds.
       ByKind = Data.define(:rules, :kinds) do
         def [](at) = rules[kinds[at]]
+      end
+
+      # ...and a table of rules read by a guard's kind and whether he patrols.
+      GuardRule = Data.define(:rules, :kinds, :patrolling) do
+        def [](at) = rules[(kinds[at] * 2) + patrolling[at]]
       end
 
       private
