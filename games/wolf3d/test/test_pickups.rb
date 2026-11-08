@@ -194,8 +194,6 @@ class TestPickups < Minitest::Test
 
   private
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   def code(index) = Scenery::FIRST_CODE + index
   def gone(run, piece) = run.list(:thing_gone)[piece]
   def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]

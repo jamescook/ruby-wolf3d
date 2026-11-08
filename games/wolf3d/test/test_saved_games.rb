@@ -12,7 +12,6 @@ class TestSavedGames < Minitest::Test
   Saved = Wolf3D::SavedGames
   Release = Wolf3D::Fixture::Release
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
   ROW = 8
 
   # PRESSES, by the pass each lands on. The menu's fades take a fifth of a second or so, and every
@@ -74,7 +73,7 @@ class TestSavedGames < Minitest::Test
 
     assert_equal Menus::PLAYING, run[:screen]
     assert_equal 1, run[:_in_game]
-    assert_in_delta before[:px] / ONE, run[:px] / ONE, 0.001
+    assert_in_delta before[:px], run[:px], 0.001
     assert_equal before.pool(:guard, :hp).compact, run.pool(:guard, :hp).compact
   end
 

@@ -10,7 +10,6 @@ class TestPilot < Minitest::Test
 
   Pilot = Wolf3D::Pilot
   Sight = Pilot::Sight
-  SCALE = Sight::FIXED_POINT_SCALE
   ROW = 8
   THING = Wolf3D::Scenery::FIRST_CODE
   FIRST_AID = THING + 25
@@ -32,7 +31,7 @@ class TestPilot < Minitest::Test
                        _gturn: 0, _tally_showing: 0 }.freeze
 
     def initialize(at: [3, 3], men: [], doors_open: [], gone: [], **player)
-      @vars = STANDING_START.merge(player, px: (at[0] + 0.5) * SCALE, py: (at[1] + 0.5) * SCALE)
+      @vars = STANDING_START.merge(player, px: at[0] + 0.5, py: at[1] + 0.5)
       @men = men
       @doors_open = doors_open
       @gone = gone
@@ -44,8 +43,8 @@ class TestPilot < Minitest::Test
 
     def pool(_name, field)
       case field
-      when :x then @men.map { |x, _, _| x * SCALE }
-      when :y then @men.map { |_, y, _| y * SCALE }
+      when :x then @men.map { |x, _, _| x }
+      when :y then @men.map { |_, y, _| y }
       when :hp then @men.map { |_, _, hit_points| hit_points }
       else @men.map { 0 }
       end
@@ -303,7 +302,7 @@ class TestPilot < Minitest::Test
   # row eight is seen through at its middle once it is 8.5/256 open, and not while it is shut.
   def test_a_door_hides_a_man_only_until_it_cracks_open
     level = two_rooms(player: [3, ROW], door: [7, ROW])
-    crack = (0.05 * SCALE).to_i
+    crack = 0.05
 
     assert sight_on(level, at: [3, ROW], doors_open: [crack]).clear_line_to?(11.5, ROW + 0.5), "a crack open is a line"
     refute sight_on(level, at: [3, ROW], doors_open: [0]).clear_line_to?(11.5, ROW + 0.5), "a shut door is not"

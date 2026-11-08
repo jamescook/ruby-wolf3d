@@ -91,8 +91,7 @@ class TestFloors < Minitest::Test
     floors_of(a_floor(name: "one", start_x: 4, start_y: 8), a_floor(name: "two", start_x: 9, start_y: 3))
   end
 
-  def at(run) = [run[:px] / (1 << Fraction::DEFAULT_BITS).to_f,
-                 run[:py] / (1 << Fraction::DEFAULT_BITS).to_f]
+  def at(run) = [run[:px], run[:py]]
 
   # --- what a cartridge of floors is ---
 

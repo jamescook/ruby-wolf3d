@@ -310,16 +310,14 @@ class TestScenery < Minitest::Test
     Reference.new.run(view_of(arena(**), drawing: false), frames: frames)
   end
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   # Hold the forward button and see how far east the player gets.
   def walk_east(**)
     run = Reference.new.input_each_frame { [:up] }
                   .run(view_of(arena(**), drawing: false), frames: WALKING)
-    run[:px] / ONE
+    run[:px]
   end
 
-  def guard_x(run) = run.pool(:guard, :x)[0] / ONE
+  def guard_x(run) = run.pool(:guard, :x)[0]
 
   # How many standing things the frame that just finished queued up to draw.
   def queued(run) = run[:_seen]

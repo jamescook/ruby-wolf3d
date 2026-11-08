@@ -11,8 +11,8 @@ module Wolf3D
         def alive? = hit_points.positive?
       end
 
-      # What the running game keeps its fractions in, and what a full turn is on `view`.
-      FIXED_POINT_SCALE = 1 << VBlank::DSL::Fraction::DEFAULT_BITS
+      # What a full turn is on `view`. A fraction the game keeps (where BJ and the men stand, how far
+      # a door is open) reads back in cells, as the game wrote it.
       VIEW_UNITS_PER_TURN = 1024
 
       # `view` moves in tens with A held (FirstPerson::TURN_UNITS_RUNNING), so a target narrower than
@@ -89,7 +89,7 @@ module Wolf3D
       def in_view?(x, y) = view_error_to(x, y).abs <= SEEN_HALF_VIEW_UNITS
 
       # Has this door started to open at all?
-      def door_ajar?(cell) = @doors_open[@door_numbers.fetch(cell)].to_i.positive?
+      def door_ajar?(cell) = @doors_open[@door_numbers.fetch(cell)].positive?
 
       # How far `view` is from pointing at a place, the short way round.
       def view_error_to(x, y)
@@ -125,8 +125,8 @@ module Wolf3D
       private
 
       def read_player(game)
-        @x = game.var(:px) / FIXED_POINT_SCALE.to_f
-        @y = game.var(:py) / FIXED_POINT_SCALE.to_f
+        @x = game.var(:px).to_f
+        @y = game.var(:py).to_f
         @view = game.var(:view)
         @health = game.var(:health)
         @ammo = game.var(:ammo)
@@ -157,7 +157,7 @@ module Wolf3D
         xs, ys, hit_points, dropped = %i[x y hp dropped].map { |field| game.pool(:guard, field) }
         slots = xs.each_index.select { |n| xs[n] }
         @guards = slots.map do |n|
-          Man.new(x: xs[n] / FIXED_POINT_SCALE.to_f, y: ys[n] / FIXED_POINT_SCALE.to_f, hit_points: hit_points[n].to_i, number: n)
+          Man.new(x: xs[n].to_f, y: ys[n].to_f, hit_points: hit_points[n].to_i, number: n)
         end
         @men = @guards.select(&:alive?)
         @drops = slots.zip(@guards).select { |n, _| dropped[n].to_i.nonzero? }.map { |_, man| [man.x.floor, man.y.floor] }
@@ -195,7 +195,7 @@ module Wolf3D
         number = @door_numbers[[x, y]]
         return false unless number && @doors_open
 
-        middle <= @doors_open[number].to_i * GuardMind::CROSSING_STEPS_PER_CELL.to_f / FIXED_POINT_SCALE
+        middle <= @doors_open[number] * GuardMind::CROSSING_STEPS_PER_CELL.to_f
       end
     end
   end

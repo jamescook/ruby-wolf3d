@@ -41,13 +41,10 @@ class TestDoors < Minitest::Test
     end.run(program, frames: frames)
   end
 
-  ONE = 1 << Fraction::DEFAULT_BITS
+  # How far open a door is, as the 0-to-1 the game writes.
+  def door_open(run, index) = run.list(:door_open)[index]
 
-  # How far open a door is, as the 0-to-1 the game writes. The list holds numbers with a
-  # fraction, so what is stored is multiplied up.
-  def door_open(run, index) = run.list(:door_open)[index] / ONE.to_f
-
-  def where(run) = run[:py] / ONE.to_f
+  def where(run) = run[:py]
 
   # --- what the level says ---
 
@@ -228,16 +225,17 @@ class TestDoors < Minitest::Test
     # Tapped rather than held, since only the moment of pressing counts.
     opening = ->(f) { keys::KEY_UP | ((f / 6).even? ? keys::KEY_A : 0) }
 
+    # The build record goes in with the code, so the emulator reads `px` back in cells.
     backend = GBA.new
-    rom = ROM.assemble(backend.lower(corridor_program(corridor)), title: "DOORS")
-    vars = backend.var_addresses
-    stopped = Verifier.new(rom, frames: CONSOLE_FRAMES, keys: walking, vars: vars)
-    through = Verifier.new(rom, frames: CONSOLE_FRAMES, keys: opening, vars: vars)
+    program = corridor_program(corridor)
+    rom = ROM.assemble(backend.lower(program), title: "DOORS", built: backend.build_record(program))
+    stopped = Verifier.new(rom, frames: CONSOLE_FRAMES, keys: walking)
+    through = Verifier.new(rom, frames: CONSOLE_FRAMES, keys: opening)
 
     refute stopped.frame_gba.all?(&:zero?), "the cartridge should be drawing something"
-    assert_operator stopped.var(:px) / ONE.to_f, :<, DOOR_AT,
+    assert_operator stopped.var(:px), :<, DOOR_AT,
                     "with nothing pressed, the shut door stops the player short of it"
-    assert_operator through.var(:px) / ONE.to_f, :>, DOOR_AT,
+    assert_operator through.var(:px), :>, DOOR_AT,
                     "with the button, the console opens it and the player walks through"
   end
 end

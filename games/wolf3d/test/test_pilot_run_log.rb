@@ -10,14 +10,13 @@ class TestPilotRunLog < Minitest::Test
   include Wolf3DTest
 
   Pilot = Wolf3D::Pilot
-  SCALE = Pilot::Sight::FIXED_POINT_SCALE
   START = { screen: Wolf3D::Menus::PLAYING, floor: 0, lives: 3, view: 0, health: 100, ammo: 50, keys: 0, weapon: 1,
             weapon_best: 1, weapon_stage: -1 }.freeze
 
   # What the cartridge would answer on one frame. +men+ are [x, y, hit points].
   class Frame
     def initialize(at:, men:, **player)
-      @vars = START.merge(player, px: (at[0] + 0.5) * SCALE, py: (at[1] + 0.5) * SCALE)
+      @vars = START.merge(player, px: at[0] + 0.5, py: at[1] + 0.5)
       @men = men
     end
 
@@ -26,8 +25,8 @@ class TestPilotRunLog < Minitest::Test
 
     def pool(_name, field)
       case field
-      when :x then @men.map { |x, _, _| (x + 0.5) * SCALE }
-      when :y then @men.map { |_, y, _| (y + 0.5) * SCALE }
+      when :x then @men.map { |x, _, _| x + 0.5 }
+      when :y then @men.map { |_, y, _| y + 0.5 }
       when :hp then @men.map { |_, _, hit_points| hit_points }
       else @men.map { 0 }
       end

@@ -249,9 +249,9 @@ class TestBosses < Minitest::Test
     left = played([:l])
     right = played([:r])
 
-    assert_operator left[:py] / ONE, :<, still[:py] / ONE, "L steps north when you face east"
-    assert_operator right[:py] / ONE, :>, still[:py] / ONE, "R steps south"
-    assert_in_delta still[:px] / ONE, left[:px] / ONE, 0.2, "and neither walks you forward"
+    assert_operator left[:py], :<, still[:py], "L steps north when you face east"
+    assert_operator right[:py], :>, still[:py], "R steps south"
+    assert_in_delta still[:px], left[:px], 0.2, "and neither walks you forward"
   end
 
   # ...AND IT DOES NOT TURN YOU, which is the whole difference between a sidestep and a turn:
@@ -269,7 +269,7 @@ class TestBosses < Minitest::Test
   def test_stepping_sideways_into_a_wall_stops_you
     against_the_wall = played([:l], frames: 600)
 
-    assert_operator against_the_wall[:py] / ONE, :>, 1.0, "he must not be inside the wall"
+    assert_operator against_the_wall[:py], :>, 1.0, "he must not be inside the wall"
   end
 
   # KILLING HIM OUTRIGHT IS NOT TESTED HERE, and it is worth saying why rather than leaving the
@@ -303,7 +303,6 @@ class TestBosses < Minitest::Test
 
   # Stand and empty the pistol into him. +then_walk+ walks forward afterwards, over whatever he
   # left. He is drawn, because a shot goes to a man the view put on the screen.
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # ENOUGH SPRITES TO REACH THE LAST PICTURE A BOSS CAN WEAR, plus the weapons a release keeps
   # last. Gretel's run sits a long way up — four bosses this cartridge does not build yet stand
@@ -324,7 +323,7 @@ class TestBosses < Minitest::Test
 
   def nearest(run) = live_slots(run).min_by { |slot| pool_field(run, :x, slot) } || 0
   def hp(run) = pool_field(run, :hp, nearest(run))
-  def where(run) = pool_field(run, :x, nearest(run)) / ONE
+  def where(run) = pool_field(run, :x, nearest(run))
   def dropped(run) = live_slots(run).map { |slot| pool_field(run, :dropped, slot) }
 
   def with_things(things) = arena(side: SIDE, player: [PLAYER_X, ROW], things: things)

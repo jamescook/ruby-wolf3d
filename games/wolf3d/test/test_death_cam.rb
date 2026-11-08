@@ -19,7 +19,6 @@ class TestDeathCam < Minitest::Test
   ROW = 12
   PLAYER_X = 3
   BOSS_X = 6
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # When the test's trigger is pulled, and the pass by which he has finished falling: five pictures,
   # the body's twenty and the 140 of his last words, at one of the original's units a pass.
@@ -56,10 +55,10 @@ class TestDeathCam < Minitest::Test
   # THE ANGLE IS THE ORIGINAL'S FROM WHERE YOU STOOD WHEN YOU KILLED HIM, not from where you walked to.
   def test_you_are_set_down_in_front_of_him_facing_him
     run = played(frames: words_gone, walking: true)
-    boss_x = run.pool(:guard, :x).compact.first / ONE
+    boss_x = run.pool(:guard, :x).compact.first
 
     assert_equal Cam::REPLAY, run[:_cam_stage]
-    assert_in_delta boss_x - Cam::FIRST_TRY, run[:px] / ONE, 0.01, "he fell east of the spot you shot from"
+    assert_in_delta boss_x - Cam::FIRST_TRY, run[:px], 0.01, "he fell east of the spot you shot from"
     assert_equal 0, run[:view], "so you look east"
   end
 
@@ -74,7 +73,7 @@ class TestDeathCam < Minitest::Test
     state = states.state_at(run.pool(:guard, :state).compact.first).name
 
     assert_match(/fall/, state.to_s, "he is falling again")
-    assert_in_delta run.pool(:guard, :x).compact.first / ONE - Cam::FIRST_TRY, run[:px] / ONE, 0.01
+    assert_in_delta run.pool(:guard, :x).compact.first - Cam::FIRST_TRY, run[:px], 0.01
   end
 
   def test_then_the_episode_is_over

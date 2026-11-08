@@ -159,8 +159,6 @@ class TestHearing < Minitest::Test
   # to about a second, counted down on the passes he thinks, which is every other one.
   REACTED = 140
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   # EVERY GUARD ON THE FLOOR, as the three things these tests ask about him. Read by slot and
   # then picked apart by what he IS, because the order a pool hands out its slots is not the
   # order the level lists its men — so nothing here may name a man by number.
@@ -169,7 +167,7 @@ class TestHearing < Minitest::Test
     ambush = run.pool(:guard, :ambush)
     state = run.pool(:guard, :state)
     (0...count).map do |slot|
-      { x: (xs[slot] / ONE).round, ambush: ambush[slot] == 1, standing: state[slot] == STANDING }
+      { x: xs[slot].round, ambush: ambush[slot] == 1, standing: state[slot] == STANDING }
     end
   end
 

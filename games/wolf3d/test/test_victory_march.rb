@@ -11,7 +11,6 @@ class TestVictoryMarch < Minitest::Test
   FP = Wolf3D::FirstPerson
   Release = Wolf3D::Fixture::Release
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
   STEPPED_OFF = 16 # passes of walking back, by which the way out has been reached
 
   def test_the_way_out_starts_the_march_rather_than_ending_the_episode
@@ -29,15 +28,15 @@ class TestVictoryMarch < Minitest::Test
     start = played(STEPPED_OFF + 2)
     stopped = played(STEPPED_OFF + 300)
 
-    assert_operator start[:py] / ONE, :>, 15.5, "it starts from the cell you stood in"
-    assert_in_delta 16 - March::CAMERA_TRAVEL, stopped[:py] / ONE, 0.01
+    assert_operator start[:py], :>, 15.5, "it starts from the cell you stood in"
+    assert_in_delta 16 - March::CAMERA_TRAVEL, stopped[:py], 0.01
   end
 
   def test_he_runs_north_past_where_you_stood
     soon = played(STEPPED_OFF + 2)
     later = played(STEPPED_OFF + 60)
 
-    assert_operator later[:_march_y] / ONE, :<, soon[:_march_y] / ONE
+    assert_operator later[:_march_y], :<, soon[:_march_y]
   end
 
   def test_you_cannot_move_while_he_runs

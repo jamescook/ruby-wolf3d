@@ -228,7 +228,7 @@ class TestGuards < Minitest::Test
     level = two_rooms(player: [6, 8], door: [7, 8], guards: [[11, 8, :west]])
     run = Reference.new.input_each_frame { |f| f == 1 ? [:a] : [] }
                    .run(view_of(level, drawing: false), frames: 8)
-    door = run.list(:door_open)[0] / ONE
+    door = run.list(:door_open)[0]
 
     assert_operator door, :<, 0.5, "the door is still well short of open"
     assert pool_field(run, :wait).positive? || state_of(run) != STAND, "and he has already seen you through it"
@@ -505,7 +505,7 @@ class TestGuards < Minitest::Test
     later = Reference.new.hold(:up).run(walking, frames: 2400)
 
     assert_equal 0, died[:health], "he should be dead by then"
-    assert_in_delta died[:px] / ONE, later[:px] / ONE, 0.001,
+    assert_in_delta died[:px], later[:px], 0.001,
                     "and not have moved since, however long the button is held"
   end
 
@@ -539,18 +539,16 @@ class TestGuards < Minitest::Test
     Reference.new.run(view_of(arena(**), drawing: false), frames: frames)
   end
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   def pool_field(run, field, slot = 0) = run.pool(:guard, field)[slot]
   def state_of(run, slot = 0) = pool_field(run, :state, slot)
   def guard_hp(run, slot = 0) = pool_field(run, :hp, slot)
-  def guard_at(run, axis) = pool_field(run, axis) / ONE
+  def guard_at(run, axis) = pool_field(run, axis)
 
   # The guards as the player meets them, nearest first. A pool hands out its slots from the
   # back, so the order a level put its guards down is NOT the order they are stored in — which
   # is exactly the kind of thing a test should not quietly depend on.
   def guards_by_distance(run, count)
-    (0...count).map { |slot| { x: pool_field(run, :x, slot) / ONE, hp: guard_hp(run, slot) } }
+    (0...count).map { |slot| { x: pool_field(run, :x, slot), hp: guard_hp(run, slot) } }
                .sort_by { |guard| guard[:x] }
   end
 

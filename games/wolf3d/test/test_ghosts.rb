@@ -11,7 +11,6 @@ class TestGhosts < Minitest::Test
   Guards = Wolf3D::Guards
   Release = Wolf3D::Fixture::Release
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
   ROW = 8
   NAMES = %i[blinky clyde pinky inky].freeze
 
@@ -65,7 +64,7 @@ class TestGhosts < Minitest::Test
   def test_it_will_not_stand_on_top_of_you
     run = played(frames: 200, ghost_at: 7)
 
-    assert_operator (x_of(run) - (run[:px] / ONE)).abs, :>, 0.5
+    assert_operator (x_of(run) - run[:px]).abs, :>, 0.5
   end
 
   # EACH COUNTS AS A KILL ALREADY MADE, so a floor with ghosts can still reach a hundred per cent.
@@ -78,7 +77,7 @@ class TestGhosts < Minitest::Test
 
   private
 
-  def x_of(run) = run.pool(:guard, :x).compact.min / ONE
+  def x_of(run) = run.pool(:guard, :x).compact.min
 
   def fixture = @fixture ||= Release.new(sprites: Enemy::ALL.flat_map(&:pictures).max + 21)
 

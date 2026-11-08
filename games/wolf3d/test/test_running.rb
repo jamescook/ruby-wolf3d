@@ -7,7 +7,6 @@ require_relative "test_helper"
 class TestRunning < Minitest::Test
   include Wolf3DTest
 
-  ONE = 1 << VBlank::DSL::Fraction::DEFAULT_BITS
   RUNMOVE = 70
   BASEMOVE = 35
   FRAMES = 30
@@ -16,7 +15,7 @@ class TestRunning < Minitest::Test
     Reference.new.input_each_frame { buttons }.run(view_of(level, drawing: false), frames: frames)
   end
 
-  def distance(run) = (run[:px] / ONE.to_f) - 2.5
+  def distance(run) = run[:px] - 2.5
 
   def test_running_covers_twice_the_ground_of_walking
     assert_in_delta RUNMOVE.to_f / BASEMOVE, distance(walked(:up, :a)) / distance(walked(:up)), 0.02
@@ -25,11 +24,11 @@ class TestRunning < Minitest::Test
   def test_a_run_does_not_pass_through_a_wall
     wall_ahead = arena(player: [2, 8], walls: (1..14).map { |y| [6, y] })
 
-    assert_operator walked(:up, :a, level: wall_ahead, frames: 120)[:px] / ONE.to_f, :<, 6.0
+    assert_operator walked(:up, :a, level: wall_ahead, frames: 120)[:px], :<, 6.0
   end
 
   def test_a_run_does_not_pass_through_a_man
-    assert_operator walked(:up, :a, level: arena(player: [2, 8], guards: [[6, 8, :east]]), frames: 120)[:px] / ONE.to_f, :<=, 5.5
+    assert_operator walked(:up, :a, level: arena(player: [2, 8], guards: [[6, 8, :east]]), frames: 120)[:px], :<=, 5.5
   end
 
   def test_holding_the_button_still_with_no_step_is_not_running

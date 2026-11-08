@@ -10,7 +10,6 @@ class TestSidestepping < Minitest::Test
   Enemy = Wolf3D::Enemy
   Release = Wolf3D::Fixture::Release
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
   ROW = 8.5
   WATCHING = (20..200).step(20).to_a
 
@@ -83,7 +82,7 @@ class TestSidestepping < Minitest::Test
 
   def where(level, frames, &keys)
     run = Reference.new.input_each_frame(&(keys || ->(_) { [] })).run(program(level), frames: frames)
-    [run.pool(:guard, :x).compact.first / ONE, run.pool(:guard, :y).compact.first / ONE]
+    [run.pool(:guard, :x).compact.first, run.pool(:guard, :y).compact.first]
   end
 
   def rows_of(level, &keys) = WATCHING.map { |frames| where(level, frames, &keys).last }

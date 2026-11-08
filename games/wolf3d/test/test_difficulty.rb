@@ -35,7 +35,7 @@ class TestDifficulty < Minitest::Test
   # WHO REALLY STOOD UP, read off the game rather than off the level: every live slot of the
   # pool, by the cell he is standing in. A pool hands out its slots from the back, so this is
   # sorted — the order they are stored in is not something to depend on.
-  def standing_up(run) = run.pool(:guard, :x).compact.map { |x| (x / ONE).floor }.sort
+  def standing_up(run) = run.pool(:guard, :x).compact.map(&:floor).sort
 
   # ---------------------------------------------------------------- which guards are there
 
@@ -114,8 +114,6 @@ class TestDifficulty < Minitest::Test
   end
 
   private
-
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # HOW LONG TO PLAY BEFORE READING, for the program that walks the four settings in turn: far
   # enough in for the setting to have been written and the floor started again on it.

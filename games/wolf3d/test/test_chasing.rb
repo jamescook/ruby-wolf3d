@@ -8,7 +8,6 @@ require_relative "test_helper"
 class TestChasing < Minitest::Test
   include Wolf3DTest
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
   ROW = SIDE / 2
   WALL_X = 10
 
@@ -20,8 +19,8 @@ class TestChasing < Minitest::Test
     Reference.new.input_each_frame(&keys).run(view_of(level, drawing: false), frames: frames)
   end
 
-  def x_of(run, slot = 0) = run.pool(:guard, :x)[slot] / ONE
-  def y_of(run, slot = 0) = run.pool(:guard, :y)[slot] / ONE
+  def x_of(run, slot = 0) = run.pool(:guard, :x)[slot]
+  def y_of(run, slot = 0) = run.pool(:guard, :y)[slot]
 
   # A short wall straight between him and you. East is the only way toward you, and the way he was
   # going, and both stop at the wall, so what moves him is the search.
@@ -45,7 +44,7 @@ class TestChasing < Minitest::Test
 
   def test_a_man_will_not_walk_into_another
     [200, 300].each do |frames|
-      xs = played(a_man_in_the_way, frames: frames).pool(:guard, :x).compact.map { |x| x / ONE }.minmax
+      xs = played(a_man_in_the_way, frames: frames).pool(:guard, :x).compact.minmax
 
       assert_operator xs.first, :>=, STANDING_X, "nobody has got past at frame #{frames}"
       assert_operator xs.last, :>=, STANDING_X + 1, "nor in beside him"
@@ -78,7 +77,7 @@ class TestChasing < Minitest::Test
     run = (20..500).step(20).lazy.map { |frames| quietly(a_door_ahead_of, frames: frames) }
                    .find { |played| played.list(:door_open)[0].positive? }
 
-    assert_operator run.list(:door_open)[0] / ONE, :<, Wolf3D::FirstPerson::DOOR_WIDE, "he has it opening"
+    assert_operator run.list(:door_open)[0], :<, Wolf3D::FirstPerson::DOOR_WIDE, "he has it opening"
     assert_operator x_of(run), :>=, DOOR_X + 1, "and has not gone in yet"
   end
 
@@ -103,7 +102,7 @@ class TestChasing < Minitest::Test
   def test_a_man_waiting_at_a_door_still_holds_his_cell
     level = two_rooms(player: [13, ROW], door: [DOOR_X, ROW], patrols: [[DOOR_X + 1, ROW, :west], [DOOR_X + 2, ROW, :west]])
     (6..60).step(6).each do |frames|
-      xs = quietly(level, frames: frames).pool(:guard, :x).compact.map { |x| x / ONE }.minmax
+      xs = quietly(level, frames: frames).pool(:guard, :x).compact.minmax
       next unless xs.first >= DOOR_X + 1
 
       assert_operator xs.last, :>=, DOOR_X + 2, "the second man stays out at frame #{frames}"
@@ -120,6 +119,6 @@ class TestChasing < Minitest::Test
     alive = run.pool(:guard, :hp).compact.zip(run.pool(:guard, :x).compact).select { |hp, _| hp.positive? }
 
     assert_equal 1, alive.length, "the first man is down"
-    assert_operator alive.first.last / ONE, :<, STANDING_X, "and the second has walked over him"
+    assert_operator alive.first.last, :<, STANDING_X, "and the second has walked over him"
   end
 end

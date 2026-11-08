@@ -307,8 +307,6 @@ class TestEnemies < Minitest::Test
 
   def fixture = @fixture ||= Release.new(sprites: SPRITES)
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   def pool_field(run, field, slot = 0)
     run.pool(:guard, field)[slot]
   end
@@ -325,7 +323,7 @@ class TestEnemies < Minitest::Test
   end
 
   def hp(run) = pool_field(run, :hp, nearest(run))
-  def where(run) = pool_field(run, :x, nearest(run)) / ONE
+  def where(run) = pool_field(run, :x, nearest(run))
 
   # What every live slot is lying beside, which is how "he left a gun" is read off a game.
   def dropped(run) = run.pool(:guard, :dropped).compact

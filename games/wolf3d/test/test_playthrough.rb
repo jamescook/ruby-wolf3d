@@ -235,7 +235,7 @@ class TestPlaythrough < Minitest::Test
     end.run(program_of(way_out_level), frames: WON_BY + 50)
 
     assert_equal 0, run[:episode_won], "the new game has not been won"
-    assert_operator run[:px] / ONE, :>, START_X + 0.5 + 0.5, "and the player walks"
+    assert_operator run[:px], :>, START_X + 0.5 + 0.5, "and the player walks"
   end
 
   # THE GAME AT POWER-ON IS A NEW GAME ON THE FIRST FLOOR. Nothing runs to start it — every
@@ -289,7 +289,6 @@ class TestPlaythrough < Minitest::Test
   # The player stands facing east, and the way out is the cell behind them.
   START_X = 4
   WON_BY = 20 # passes of walking backwards, which is further than one cell
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # A release whose walls reach as far as the lift's lever, pulled and not.
   def fixture = @fixture ||= Wolf3D::Fixture::Release.new(walls: (Wolf3D::Elevator::PULLED * 2) + 2)

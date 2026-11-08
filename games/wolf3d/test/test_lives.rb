@@ -211,7 +211,7 @@ class TestLives < Minitest::Test
     assert_equal Wolf3D::Guards::HIT_POINTS, pool(back, :hp), "and a fresh floor stands him up"
     assert_equal Wolf3D::Behaviour.for([:guard]).starting_state(guard_zero), pool(back, :state),
                  "in the state the level put him in"
-    assert_in_delta guard_zero.x + 0.5, pool(back, :x) / ONE, 0.0001, "where the level put him"
+    assert_in_delta guard_zero.x + 0.5, pool(back, :x), 0.0001, "where the level put him"
   end
 
   # THE POINTS SCORED ON A FLOOR GO WITH THE LIFE YOU LOST THERE. The original starts every floor
@@ -240,10 +240,10 @@ class TestLives < Minitest::Test
     end
     start = fixture_level.start
 
-    refute_in_delta start.x + 0.5, walked[:px] / ONE, 0.2, "the walk should have moved them across"
-    refute_in_delta start.y + 0.5, walked[:py] / ONE, 0.2, "...and up the map"
-    assert_in_delta start.x + 0.5, back[:px] / ONE, 0.0001
-    assert_in_delta start.y + 0.5, back[:py] / ONE, 0.0001
+    refute_in_delta start.x + 0.5, walked[:px], 0.2, "the walk should have moved them across"
+    refute_in_delta start.y + 0.5, walked[:py], 0.2, "...and up the map"
+    assert_in_delta start.x + 0.5, back[:px], 0.0001
+    assert_in_delta start.y + 0.5, back[:py], 0.0001
     assert_equal FP::START_HEALTH, back[:health], "with a hundred of health"
     assert_equal FP::START_AMMO, back[:ammo], "and a full pistol"
   end
@@ -277,8 +277,6 @@ class TestLives < Minitest::Test
 
   private
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   # One floor with nothing on it: the playthrough asks a cartridge's floors only how many there are.
   def one_empty_floor
     empty = Wolf3D::Level.new(name: "empty", width: 4, height: 4,
@@ -308,7 +306,7 @@ class TestLives < Minitest::Test
 
   def list(run, name, index) = run.list(name)[index]
   def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]
-  def open_of(run, index) = list(run, :door_open, index) / ONE
+  def open_of(run, index) = list(run, :door_open, index)
 
   def white_pixels(run)
     (0...FP::ACROSS).to_a.product((0...FP::VIEW_H).to_a)

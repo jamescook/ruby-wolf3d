@@ -29,8 +29,6 @@ class TestKeepingTime < Minitest::Test
   FP = Wolf3D::FirstPerson
   Guards = Wolf3D::Guards
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   # The player starts facing east, so walking forward raises px and the wall down the east side
   # is what eventually stops them.
   #
@@ -45,7 +43,7 @@ class TestKeepingTime < Minitest::Test
              .run(game(arena(**arena_args), pacing: pacing), frames: passes)
   end
 
-  def where(run) = run[:px] / ONE
+  def where(run) = run[:px]
 
   # --- the setting the game ships with -------------------------------------------------
 

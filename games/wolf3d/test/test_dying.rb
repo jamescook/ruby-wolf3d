@@ -14,7 +14,6 @@ class TestDying < Minitest::Test
 
   FP = Wolf3D::FirstPerson
   Dying = Wolf3D::Dying
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # Long enough for the worst turn there can be, the settle, and the whole fizzle.
   FRAMES = Dying::MOST_TURNS + Dying::SETTLE + Wolf3D::Fizzle::FRAMES + 8

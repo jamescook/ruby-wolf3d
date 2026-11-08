@@ -18,8 +18,6 @@ class TestRooms < Minitest::Test
   Rooms = Wolf3D::Rooms
   Release = Wolf3D::Fixture::Release
 
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
-
   # Long enough for a patrolling guard to have gone somewhere.
   FRAMES = 90
 
@@ -56,7 +54,7 @@ class TestRooms < Minitest::Test
   end
 
   def pool(run, field, slot = 0) = run.pool(:guard, field)[slot]
-  def guard_at(run, slot = 0) = [pool(run, :x, slot) / ONE, pool(run, :y, slot) / ONE]
+  def guard_at(run, slot = 0) = [pool(run, :x, slot), pool(run, :y, slot)]
   def room_open(run, room) = run.list(:_room_open)[room]
 
   # --- is it built at all ---
@@ -196,7 +194,7 @@ class TestRooms < Minitest::Test
                       scenery: { [10, 8] => BARREL })
     walked = Reference.new.input_each_frame { [:up] }.run(game(level, drawing: true), frames: 90)
 
-    assert_operator walked[:px] / ONE, :>, 8.0, "the player walked through the archway"
+    assert_operator walked[:px], :>, 8.0, "the player walked through the archway"
     assert_equal 1, room_open(walked, 2), "so the room they walked into is open"
     refute_empty columns_of(walked, BARREL), "and the barrel standing in it is drawn"
   end
@@ -209,7 +207,7 @@ class TestRooms < Minitest::Test
     walked = Reference.new.input_each_frame { |f| f < 3 ? [:a] : [:up] }
                       .run(game(level, drawing: true), frames: 90)
 
-    assert_operator walked[:px] / ONE, :>, 7.0, "the player is past the doorway"
+    assert_operator walked[:px], :>, 7.0, "the player is past the doorway"
     assert_equal 1, room_open(walked, 1), "and the room they came out of is still open"
   end
 

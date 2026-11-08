@@ -99,7 +99,7 @@ class TestLastingState < Minitest::Test
     loaded = Reference.new(save: store).input_each_frame { |f| f == WRITTEN_BY ? [] : presses_to_load(f) }
                       .run(saving_cartridge, frames: WRITTEN_BY + 2)
 
-    assert_equal DOORWAY_ROW, (saved[:py] / ONE).floor, "the game was saved in the doorway"
+    assert_equal DOORWAY_ROW, saved[:py].floor, "the game was saved in the doorway"
     assert_equal saved.list(:_room_open), loaded.list(:_room_open)
   end
 
@@ -202,7 +202,6 @@ class TestLastingState < Minitest::Test
   STILL = %i[l r].freeze
 
   QUARTER_TURN = Wolf3DTest::Field.walking_turn_passes(FP::TURN / 4)
-  ONE = (1 << Fraction::DEFAULT_BITS).to_f
 
   # The fixture's room, which the second floor is: the player starts in the middle facing north,
   # the key is one cell ahead, the guard two cells to the east facing away, and a door is in the
