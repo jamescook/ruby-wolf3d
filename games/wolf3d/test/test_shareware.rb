@@ -13,10 +13,6 @@ class TestShareware < Minitest::Test
 
   def shareware = Wolf3D::Vgagraph.from(real_shareware)
 
-  def test_a_real_copy_is_accepted
-    assert_nil Wolf3D::Vanilla.check_files!(real_shareware)
-  end
-
   def test_the_pictures_found_by_name_are_the_size_they_should_be
     graph = shareware
 

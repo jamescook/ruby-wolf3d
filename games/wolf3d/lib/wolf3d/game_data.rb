@@ -8,8 +8,8 @@ module Wolf3D
   # Nothing here is redistributable, so the build reads files you already own. Point at them with
   # WOLF3D_DATA, or with a wolf3d.yml beside this game. Finding the folder those name, and refusing
   # it in words a person can act on, is the framework's (VBlank::Original::Game, made by
-  # .original); what is Wolfenstein's is here and in Vanilla: what the folder must hold, and which
-  # release it is.
+  # .original); what is Wolfenstein's is here and in Vanilla: what the folder must hold, and the
+  # releases it may be.
   class GameData
     ENV_VAR = "WOLF3D_DATA"
     CONFIG_FILE = "wolf3d.yml"
@@ -31,8 +31,8 @@ module Wolf3D
 
     # WHERE YOUR COPY IS AND WHETHER IT WILL DO, asked the way every game made from an original asks
     # it. The setting wins over the file, and a relative path in the file is read from this game's
-    # folder. A copy is accepted by what it holds: the files of one release, which Vanilla then
-    # checks are the release this game was written against.
+    # folder. A copy is accepted by its files: those of one of Vanilla's releases, each with that
+    # release's SHA-1 and size. The shell's LOAD ROM asks the same of the folder a player picks.
     #
     # +env+ is where the settings are looked up: the process's environment unless somebody hands
     # over their own, which is how a test points at a folder without changing it for everyone.
@@ -40,8 +40,7 @@ module Wolf3D
     def self.original(home: Wolf3D.home, env: ENV)
       VBlank::Original::Game.new(
         title: "Wolfenstein 3D", setting: ENV_VAR, settings_file: File.join(home, CONFIG_FILE),
-        key: copy_key(env), env: env, not_set_help: not_set_help,
-        probe: ->(dir) { at(dir).tap { |data| Vanilla.check_files!(data) }.set }
+        key: copy_key(env), env: env, not_set_help: not_set_help, releases: Vanilla::RELEASES, platform: :pc
       )
     end
 
@@ -59,8 +58,8 @@ module Wolf3D
       nil
     end
 
-    # The release in +dir+, as it is, without asking whether this game can use it: for a folder a
-    # test wrote, or one the settings named, before Vanilla is asked.
+    # The release in +dir+ by its files' names, without asking whether this game can use it: for a
+    # folder a test wrote, such as Fixture::Release's.
     def self.at(dir)
       raise VBlank::Original::WrongCopy, "#{dir} is a file. Name the folder that holds your copy's files." unless File.directory?(dir)
 

@@ -129,7 +129,7 @@ module Wolf3D
   # settings below: it is a fact about this machine, the same for every build made on it.
   #
   # A COPY THAT WAS NAMED AND WILL NOT DO STOPS THE BUILD HERE, whether the trouble is the copy or
-  # the place it was said to be (VBlank::Original::WrongCopy, see Vanilla). Nothing named at all is
+  # the place it was said to be (VBlank::Original::WrongCopy, see Vanilla's releases). Nothing named at all is
   # not trouble: it is the holding screen.
   def self.data = Ractor.current[:wolf3d_data] ||= GameData.locate_if_set
 

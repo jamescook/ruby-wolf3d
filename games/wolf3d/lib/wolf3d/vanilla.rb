@@ -8,28 +8,42 @@ module Wolf3D
   # in the files: it is a number read off one release, like which picture is the status bar, where
   # the first guard starts, which recording is a scream, and all 256 colours. Spear of Destiny has
   # the same eight files with four more sprites before its first guard, which puts a marble pillar
-  # where this game expects him. So a copy is asked first.
+  # where this game expects him.
   #
   # THE SHAREWARE SHARES NEARLY ALL OF THIS WITH THE SIX EPISODES: the same walls, sprites, sounds
   # and colours, and fewer floors. What differs is its pictures, because Apogee's list has twelve
   # more help screens early in VGAGRAPH, so every number after those moves. Compare gfxv_apo.h with
   # gfxv_wl6.h in the original's source; version.h and wl_def.h say which build reads which.
   #
-  # APOGEE'S SIX-EPISODE COPIES ARE REFUSED, though they may well read the same list. There is no
-  # such copy to check that against, and a promise this game cannot test is not one it makes.
-  #
-  # IT PROBES RATHER THAN CHECKSUMS. These are the counts the numbers depend on, and the sizes of a
-  # few pictures found by number, which a shuffled file gets wrong. A person's edited copy that keeps
-  # every one of them passes, and may well work.
-  #
-  # A copy it refuses raises the framework's VBlank::Original::WrongCopy, which is how every game
-  # made from an original says a copy will not do. It is GameData's probe, so the framework asks it
-  # of every copy it finds.
-  class Vanilla
-    # WHAT A COPY OF EACH RELEASE HOLDS that the others do not. The walls, sprites and sounds below
-    # are the same in all of them, which is what lets one game read them.
-    Release = Data.define(:floors, :pictures)
-    RELEASES = Ractor.make_shareable({ "WL6" => Release.new(60, 132), "WL1" => Release.new(10, 144) })
+  # A COPY IS KNOWN BY ITS FILES' SHA-1, each of the eight, so the build and the shell's LOAD ROM
+  # (VBlank::Original::Shell) accept exactly the same copies, and an edited or other copy is refused
+  # naming the first file that differs. Another store's copy of the same release, if its files
+  # differ, is one more entry here, read off that copy.
+  module Vanilla
+    # Each file of a release, its SHA-1 and its size in bytes, as VBlank's Original::Game takes them.
+    # Read off GOG's six episodes and wolf3dsw, the shareware, both version 1.4.
+    RELEASES = Ractor.make_shareable(
+      { "WL6" => { "files" => {
+          "VSWAP.WL6" => { "sha1" => "e604f436f31a456b003e99f8a3d14fe3ecdcec23", "size" => 1_544_376 },
+          "GAMEMAPS.WL6" => { "sha1" => "22bfcde221efec232b48258117d7fc04337cce3a", "size" => 150_652 },
+          "MAPHEAD.WL6" => { "sha1" => "1b5bf23e6edae13f6a582a44f72729c6e5a0e692", "size" => 402 },
+          "VGAGRAPH.WL6" => { "sha1" => "f04ee31c8193d4cdc2dd48a6bf34445345652d68", "size" => 275_774 },
+          "VGADICT.WL6" => { "sha1" => "4883109b6e3b9eb989fbadaff456410522f3e843", "size" => 1024 },
+          "VGAHEAD.WL6" => { "sha1" => "19444414fe3e7b1ceb95a8cfd60a8ac54c69daaf", "size" => 450 },
+          "AUDIOT.WL6" => { "sha1" => "8a1e19ec1dc669ebe6916b1e24a261d10d9d5ff3", "size" => 320_209 },
+          "AUDIOHED.WL6" => { "sha1" => "2a8407cd436250b6df9d6022c971030882ae37ca", "size" => 1156 }
+        } },
+        "WL1" => { "files" => {
+          "VSWAP.WL1" => { "sha1" => "63134a2e3165b5291ece7b8a4145d2bd67d4f787", "size" => 742_912 },
+          "GAMEMAPS.WL1" => { "sha1" => "d49fc8a7887d7e73be7c813177307b68206f8147", "size" => 27_425 },
+          "MAPHEAD.WL1" => { "sha1" => "b3942ddb4f6bb671b026a3f85611bf314acefce7", "size" => 402 },
+          "VGAGRAPH.WL1" => { "sha1" => "3ad077aca0e775bd6a241515c8b2874d4fa4099a", "size" => 326_568 },
+          "VGADICT.WL1" => { "sha1" => "10ae325f5ce124d2536a63805023c56a4e438ea1", "size" => 1024 },
+          "VGAHEAD.WL1" => { "sha1" => "a9ba5551f54f88d810b9aa82a15caae623509a4c", "size" => 471 },
+          "AUDIOT.WL1" => { "sha1" => "0254cc09b7a8ab0b884766b5dcd0e8555c424937", "size" => 132_613 },
+          "AUDIOHED.WL1" => { "sha1" => "732460795d77cab19c8018d879f5c27a3cbd5f84", "size" => 1156 }
+        } } }
+    )
 
     # The extensions this game takes, for a message that has to name them.
     SETS = Ractor.make_shareable(RELEASES.keys.join(" or "))
@@ -40,86 +54,5 @@ module Wolf3D
       "One is the registered six episodes (WL6), which GOG sells. " \
       "The other is the shareware episode (WL1), which is a free download."
     )
-
-    # WHERE THE OTHER GAME'S FILES USUALLY ARE IN RELATION TO THESE, for a copy that has both.
-    NEARBY = Ractor.make_shareable(
-      { "SOD" => "In the GOG release, the WL6 files are one directory above the Spear of Destiny files." }
-    )
-
-    # One thing to ask of a copy: the file that holds the answer, what it is asked in words, the
-    # answer, and where to read what this copy says.
-    Probe = Data.define(:file, :asked, :wanted, :found)
-
-    # THE FILES IN +game_data+, read here so that a file cut short is a refusal like any other. What
-    # goes wrong inside a reader is whatever a bad byte happened to reach, so it is not asked which.
-    def self.check_files!(game_data)
-      check!(set: game_data.set, dir: game_data.dir, maps: Maps.from(game_data),
-             vswap: Vswap.from(game_data), vgagraph: Vgagraph.from(game_data))
-    rescue VBlank::Original::WrongCopy
-      raise
-    rescue StandardError
-      raise VBlank::Original::WrongCopy, unreadable(game_data.set, game_data.dir)
-    end
-
-    # Says nothing about a copy this game can use. WrongCopy says why about any other. +maps+, +vswap+
-    # and +vgagraph+ are the copy's files as read, and +dir+ is where they came from.
-    def self.check!(set:, dir:, maps:, vswap:, vgagraph:)
-      release = RELEASES.fetch(set) { raise VBlank::Original::WrongCopy, other_release(set, dir) }
-
-      probes(release, maps, vswap, vgagraph).each do |probe|
-        got = probe.found.call
-        raise VBlank::Original::WrongCopy, changed_copy(set, dir, probe, got) unless got == probe.wanted
-      end
-      nil
-    end
-
-    # In this order, so a picture is asked for by number only once there are the right number of them.
-    def self.probes(release, maps, vswap, vgagraph)
-      [Probe.new("GAMEMAPS", "the number of floors", release.floors, -> { maps.count }),
-       Probe.new("VSWAP", "the number of walls", 106, -> { vswap.wall_count }),
-       Probe.new("VSWAP", "the number of sprites", 436, -> { vswap.sprite_count }),
-       Probe.new("VSWAP", "the number of sounds", 46, -> { vswap.sound_count }),
-       Probe.new("VGAGRAPH", "the number of pictures", release.pictures, -> { vgagraph.picture_count }),
-       Probe.new("VGAGRAPH", "the size of the status bar", "320x40", -> { size_of(vgagraph, :status_bar) }),
-       Probe.new("VGAGRAPH", "the size of the first face", "24x32", -> { size_of(vgagraph, :face_1a) }),
-       Probe.new("VGAGRAPH", "the size of the first numeral", "8x16", -> { size_of(vgagraph, :digit_0) })]
-    end
-    private_class_method :probes
-
-    def self.size_of(vgagraph, name) = vgagraph.size(name).join("x")
-    private_class_method :size_of
-
-    def self.other_release(set, dir)
-      <<~TEXT
-        The files in #{dir} are #{GameData::SETS.fetch(set, set)} (#{set}).
-
-        #{NEEDED}
-        To fix this, set #{GameData::ENV_VAR} or #{GameData::CONFIG_FILE} to the directory that has the #{SETS} files.
-        #{NEARBY[set]}
-      TEXT
-    end
-    private_class_method :other_release
-
-    def self.changed_copy(set, dir, probe, got)
-      <<~TEXT
-        The #{set} files in #{dir} are not files this game can use.
-
-        In #{probe.file}, #{probe.asked} must be #{probe.wanted}. In this copy it is #{got}.
-
-        #{NEEDED} Apogee's six episodes and changed files do not work.
-        To fix this, set #{GameData::ENV_VAR} or #{GameData::CONFIG_FILE} to the directory that has those files.
-      TEXT
-    end
-    private_class_method :changed_copy
-
-    def self.unreadable(set, dir)
-      <<~TEXT
-        This game cannot read the #{set} files in #{dir}. They are damaged or changed.
-
-        #{NEEDED}
-        To fix this, set #{GameData::ENV_VAR} or #{GameData::CONFIG_FILE} to the directory that has those files.
-      TEXT
-    end
-    private_class_method :unreadable
   end
 end
