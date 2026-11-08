@@ -381,14 +381,14 @@ module Wolf3D
     # with no SS on any floor emits only the first arm and pays nothing for the second.
     def take_what_he_left(guard)
       @took = 0
-      unless (@weapons && leaves_a_gun?) || leaves_a_key?
+      unless (@weapons && drops_machine_gun?) || drops_gold_key?
         give_ammunition(DROPPED_ROUNDS)
         guard_left_nothing_now(guard)
         return
       end
 
       give_ammunition(DROPPED_ROUNDS) if guard.dropped == CLIP_LEFT
-      if @weapons && leaves_a_gun? && guard.dropped == MACHINE_GUN_LEFT
+      if @weapons && drops_machine_gun? && guard.dropped == MACHINE_GUN_LEFT
         # A gun off the floor is always taken, rounds or no rounds — the same rule as one the
         # level put there.
         give_ammunition(WEAPON_ROUNDS)
@@ -397,7 +397,7 @@ module Wolf3D
       end
       # THE GOLD KEY OFF A BOSS, which is always taken — a key is the one thing you can never be
       # too full of, and it is the way out of the floor he was standing in.
-      if leaves_a_key? && guard.dropped == GOLD_KEY_LEFT
+      if drops_gold_key? && guard.dropped == GOLD_KEY_LEFT
         @player.keys = @player.keys | FirstPerson::KEY_BITS.fetch(:gold)
         @took = 1
       end
@@ -407,8 +407,8 @@ module Wolf3D
     # What he left has gone from the floor, if it was taken, and that is a pickup like any other.
     def guard_left_nothing_now(guard)
       if @took == 1
-        @sounds&.play_adlib_named(:key) if leaves_a_key? && guard.dropped == GOLD_KEY_LEFT
-        @sounds&.play_adlib_named(:machine_gun) if @weapons && leaves_a_gun? && guard.dropped == MACHINE_GUN_LEFT
+        @sounds&.play_adlib_named(:key) if drops_gold_key? && guard.dropped == GOLD_KEY_LEFT
+        @sounds&.play_adlib_named(:machine_gun) if @weapons && drops_machine_gun? && guard.dropped == MACHINE_GUN_LEFT
         @sounds&.play_adlib_named(:ammo) if guard.dropped == CLIP_LEFT
         guard.dropped = NOTHING_LEFT
         @flash.bonus
@@ -416,15 +416,11 @@ module Wolf3D
     end
 
     # Does anything on this cartridge leave a gun behind at all?
-    def leaves_a_gun?
-      @floors.any? { |floor| floor.guards&.kinds&.any? { |name| Enemy[name].leaves == :machine_gun } }
-    end
+    def drops_machine_gun? = @floors.kinds.any? { |name| Enemy[name].leaves == :machine_gun }
 
     # ...and does anything leave a key? Only a boss does, so a cartridge with no boss floor on it
     # emits none of the arm above and pays nothing for it.
-    def leaves_a_key?
-      @floors.any? { |floor| floor.guards&.kinds&.any? { |name| Enemy[name].leaves == :gold_key } }
-    end
+    def drops_gold_key? = @floors.kinds.any? { |name| Enemy[name].leaves == :gold_key }
 
     def scenery_of(floor) = @scenery_of.fetch(floor.index)
 

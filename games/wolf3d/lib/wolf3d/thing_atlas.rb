@@ -16,6 +16,11 @@ module Wolf3D
 
     attr_reader :sprites
 
+    # +sprites+ are the sprite numbers to hold, in order. A whole build (Holding) holds every one of
+    # the largest VSWAP, so a sprite's place in the row is its own number whichever release is
+    # loaded; one past the end of this copy's sprites holds nothing and is never drawn.
+    def self.whole(vswap, palette) = new(vswap, palette, (0...Holding::SPRITES).to_a)
+
     def initialize(vswap, palette, sprites)
       @vswap = vswap
       @palette = palette
@@ -40,6 +45,11 @@ module Wolf3D
 
       rows = Array.new(SIDE) { [] }
       @sprites.each do |index|
+        unless in_copy?(index)
+          SIDE.times { |y| rows[y].concat([:transparent] * SIDE) }
+          next
+        end
+
         sprite = @vswap.sprite(index)
         SIDE.times do |y|
           SIDE.times do |x|
@@ -58,8 +68,10 @@ module Wolf3D
     # standing behind it.
     #
     # Both numbers count from the LEFT EDGE of the picture, which is what the drawing walks.
-    def first_column(sprite) = @vswap.sprite(sprite).first_column
-    def last_column(sprite) = @vswap.sprite(sprite).last_column
+    #
+    # A sprite this copy does not have is held as nothing: both edges at nought.
+    def first_column(sprite) = edge(sprite, :first_column)
+    def last_column(sprite) = edge(sprite, :last_column)
 
     # ...AND WHICH ROWS, which is the same question down the other axis and matters for a
     # different reason. A great many of these things sit on the FLOOR — a clip of ammunition
@@ -67,7 +79,22 @@ module Wolf3D
     # centred on the eye line. So the nearer you get to a clip the further its picture slides
     # off the bottom of the screen, and there is a distance at which every pixel of it is past
     # the bottom edge while the drawing still walks the whole square looking for it.
-    def first_row(sprite) = @vswap.sprite(sprite).first_row
-    def last_row(sprite) = @vswap.sprite(sprite).last_row
+    def first_row(sprite) = edge(sprite, :first_row)
+    def last_row(sprite) = edge(sprite, :last_row)
+
+    private
+
+    def in_copy?(sprite) = sprite < @vswap.sprite_count
+
+    def edge(sprite, which)
+      return 0 unless in_copy?(sprite)
+
+      case which
+      when :first_column then @vswap.sprite(sprite).first_column
+      when :last_column then @vswap.sprite(sprite).last_column
+      when :first_row then @vswap.sprite(sprite).first_row
+      when :last_row then @vswap.sprite(sprite).last_row
+      end
+    end
   end
 end

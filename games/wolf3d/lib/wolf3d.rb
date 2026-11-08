@@ -45,7 +45,8 @@ require_relative "wolf3d/enemy"
 require_relative "wolf3d/behaviour"
 require_relative "wolf3d/guards"
 require_relative "wolf3d/scenery"
-# ...after all of them, because a floor is made of every one.
+# ...after all of them, because a floor is made of every one, and sized by what a build holds.
+require_relative "wolf3d/holding"
 require_relative "wolf3d/floors"
 require_relative "wolf3d/fixture/release"
 require_relative "wolf3d/wall_atlas"
@@ -141,7 +142,7 @@ module Wolf3D
   # wolf3d.rb's last line — so a test building one floor never changes what another build sees.
   DIALS = { episodes: "WOLF3D_EPISODES", from: "WOLF3D_FROM", floors: "WOLF3D_FLOORS",
             start: "WOLF3D_START", armed: "WOLF3D_ARMED", ammo: "WOLF3D_AMMO",
-            screen: "WOLF3D_SCREEN", seed: "WOLF3D_SEED", music: "WOLF3D_MUSIC" }.freeze
+            screen: "WOLF3D_SCREEN", seed: "WOLF3D_SEED", music: "WOLF3D_MUSIC", hold: "WOLF3D_HOLD" }.freeze
 
   # The settings the environment asks for — only the dials it actually sets, so an unset one
   # takes the game's own default.
@@ -245,14 +246,15 @@ module Wolf3D
   end
 
   # The floors this cartridge holds, with the first one's start moved if it was asked for.
-  def self.floors(which, start: nil)
-    floors = Floors.from(maps, vswap, which)
+  # +holding+ is what the build holds (Holding).
+  def self.floors(which, start: nil, holding: Holding.trimmed)
+    floors = Floors.from(maps, vswap, which, holding: holding)
     where = where_to_start(start)
     return floors unless where
 
     x, y, facing = where
     moved = floors.first_floor.level.starting_at(x, y, **(facing ? { facing: facing } : {}))
-    Floors.from(SwappedFirstFloor.new(maps, moved, which.first), vswap, which)
+    Floors.from(SwappedFirstFloor.new(maps, moved, which.first), vswap, which, holding: holding)
   end
 
   # A GAMEMAPS with one floor read differently, so that moving the start needs no new path
@@ -343,17 +345,25 @@ module Wolf3D
     # is short. `--set music=on` starts a cartridge with it on, to measure that.
     music_on = setting(:music, nil) == "on" || built_for_computer?
     Wolf3D.seed_random_numbers(self, setting(:seed, nil))
+    # WHOLE ON A COMPUTER, TRIMMED ON A CARTRIDGE (Holding), unless `hold` says, or a dial picked
+    # floors to measure.
+    floors_picked = !episodes.nil? || !how_many.nil? || !start.nil? || from.to_i != 0
+    holding = Wolf3D::Holding.for(setting(:hold, nil), computer: built_for_computer?, dialled: floors_picked)
 
     if Wolf3D.maps
       floors = Wolf3D.floors(Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many),
-                             start: start)
+                             start: start, holding: holding)
       atlas = Wolf3D::WallAtlas.new(Wolf3D.vswap, Wolf3D.palette, floors.map(&:level),
-                                    doors: floors.map(&:doors), lifts: floors.map(&:lifts))
-      things = Wolf3D::ThingAtlas.new(Wolf3D.vswap, Wolf3D.palette,
-                                      floors.flat_map { |f|
-                                        f.guards.pictures + f.scenery.pictures +
-                                          Wolf3D::Pickups.pictures(f.guards)
-                                      }.then { |seen| seen + Wolf3D::VictoryMarch.pictures(floors, Wolf3D.vswap) }.uniq.sort)
+                                    doors: floors.map(&:doors), lifts: floors.map(&:lifts), holding: holding)
+      things = if holding.whole?
+                 Wolf3D::ThingAtlas.whole(Wolf3D.vswap, Wolf3D.palette)
+               else
+                 Wolf3D::ThingAtlas.new(Wolf3D.vswap, Wolf3D.palette,
+                                        floors.flat_map { |f|
+                                          f.guards.pictures + f.scenery.pictures +
+                                            Wolf3D::Pickups.pictures(f.guards)
+                                        }.then { |seen| seen + Wolf3D::VictoryMarch.pictures(floors, Wolf3D.vswap) }.uniq.sort)
+               end
       # WOLFENSTEIN'S OWN MENU ART, or nil for a release whose pictures we cannot name — and
       # then the cartridge boots straight into the game, because there is nothing to write a
       # menu with. The same pictures hold the lettering of the screen between floors.
@@ -375,7 +385,8 @@ module Wolf3D
                                      armed_with: Wolf3D.armed_with(armed),
                                      ammo: Wolf3D.starting_ammo(ammo))
       if menu_art
-        music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_setting)
+        music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_setting,
+                                  holding: holding)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
                                   palette: Wolf3D.palette, sound_setting: sound_setting, music: music,
                                   starting_on: Wolf3D.which_screen(boot_screen))

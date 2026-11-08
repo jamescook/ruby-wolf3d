@@ -24,10 +24,20 @@ module Wolf3D
     # pictures is the UNION of what they all build with — nothing is chosen as the game runs,
     # because a wall's picture is already a place in this row and more floors only make the row
     # longer.
-    def initialize(vswap, palette, level, doors: nil, lifts: nil)
+    #
+    # A WHOLE BUILD (Holding) holds every page of the largest VSWAP in the file's own order, so a
+    # picture's place in the row is its page number, whichever release is loaded: a page past the
+    # end of this copy's walls is drawn in the palette's first colour, and nothing points at one.
+    # The doors' and the levers' pictures are pages too, so they are in the row already.
+    def initialize(vswap, palette, level, doors: nil, lifts: nil, holding: Holding.trimmed)
       @vswap = vswap
       @palette = palette
       @codes = Array(level).flat_map { |one| wall_codes(one) }.uniq.sort
+      if holding.whole?
+        @textures = (0...Holding::WALL_PAGES).to_a
+        return
+      end
+
       @textures = @codes.flat_map { |code| [texture_index(code, LIT), texture_index(code, DARK)] }
       # A door's panel, and the lever of a lift pulled down. Neither is a wall the map builds
       # with, so neither turns up in the codes above — a pulled lever appears in no map at all,
@@ -55,6 +65,11 @@ module Wolf3D
     def pixels
       rows = Array.new(SIDE) { [] }
       @textures.each do |index|
+        unless in_copy?(index)
+          SIDE.times { |y| rows[y].concat([@palette[0]] * SIDE) }
+          next
+        end
+
         texture = @vswap.wall(index)
         SIDE.times { |y| SIDE.times { |x| rows[y] << @palette[texture[x, y]] } }
       end
@@ -70,6 +85,8 @@ module Wolf3D
     def texture_index(code, face) = self.class.texture_index(code, face)
 
     private
+
+    def in_copy?(page) = page < @vswap.wall_count
 
     # Only the walls this level actually builds with. A whole set is a hundred pictures and a
     # floor uses a dozen.

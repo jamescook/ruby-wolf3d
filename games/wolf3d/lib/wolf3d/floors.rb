@@ -32,7 +32,9 @@ module Wolf3D
 
     # +maps+ is the whole GAMEMAPS; +which+ the floor numbers to ship, in the order the game
     # plays them. +vswap+ is wanted only because a door's picture comes out of it.
-    def self.from(maps, vswap, which)
+    # +holding+ says whether the lists played with are sized for these floors or for any floor of
+    # the original (Holding).
+    def self.from(maps, vswap, which, holding: Holding.trimmed)
       new(which.map do |index|
         level = maps[index]
         Floor.new(index: index, level: level,
@@ -41,7 +43,7 @@ module Wolf3D
                   lifts: Elevator.new(level),
                   guards: Guards.new(level),
                   scenery: Scenery.new(level))
-      end, episodes_of_ten: maps.episodes_of_ten?)
+      end, episodes_of_ten: maps.episodes_of_ten?, holding: holding)
     end
 
     # ...and the one-floor case, given the pieces already made rather than making them again.
@@ -56,13 +58,17 @@ module Wolf3D
 
     # +episodes_of_ten+ says the release these floors come from is Wolfenstein's own layout — see
     # #episodes_of_ten?.
-    def initialize(floors, episodes_of_ten: true)
+    def initialize(floors, episodes_of_ten: true, holding: Holding.trimmed)
       raise ArgumentError, "a game needs at least one floor" if floors.empty?
 
       @floors = floors
       @episodes_of_ten = episodes_of_ten
-      check_they_are_all_the_same_size!
+      @holding = holding
+      refuse_mixed_sizes!
+      refuse_overfull_floors!
     end
+
+    attr_reader :holding
 
     # IS THE RELEASE EPISODES OF TEN, the last of each its secret floor? Wolfenstein's are, the
     # shareware's one episode as much as the registered six. Spear of Destiny is not — see
@@ -117,12 +123,14 @@ module Wolf3D
     # ...and the most any one floor holds, which is what the lists played with are sized for.
     def most(kind) = counts_of(kind).max
 
-    # ...which is at least one, because a list must have room for something.
-    def room_for(kind) = [most(kind), 1].max
+    # ...which is at least one, because a list must have room for something. A whole build keeps
+    # the room any floor of the original may need (Holding::ROOM).
+    def room_for(kind) = @holding.room_for(kind) || [most(kind), 1].max
 
     # Does no floor in the cartridge hold any of this at all? Then none of the code for it is
-    # emitted — a game with no doors anywhere pays nothing for doors.
-    def no_floor_has?(kind) = most(kind).zero?
+    # emitted — a game with no doors anywhere pays nothing for doors. A whole build holds the code
+    # for everything, since the release loaded into it later may have any of it.
+    def no_floor_has?(kind) = !@holding.whole? && most(kind).zero?
 
     # A table must hold something, and a floor need hold none of a kind of thing — there are
     # levels with no doors and plenty with nothing secret in them. One unused entry keeps the
@@ -130,6 +138,14 @@ module Wolf3D
     def self.at_least_one(values) = values.empty? ? [0] : values
 
     KINDS = %i[doors pushwalls lifts guards pieces].freeze
+
+    # THE KINDS OF ENEMY THESE FLOORS CAN MEET, by name: those standing on any of them, or every kind
+    # the game knows in a whole build.
+    def kinds
+      return Enemy::ALL.map(&:name) if @holding.whole?
+
+      @floors.flat_map { |floor| floor.guards&.kinds || [] }.uniq
+    end
 
     private
 
@@ -144,7 +160,20 @@ module Wolf3D
       end
     end
 
-    def check_they_are_all_the_same_size!
+    # A floor with more than a whole build keeps room for would overrun its lists while it plays.
+    def refuse_overfull_floors!
+      return unless @holding.whole?
+
+      KINDS.each do |kind|
+        floor = @floors.max_by { |one| how_many(kind, one) }
+        next if how_many(kind, floor) <= room_for(kind)
+
+        raise ArgumentError, "Floor #{floor.index + 1} holds #{how_many(kind, floor)} #{kind}. A whole build has room " \
+                             "for #{room_for(kind)} on one floor. Build this copy trimmed: set WOLF3D_HOLD=trimmed."
+      end
+    end
+
+    def refuse_mixed_sizes!
       odd = @floors.find { |floor| floor.level.width != width || floor.level.height != height }
       return unless odd
 

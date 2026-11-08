@@ -67,10 +67,12 @@ module Wolf3D
     # +tracks+ is the copy's AdlibMusic, or nil on a build with none, and then there is no music.
     # +setting+ is the variable the SOUND row moves. Sounds has turned sound on by now, since a copy
     # of the game with music has effects too.
-    def initialize(build:, tracks:, floors:, setting:)
+    # +holding+ says whether to hold the floors' songs or every one (Holding).
+    def initialize(build:, tracks:, floors:, setting:, holding: Holding.trimmed)
       @b = build
       @tracks = tracks
       @floors = floors
+      @holding = holding
       @setting = setting
       # A computer has room for the music at the most a speaker takes; the console at less.
       @rate = build.built_for_computer? ? Opl2Track::COMPUTER_SAMPLE_RATE : Opl2Track::CONSOLE_SAMPLE_RATE
@@ -99,9 +101,11 @@ module Wolf3D
 
     private
 
+    # A whole build (Holding) wants every song the original names, whichever floors this copy has.
     def declare
       others = [MENU_SONG, INTRO_SONG, BETWEEN_FLOORS_SONG, ROSTER_SONG, WON_SONG]
-      wanted = (@floors.map { |floor| FLOOR_SONGS[floor.index] } + others).compact.uniq
+      floor_songs = @holding.whole? ? FLOOR_SONGS : @floors.map { |floor| FLOOR_SONGS[floor.index] }
+      wanted = (floor_songs + others).compact.uniq
       @held = @tracks ? wanted.reject { |track| @tracks.writes(track).empty? } : []
       return if @held.empty?
 

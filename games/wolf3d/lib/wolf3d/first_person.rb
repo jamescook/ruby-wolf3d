@@ -178,8 +178,8 @@ module Wolf3D
       @scenery = here.scenery
       # WHICH KINDS OF ENEMY THIS CARTRIDGE CAN MEET, over every floor of it — and so which
       # states, pictures and behaviour it ships. A cartridge with no dogs on any of its floors
-      # emits nothing about dogs at all.
-      @behaviour = Behaviour.for(@floors.flat_map { |floor| floor.guards&.kinds || [] }.uniq, toughness: toughness)
+      # emits nothing about dogs at all. A whole build (Holding) ships every kind.
+      @behaviour = Behaviour.for(@floors.kinds, toughness: toughness)
       @things = things
       @vswap = vswap # the player's own copy of the recorded sounds, or nil for a silent build
       @adlib = adlib # ...and of the effects that are recipes for the AdLib chip, or nil
