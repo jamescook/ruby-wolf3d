@@ -29,6 +29,8 @@ class TestFloorUnpacking < Minitest::Test
       assert_same_pieces maps, pack
       assert_same_footing maps, pack
       assert_same_guards maps, pack
+      assert_same_rooms maps, pack
+      assert_same_totals maps, pack
     end
   end
 
@@ -46,9 +48,70 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_pieces Wolf3D.maps, pack
     assert_same_footing Wolf3D.maps, pack
     assert_same_guards Wolf3D.maps, pack
+    assert_same_rooms Wolf3D.maps, pack
+    assert_same_totals Wolf3D.maps, pack
   end
 
   private
+
+  NOWHERE = Wolf3D::Rooms::NOWHERE
+
+  # Each floor's rooms as Rooms reads them, from Level#area, counting from one: the room of every
+  # cell; the two either side of each door, across its panel; the two a wall that moves stands
+  # between, where it has exactly two round it; each piece's; and the run of exit tiles.
+  def assert_same_rooms(maps, pack)
+    room_of = pack.fetch(:room_of).bytes
+    firsts = pack.fetch(:exit_first).unpack("v*")
+    lasts = pack.fetch(:exit_last).unpack("v*")
+    maps.count.times do |n|
+      level = maps[n]
+      room = ->(x, y) { (level.inside?(x, y) && level.area(x, y)&.+(1)) || NOWHERE }
+
+      assert_equal level.each_cell.map { |x, y| room.call(x, y) }, room_of[CELLS * n, CELLS], "floor #{n}'s rooms"
+
+      doors = Wolf3D::Doors.new(level, Struct.new(:wall_count).new(106)).doors
+      sides = doors.map do |door|
+        steps = door.across == Wolf3D::Doors::ACROSS_X ? [[-1, 0], [1, 0]] : [[0, -1], [0, 1]]
+        steps.map { |dx, dy| room.call(door.x + dx, door.y + dy) }
+      end
+      at = Unpacking::DOORS * n
+      assert_equal sides, %i[door_side_a door_side_b].map { |slot| pack.fetch(slot).bytes[at, doors.length] }.transpose,
+                   "floor #{n}'s door sides"
+
+      walls = Wolf3D::Pushwalls.new(level).walls
+      between = walls.map do |wall|
+        round = [[1, 0], [-1, 0], [0, 1], [0, -1]].map { |dx, dy| room.call(wall.x + dx, wall.y + dy) }.uniq - [NOWHERE]
+        round.length == 2 ? round : [NOWHERE, NOWHERE]
+      end
+      at = Unpacking::PUSHWALLS * n
+      assert_equal between, %i[push_room_a push_room_b].map { |slot| pack.fetch(slot).bytes[at, walls.length] }.transpose,
+                   "floor #{n}'s rooms either side of a wall that moves"
+
+      pieces = Wolf3D::Scenery.new(level).pieces
+      assert_equal pieces.map { |piece| room.call(piece.x, piece.y) },
+                   pack.fetch(:piece_room).bytes[Unpacking::PIECES * n, pieces.length], "floor #{n}'s pieces' rooms"
+
+      exits = level.exits.map { |x, y| (y * 64) + x }
+      assert_equal [exits.min || 1, exits.max || 0], [firsts[n], lasts[n]], "floor #{n}'s way out"
+    end
+  end
+
+  # What the screen between floors counts against: the men to kill at each of the four settings
+  # (Guards#to_kill), and the treasure, which is every piece Pickups counts as one (a treasure or
+  # a one-up). The secrets are the walls that move, counted already.
+  def assert_same_totals(maps, pack)
+    kills = pack.fetch(:kill_total).bytes
+    treasures = pack.fetch(:treasure_total).unpack("v*")
+    maps.count.times do |n|
+      guards = Wolf3D::Guards.new(maps[n])
+      settings = Wolf3D::Guards::SETTINGS
+      worth = Wolf3D::Scenery.new(maps[n]).pieces.count { |piece| %i[treasure extra_life].include?(piece.bonus&.first) }
+
+      assert_equal settings.map { |setting| guards.to_kill(setting) }, kills[settings.length * n, settings.length],
+                   "floor #{n}'s men to kill"
+      assert_equal worth, treasures[n], "floor #{n}'s treasure"
+    end
+  end
 
   # Each floor's guards, in a run of Unpacking::GUARDS from the floor's start, as Guards reads
   # them: cell, kind (its place in Enemy::ALL), the way it faces as the original numbers

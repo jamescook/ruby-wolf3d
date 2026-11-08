@@ -28,6 +28,10 @@ module Wolf3D
     # ...and the guards.
     GUARDS = Holding::ROOM.fetch(:guards)
 
+    # The pieces the screen between floors counts as treasure: the four treasures and the one-up
+    # (Pickups::COUNTS_AS_TREASURE), as Scenery's kinds.
+    TREASURE_KINDS = Scenery::BONUSES.select { |_, (gives, _)| %i[treasure extra_life].include?(gives) }.keys.freeze
+
     # What a guard is as the floor puts him down, a byte each, in the order #write_guard writes
     # them. All the rest of what GuardPool's guard_home tables hold (his first state, how long it
     # lasts, how much killing he takes, whether he counts) follows from his kind and whether he
@@ -43,16 +47,31 @@ module Wolf3D
       %i[door_count pushwall_count lift_count].each do |name|
         slots.numbers name, count: FLOORS, width: :byte, signed: false, layout: :gba
       end
-      %i[door_picture door_across door_lock].each do |name|
+      %i[door_picture door_across door_lock door_side_a door_side_b].each do |name|
         slots.numbers name, count: DOORS * FLOORS, width: :byte, signed: false, layout: :gba
       end
       slots.numbers :push_home, count: PUSHWALLS * FLOORS, width: :half, signed: false, layout: :gba
-      slots.numbers :push_face, count: PUSHWALLS * FLOORS, width: :byte, signed: false, layout: :gba
+      %i[push_face push_room_a push_room_b].each do |name|
+        slots.numbers name, count: PUSHWALLS * FLOORS, width: :byte, signed: false, layout: :gba
+      end
       # Minus one where a floor has no secret lift, because nought is a real cell (ThisFloor).
       slots.numbers :secret_car, count: FLOORS, width: :half, signed: true, layout: :gba
       declare_pieces(slots)
       slots.numbers :guard_count, count: FLOORS, width: :byte, signed: false, layout: :gba
       GUARD_SLOTS.each { |name| slots.numbers name, count: GUARDS * FLOORS, width: :byte, signed: false, layout: :gba }
+      declare_rooms(slots)
+    end
+
+    # THE ROOMS (Rooms), counting from one so nought is Rooms::NOWHERE: every cell's, laid out like
+    # the map. The way out (FirstPerson#the_way_out_of) as the first and last cell of its run of
+    # exit tiles, first above last where a floor has none. And the totals the screen between floors
+    # counts against (Tally): the men to kill at each of Guards::SETTINGS, and the treasure.
+    def self.declare_rooms(slots)
+      slots.numbers :room_of, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
+      %i[exit_first exit_last treasure_total].each do |name|
+        slots.numbers name, count: FLOORS, width: :half, signed: false, layout: :gba
+      end
+      slots.numbers :kill_total, count: FLOORS * Guards::SETTINGS.length, width: :byte, signed: false, layout: :gba
     end
 
     # A piece's cell, which of Scenery's pieces it is (its code less Scenery::FIRST_CODE: what it
@@ -61,7 +80,7 @@ module Wolf3D
     # in its floor counting from one. A floor can hold more pieces than a byte counts.
     def self.declare_pieces(slots)
       slots.numbers :piece_count, count: FLOORS, width: :half, signed: false, layout: :gba
-      %i[piece_x piece_y piece_kind piece_picture].each do |name|
+      %i[piece_x piece_y piece_kind piece_picture piece_room].each do |name|
         slots.numbers name, count: PIECES * FLOORS, width: :byte, signed: false, layout: :gba
       end
       slots.numbers :blocked, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
@@ -128,6 +147,8 @@ module Wolf3D
       doors.store!(0)
       levers.store!(0)
       car.store!(-1)
+      # First, because a door, a wall that moves and a piece each ask which room is beside them.
+      fill_rooms(n, base)
       @b.repeat(CELLS) do |cell|
         code.store!(wall_code(base + cell))
         number.store!(0)
@@ -135,7 +156,7 @@ module Wolf3D
         car.store!(cell) if code == Elevator::SECRET_CAR && car < 0
         if door?(code)
           number.store!(ThisFloor::DOOR + doors)
-          write_door((DOORS * n) + doors, code, first_door) if doors < DOORS
+          write_door((DOORS * n) + doors, code, first_door, base, cell) if doors < DOORS
           doors.increase!(1)
         elsif code == Elevator::SWITCH
           number.store!(ThisFloor::LIFT + levers)
@@ -155,6 +176,39 @@ module Wolf3D
       fill_guards(n, base)
     end
 
+    # FLOOR +n+'S ROOMS AND ITS WAY OUT. A floor cell's code is Level::FLOOR plus its room
+    # (Level#area), and every other cell is in none. The exit tiles lie side by side in one row on
+    # the two floors that have them (FirstPerson#the_way_out_of refuses a floor where they do not).
+    def fill_rooms(n, base)
+      code = counter(:room_code)
+      first = counter(:exit_first)
+      last = counter(:exit_last)
+      first.store!(-1)
+      last.store!(0)
+      @b.repeat(CELLS) do |cell|
+        code.store!(wall_code(base + cell))
+        @pack[:room_of][base + cell] = code - (Level::FLOOR - 1) if code >= Level::FLOOR
+        if thing_code(base + cell) == Level::EXIT
+          first.store!(cell) if first < 0
+          last.store!(cell)
+        end
+        @copy.count_written 1
+      end
+      first.store!(1) if first < 0
+      [[:exit_first, first], [:exit_last, last]].each do |slot, value|
+        @pack[slot][n * 2] = value
+        @pack[slot][(n * 2) + 1] = value >> 8
+      end
+      @copy.count_written 4
+    end
+
+    # THE ROOM AT CELL +x+, +y+ of the floor at +base+, into +into+: nought outside the map.
+    def room_at(base, x, y, into)
+      into.store!(0)
+      into.store!(@pack[:room_of][base + (y * 64) + x]) if x >= 0 && y >= 0 && x < 64 && y < 64
+      into
+    end
+
     # EVERYONE FLOOR +n+ CAN HOLD, at any setting, in the map's order (Guards#guard_at): a thing
     # code names a kind by the block it falls in, less the harder games' steps, and what is left
     # says which way he faces and whether he patrols. No two blocks overlap
@@ -162,13 +216,18 @@ module Wolf3D
     def fill_guards(n, base)
       guards = counter(:guards)
       guards.store!(0)
+      kills = Guards::SETTINGS.each_index.map { |setting| counter(:"kills_#{setting}") }
+      kills.each { |count| count.store!(0) }
       @b.repeat(CELLS) do |cell|
         read_guard(thing_code(base + cell), wall_code(base + cell))
         if counter(:guard_kind) >= 0
           write_guard((GUARDS * n) + guards, cell) if guards < GUARDS
           guards.increase!(1)
+          # A man to kill on every setting from the easiest he turns up on (Guards#to_kill).
+          kills.each_with_index { |count, setting| count.increase!(1) if counter(:guard_from) <= setting }
           # THE MAN INSIDE THE MACHINE stands in the machine's cell from the start, waiting
-          # (Guards#with_the_man_inside), one more of the floor's guards.
+          # (Guards#with_the_man_inside), one more of the floor's guards, and no man to kill
+          # (Enemy#counted?): the machine was.
           if counter(:guard_kind) == kind_number(:mecha)
             counter(:guard_kind).store!(kind_number(:hitler))
             write_guard((GUARDS * n) + guards, cell) if guards < GUARDS
@@ -177,7 +236,8 @@ module Wolf3D
         end
       end
       @pack[:guard_count][n] = guards
-      @copy.count_written 1
+      kills.each_with_index { |count, setting| @pack[:kill_total][(n * kills.length) + setting] = count }
+      @copy.count_written 1 + kills.length
     end
 
     # WHO A THING CODE PUTS DOWN, into the guard_ counters: his kind's number, or minus one for
@@ -246,11 +306,14 @@ module Wolf3D
     def fill_pieces(n, base)
       pieces = counter(:pieces)
       kind = counter(:piece_kind)
+      treasures = counter(:treasures)
       pieces.store!(0)
+      treasures.store!(0)
       @b.repeat(CELLS) do |cell|
         kind.store!(thing_code(base + cell) - Scenery::FIRST_CODE)
         if kind >= 0 && kind < Scenery::PICTURES.length
-          write_piece((PIECES * n) + pieces, cell, kind) if pieces < PIECES
+          write_piece((PIECES * n) + pieces, base, cell, kind) if pieces < PIECES
+          treasures.increase!(1) if any_of?(kind, TREASURE_KINDS)
           @pack[:blocked][base + cell] = 1 if any_of?(kind, Scenery::BLOCKING)
           pieces.increase!(1)
           if any_of?(kind, Scenery::BONUSES.keys)
@@ -262,12 +325,15 @@ module Wolf3D
       end
       @pack[:piece_count][n * 2] = pieces
       @pack[:piece_count][(n * 2) + 1] = pieces >> 8
-      @copy.count_written 2
+      @pack[:treasure_total][n * 2] = treasures
+      @pack[:treasure_total][(n * 2) + 1] = treasures >> 8
+      @copy.count_written 4
     end
 
     # PIECE +at+ IN ITS SLOTS. Its picture is Scenery.picture_of: each piece wears the picture
     # of its own number, but for the few in Scenery::PICTURES that borrow another's.
-    def write_piece(at, cell, kind)
+    def write_piece(at, base, cell, kind)
+      @pack[:piece_room][at] = room_at(base, cell % 64, cell / 64, counter(:piece_room))
       picture = counter(:piece_picture)
       picture.store!(Scenery::FIRST_PICTURE + kind)
       Scenery::PICTURES.each_with_index do |worn, own|
@@ -277,13 +343,24 @@ module Wolf3D
       @pack[:piece_y][at] = cell / 64
       @pack[:piece_kind][at] = kind
       @pack[:piece_picture][at] = picture
-      @copy.count_written 4
+      @copy.count_written 5
     end
 
     # DOOR +at+ IN THE DOOR SLOTS, from its wall +code+ (Doors#door_at): the picture it wears, at its
     # page, which way its panel runs, and the key bit it wants (FirstPerson::KEY_BITS). An even code
-    # runs across x; a lift's door and a locked one wear pictures of their own.
-    def write_door(at, code, first_door)
+    # runs across x; a lift's door and a locked one wear pictures of their own. It joins the rooms
+    # either side of its panel (Rooms#joins): west and east of one across x, else north and south.
+    def write_door(at, code, first_door, base, cell)
+      x = cell % 64
+      y = cell / 64
+      if (code & 1) == Doors::ACROSS_X
+        @pack[:door_side_a][at] = room_at(base, x - 1, y, counter(:side))
+        @pack[:door_side_b][at] = room_at(base, x + 1, y, counter(:side))
+      else
+        @pack[:door_side_a][at] = room_at(base, x, y - 1, counter(:side))
+        @pack[:door_side_b][at] = room_at(base, x, y + 1, counter(:side))
+      end
+      @copy.count_written 2
       kind = counter(:door_kind)
       kind.store!(Doors::FACE)
       kind.store!(Doors::ELEVATOR) if code == Level::ELEVATOR_DOORS[0] || code == Level::ELEVATOR_DOORS[1]
@@ -310,7 +387,10 @@ module Wolf3D
       pushed.store!(0)
       @b.repeat(CELLS) do |cell|
         if thing_code(base + cell) == Level::PUSHWALL && solid?(base, cell % 64, cell / 64)
-          write_pushwall((PUSHWALLS * n) + pushed, cell, wall_code(base + cell)) if pushed < PUSHWALLS
+          if pushed < PUSHWALLS
+            write_pushwall((PUSHWALLS * n) + pushed, cell, wall_code(base + cell))
+            write_pushwall_rooms((PUSHWALLS * n) + pushed, base, cell)
+          end
           claim(base, cell % 64, cell / 64, pushed)
           [[1, 0], [-1, 0], [0, 1], [0, -1]].each do |dx, dy|
             x.store!((cell % 64) + dx)
@@ -337,6 +417,36 @@ module Wolf3D
       @pack[:push_home][(at * 2) + 1] = cell >> 8
       @pack[:push_face][at] = (code - 1) * 2
       @copy.count_written 3
+    end
+
+    # THE TWO ROOMS A WALL THAT MOVES STANDS BETWEEN, which Rooms keeps joined for good
+    # (Rooms#always_joined): the rooms of the four cells round it, each once, in the order east,
+    # west, south, north, and only where there are exactly two. Nought for both otherwise.
+    def write_pushwall_rooms(at, base, cell)
+      near = counter(:push_near)
+      far = counter(:push_far)
+      more = counter(:push_more)
+      room = counter(:push_round)
+      near.store!(0)
+      far.store!(0)
+      more.store!(0)
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].each do |dx, dy|
+        room_at(base, (cell % 64) + dx, (cell / 64) + dy, room)
+        if room > 0
+          if near == 0
+            near.store!(room)
+          elsif room != near && far == 0
+            far.store!(room)
+          elsif room != near && room != far
+            more.store!(1)
+          end
+        end
+      end
+      if far > 0 && more == 0
+        @pack[:push_room_a][at] = near
+        @pack[:push_room_b][at] = far
+      end
+      @copy.count_written 2
     end
 
     # Cell +x+, +y+ of the floor at +base+ for wall that moves +pushed+, unless a door or an earlier
