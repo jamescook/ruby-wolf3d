@@ -24,6 +24,8 @@ require_relative "wolf3d/vanilla"
 require_relative "wolf3d/palette"
 require_relative "wolf3d/level"
 require_relative "wolf3d/maps"
+# ...and the same planes unpacked by the game itself, for a shell's data pack.
+VBlank.require_game_file "wolf3d/map_plane_format"
 require_relative "wolf3d/vswap"
 require_relative "wolf3d/adlib_sounds"
 require_relative "wolf3d/opl2"
