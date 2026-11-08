@@ -49,13 +49,14 @@ module Wolf3D
     PACK_VERSION = "1"
 
     # Where packs are kept between builds, out of git, so only the first build from a copy runs the
-    # routine: the repository's own .cache, wherever the build was started from.
-    def self.pack_cache = File.expand_path("../../.cache/packs", Wolf3D.home)
+    # routine: the repository's own .cache, wherever the build was started from. Worked out as this
+    # file loads (it is games/wolf3d/lib/wolf3d/), since the game's own code may not reach the files.
+    PACK_CACHE = File.expand_path("../../../../.cache/packs", __dir__).freeze
 
     # THE DATA PACK OF A WHOLE BUILD, declared on +game+ (a build's self) and filled from +from+
     # (an Original::Game naming the copy). Hands back the pack's handle.
     def self.declare_pack(game, from:)
-      game.data_pack(from: from, version: PACK_VERSION, formats: [MapPlaneFormat], cache: pack_cache) do |slots|
+      game.data_pack(from: from, version: PACK_VERSION, formats: [MapPlaneFormat], cache: PACK_CACHE) do |slots|
         declare(slots)
         # The routine is a program of its own, and the block runs on its builder: self here.
         slots.fill_from_copy { |copy, pack, release| FloorUnpacking.new(self, copy, pack, release).fill }

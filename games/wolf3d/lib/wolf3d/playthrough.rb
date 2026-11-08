@@ -121,7 +121,18 @@ module Wolf3D
 
     # ...and ONE PER STEP, because most steps are shared by more than one reason, and putting the
     # floor back is the biggest thing here.
-    def step_routine(step) = once(:"playthrough_#{step}") { @world.public_send(step) }
+    def step_routine(step) = once(:"playthrough_#{step}") { take_step(step) }
+
+    # One of STEPS on the world, called by its name.
+    def take_step(step)
+      case step
+      when :reset_game then @world.reset_game
+      when :reset_player then @world.reset_player
+      when :select_floor then @world.select_floor
+      when :place_player then @world.place_player
+      when :reset_floor then @world.reset_floor
+      end
+    end
 
     # The routine +name+, with +body+, made if it has not been already.
     def once(name, &body)
