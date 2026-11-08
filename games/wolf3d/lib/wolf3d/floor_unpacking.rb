@@ -77,6 +77,11 @@ module Wolf3D
         slots.numbers name, count: FLOORS, width: :half, signed: false, layout: :gba
       end
       slots.numbers :kill_total, count: FLOORS * Guards::SETTINGS.length, width: :byte, signed: false, layout: :gba
+      # Where the player starts each floor, and the way they face as quarter turns clockwise from
+      # east, the way FirstPerson's angle runs.
+      %i[start_x start_y start_quarter_turns].each do |name|
+        slots.numbers name, count: FLOORS, width: :byte, signed: false, layout: :gba
+      end
     end
 
     # A piece's cell, which of Scenery's pieces it is (its code less Scenery::FIRST_CODE: what it
@@ -188,14 +193,22 @@ module Wolf3D
       code = counter(:room_code)
       first = counter(:exit_first)
       last = counter(:exit_last)
+      thing = counter(:room_thing)
+      started = counter(:started)
       first.store!(-1)
       last.store!(0)
+      started.store!(0)
       @b.repeat(CELLS) do |cell|
         code.store!(wall_code(base + cell))
+        thing.store!(thing_code(base + cell))
         @pack[:room_of][base + cell] = code - (Level::FLOOR - 1) if code >= Level::FLOOR
-        if thing_code(base + cell) == Level::EXIT
+        if thing == Level::EXIT
           first.store!(cell) if first < 0
           last.store!(cell)
+        end
+        if started == 0 && thing >= Level::FACINGS.keys.min && thing <= Level::FACINGS.keys.max
+          write_start(n, cell, thing)
+          started.store!(1)
         end
         @copy.count_written 1
       end
@@ -205,6 +218,17 @@ module Wolf3D
         @pack[slot][(n * 2) + 1] = value >> 8
       end
       @copy.count_written 4
+    end
+
+    # WHERE THE PLAYER STARTS FLOOR +n+: the first cell in the map's order holding one of
+    # Level::FACINGS' codes (Level#start), which run north, east, south, west. Less 16 and taken
+    # in fours that is east nought, south one, west two, north three: quarter turns clockwise from
+    # east (FirstPerson#facing_angle).
+    def write_start(n, cell, code)
+      @pack[:start_x][n] = cell % WIDTH
+      @pack[:start_y][n] = cell / WIDTH
+      @pack[:start_quarter_turns][n] = (code - 16) % 4
+      @copy.count_written 3
     end
 
     # THE ROOM AT CELL +x+, +y+ of the floor at +base+, into +into+: nought outside the map.

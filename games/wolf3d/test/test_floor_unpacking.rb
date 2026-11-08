@@ -49,6 +49,18 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_guards maps, pack
     assert_same_rooms maps, pack
     assert_same_totals maps, pack
+    assert_same_starts maps, pack
+  end
+
+  # Where the player starts each floor (Level#start): the cell, and the way they face as quarter
+  # turns clockwise from east, which is how FirstPerson's angle runs (facing_angle).
+  def assert_same_starts(maps, pack)
+    turns = { east: 0, south: 1, west: 2, north: 3 }
+    maps.count.times do |n|
+      start = maps[n].start
+      assert_equal [start.x, start.y, turns.fetch(start.facing)],
+                   %i[start_x start_y start_quarter_turns].map { |slot| pack.fetch(slot).getbyte(n) }, "floor #{n}'s start"
+    end
   end
 
   def real_original(data)
