@@ -84,7 +84,7 @@ module Wolf3D
 
     private
 
-    def in_copy?(sprite) = sprite < @vswap.sprite_count
+    def in_copy?(sprite) = @vswap.sprite?(sprite)
 
     def edge(sprite, which)
       return 0 unless in_copy?(sprite)

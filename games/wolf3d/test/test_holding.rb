@@ -54,6 +54,20 @@ class TestHolding < Minitest::Test
     refute room.no_floor_has?(:lifts), "and the code for everything"
   end
 
+  # THE SHAREWARE'S PICTURES FILL A WHOLE BUILD'S ROWS, though its VSWAP lists pages it leaves
+  # empty (the walls and things only the six episodes have): an empty page is drawn in the
+  # palette's first colour, as a page past the end of the file is.
+  def test_the_shareware_fills_a_whole_builds_pictures
+    data = real_shareware
+    vswap = Wolf3D::Vswap.from(data)
+    palette = Wolf3D.palette
+    walls = Wolf3D::WallAtlas.new(vswap, palette, Wolf3D::Maps.from(data)[0], holding: Holding.whole)
+    things = Wolf3D::ThingAtlas.whole(vswap, palette)
+
+    assert_equal walls.width * walls.height, walls.pixels.length, "every wall page, empty or not"
+    assert_equal things.width * things.height, things.pixels.length, "every sprite, empty or not"
+  end
+
   # THE SAME FLOOR LOOKS THE SAME held either way: the walls, the guards and the gun come from the
   # whole row of pictures in place of the trimmed one, and the whole build reads its map from the
   # data pack (FloorTables), and nothing on the screen moves. Looked at twice: standing in the first

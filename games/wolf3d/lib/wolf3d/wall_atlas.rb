@@ -27,7 +27,8 @@ module Wolf3D
     #
     # A WHOLE BUILD (Holding) holds every page of the largest VSWAP in the file's own order, so a
     # picture's place in the row is its page number, whichever release is loaded: a page past the
-    # end of this copy's walls is drawn in the palette's first colour, and nothing points at one.
+    # end of this copy's walls, or one the copy leaves empty, is drawn in the palette's first
+    # colour, and nothing points at one.
     # The doors' and the levers' pictures are pages too, so they are in the row already.
     def initialize(vswap, palette, level, doors: nil, lifts: nil, holding: Holding.trimmed)
       @vswap = vswap
@@ -86,7 +87,7 @@ module Wolf3D
 
     private
 
-    def in_copy?(page) = page < @vswap.wall_count
+    def in_copy?(page) = @vswap.wall?(page)
 
     # Only the walls this level actually builds with. A whole set is a hundred pictures and a
     # floor uses a dozen.

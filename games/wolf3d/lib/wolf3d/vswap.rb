@@ -35,6 +35,13 @@ module Wolf3D
       Sound.new(gather(@first_sound + start, length))
     end
 
+    # IS THIS PAGE IN THE FILE AT ALL? The shareware's VSWAP lists the six episodes' pages but
+    # leaves the ones it does not ship empty, a length of nought, so a page number below the count
+    # can still hold nothing. Asked by a whole build's rows of pictures (WallAtlas, ThingAtlas),
+    # which hold every page whichever release is loaded.
+    def wall?(index) = index.between?(0, wall_count - 1) && @lengths[index].to_i.positive?
+    def sprite?(index) = index.between?(0, sprite_count - 1) && @lengths[@first_sprite + index].to_i.positive?
+
     def walls = (0...wall_count).map { |i| wall(i) }
     def sprites = (0...sprite_count).map { |i| sprite(i) }
     def sounds = (0...sound_count).map { |i| sound(i) }
