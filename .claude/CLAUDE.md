@@ -5,32 +5,16 @@ Wolfenstein 3D for the Game Boy Advance, written in Ruby against
 cartridge, it does not implement one. It requires `vblank` as a gem, the way anyone else's
 game would.
 
-## What this is FOR — the north star
+## What this is FOR
 
-This is a real game, and it is also **the framework's gap-finder**. Porting a game people know
-keeps meeting things the framework cannot yet do, and each of those is worth more than the
-workaround. So when this game hits a wall:
-
-- **The framework-side finding is the valuable output**, more than whatever this game ships to
-  get past it. Record it against the framework, not here.
-- **Do not work around a gap here if the framework could close it.** A clever hack in this
-  repository hides the very thing the port exists to find.
-- **Never reach past the framework's public surface** — not into `VBlank::IR`, not into a
-  backend, not into its test directory. Feeling the constraint is the point; a game that can
-  cheat its way past one stops reporting it.
-- **A gap worth closing is worth recording even when you route around it today.** Say which
-  you did, and why.
+This is a real game, and it is also **the framework's gap-finder**: `.claude/rules/shared/games.md`
+has the rules that follow from that, and `.claude/rules/shared/handoff.md` how a wall is filed.
 
 ## The game's own data is never in this repository
 
-None of Wolfenstein's data is freely licensed, so none of it is committed — not the files you
-supply, not anything converted out of them. The readers are committed; what they read is not.
+None of Wolfenstein's data is freely licensed, so none of it is committed (`.claude/rules/shared/games.md`).
 `wolf3d.yml` (gitignored) points the build at your copy; `wolf3d.example.yml` shows the shape.
-Tests that need the data skip and say so, and the suite never depends on one being present.
-
-That is also why the framework's suite does not run this one and knows nothing about it: it
-would fail on every machine but yours. The dependency runs one way only — this game leans on
-the framework for everything, and the framework must never learn this game's name.
+The suite requires that copy and stops without it; no test skips (`.claude/rules/shared/testing.md`).
 
 ## Reconstructing a rule of the original game
 
@@ -38,44 +22,14 @@ the framework for everything, and the framework must never learn this game's nam
 reconstructing any rule from memory — how much a pickup heals, what a guard does when it hears
 you, how the tally screen scores. Memory is confident and wrong about this game.
 
-## Shell commands — one operation per call
+## The framework's pin
 
-Run **one logical command per Bash call.** Do not chain distinct operations with `&&`, `;`,
-or newlines in a single invocation, and do not bundle a file-writing heredoc
-(`cat > f <<EOF …`) with the command that consumes it.
-
-Why this is non-negotiable here: the operator reads each command before allowing it, and the
-permission allow/denylist matches on recognizable prefixes (`git commit`, `rake test`,
-`rake build`). A blob like `cat > msg <<EOF … EOF; git add .; git commit -F msg; git show` is
-unreadable, can't be allowlisted, and can't be denied granularly.
-
-- `git add`, then `git commit`, then `git show` are **three separate Bash calls**, not one.
-  Need several commands at once? Issue several Bash calls (they can run in parallel) — each
-  stays individually matchable.
-- Write files — commit messages, scripts, long bodies of text — with the **Write/Edit tools**,
-  never `cat >`/heredocs. Then a single command reads the file (`git commit -F <file>`).
-- No `python3 -c '…'` / `ruby -e '…'` logic one-liners. Put logic in a file so it's
-  inspectable and re-runnable.
-- Prefer one clear command over a clever pipeline, even for read-only inspection.
-
-
-## The framework, and working on both at once
-
-`vblank` and `ruby-gba-emulator` both come from git (see the `Gemfile`). To edit the
-framework and this game together, point bundler at a checkout beside this one:
-
-```bash
-bundle config set --local local.vblank ../vblank
-```
-
-**One override covers both gems**, because the Gemfile declares them as one git source — the
-emulator resolves to `ruby-gba-emulator/` inside that same checkout. Undo it with
-`bundle config --delete local.vblank`. It is also the only way to test against framework work
-that is not pushed yet.
-
-One catch while the override is on: an overridden gem behaves like a `path:` source, and
-bundler does not build extensions for those. If the emulator will not load, run
-`rake compile_emulator` in the framework checkout — its error message says so too.
+`vblank` and `ruby-gba-emulator` both come from git, as one git source (see the `Gemfile`), and
+the game builds and tests against the revision `Gemfile.lock` names. Bundler takes that revision
+from the VBlank checkout beside this one, not from GitHub: `bundle config --local local.vblank
+../vblank`, set once on each machine and never committed. So a VBlank commit is ready to pin the
+moment it is in that checkout, without waiting for it to be pushed. That checkout is never edited
+from here.
 
 **A git gem does not move on its own.** `bundle install` keeps whatever revision the lock
 names; to pick up new framework commits, **name both gems**:
@@ -89,10 +43,6 @@ Naming only one of them does nothing, and says so in a way that reads like succe
 with the revision in `Gemfile.lock` unchanged. The two gems share one git source, and bundler
 will not move a shared source while a gem in it is still pinned. Name both and the source
 moves, so they can never end up on different revisions.
-
-**The verb reference lives in the framework**, at `.claude/rules/dsl-reference.md` in the
-VBlank checkout. Read it there rather than copying it here: it is large, it changes with
-every verb, and a copy would be wrong within a week.
 
 ## Emulator & integration tests
 
@@ -118,12 +68,12 @@ also says the code those tests reached shares none. The report at the end says s
 what was touched and what to change.
 
 ```bash
-rake test:golden                                                # the check before a commit; fails past five minutes
+rake test:golden                                                # the check before a commit
 rake test                                                       # the suite
-rake test TEST=test/test_maps.rb                                # one file
-rake test TEST=test/test_maps.rb TESTOPTS="--name=/pattern/"    # one test
+rake test TEST=games/wolf3d/test/test_maps.rb                                # one file
+rake test TEST=games/wolf3d/test/test_maps.rb TESTOPTS="--name=/pattern/"    # one test
 rake test TESTOPTS=--no-ractor                                  # minitest's own threads, to chase one failure
-bundle exec minitest-ractor -I lib -I test test/                # the audit alone: what to change, grouped by cause
+bundle exec minitest-ractor -I lib -I test -I games/wolf3d/lib -I games/wolf3d/test test/ games/wolf3d/test/                # the audit alone: what to change, grouped by cause
 ```
 
 **Nothing a test does may reach another test running at the same time.** That rules out
@@ -131,11 +81,11 @@ changing `ENV` (hand the build its settings — `Wolf3D.build_rom(settings: { fl
 hand `GameData` an `env:` of its own), swapping a constant, or caching on a class or module (use
 `Ractor.current[:key] ||=`).
 A constant a test class declares is frozen all the way down for you as it is declared — see
-`test/test_helper.rb`.
+`games/wolf3d/test/test_helper.rb`.
 
-No `bundle exec`: the Rakefile and `lib/wolf3d.rb` each require `bundler/setup` first. `bundle
+No `bundle exec`: the Rakefile and `games/wolf3d/lib/wolf3d.rb` each require `bundler/setup` first. `bundle
 exec` is still needed for an executable that comes out of the bundle rather than out of this
-repository — `bundle exec vblank profile wolf3d.rb`.
+repository — `bundle exec vblank profile games/wolf3d/wolf3d.rb`.
 
 See `.claude/rules/testing.md`.
 
@@ -147,11 +97,10 @@ altitudes here, and neither is the framework's.
 - **Reading Wolfenstein's own files — assert against the game, not against ourselves.**
   A decoder is right when it agrees with the world: a map is the size the format says, a
   Huffman stream decodes to the byte count its header claims, a wall code finds both of its
-  pictures. Where a real copy is needed, `game_data_or_skip` skips with a message and the
-  suite still passes without one. Where a made-up one will do, `Wolf3D::Fixture::Release`
-  builds a tiny release in memory — one room, one wall, known bytes — so the test runs on
-  every machine. Prefer the fixture; keep the copy for the few tests that check us against
-  the world.
+  pictures. Where a real copy is needed, the test reads the one the suite requires. Where a
+  made-up one will do, `Wolf3D::Fixture::Release` builds a tiny release in memory — one room,
+  one wall, known bytes — so the test says exactly which bytes it depends on. Prefer the
+  fixture; keep the copy for the few tests that check us against the world.
 
 - **Game behaviour — assert what a player would see, never the IR the build makes.** Build a
   small program through the DSL, run it on the framework's reference interpreter, and read
@@ -160,10 +109,10 @@ altitudes here, and neither is the framework's.
   even when a wrong mental model is baked into both sides. Don't write those.
   - **Fast path: the reference interpreter is a headless oracle.**
     `i = Reference.new.run(program); i.screen.pixel(x, y)` — or `i[:name]` for a variable.
-    In-process, deterministic, no emulator. `test/test_first_person.rb` is the worked
+    In-process, deterministic, no emulator. `games/wolf3d/test/test_first_person.rb` is the worked
     example: it builds the view over a one-room fixture level and reads the picture.
   - **Hardware path: the real cartridge** through `VBlank::Diagnostics::Verifier`, reached
-    the way any game outside the framework must reach it. `test/test_wolf3d_on_hardware.rb`
+    the way any game outside the framework must reach it. `games/wolf3d/test/test_wolf3d_on_hardware.rb`
     is the whole of it — keep it to the few things only the console can answer.
   - Supply input through the interpreter's `hold(:btn)` / `input_each_frame { }`, not by
     poking internal state.
@@ -176,14 +125,18 @@ altitudes here, and neither is the framework's.
 
 ### Core Files
 
-The build has three layers, and they load in that order (see `lib/wolf3d.rb`, whose `require`s
-are commented with what needs what).
+The game is in `games/wolf3d/` (its `lib`, `test`, `tools`, `films`, the build file `wolf3d.rb`
+and `wolf3d.yml`), the way every VBlank game here is laid out. The repository's own `lib/` and
+`test/` hold only what knows nothing about Wolfenstein: `lib/id_software/codec/` — `rlew`,
+`carmack`, `huffman`, the three compressions id Software's games keep their data in. A map is
+Carmack over RLEW; the art and text are Huffman.
+
+The game has three layers, and they load in that order (see `games/wolf3d/lib/wolf3d.rb`, whose
+`require`s are commented with what needs what). The paths below are under `games/wolf3d/lib/`.
 
 **Reading the game's own files** — nothing here knows about the console:
 
-- `lib/wolf3d/codec/` — `rlew`, `carmack`, `huffman`: the three compressions the game's data
-  uses. A map is Carmack over RLEW; the art and text are Huffman.
-- `lib/wolf3d/game_data.rb` — finds your copy and says which release it is (`wolf3d.yml`, or
+- `games/wolf3d/lib/wolf3d/game_data.rb` — finds your copy and says which release it is (`wolf3d.yml`, or
   `WOLF3D_DATA`). `vanilla.rb` — refuses any copy but the six episodes or the shareware, both version 1.4. `maps.rb` /
   `level.rb` — GAMEMAPS and MAPHEAD, a floor as a grid of cells.
   `vswap.rb` — the walls, the things and the digitised sounds. `vgagraph.rb` — the menu art,
@@ -193,7 +146,7 @@ are commented with what needs what).
   chip, played while building, so the cartridge holds recordings. `adlib_music.rb` — the tracks in
   AUDIOT, which are logs of writes to it. `opl2_track.rb` — all nine channels, which turn a track
   into a recording, kept under `tmp/music` and never committed.
-- `lib/wolf3d/fixture/release.rb` — a made-up release built in memory, so most of the suite
+- `games/wolf3d/lib/wolf3d/fixture/release.rb` — a made-up release built in memory, so most of the suite
   runs with no copy of the game present.
 
 **Turning that into a floor** — still no console:
@@ -218,8 +171,8 @@ are commented with what needs what).
   `lives.rb`, `scoring.rb`, `victory.rb`, `tally.rb`, `status_bar.rb`, `sounds.rb`, `music.rb` — the rest of playing.
 - `saved_games.rb`, `high_scores.rb` — what lasts on the cartridge, which the menus reach. `small_letters.rb` — words drawn a letter at a time. `victory_march.rb`, `episode_end.rb`, `end_article.rb`, `floor_records.rb` — how an episode ends. `menus.rb`, `title.rb`, `map_view.rb`, `palette_view.rb`, `art_view.rb` — the screens
   around the game.
-- `pilot.rb` — a player made of Ruby, not on the cartridge, which `tools/play_shareware.rb` runs.
-- `lib/wolf3d.rb` — the dials (`WOLF3D_EPISODES`, `WOLF3D_FLOORS`, `WOLF3D_FROM`,
+- `pilot.rb` — a player made of Ruby, not on the cartridge, which `games/wolf3d/tools/play_shareware.rb` runs.
+- `games/wolf3d/lib/wolf3d.rb` — the dials (`WOLF3D_EPISODES`, `WOLF3D_FLOORS`, `WOLF3D_FROM`,
   `WOLF3D_START`, `WOLF3D_ARMED`, `WOLF3D_SCREEN`, `WOLF3D_SEED`, `WOLF3D_MUSIC`) and `GAME`, the one `VBlank.game` block.
 
 ### Key patterns
@@ -233,18 +186,15 @@ are commented with what needs what).
   while the game is still drawing it the player watches the picture arrive.
 - **A part of the game is a plain class constructed inside the build block**, taking `build:`
   and whatever it needs, with an `update` the game loop calls. That is the framework's
-  multi-file pattern; it is why these files are ordinary Ruby objects and not DSL blocks. A file
-  that holds game code comes in with `VBlank.require_game_file` rather than `require_relative`,
-  because that is what makes its `if`, `x = 1` and `&&` work on game variables and tests.
+  multi-file pattern; it is why these files are ordinary Ruby objects and not DSL blocks.
 - **A picture the game draws again only when it changes** goes through `keep_showing`, which
   the tear-free screen makes necessary: it keeps two pictures, so a single paint reaches one
   of them and the figure flickers between old and new.
 
 ### Naming methods — the name says what it does, not a story about it
 
-**A method's name tells a reader what calling it does or returns, without opening the body.** This
-project's comments are deliberately narrative; names are not, and carrying that voice into a name
-is the mistake this section exists for. Names are for engineers and use the words engineers know.
+**A method's name tells a reader what calling it does or returns, without opening the body.** The
+rest of the naming rules are in `.claude/rules/shared/all-projects.md` and `games.md`.
 
 ```
 BAD   the_world_takes_a_step   a clause of a story
@@ -257,51 +207,23 @@ BAD   how_far_away             a question with no verb; it stores a distance
 GOOD  measure_distance
 ```
 
-- **Say the effect and its object.** A method is a verb for what it does. A verb with no real
-  object (`check_`, `handle_`, `process_`, `settle_`, `take_`, `do_`) hides what happens.
 - **Suffixes are promises.** `?` returns true or false and does nothing else. `!` raises a friendly
   error or mutates in a way a caller must know about.
 - **No prose.** No articles (`the_`, `a_`, `an_`), no filler, no metaphors a newcomer cannot decode,
   and no clauses that narrate. A long name is fine only when it is precise, never when it is a
   sentence. This holds for the names given to `func`, `table`, `var` and `pool` too.
-- **A software concept takes its standard software name.** Never invent an everyday phrase to stand
-  in for a term a programmer would search for.
-- **A game concept takes the original's name** wherever `~/open_source/wolf4sdl` has one, in Ruby's
-  spelling: `select_dodge_dir`, `first_sighting`.
-- **A constant says what it is and its unit, read alone.** Never a bare participle or verb (`HELD`,
-  `DOES`) or a pronoun.
+- **The original's names come from `~/open_source/wolf4sdl`**, in Ruby's spelling:
+  `select_dodge_dir`, `first_sighting`.
 - **Siblings differ in their names.** Two names side by side must say in the name what differs.
-- **Matching the code around it does not excuse a bad name.** Where the surrounding names break
-  this, name the new thing properly and rename the old ones the change touches.
 
 The plain words used in replies to the operator are for replies, never for names in code.
 
 ### Writing code comments
 
-- Comments are for humans and should read as if a human wrote them.
-- Be concise for ordinary code, but **explain generously where the reader could not know**:
-  the shape of Wolfenstein's own file formats, and what a rule of the original game is and
-  why. The reader knows Ruby. They do not know GAMEMAPS, Carmack compression, or what a
-  pushwall is. That teaching is the point.
-- Say what the code IS, not what it used to be. No migration narrative, no "for now".
-- Do not name the issue tracker, or an issue id, in a code comment.
-- **No measured decimals in a comment.** A timing figure is specific to one emulator build and
-  one moment, so it is stale as soon as anybody re-measures. Write what survives instead:
-  counts and relationships. A measured number belongs somewhere dated by construction — a
-  commit message, or the issue it came from.
-
-### The issue tracker
-
-How issues are kept is in `.claude/tracker.md`, which is local and not committed.
-
-### Writing commit messages
-
-- Commit messages are for humans and should read as if a human wrote them.
-- Be concise.
-- Do not name the issue tracker, or an issue id, in a commit message. The `commit-msg` hook in
-  `.githooks/` rejects one as a backstop; don't lean on it instead of just not writing it.
-- Do not add a `Co-Authored-By` trailer. Do not say how many tests were added.
-- Avoid AI "fluff" that sounds pleased with itself - be direct and get to the point.
+The shared rules for comments are in `.claude/rules/shared/all-projects.md` and `games.md`. Here,
+what the reader could not know is the shape of Wolfenstein's own file formats, and what a rule of
+the original game is and why. The reader knows Ruby. They do not know GAMEMAPS, Carmack
+compression, or what a pushwall is. That teaching is the point.
 
 ### Writing text the player reads — use the `simple-english` skill
 
@@ -317,44 +239,10 @@ comments — those stay conversational and explain generously (see above).
 - Don't use it, period. Material knowledge goes in code comments.
 - Code style should be Rubocop or similar.
 
-### DSL conventions, which belong to the framework
+### DSL habits this game follows
 
-The verb surface is VBlank's and is documented there, in `.claude/rules/dsl-reference.md` in
-the VBlank checkout. Read it there; do not copy it here. A few habits it establishes and this
-game follows:
+What the verbs do is VBlank's to document (`.claude/rules/shared/games.md`). The habits:
 
-- Game code is normal Ruby: `if`, `x = 1`, `x += 1`, `&&`, `||`. `set!`, `add!` and `sub!` raise.
-  A name holds a value, and two things follow from that. `@a = @b` copies the number only if `@a`
-  was made on its own line, `@a = build.var :a, 0`. Made in a list, or handed in, the name moves
-  to `@b` with no error, so a variable that is copied into gets a line of its own. And a local or
-  an argument cannot reach the variable it was given, so a write that must goes through a Hash
-  (`hit[:hp] -= 1`) or an attribute (`@player.x = 1`), read through the same place each time.
 - `flip` (not `negate`) for reversing direction.
 - Underscore prefix (`_ray_x`) for scratch/temp variables.
 - `func` for subroutines, `scene` for game states, `case_var` for dispatch.
-- A helper written as a plain Ruby method is emitted at **every** call site; a `func` is
-  emitted once. That is a size difference, not only a speed one, and it is the thing about
-  the framework you cannot work out by reading your own program.
-
-## Asking the operator
-
-The operator is often away while work runs, and a question stops the session for hours until someone
-reads it. So decide: make the choice that is easiest to undo, write what was decided and why on the
-issue, and carry on. If it was wrong, the operator says so and it is changed.
-
-Ask only for a tough call: something hard to reverse, a change to the project's direction, or
-something that spends money or reaches outside the project. Pushing is already the operator's, and it
-holds nothing up, because commits wait locally.
-
-If one issue is stuck on a real question, write the question on it, mark it blocked and take other
-work rather than waiting.
-
-## Which skill a piece of work wants
-
-Which mattpocock skills to use, and when, is in `.claude/rules/testing.md`, "Which skill a piece of
-work wants".
-
-## Finishing a piece of work
-- Run `rake test:golden` before committing. `test/golden.txt` names what it plays and why, and a file
-  goes in only by another coming out.
-- Commit it, and keep the message for humans — see "Writing commit messages" above.
