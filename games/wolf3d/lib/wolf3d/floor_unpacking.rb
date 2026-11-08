@@ -25,6 +25,14 @@ module Wolf3D
     PUSHWALLS = Holding::ROOM.fetch(:pushwalls)
     # ...and the scenery and pickups.
     PIECES = Holding::ROOM.fetch(:pieces)
+    # ...and the guards.
+    GUARDS = Holding::ROOM.fetch(:guards)
+
+    # What a guard is as the floor puts him down, a byte each, in the order #write_guard writes
+    # them. All the rest of what GuardPool's guard_home tables hold (his first state, how long it
+    # lasts, how much killing he takes, whether he counts) follows from his kind and whether he
+    # patrols, which are rules of the game and not data in the copy.
+    GUARD_SLOTS = %i[guard_x guard_y guard_kind guard_dir guard_patrolling guard_ambush guard_from].freeze
 
     # The slots the floors take, declared on +slots+ (the data pack's).
     def self.declare(slots)
@@ -43,6 +51,8 @@ module Wolf3D
       # Minus one where a floor has no secret lift, because nought is a real cell (ThisFloor).
       slots.numbers :secret_car, count: FLOORS, width: :half, signed: true, layout: :gba
       declare_pieces(slots)
+      slots.numbers :guard_count, count: FLOORS, width: :byte, signed: false, layout: :gba
+      GUARD_SLOTS.each { |name| slots.numbers name, count: GUARDS * FLOORS, width: :byte, signed: false, layout: :gba }
     end
 
     # A piece's cell, which of Scenery's pieces it is (its code less Scenery::FIRST_CODE: what it
@@ -142,7 +152,93 @@ module Wolf3D
       @copy.count_written 4
       fill_pushwalls(n, base)
       fill_pieces(n, base)
+      fill_guards(n, base)
     end
+
+    # EVERYONE FLOOR +n+ CAN HOLD, at any setting, in the map's order (Guards#guard_at): a thing
+    # code names a kind by the block it falls in, less the harder games' steps, and what is left
+    # says which way he faces and whether he patrols. No two blocks overlap
+    # (Guards.overlapping_codes), so at most one arm below matches a cell.
+    def fill_guards(n, base)
+      guards = counter(:guards)
+      guards.store!(0)
+      @b.repeat(CELLS) do |cell|
+        read_guard(thing_code(base + cell), wall_code(base + cell))
+        if counter(:guard_kind) >= 0
+          write_guard((GUARDS * n) + guards, cell) if guards < GUARDS
+          guards.increase!(1)
+          # THE MAN INSIDE THE MACHINE stands in the machine's cell from the start, waiting
+          # (Guards#with_the_man_inside), one more of the floor's guards.
+          if counter(:guard_kind) == kind_number(:mecha)
+            counter(:guard_kind).store!(kind_number(:hitler))
+            write_guard((GUARDS * n) + guards, cell) if guards < GUARDS
+            guards.increase!(1)
+          end
+        end
+      end
+      @pack[:guard_count][n] = guards
+      @copy.count_written 1
+    end
+
+    # WHO A THING CODE PUTS DOWN, into the guard_ counters: his kind's number, or minus one for
+    # nobody. +floor_code+ is the wall plane's code under him, which says whether he lies in wait.
+    def read_guard(thing, floor_code)
+      code = counter(:guard_code)
+      code.store!(thing)
+      counter(:guard_kind).store!(-1)
+      # Nearly every cell holds a code below every kind's, and asks no more than this.
+      read_guard_kind(code, floor_code) if code >= Enemy::ALL.select { |enemy| enemy.codes.positive? }.map(&:standing).min
+    end
+
+    # ...for a code that can be somebody's: one arm per block of every kind.
+    def read_guard_kind(code, floor_code)
+      kind = counter(:guard_kind)
+      within = counter(:guard_within)
+      Enemy::ALL.each_with_index do |enemy, number|
+        enemy.blocks.times do |step|
+          within.store!(code - (step * enemy.harder) - enemy.standing)
+          if within >= 0 && within < enemy.codes
+            kind.store!(number)
+            counter(:guard_from).store!(Guards::FROM.fetch(step))
+            if enemy.boss?
+              set_boss
+            else
+              set_rank(within, floor_code)
+              # A kind that never stands reads its standing block as nobody: the dog.
+              kind.store!(-1) if !enemy.stands && within < Guards::FACES
+            end
+          end
+        end
+      end
+    end
+
+    # A BOSS faces nowhere, never patrols and lies in wait wherever he is put (Guards#boss_at).
+    def set_boss
+      counter(:guard_dir).store!(Guards::NOWHERE)
+      counter(:guard_patrolling).store!(0)
+      counter(:guard_ambush).store!(1)
+    end
+
+    # One of the rank and file: four codes facing east, north, west and south (Guards::FACINGS),
+    # then the same four patrolling. The original numbers directions with the diagonals between,
+    # so a square one is every other number (Guards.direction_of).
+    def set_rank(within, floor_code)
+      counter(:guard_dir).store!((within % Guards::FACES) * 2)
+      counter(:guard_patrolling).store!(0)
+      counter(:guard_patrolling).store!(1) if within >= Guards::FACES
+      counter(:guard_ambush).store!(0)
+      counter(:guard_ambush).store!(1) if floor_code == Level::AMBUSH
+    end
+
+    # GUARD +at+ IN ITS SLOTS, from the guard_ counters, standing in +cell+.
+    def write_guard(at, cell)
+      @pack[:guard_x][at] = cell % 64
+      @pack[:guard_y][at] = cell / 64
+      (GUARD_SLOTS - %i[guard_x guard_y]).each { |slot| @pack[slot][at] = counter(slot) }
+      @copy.count_written GUARD_SLOTS.length
+    end
+
+    def kind_number(name) = Enemy::ALL.index { |enemy| enemy.name == name }
 
     # WHAT STANDS IN THE ROOMS OF FLOOR +n+ (Scenery): every cell whose thing code names one of
     # Scenery's pieces, in the map's order. Only a cell with something on it is written; the rest

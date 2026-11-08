@@ -28,6 +28,7 @@ class TestFloorUnpacking < Minitest::Test
       assert_same_lifts maps, pack
       assert_same_pieces maps, pack
       assert_same_footing maps, pack
+      assert_same_guards maps, pack
     end
   end
 
@@ -44,9 +45,27 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_lifts Wolf3D.maps, pack
     assert_same_pieces Wolf3D.maps, pack
     assert_same_footing Wolf3D.maps, pack
+    assert_same_guards Wolf3D.maps, pack
   end
 
   private
+
+  # Each floor's guards, in a run of Unpacking::GUARDS from the floor's start, as Guards reads
+  # them: cell, kind (its place in Enemy::ALL), the way it faces as the original numbers
+  # directions, whether it patrols, whether it lies in wait, and the easiest setting it turns up on.
+  def assert_same_guards(maps, pack)
+    maps.count.times do |n|
+      guards = Wolf3D::Guards.new(maps[n]).guards
+      run = (Unpacking::GUARDS * n)...((Unpacking::GUARDS * n) + guards.length)
+      wanted = guards.map do |g|
+        [g.x, g.y, Wolf3D::Enemy::ALL.index { |kind| kind.name == g.kind }, Wolf3D::Guards.direction_of(g.facing),
+         g.patrolling ? 1 : 0, g.ambush ? 1 : 0, g.from]
+      end
+
+      assert_equal guards.length, pack.fetch(:guard_count).getbyte(n), "floor #{n}'s guards"
+      assert_equal wanted, Unpacking::GUARD_SLOTS.map { |slot| pack.fetch(slot).bytes[run] }.transpose, "floor #{n}'s guards"
+    end
+  end
 
   # Each floor's scenery and pickups, in a run of Unpacking::PIECES from the floor's start: the
   # readers' count, and for each piece its cell, which of Scenery's pieces it is and its picture.
