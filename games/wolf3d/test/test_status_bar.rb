@@ -291,6 +291,14 @@ class TestStatusBar < Minitest::Test
     assert_equal palette[Release::PLATE_GROUND], run.screen.pixel(clear, FP::VIEW_H + 20)
   end
 
+  # WHAT A WHOLE BUILD TAKES THE PLATE TO SAY (BarArt::PLATE), since it reads no plate while
+  # building, is what both releases' plates say when they are read.
+  def test_both_releases_plates_say_what_a_whole_build_takes_them_to
+    [real_copy, real_shareware].each do |data|
+      assert_equal Wolf3D::BarArt::PLATE, Wolf3D::BarArt.new(Wolf3D::Vgagraph.from(data)).measure_plate, data.set
+    end
+  end
+
   # THE PLATE'S OWN EDGE, re-set at 240: two colours along the top and two along the bottom,
   # which is what makes it read as a bevel in the metal rather than a line drawn round it. A bar
   # that took them from the wrong rows of the plate comes back in the wrong colours.

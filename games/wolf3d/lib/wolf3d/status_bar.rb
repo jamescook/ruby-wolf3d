@@ -189,9 +189,12 @@ module Wolf3D
     # many goes are left and which weapon is in hand. +art+ is Wolfenstein's own pictures for the
     # bar, or nil for a release whose pictures we cannot name — then the bar draws as it drew
     # before there was any art to draw with.
-    def initialize(build:, top:, player:, lives:, weapon:, art: nil)
+    #
+    # +pack+ is a whole build's data pack, which the bar's pictures are drawn from (BarPictures).
+    def initialize(build:, top:, player:, lives:, weapon:, art: nil, pack: nil)
       @b = build
       @top = top
+      @pictures = art && BarPictures.for(build: build, art: art, pack: pack)
       # What to put in each field, by name.
       @shows = { score: player.score, lives: lives, health: player.health, ammo: player.ammo,
                  keys: player.keys, weapon: weapon }
@@ -309,19 +312,7 @@ module Wolf3D
     def declare_the_art
       return unless @art
 
-      palette = Palette.game
-      @b.image :bar_faces, width: @art.faces_width, height: @art.face_height,
-                           data: @art.faces(palette)
-      @b.image :bar_keys, width: @art.keys_width, height: @art.key_height,
-                          data: @art.keys(palette)
-      @b.image :bar_numerals, width: @art.numerals_width, height: @art.digit_height,
-                              data: @art.numerals(palette)
-      @b.image :bar_weapons, width: @art.weapons_width, height: @art.weapon_height,
-                             data: @art.weapons(palette)
-      BarArt::LABEL_FIELDS.each do |name|
-        cut = @art.label(name, palette)
-        @b.image :"bar_label_#{name}", width: cut[:width], height: cut[:height], data: cut[:data]
-      end
+      @pictures.declare_strips
     end
 
     def paint
@@ -467,8 +458,7 @@ module Wolf3D
     # The groove between two fields, as a picture and a routine that draws it wherever the
     # column variable says. One drawing in the cartridge, called once per boundary.
     def declare_the_rule
-      cut = @art.rule(inside_height, Palette.game)
-      @b.image :bar_rule, width: cut[:width], height: cut[:height], data: cut[:data]
+      @pictures.declare_rule(inside_height)
       @rule_half = @b.var :_bar_rule_half, 0
 
       half = @rule_half

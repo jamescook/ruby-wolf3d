@@ -20,6 +20,7 @@ module Wolf3D
     # three looks inside each band.
     BANDS = 8
     LOOKS = 3
+    FACES = BANDS.times.flat_map { |band| %w[a b c].first(LOOKS).map { |look| :"face_#{band + 1}#{look}" } }.freeze
 
     # Which row of the plate to read its ground colour off. Any row through the middle of it
     # will do; this one is clear of the lettering along the top and the figures below.
@@ -73,26 +74,38 @@ module Wolf3D
     attr_reader :face_width, :face_height, :key_width, :key_height, :digit_width, :digit_height,
                 :weapon_width, :weapon_height
 
+    # WHAT THE PLATE SAYS, read off it by #measure_plate: the colour it is painted in, the colours
+    # of the rows its edge is made of, and where each label is painted. The plate is the very same
+    # picture in both releases, so these are recorded here and test_bar_art holds both copies to
+    # them: a whole build lays its bar out before any copy is read.
+    Plate = Data.define(:ground, :top_edge, :bottom_edge, :label_boxes)
+    PLATE = Ractor.make_shareable(
+      Plate.new(ground: 151, top_edge: [127, 31], bottom_edge: [125, 127],
+                label_boxes: { floor: [13, 6, 26, 9], score: [57, 6, 27, 9], lives: [104, 6, 24, 9],
+                               health: [168, 6, 33, 9], ammo: [209, 6, 26, 9] })
+    )
+
     # +vgagraph+ is a release whose pictures have names. Nil for a release we cannot name, and
     # then the bar draws the way it drew before there was any art.
-    def self.of(vgagraph)
-      new(vgagraph) if vgagraph && vgagraph.names.include?(:face_1a)
+    def self.of(vgagraph, plate: nil)
+      new(vgagraph, plate: plate) if vgagraph && vgagraph.names.include?(:face_1a)
     end
 
-    def initialize(vgagraph)
+    # Every size here is Vgagraph::SIZES', so making one reads no picture: only the pictures
+    # themselves (#faces and the rest), which a whole build takes from its pack, decode any.
+    #
+    # +plate+ is what the plate says (a Plate): measured off the copy's own plate where it is left
+    # out, which a trimmed build does, or PLATE, which a whole build hands in since it reads no
+    # plate while building.
+    def initialize(vgagraph, plate: nil)
       @vg = vgagraph
-      first = @vg.picture(:face_1a)
-      @face_width = first.width
-      @face_height = first.height
-      key = @vg.picture(:no_key)
-      @key_width = key.width
-      @key_height = key.height
-      digit = @vg.picture(:blank_digit)
-      @digit_width = digit.width
-      @digit_height = digit.height
-      gun = @vg.picture(WEAPON_PICTURES.first)
-      @weapon_width = shrunk(gun.width)
-      @weapon_height = shrunk(gun.height)
+      @plate_facts = plate
+      @face_width, @face_height = Vgagraph::SIZES.fetch(:face_1a)
+      @key_width, @key_height = Vgagraph::SIZES.fetch(:no_key)
+      @digit_width, @digit_height = Vgagraph::SIZES.fetch(:blank_digit)
+      gun_width, gun_height = Vgagraph::SIZES.fetch(WEAPON_PICTURES.first)
+      @weapon_width = shrunk(gun_width)
+      @weapon_height = shrunk(gun_height)
     end
 
     def poses = BANDS * LOOKS
@@ -140,7 +153,9 @@ module Wolf3D
     # are kept, which is regular rather than a smear, and the four guns stay as far apart from
     # each other as they were — between a quarter and a half of any pair's pixels differ, at
     # either size. A player has to tell a chain gun from a machine gun, and that survives.
-    def shrunk(size) = (size * FirstPerson::ACROSS) / plate.width
+    def shrunk(size) = (size * FirstPerson::ACROSS) / PLATE_WIDTH
+
+    PLATE_WIDTH = Vgagraph::SIZES.fetch(:status_bar).first
 
     # ONE LABEL, CUT OUT OF THE PLATE, as a picture the framework can draw.
     #
@@ -158,11 +173,8 @@ module Wolf3D
     def label_width(name) = label_box(name)[2].then { |w| w.odd? ? w + 1 : w }
     def label_height(name) = label_box(name)[3]
 
-    # Where each label sits in the plate, found by reading the plate rather than by remembering
-    # numbers: its fields are divided by rules, and a label is the ink inside a field.
-    def label_box(name)
-      label_boxes.fetch(name)
-    end
+    # Where each label sits in the plate.
+    def label_box(name) = plate_facts.label_boxes.fetch(name)
 
     # THE COLOUR THE PLATE IS PAINTED IN, read out of the plate itself rather than picked, so
     # the bar is the game's own and not one somebody matched by eye. It is a dark BLUE, which
@@ -173,11 +185,20 @@ module Wolf3D
     # Taken as the commonest colour along a row rather than from a spot, because the plate's
     # frame runs ten columns in and a spot inside it lands on the frame's shadow — which is
     # very nearly black, and which is exactly the mistake this replaced.
-    def ground = commonest(plate.rows[GROUND_ROW])
+    def ground = plate_facts.ground
 
     # The rows the plate's own edge is made of, top and bottom, outermost first.
-    def top_edge = TOP_ROWS.map { |y| commonest(plate.rows[y]) }
-    def bottom_edge = BOTTOM_ROWS.map { |y| commonest(plate.rows[y]) }
+    def top_edge = plate_facts.top_edge
+    def bottom_edge = plate_facts.bottom_edge
+
+    # WHAT THE PLATE OF THIS COPY SAYS, read off it as PLATE was: asked by test_status_bar, which holds
+    # each copy to the record.
+    def measure_plate
+      Plate.new(ground: measured_ground,
+                top_edge: TOP_ROWS.map { |y| commonest(plate.rows[y]) },
+                bottom_edge: BOTTOM_ROWS.map { |y| commonest(plate.rows[y]) },
+                label_boxes: measured_label_boxes)
+    end
 
     # A RULE BETWEEN FIELDS, cut straight out of the plate as a picture +height+ rows tall.
     #
@@ -203,6 +224,10 @@ module Wolf3D
     # letter, on the edge of a bevel — and the answer looks plausible and is wrong.
     def commonest(pixels) = pixels.tally.max_by { |_, count| count }.first
 
+    def measured_ground = commonest(plate.rows[GROUND_ROW])
+
+    def plate_facts = @plate_facts ||= measure_plate
+
     # THE PLATE'S OWN FIELDS, read off it. Every boundary on it is a column that is dark for
     # nearly the whole height — the frame down each side, a rule between each pair of fields,
     # and the well the face sits in, which is dense enough to read as one too. So the fields
@@ -210,7 +235,7 @@ module Wolf3D
     def plate_fields
       @plate_fields ||= begin
         plate = @vg.picture(:status_bar)
-        g = ground
+        g = measured_ground
         dense = (0...plate.width).select do |x|
           RULE_ROWS.count { |y| plate[x, y] != g } > RULE_INK
         end
@@ -221,10 +246,10 @@ module Wolf3D
 
     # ...and the label inside each of them: the columns and rows the lettering actually
     # touches, so a label is its own word and not the field it sits in.
-    def label_boxes
-      @label_boxes ||= begin
+    def measured_label_boxes
+      @measured_label_boxes ||= begin
         plate = @vg.picture(:status_bar)
-        g = ground
+        g = measured_ground
         LABEL_FIELDS.each_with_index.to_h do |name, n|
           from, to = plate_fields.fetch(n)
           inked = (from..to).select { |x| LABEL_ROWS.any? { |y| plate[x, y] != g } }
@@ -236,9 +261,7 @@ module Wolf3D
       end
     end
 
-    def faces_in_order
-      BANDS.times.flat_map { |band| %w[a b c].first(LOOKS).map { |look| :"face_#{band + 1}#{look}" } }
-    end
+    def faces_in_order = FACES
 
     # Several same-size pictures laid out side by side, row by row, so a column of the result
     # picks one of them.

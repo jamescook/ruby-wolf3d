@@ -63,10 +63,12 @@ VBlank.require_game_file "wolf3d/floor_unpacking"
 # ...and VSWAP's pictures, the other part of that pack, which DataPack declares.
 VBlank.require_game_file "wolf3d/picture_unpacking"
 VBlank.require_game_file "wolf3d/vgagraph_unpacking"
+VBlank.require_game_file "wolf3d/bar_unpacking"
 VBlank.require_game_file "wolf3d/data_pack"
 # ...and where the view's walls and things come from, baked or from that pack.
 VBlank.require_game_file "wolf3d/view_pictures"
 VBlank.require_game_file "wolf3d/menu_pictures"
+VBlank.require_game_file "wolf3d/bar_pictures"
 # ...and where its tables come from, baked or from that pack, after both.
 VBlank.require_game_file "wolf3d/floor_tables"
 require_relative "wolf3d/lasting_state"
@@ -412,7 +414,7 @@ module Wolf3D
       view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
                                      vswap: Wolf3D.vswap,
                                      adlib: Wolf3D.adlib,
-                                     bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph),
+                                     bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph, plate: holding.whole? ? Wolf3D::BarArt::PLATE : nil),
                                      gun_art: holding.whole? ? Wolf3D::WeaponAtlas.new(nil, Wolf3D.palette) : Wolf3D.gun_art,
                                      lettering: menu_art,
                                      sound_setting: sound_setting,

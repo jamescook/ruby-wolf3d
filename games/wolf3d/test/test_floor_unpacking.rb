@@ -26,71 +26,41 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
-  # A FLOOR WHOSE PLANE STARTS PAST THE END OF GAMEMAPS ENDS THE FLOORS, rather than unpacking
-  # whatever file the copy holds after it. Here the made-up floor's walls are said to start beyond
-  # the file, so the release has no floor the routine can read.
-  def test_a_floor_whose_plane_lies_past_gamemaps_is_not_unpacked
+  # A COPY DAMAGED WHERE A PLACE POINTS OUTSIDE ITS FILE, or outside its page, unpacks nothing from
+  # that place rather than reading whatever the copy holds after it. One made-up copy is damaged in
+  # four such places at once, since each unpack is minutes on the interpreter:
+  #
+  # - its floor's walls said to start past the end of GAMEMAPS: no floor the routine can read;
+  # - its first wall page said to start past the end of VSWAP: that page left at place nought;
+  # - its first sprite's header naming columns outside its square: left see-through, no edges;
+  # - VGAGRAPH's picture table said by VGAHEAD to start past the file: a release of no pictures.
+  def test_places_outside_their_file_are_not_unpacked
     Dir.mktmpdir do |dir|
       Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
-      path = File.join(dir, "GAMEMAPS.WL6")
-      maps = File.binread(path)
-      level_at = File.binread(File.join(dir, "MAPHEAD.WL6"))[2, 4].unpack1("V")
-      maps[level_at, 4] = [maps.bytesize + 100].pack("V")
-      File.binwrite(path, maps)
-
-      assert_equal 0, unpacked(made_up_original(dir)).fetch(:floor_count).getbyte(0)
-    end
-  end
-
-  # ...and A WALL PAGE PLACED PAST THE END OF VSWAP is left at place nought, as a page the copy
-  # does not have, rather than read from whatever follows.
-  def test_a_wall_page_past_vswap_is_not_unpacked
-    Dir.mktmpdir do |dir|
-      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
-      path = File.join(dir, "VSWAP.WL6")
-      vswap = File.binread(path)
-      vswap[Wolf3D::Vswap::HEADER_BYTES, 4] = [vswap.bytesize + 100].pack("V")
-      File.binwrite(path, vswap)
-      walls = unpacked(made_up_original(dir)).fetch(:wall_pictures)
-
-      assert_equal [0], (0...SIDE).flat_map { |y| walls.byteslice(y * Wolf3D::Holding::WALL_PAGES * SIDE, SIDE).bytes }.uniq
-    end
-  end
-
-  # ...and A SPRITE WHOSE HEADER NAMES COLUMNS OUTSIDE ITS SQUARE is left see-through with no
-  # edges, rather than read through a column table that runs past its page.
-  def test_a_sprite_with_columns_outside_its_square_is_not_unpacked
-    Dir.mktmpdir do |dir|
-      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
-      path = File.join(dir, "VSWAP.WL6")
-      vswap = File.binread(path)
-      count, first_sprite = vswap[0, 4].unpack("v2")
-      at = vswap[Wolf3D::Vswap::HEADER_BYTES + (4 * first_sprite), 4].unpack1("V")
-      vswap[at + 2, 2] = [200].pack("v")
-      File.binwrite(path, vswap)
-      pack = unpacked(made_up_original(dir))
-      across = Wolf3D::Holding::SPRITES * SIDE
-
-      assert count.positive?
-      assert_equal [Wolf3D::PictureUnpacking::SEE_THROUGH],
-                   (0...SIDE).flat_map { |y| pack.fetch(:sprite_pictures).byteslice(y * across, SIDE).bytes }.uniq
-      assert_equal [0, 0], [pack.fetch(:sprite_first_column).getbyte(0), pack.fetch(:sprite_last_column).getbyte(0)]
-    end
-  end
-
-  # ...and A VGAGRAPH CHUNK PLACED PAST THE END OF THE FILE unpacks to nothing: the picture table,
-  # said by VGAHEAD to start beyond VGAGRAPH, gives a release of no pictures.
-  def test_a_chunk_past_vgagraph_is_not_unpacked
-    Dir.mktmpdir do |dir|
-      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
-      path = File.join(dir, "VGAHEAD.WL6")
-      head = File.binread(path)
+      damage(dir, "GAMEMAPS.WL6") do |maps|
+        level_at = File.binread(File.join(dir, "MAPHEAD.WL6"))[2, 4].unpack1("V")
+        maps[level_at, 4] = [maps.bytesize + 100].pack("V")
+      end
+      damage(dir, "VSWAP.WL6") do |vswap|
+        first_sprite = vswap[2, 2].unpack1("v")
+        sprite_at = vswap[Wolf3D::Vswap::HEADER_BYTES + (4 * first_sprite), 4].unpack1("V")
+        vswap[sprite_at + 2, 2] = [200].pack("v")
+        vswap[Wolf3D::Vswap::HEADER_BYTES, 4] = [vswap.bytesize + 100].pack("V")
+      end
       past = File.size(File.join(dir, "VGAGRAPH.WL6")) + 100
-      head[0, Wolf3D::Vgagraph::OFFSET_BYTES] = [past].pack("V")[0, Wolf3D::Vgagraph::OFFSET_BYTES]
-      File.binwrite(path, head)
+      damage(dir, "VGAHEAD.WL6") { |head| head[0, Wolf3D::Vgagraph::OFFSET_BYTES] = [past].pack("V")[0, Wolf3D::Vgagraph::OFFSET_BYTES] }
       pack = unpacked(made_up_original(dir))
+      walls = pack.fetch(:wall_pictures)
+      sprites = pack.fetch(:sprite_pictures)
+      sprite_across = Wolf3D::Holding::SPRITES * SIDE
 
-      assert_equal 0, pack.fetch(:picture_count).unpack1("v")
+      assert_equal 0, pack.fetch(:floor_count).getbyte(0), "a floor past GAMEMAPS"
+      assert_equal [0], (0...SIDE).flat_map { |y| walls.byteslice(y * Wolf3D::Holding::WALL_PAGES * SIDE, SIDE).bytes }.uniq,
+                   "a wall page past VSWAP"
+      assert_equal [Wolf3D::PictureUnpacking::SEE_THROUGH],
+                   (0...SIDE).flat_map { |y| sprites.byteslice(y * sprite_across, SIDE).bytes }.uniq, "a sprite's columns"
+      assert_equal [0, 0], [pack.fetch(:sprite_first_column).getbyte(0), pack.fetch(:sprite_last_column).getbyte(0)]
+      assert_equal 0, pack.fetch(:picture_count).unpack1("v"), "a chunk past VGAGRAPH"
       assert_equal [0], pack.fetch(:picture_sizes).unpack("v*").uniq
     end
   end
@@ -411,6 +381,14 @@ class TestFloorUnpacking < Minitest::Test
       assert_equal wanted, %i[door_picture door_across door_lock].map { |slot| pack.fetch(slot).bytes[run] }.transpose,
                    "floor #{n}'s doors"
     end
+  end
+
+  # The file +name+ of the copy in +dir+, its bytes handed to the block to change and written back.
+  def damage(dir, name)
+    path = File.join(dir, name)
+    bytes = File.binread(path)
+    yield bytes
+    File.binwrite(path, bytes)
   end
 
   def unpacked(original)

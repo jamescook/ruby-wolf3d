@@ -895,7 +895,7 @@ module Wolf3D
 
     def declare_the_bar
       @bar = StatusBar.new(build: @b, top: VIEW_H, art: @bar_art, player: @player,
-                           lives: @lives.left, weapon: @weapons.in_hand)
+                           lives: @lives.left, weapon: @weapons.in_hand, pack: @pack)
     end
 
     # WORKING ROOM. Every one of these is scratch — set, read and finished with inside a single

@@ -115,7 +115,8 @@ class TestHolding < Minitest::Test
     things = Wolf3D::Holding::SPRITES * Wolf3D::PictureUnpacking::PAGE_BYTES
     guns = Wolf3D::WeaponAtlas::COUNT * Wolf3D::PictureUnpacking::PAGE_BYTES
     slots = slots_unpacked_from(real_copy)
-    changes = [{}, { wall_pictures: "\x00".b * walls }, { sprite_pictures: "\x00".b * things }, { gun_pictures: "\x00".b * guns }]
+    changes = [{}, { wall_pictures: "\x00".b * walls }, { sprite_pictures: "\x00".b * things }, { gun_pictures: "\x00".b * guns },
+               { bar_pictures: "\x00".b * Wolf3D::BarUnpacking.places }]
     seen = changes.map do |changed|
       Reference.new.hand_file(pack_file_of(slots.merge(changed))).run(program, frames: STANDING_FRAMES).screen
     end
@@ -128,6 +129,7 @@ class TestHolding < Minitest::Test
     assert_operator count_differing_pixels(seen[1], trimmed), :>, 1000, "walls of place nought"
     assert_operator count_differing_pixels(seen[2], trimmed), :>, 100, "things of place nought"
     assert_operator count_differing_pixels(seen[3], trimmed), :>, 100, "the gun of place nought"
+    assert_operator count_differing_pixels(seen[4], trimmed), :>, 100, "the status bar of place nought"
   end
 
   # ONE WHOLE BUILD OFFERS THE EPISODES ITS COPY HOLDS, read from the pack it is handed as it runs:
