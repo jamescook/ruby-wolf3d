@@ -379,10 +379,13 @@ module Wolf3D
                 Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many)
               end
       floors = Wolf3D.floors(which, start: start, holding: holding)
-      atlas = Wolf3D::WallAtlas.new(Wolf3D.vswap, Wolf3D.palette, floors.map(&:level),
+      # A WHOLE BUILD'S ROWS OF PICTURES are only their shape here, with no VSWAP behind them: the
+      # pictures themselves come from its data pack (ViewPictures).
+      pictures_from = holding.whole? ? nil : Wolf3D.vswap
+      atlas = Wolf3D::WallAtlas.new(pictures_from, Wolf3D.palette, floors.map(&:level),
                                     doors: floors.map(&:doors), lifts: floors.map(&:lifts), holding: holding)
       things = if holding.whole?
-                 Wolf3D::ThingAtlas.whole(Wolf3D.vswap, Wolf3D.palette)
+                 Wolf3D::ThingAtlas.whole(pictures_from, Wolf3D.palette)
                else
                  Wolf3D::ThingAtlas.new(Wolf3D.vswap, Wolf3D.palette,
                                         floors.flat_map { |f|
@@ -403,12 +406,13 @@ module Wolf3D
       sound_setting = menu_art && var(:sound_setting, music_on ? Wolf3D::Music::EFFECTS_AND_MUSIC : Wolf3D::Music::EFFECTS_ONLY)
       # `gun_art` is the pictures of the gun in your hands, and it is asked of the CARTRIDGE
       # rather than of the level: every floor is played holding the same four weapons, where the
-      # walls and the things standing in the rooms differ from one floor to the next.
+      # walls and the things standing in the rooms differ from one floor to the next. Every release
+      # holds them, so a whole build has a gun whatever copy its pack is made from.
       view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
                                      vswap: Wolf3D.vswap,
                                      adlib: Wolf3D.adlib,
                                      bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph),
-                                     gun_art: Wolf3D.gun_art,
+                                     gun_art: holding.whole? ? Wolf3D::WeaponAtlas.new(nil, Wolf3D.palette) : Wolf3D.gun_art,
                                      lettering: menu_art,
                                      sound_setting: sound_setting,
                                      armed_with: Wolf3D.armed_with(armed),

@@ -23,9 +23,9 @@ module Wolf3D
     SPRITE_ACROSS = SPRITES * SIDE
 
     # THE PLACE A SPRITE IS SEE-THROUGH AT, where no post covers it. Wolfenstein keeps see-through
-    # as no pixel at all, so a place has to be chosen: the last of the 256, the magenta the game's
-    # tools painted see-through in, which no sprite of either release draws in (place nought, black,
-    # many do).
+    # as no pixel at all, so a place has to be chosen: the last of the 256, which no sprite of either
+    # release draws in (test_floor_unpacking.rb holds the copies to that), where place nought, black,
+    # is drawn in by many.
     SEE_THROUGH = 255
 
     # A post is three words: where it ends and where it starts, each a row times two, with the
@@ -34,12 +34,19 @@ module Wolf3D
     POST_BYTES = 6
     MOST_POSTS = SIDE / 2
 
-    # The four edges of each sprite ThingAtlas tells the drawing (ThingAtlas#first_column and the rest).
-    SPRITE_EDGES = %i[sprite_first_column sprite_last_column sprite_first_row sprite_last_row].freeze
+    # A sprite's header before its column table: its first and last columns, a word each.
+    HEADER_BYTES = 4
+
+    # The slot holding each of a sprite's four edges (ThingAtlas::Edges).
+    SPRITE_EDGES = { first_column: :sprite_first_column, last_column: :sprite_last_column,
+                     first_row: :sprite_first_row, last_row: :sprite_last_row }.freeze
 
     # THE GUN IN YOUR HANDS is the last WeaponAtlas::COUNT sprites of whichever release is loaded, so
-    # where it starts differs (Spear has fewer sprites): it gets a row of its own, as WeaponAtlas lays
-    # it, copied out of the sprites' row, with its first and last columns.
+    # where it starts differs between releases (Spear, which Holding is sized for, has 421 sprites to
+    # the others' 436). A picture drawn from a pack takes one run of places, and the gun's frames are
+    # not one run of the sprites' row, which is laid out row by row across every sprite; so the gun
+    # gets a row of its own, as WeaponAtlas lays it, copied out of the sprites' row, with its first
+    # and last columns.
     GUNS = WeaponAtlas::COUNT
     GUN_ACROSS = GUNS * SIDE
 
@@ -47,7 +54,7 @@ module Wolf3D
     def self.declare(slots)
       slots.pixels :wall_pictures, count: PAGE_BYTES * WALL_PAGES
       slots.pixels :sprite_pictures, count: PAGE_BYTES * SPRITES
-      SPRITE_EDGES.each { |name| slots.numbers name, count: SPRITES, width: :byte, signed: false, layout: :gba }
+      SPRITE_EDGES.each_value { |name| slots.numbers name, count: SPRITES, width: :byte, signed: false, layout: :gba }
       slots.pixels :gun_pictures, count: PAGE_BYTES * GUNS
       %i[gun_first_column gun_last_column].each do |name|
         slots.numbers name, count: GUNS, width: :byte, signed: false, layout: :gba
@@ -139,49 +146,78 @@ module Wolf3D
     # SPRITE +sprite+, its page at +start+ for +length+ bytes: the first and last columns that hold
     # anything, then a word per column between them saying where its posts start, each post's
     # pixels at the post's pixel place plus the row (wolf4sdl: wl_def.h, t_compshape; wl_draw.cpp,
-    # ScaleShape). A place that would read outside the page is left alone. The rows come from the
-    # posts, as ThingAtlas reads them off the pixels: the whole square for a sprite with none.
+    # ScaleShape).
+    #
+    # Must read nothing outside the page: a header whose columns are not inside the square, or whose
+    # column table runs past the page, gives a sprite left see-through with edges of nought; a post
+    # or a pixel whose place is outside the page is left alone. The rows are the ones a pixel was
+    # written in, as ThingAtlas reads them off the pixels: the whole square for a sprite with none.
     def copy_sprite(sprite, start, length)
       left = routine_var(:left)
-      left.store!(@vswap.half(start))
-      @pack[:sprite_first_column][sprite] = left
-      @pack[:sprite_last_column][sprite] = @vswap.half(start + 2)
-      top = routine_var(:top)
-      bottom = routine_var(:bottom)
-      top.store!(SIDE)
-      bottom.store!(0)
-      @b.repeat(SIDE) do |column|
-        copy_column(sprite, start, length, column) if column <= @vswap.half(start + 2) - left
+      right = routine_var(:right)
+      left.store!(0)
+      right.store!(-1)
+      if length >= HEADER_BYTES
+        left.store!(@vswap.half(start))
+        right.store!(@vswap.half(start + 2))
       end
-      top.store!(0) if top == SIDE
-      bottom.store!(SIDE - 1) if bottom == 0
-      @pack[:sprite_first_row][sprite] = top
-      @pack[:sprite_last_row][sprite] = bottom
-      @copy.count_written SPRITE_EDGES.length
+      if left <= right && right < SIDE && HEADER_BYTES + (2 * (right - left + 1)) <= length
+        @pack[:sprite_first_column][sprite] = left
+        @pack[:sprite_last_column][sprite] = right
+        top = routine_var(:top)
+        bottom = routine_var(:bottom)
+        top.store!(SIDE)
+        bottom.store!(-1)
+        @b.repeat(SIDE) do |column|
+          copy_column(sprite, start, length, column) if column <= right - left
+        end
+        if bottom < 0
+          top.store!(0)
+          bottom.store!(SIDE - 1)
+        end
+        @pack[:sprite_first_row][sprite] = top
+        @pack[:sprite_last_row][sprite] = bottom
+        @copy.count_written SPRITE_EDGES.length
+      end
     end
 
-    # The posts of the +column+th column from the sprite's left edge.
+    # The posts of the +column+th column from the sprite's left edge, each read only once it is known
+    # to lie inside the page.
     def copy_column(sprite, start, length, column)
       post = routine_var(:post)
+      ended = routine_var(:posts_ended)
       ends = routine_var(:post_end)
       pixels = routine_var(:post_pixels)
       begins = routine_var(:post_begins)
-      post.store!(@vswap.half(start + 4 + (2 * column)))
-      @b.repeat(MOST_POSTS, stop_when: (post + POST_BYTES > length) | (@vswap.half(start + post) == 0)) do
-        ends.store!(@vswap.half(start + post) / 2)
-        pixels.store!(@vswap.half(start + post + 2))
-        pixels.store!(pixels - 0x10000) if pixels >= 0x8000 # a signed word
-        begins.store!(@vswap.half(start + post + 4) / 2)
-        routine_var(:top).store!(begins) if begins < routine_var(:top)
-        routine_var(:bottom).store!(ends - 1) if ends - 1 > routine_var(:bottom)
-        @b.repeat(SIDE) do |y|
-          if y >= begins && y < ends && pixels + y >= 0 && pixels + y < length
-            @pack[:sprite_pictures][(y * SPRITE_ACROSS) + (sprite * SIDE) + routine_var(:left) + column] =
-              @vswap.byte(start + pixels + y)
-            @copy.count_written 1
-          end
+      post.store!(@vswap.half(start + HEADER_BYTES + (2 * column)))
+      ended.store!(0)
+      @b.repeat(MOST_POSTS, stop_when: ended == 1) do
+        if post + POST_BYTES > length
+          ended.store!(1)
+        elsif @vswap.half(start + post) == 0
+          ended.store!(1)
+        else
+          ends.store!(@vswap.half(start + post) / 2)
+          pixels.store!(@vswap.half(start + post + 2))
+          pixels.store!(pixels - 0x10000) if pixels >= 0x8000 # a signed word
+          begins.store!(@vswap.half(start + post + 4) / 2)
+          copy_post(sprite, start, length, column)
+          post.store!(post + POST_BYTES)
         end
-        post.store!(post + POST_BYTES)
+      end
+    end
+
+    # One post's pixels, rows from post_begins up to post_end, into the sprite's square.
+    def copy_post(sprite, start, length, column)
+      pixels = routine_var(:post_pixels)
+      @b.repeat(SIDE) do |y|
+        if y >= routine_var(:post_begins) && y < routine_var(:post_end) && pixels + y >= 0 && pixels + y < length
+          @pack[:sprite_pictures][(y * SPRITE_ACROSS) + (sprite * SIDE) + routine_var(:left) + column] =
+            @vswap.byte(start + pixels + y)
+          routine_var(:top).store!(y) if y < routine_var(:top)
+          routine_var(:bottom).store!(y) if y > routine_var(:bottom)
+          @copy.count_written 1
+        end
       end
     end
 

@@ -54,7 +54,7 @@ module Wolf3D
     def self.first_sprite(vswap) = vswap.sprite_count - COUNT
 
     # The frames are read from +vswap+ only when something asks for their pixels or edges, which a
-    # whole build never does: it takes them from its data pack (ViewPictures).
+    # whole build never does: it takes them from its data pack (ViewPictures), and hands nil.
     def initialize(vswap, palette)
       @vswap = vswap
       @palette = palette

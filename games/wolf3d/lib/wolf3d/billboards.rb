@@ -136,10 +136,10 @@ module Wolf3D
       # rather than by what is wearing it — a shooting guard is a different shape from a walking
       # one, a lamp is thinner than either, and all three are asked the same question.
       edges = @pictures.declare_thing_edges(@things)
-      @first_column = edges.fetch(:thing_first)
-      @last_column = edges.fetch(:thing_last)
-      @first_row = edges.fetch(:thing_top)
-      @last_row = edges.fetch(:thing_bottom)
+      @first_column = edges.first_column
+      @last_column = edges.last_column
+      @first_row = edges.first_row
+      @last_row = edges.last_row
 
       declare_scenery
       declare_what_guards_leave

@@ -193,7 +193,9 @@ module Wolf3D
       # THE PICTURES, and WHICH COLUMNS OF EACH FRAME HOLD ANYTHING. A knife at rest is ten columns
       # of its sixty-four and the rest is room showing through, so walking those columns would be
       # the whole depth of the picture paid for nothing at all — the same saving the guards make.
-      @first_column, @last_column = @pictures.declare_gun(@atlas)
+      columns = @pictures.declare_gun(@atlas)
+      @first_column = columns.first_column
+      @last_column = columns.last_column
 
       @shape, @column, @wide, @at =
         %i[shape column wide at].map { |name| b.var(:"_gun_#{name}", 0) }

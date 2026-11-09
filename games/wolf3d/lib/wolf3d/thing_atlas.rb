@@ -70,8 +70,8 @@ module Wolf3D
     # Both numbers count from the LEFT EDGE of the picture, which is what the drawing walks.
     #
     # A sprite this copy does not have is held as nothing: both edges at nought.
-    def first_column(sprite) = edge(sprite, :first_column)
-    def last_column(sprite) = edge(sprite, :last_column)
+    def first_column(sprite) = edges(sprite).first_column
+    def last_column(sprite) = edges(sprite).last_column
 
     # ...AND WHICH ROWS, which is the same question down the other axis and matters for a
     # different reason. A great many of these things sit on the FLOOR — a clip of ammunition
@@ -79,22 +79,23 @@ module Wolf3D
     # centred on the eye line. So the nearer you get to a clip the further its picture slides
     # off the bottom of the screen, and there is a distance at which every pixel of it is past
     # the bottom edge while the drawing still walks the whole square looking for it.
-    def first_row(sprite) = edge(sprite, :first_row)
-    def last_row(sprite) = edge(sprite, :last_row)
+    def first_row(sprite) = edges(sprite).first_row
+    def last_row(sprite) = edges(sprite).last_row
+
+    # ALL FOUR AT ONCE, for whatever lays them out as tables (ViewPictures, PictureUnpacking's tests).
+    Edges = Data.define(:first_column, :last_column, :first_row, :last_row)
+    NO_EDGES = Edges.new(first_column: 0, last_column: 0, first_row: 0, last_row: 0)
+
+    def edges(sprite)
+      return NO_EDGES unless in_copy?(sprite)
+
+      picture = @vswap.sprite(sprite)
+      Edges.new(first_column: picture.first_column, last_column: picture.last_column,
+                first_row: picture.first_row, last_row: picture.last_row)
+    end
 
     private
 
     def in_copy?(sprite) = @vswap.sprite?(sprite)
-
-    def edge(sprite, which)
-      return 0 unless in_copy?(sprite)
-
-      case which
-      when :first_column then @vswap.sprite(sprite).first_column
-      when :last_column then @vswap.sprite(sprite).last_column
-      when :first_row then @vswap.sprite(sprite).first_row
-      when :last_row then @vswap.sprite(sprite).last_row
-      end
-    end
   end
 end

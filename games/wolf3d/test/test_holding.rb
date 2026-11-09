@@ -102,6 +102,8 @@ class TestHolding < Minitest::Test
     trimmed_settings = { floors: 1, screen: "playing", hold: "trimmed", start: start }
     trimmed = Reference.new.run(Wolf3D::GAME.program(settings: trimmed_settings), frames: STANDING_FRAMES).screen
 
+    # A wall fills thousands of the view's pixels from this spot, and the piece and the gun each a
+    # few hundred: enough over those floors that one changed picture shows.
     assert_equal 0, count_differing_pixels(seen[0], trimmed), "the pack's own pictures"
     assert_operator count_differing_pixels(seen[1], trimmed), :>, 1000, "walls of place nought"
     assert_operator count_differing_pixels(seen[2], trimmed), :>, 100, "things of place nought"

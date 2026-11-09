@@ -57,6 +57,27 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
+  # ...and A SPRITE WHOSE HEADER NAMES COLUMNS OUTSIDE ITS SQUARE is left see-through with no
+  # edges, rather than read through a column table that runs past its page.
+  def test_a_sprite_with_columns_outside_its_square_is_not_unpacked
+    Dir.mktmpdir do |dir|
+      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
+      path = File.join(dir, "VSWAP.WL6")
+      vswap = File.binread(path)
+      count, first_sprite = vswap[0, 4].unpack("v2")
+      at = vswap[Wolf3D::Vswap::HEADER_BYTES + (4 * first_sprite), 4].unpack1("V")
+      vswap[at + 2, 2] = [200].pack("v")
+      File.binwrite(path, vswap)
+      pack = unpacked(made_up_original(dir))
+      across = Wolf3D::Holding::SPRITES * SIDE
+
+      assert count.positive?
+      assert_equal [Wolf3D::PictureUnpacking::SEE_THROUGH],
+                   (0...SIDE).flat_map { |y| pack.fetch(:sprite_pictures).byteslice(y * across, SIDE).bytes }.uniq
+      assert_equal [0, 0], [pack.fetch(:sprite_first_column).getbyte(0), pack.fetch(:sprite_last_column).getbyte(0)]
+    end
+  end
+
   # ...and A VGAGRAPH CHUNK PLACED PAST THE END OF THE FILE unpacks to nothing: the picture table,
   # said by VGAHEAD to start beyond VGAGRAPH, gives a release of no pictures.
   def test_a_chunk_past_vgagraph_is_not_unpacked
@@ -141,20 +162,15 @@ class TestFloorUnpacking < Minitest::Test
     clear = Wolf3D::PictureUnpacking::SEE_THROUGH
     sprites.times do |n|
       wanted = vswap.sprite?(n) ? vswap.sprite(n) : nil
+      drawn = (0...SIDE).flat_map { |y| (0...SIDE).map { |x| wanted&.[](x, y) } }
+      refute_includes drawn, clear, "sprite #{n} draws in the place kept for see-through"
       seen = (0...SIDE).flat_map { |y| got.byteslice((y * across) + (n * SIDE), SIDE).bytes }
-      assert_equal (0...SIDE).flat_map { |y| (0...SIDE).map { |x| wanted&.[](x, y) || clear } }, seen, "sprite #{n}"
+      assert_equal drawn.map { |place| place || clear }, seen, "sprite #{n}"
     end
     atlas = Wolf3D::ThingAtlas.whole(vswap, Wolf3D.palette)
-    %i[first_column last_column first_row last_row].each do |edge|
-      wanted = (0...sprites).map do |n|
-        case edge
-        when :first_column then atlas.first_column(n)
-        when :last_column then atlas.last_column(n)
-        when :first_row then atlas.first_row(n)
-        when :last_row then atlas.last_row(n)
-        end
-      end
-      assert_equal wanted, pack.fetch(:"sprite_#{edge}").bytes, "every sprite's #{edge}"
+    edges = (0...sprites).map { |n| atlas.edges(n) }
+    Wolf3D::PictureUnpacking::SPRITE_EDGES.each do |edge, slot|
+      assert_equal edges.map { |found| found.to_h.fetch(edge) }, pack.fetch(slot).bytes, "every sprite's #{edge}"
     end
   end
 
