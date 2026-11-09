@@ -48,6 +48,24 @@ module Wolf3D
       end, episodes_of_ten: maps.episodes_of_ten?, holding: holding, start_moved: start_moved)
     end
 
+    # FLOORS NOT READ, by number alone: what a whole build holds, whose floors are read from its
+    # data pack after it is built (FloorUnpacking, FloorTables), so nothing while building may ask a
+    # map about one. +which+ are the floor numbers, sixty for the whole game. +start+ is the first
+    # floor's own Level where WOLF3D_START moved where play starts, which the build then knows
+    # itself; every other floor has no Level and no readers.
+    def self.unread(which, holding:, start: nil)
+      raise ArgumentError, "floors not read are for a whole build, which keeps room for anything (Holding)" unless holding.whole?
+
+      floors = which.each_with_index.map do |index, n|
+        Floor.new(index: index, level: (start if n.zero?), doors: nil, pushwalls: nil, lifts: nil, guards: nil,
+                  scenery: nil)
+      end
+      new(floors, holding: holding, start_moved: !start.nil?, unread: true)
+    end
+
+    # Every release's maps are 64 by 64 (MAPHEAD and GAMEMAPS), which is what floors not read are.
+    UNREAD_SIDE = 64
+
     # ...and the one-floor case, given the pieces already made rather than making them again.
     #
     # NOTHING IS MADE UP HERE. A piece left out was left out on purpose — a floor built with no
@@ -60,16 +78,23 @@ module Wolf3D
 
     # +episodes_of_ten+ says the release these floors come from is Wolfenstein's own layout — see
     # #episodes_of_ten?.
-    def initialize(floors, episodes_of_ten: true, holding: Holding.trimmed, start_moved: false)
+    # +unread+ says the floors are numbers alone (Floors.unread).
+    def initialize(floors, episodes_of_ten: true, holding: Holding.trimmed, start_moved: false, unread: false)
       raise ArgumentError, "a game needs at least one floor" if floors.empty?
 
       @floors = floors
       @episodes_of_ten = episodes_of_ten
       @holding = holding
       @start_moved = start_moved
+      @unread = unread
+      return if unread
+
       refuse_mixed_sizes!
       refuse_overfull_floors!
     end
+
+    # Are these floors numbers alone, read from a pack after the build (Floors.unread)?
+    def unread? = @unread
 
     attr_reader :holding
 
@@ -111,8 +136,8 @@ module Wolf3D
     # slice of floor N starts at N times the cells in one. Wolfenstein's own levels are all 64 by
     # 64 and the reader would have to change for anything else, so this is checked rather than
     # assumed — a mixed set would read every map after the first from the wrong place.
-    def width = first_floor.level.width
-    def height = first_floor.level.height
+    def width = @unread ? UNREAD_SIDE : first_floor.level.width
+    def height = @unread ? UNREAD_SIDE : first_floor.level.height
     def cells = width * height
 
     # Where floor N's own cells begin in the map table.

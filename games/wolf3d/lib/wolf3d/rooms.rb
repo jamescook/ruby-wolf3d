@@ -144,14 +144,14 @@ module Wolf3D
 
       # THE ROOM EACH CELL BELONGS TO, every floor end to end like the map itself and reached the
       # same way. One byte a cell: the game has 37 rooms at the most and this leaves room for 255.
-      @room_of = b.table :room_of, @floors.flat_map { |floor|
+      tables = @this_floor.tables
+      @room_of = tables.declare_map(:room_of, width: :byte) do |floor|
         floor.level.each_cell.map { |x, y| (floor.level.area(x, y)&.+(1)) || NOWHERE }
-      }, width: :byte
+      end
 
       # WHICH TWO ROOMS EACH DOOR JOINS, worked out while building because a door never moves.
       # A door that does not have a room on both sides joins nothing and is simply never followed.
       # Read by the door's number, so it lies where the doors do (FloorTables).
-      tables = @this_floor.tables
       @side_a = tables.declare_items(:door_side_a, width: :byte) do |floor|
         floor.doors.doors.map { |door| joins(floor.level, door).first }
       end
@@ -166,7 +166,6 @@ module Wolf3D
       @open_room = b.list :_room_open, capacity: @count
       @count.times { @open_room << 0 }
 
-      @always = always_joined
       @room, @stood, @spread, @near, @far = whole(:room, :stood, :spread, :near, :far)
       # THE ROOM THE PLAYER IS IN: the last one they were really standing in, which stays put
       # while they cross a doorway, because a doorway is in no room. A saved game holds it — see
@@ -200,10 +199,11 @@ module Wolf3D
     # that nothing standing in the secret room can ever fail to be drawn. The other way round —
     # watching whether the wall has moved — is more code in the same loop for every floor, to save
     # nothing anybody can see.
-    def always_joined
-      @floors.flat_map { |floor| floor.pushwalls.walls.map { |wall| rooms_round(floor.level, wall) } }
-             .select { |pair| pair.length == 2 }
-             .uniq
+    #
+    # A floor's pairs; a baked build joins every floor's, and a whole build each floor's own, from
+    # its pack (FloorTables#join_secret_wall_rooms).
+    def always_joined(floor)
+      floor.pushwalls.walls.map { |wall| rooms_round(floor.level, wall) }.select { |pair| pair.length == 2 }
     end
 
     def rooms_round(level, wall)
@@ -268,7 +268,8 @@ module Wolf3D
         @spread = 0
         # THE ROOMS THAT ARE ALWAYS JOINED, if this cartridge has any — see always_joined. A whole
         # build joins this floor's own, as it runs (FloorTables).
-        @this_floor.tables.join_secret_wall_rooms(pairs: @always, this_floor: @this_floor) do |near, far|
+        @this_floor.tables.join_secret_wall_rooms(pairs_of: ->(floor) { always_joined(floor) },
+                                                  this_floor: @this_floor) do |near, far|
           join(near, far)
         end
         b.repeat(@this_floor.door_count) do |door|

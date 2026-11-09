@@ -210,24 +210,24 @@ module Wolf3D
     # (FloorTables#declare_guard_rule).
     def declare_where_they_start
       tables = @tables
-      everyone = @floors.flat_map { |floor| guards_of(floor) }
+      everyone = ->(floor) { guards_of(floor) }
       @home_x = tables.declare_items(:guard_home_x, slot: :guard_x, plus: 0.5) { |f| guards_of(f).map { |g| g.x + 0.5 } }
       @home_y = tables.declare_items(:guard_home_y, slot: :guard_y, plus: 0.5) { |f| guards_of(f).map { |g| g.y + 0.5 } }
       @home_dir = tables.declare_items(:guard_home_dir, slot: :guard_dir, width: :byte) do |f|
         guards_of(f).map { |g| Guards.direction_of(g.facing) }
       end
-      @home_state = tables.declare_guard_rule(:guard_home_state, guards: everyone, width: @behaviour.width) do |g|
+      @home_state = tables.declare_guard_rule(:guard_home_state, guards_of: everyone, width: @behaviour.width) do |g|
         @behaviour.starting_state(g)
       end
       # ...and whether he is one of the men to kill. All of them are but the man inside the machine.
-      @home_counted = tables.declare_guard_rule(:guard_home_counted, guards: everyone, width: :byte) do |g|
+      @home_counted = tables.declare_guard_rule(:guard_home_counted, guards_of: everyone, width: :byte) do |g|
         Enemy[g.kind].counted? ? 1 : 0
       end
       # ...and whether he counts as one already killed. See Enemy#killed_from_the_start?.
-      @home_killed = tables.declare_guard_rule(:guard_home_killed, guards: everyone, width: :byte) do |g|
+      @home_killed = tables.declare_guard_rule(:guard_home_killed, guards_of: everyone, width: :byte) do |g|
         Enemy[g.kind].killed_from_the_start? ? 1 : 0
       end
-      @home_ticks = tables.declare_guard_rule(:guard_home_ticks, guards: everyone, width: @behaviour.ticks_width) do |g|
+      @home_ticks = tables.declare_guard_rule(:guard_home_ticks, guards_of: everyone, width: @behaviour.ticks_width) do |g|
         @behaviour.state_at(@behaviour.starting_state(g)).ticks
       end
       @home_ambush = tables.declare_items(:guard_home_ambush, slot: :guard_ambush, width: :byte) do |f|
@@ -241,7 +241,7 @@ module Wolf3D
       # one kind a harder game toughens, and how hard the game is set is picked long after the
       # cartridge is built. So each one carries where ITS four numbers begin, and the floor's
       # start reads the one the setting names.
-      @home_tough = tables.declare_guard_rule(:guard_home_tough, guards: everyone, width: :byte) do |g|
+      @home_tough = tables.declare_guard_rule(:guard_home_tough, guards_of: everyone, width: :byte) do |g|
         @behaviour.hit_points_at(g.kind)
       end
       @hit_points = @b.table :guard_hit_points, @behaviour.hit_points, width: :half

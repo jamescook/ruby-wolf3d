@@ -274,10 +274,9 @@ module Wolf3D
     def place_player
       tables = @this_floor.tables
       on_each_floor do |floor, n|
-        start = floor.level.start
-        @player.x = tables.fetch_floor_value(:start_x, n) { start.x }.to_f + 0.5
-        @player.y = tables.fetch_floor_value(:start_y, n) { start.y }.to_f + 0.5
-        @player.angle = tables.fetch_floor_value(:start_turns, n) { facing_angle(start.facing) / QUARTER } * QUARTER
+        @player.x = tables.fetch_floor_value(:start_x, n) { floor.level.start.x }.to_f + 0.5
+        @player.y = tables.fetch_floor_value(:start_y, n) { floor.level.start.y }.to_f + 0.5
+        @player.angle = tables.fetch_floor_value(:start_turns, n) { facing_angle(floor.level.start.facing) / QUARTER } * QUARTER
       end
     end
 

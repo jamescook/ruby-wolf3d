@@ -76,10 +76,10 @@ module Wolf3D
         @b.table name, @floors.map(&value), width: width
       end
 
-      # THE ROOMS A WALL THAT MOVES STANDS BETWEEN, each pair given to the block: +pairs+, worked out
-      # while building over every floor (Rooms#always_joined).
-      def join_secret_wall_rooms(pairs:, this_floor: nil, &join) # rubocop:disable Lint/UnusedMethodArgument
-        pairs.each { |near, far| join.call(near, far) }
+      # THE ROOMS A WALL THAT MOVES STANDS BETWEEN, each pair given to the block: every floor's
+      # (+pairs_of+ answers a floor's, Rooms#always_joined), each pair once, joined on every floor.
+      def join_secret_wall_rooms(pairs_of:, this_floor: nil, &join) # rubocop:disable Lint/UnusedMethodArgument
+        @floors.flat_map(&pairs_of).uniq.each { |near, far| join.call(near, far) }
       end
 
       def one_floor? = @floors.count == 1
@@ -93,15 +93,15 @@ module Wolf3D
         @b.table name, Floors.at_least_one(@floors.flat_map(&values)), width: width
       end
 
-      # Something about each piece, run over +pieces+ (every floor's, end to end) and read by the
-      # piece's place in them.
-      def declare_piece_rule(name, pieces:, width: nil, &rule)
-        @b.table name, Floors.at_least_one(pieces.map(&rule)), width: width
+      # Something about each piece, every floor's end to end (+pieces_of+ answers a floor's), read
+      # by the piece's place in them.
+      def declare_piece_rule(name, pieces_of:, width: nil, &rule)
+        @b.table name, Floors.at_least_one(@floors.flat_map(&pieces_of).map(&rule)), width: width
       end
 
       # ...and about each guard, the same way.
-      def declare_guard_rule(name, guards:, width: nil, &rule)
-        @b.table name, Floors.at_least_one(guards.map(&rule)), width: width
+      def declare_guard_rule(name, guards_of:, width: nil, &rule)
+        @b.table name, Floors.at_least_one(@floors.flat_map(&guards_of).map(&rule)), width: width
       end
 
       # The first floor's guards a game set +difficulty+ stands up, known while building.
@@ -217,7 +217,7 @@ module Wolf3D
       # This floor's walls that move, each the pair of rooms it stands between (push_room_a and _b),
       # given to the block as it runs; a wall with no such pair gives nought twice, which joins
       # nothing (Rooms::NOWHERE is always open).
-      def join_secret_wall_rooms(this_floor:, pairs: nil, &join) # rubocop:disable Lint/UnusedMethodArgument
+      def join_secret_wall_rooms(this_floor:, pairs_of: nil, &join) # rubocop:disable Lint/UnusedMethodArgument
         near = declare(:push_room_a)
         far = declare(:push_room_b)
         @b.repeat(this_floor.pushwall_count) do |wall|
@@ -248,7 +248,7 @@ module Wolf3D
       end
 
       # The rule run over each of Scenery's pieces, read by which one a piece is (piece_kind).
-      def declare_piece_rule(name, pieces: nil, width: nil, &rule) # rubocop:disable Lint/UnusedMethodArgument
+      def declare_piece_rule(name, pieces_of: nil, width: nil, &rule) # rubocop:disable Lint/UnusedMethodArgument
         rules = @b.table(name, (0...Scenery::PICTURES.length).map { |kind| rule.call(Scenery.make_piece(kind)) },
                          width: width)
         ByKind.new(rules, declare(:piece_kind))
@@ -257,7 +257,7 @@ module Wolf3D
       # The rule run over each kind of enemy, standing and patrolling (two entries a kind, the
       # standing one first), read by which kind a guard is and whether he patrols. A pair no floor
       # can hold (a dog standing, a boss patrolling) is nought, and never read.
-      def declare_guard_rule(name, guards: nil, width: nil, &rule) # rubocop:disable Lint/UnusedMethodArgument
+      def declare_guard_rule(name, guards_of: nil, width: nil, &rule) # rubocop:disable Lint/UnusedMethodArgument
         values = Enemy::ALL.flat_map do |kind|
           [false, true].map { |patrolling| Guards.can_stand_up?(kind, patrolling) ? rule.call(Guards.make_guard(kind, patrolling)) : 0 }
         end

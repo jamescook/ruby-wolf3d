@@ -93,11 +93,6 @@ module Wolf3D
                                     scenery: scenery || Scenery.new(level))
       @player = player
       @lives = lives
-      # A FLOOR WITH NO SCENERY IS READ FOR ITSELF, which is what the note above means and what
-      # the tests of the locked doors rely on: a game that draws nothing standing in the rooms
-      # still has a key lying on the floor, or its locked door could never be opened.
-      @scenery_of = @floors.to_h { |floor| [floor.index, floor.scenery || Scenery.new(floor.level)] }
-      @scenery = scenery_of(@floors.first_floor)
       @this_floor = this_floor
       @pool = pool
       declare
@@ -224,11 +219,11 @@ module Wolf3D
       #
       # A table must hold something and a floor need hold nothing, so an empty game gets one
       # entry that nothing ever reads — the table above names no piece for it to be reached by.
-      everything = @floors.flat_map { |floor| scenery_of(floor).pieces }
-      @gives_kind = tables.declare_piece_rule(:gives_kind, pieces: everything, width: :byte) { |p| kind_of(p) }
-      @gives_amount = tables.declare_piece_rule(:gives_amount, pieces: everything, width: :half) { |p| amount_of(p) }
+      pieces_of = ->(floor) { scenery_of(floor).pieces }
+      @gives_kind = tables.declare_piece_rule(:gives_kind, pieces_of: pieces_of, width: :byte) { |p| kind_of(p) }
+      @gives_amount = tables.declare_piece_rule(:gives_amount, pieces_of: pieces_of, width: :half) { |p| amount_of(p) }
       if @sounds
-        @gives_sound = tables.declare_piece_rule(:gives_sound, pieces: everything, width: :byte) do |p|
+        @gives_sound = tables.declare_piece_rule(:gives_sound, pieces_of: pieces_of, width: :byte) do |p|
           @sounds.adlib_number(sound_of(p))
         end
       end
@@ -421,12 +416,16 @@ module Wolf3D
     # emits none of the arm above and pays nothing for it.
     def drops_gold_key? = @floors.kinds.any? { |name| Enemy[name].leaves == :gold_key }
 
-    def scenery_of(floor) = @scenery_of.fetch(floor.index)
+    # A FLOOR WITH NO SCENERY IS READ FOR ITSELF, which is what the tests of the locked doors rely
+    # on: a game that draws nothing standing in the rooms still has a key lying on the floor, or its
+    # locked door could never be opened. Read the first time a baked table asks (a whole build reads
+    # its floors from the pack instead, and never does).
+    def scenery_of(floor) = (@scenery_of ||= {})[floor.index] ||= floor.scenery || Scenery.new(floor.level)
 
     # How many pieces the busiest floor holds, which is what the list of what has been taken is
     # sized for. Read off the scenery this asked for rather than the floor's own, since a floor
     # that was handed none is read for itself.
-    def most_pieces = [@floors.map { |floor| scenery_of(floor).count }.max, 1].max
+    def most_pieces = @floors.holding.room_for(:pieces) || [@floors.map { |floor| scenery_of(floor).count }.max, 1].max
 
     def guard_cell(guard) = @this_floor.map_index(guard.x.to_i, guard.y.to_i)
 

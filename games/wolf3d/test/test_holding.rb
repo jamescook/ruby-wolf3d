@@ -68,6 +68,19 @@ class TestHolding < Minitest::Test
     assert_equal things.width * things.height, things.pixels.length, "every sprite, empty or not"
   end
 
+  # A WHOLE BUILD READS NO FLOOR OF THE COPY: it holds the original's sixty floors as numbers alone,
+  # and plays the first from its data pack exactly as a trimmed build plays it from the copy.
+  def test_a_whole_build_holds_sixty_floors_it_has_not_read
+    real_copy
+    floors = Wolf3D.floors((0...Holding::FLOORS).to_a, holding: Holding.whole)
+    whole = Reference.new.run(Wolf3D::GAME.program(settings: { screen: "playing", hold: "whole" }), frames: STANDING_FRAMES)
+
+    assert_equal Holding::FLOORS, floors.count
+    assert(floors.all? { |floor| floor.level.nil? && floor.doors.nil? && floor.guards.nil? }, "no floor read")
+    assert_equal 0, count_differing_pixels(whole.screen, Reference.new.run(first_floor(hold: "trimmed"), frames: STANDING_FRAMES).screen),
+                 "the whole build's first floor"
+  end
+
   # THE SAME FLOOR LOOKS THE SAME held either way: the walls, the guards and the gun come from the
   # whole row of pictures in place of the trimmed one, and the whole build reads its map from the
   # data pack (FloorTables), and nothing on the screen moves. Looked at twice: standing in the first

@@ -253,14 +253,22 @@ module Wolf3D
 
   # The floors this cartridge holds, with the first one's start moved if it was asked for.
   # +holding+ is what the build holds (Holding).
+  #
+  # A WHOLE BUILD READS NONE OF THEM: its floors are numbers alone, and every floor is read from its
+  # data pack after it is built (Floors.unread). Only a start moved by WOLF3D_START is read here.
   def self.floors(which, start: nil, holding: Holding.trimmed)
-    floors = Floors.from(maps, vswap, which, holding: holding)
     where = where_to_start(start)
-    return floors unless where
+    moved = where && moved_start(which.first, where)
+    return Floors.unread(which, holding: holding, start: moved) if holding.whole?
+    return Floors.from(maps, vswap, which, holding: holding) unless moved
 
-    x, y, facing = where
-    moved = floors.first_floor.level.starting_at(x, y, **(facing ? { facing: facing } : {}))
     Floors.from(SwappedFirstFloor.new(maps, moved, which.first), vswap, which, holding: holding, start_moved: true)
+  end
+
+  # The first floor's Level with the player put down at +where+ (x, y, facing).
+  def self.moved_start(index, where)
+    x, y, facing = where
+    maps[index].starting_at(x, y, **(facing ? { facing: facing } : {}))
   end
 
   # A GAMEMAPS with one floor read differently, so that moving the start needs no new path
@@ -357,8 +365,14 @@ module Wolf3D
     holding = Wolf3D::Holding.for(setting(:hold, nil), computer: built_for_computer?, dialled: floors_picked)
 
     if Wolf3D.maps
-      floors = Wolf3D.floors(Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many),
-                             start: start, holding: holding)
+      # A WHOLE BUILD HOLDS EVERY FLOOR THE ORIGINAL CAN HAVE, whichever copy it is made from; a dial
+      # picks some of the copy's floors to measure.
+      which = if holding.whole? && !floors_picked
+                (0...Wolf3D::Holding::FLOORS).to_a
+              else
+                Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many)
+              end
+      floors = Wolf3D.floors(which, start: start, holding: holding)
       atlas = Wolf3D::WallAtlas.new(Wolf3D.vswap, Wolf3D.palette, floors.map(&:level),
                                     doors: floors.map(&:doors), lifts: floors.map(&:lifts), holding: holding)
       things = if holding.whole?

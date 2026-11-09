@@ -33,12 +33,12 @@ module Wolf3D
     def initialize(vswap, palette, level, doors: nil, lifts: nil, holding: Holding.trimmed)
       @vswap = vswap
       @palette = palette
-      @codes = Array(level).flat_map { |one| wall_codes(one) }.uniq.sort
       if holding.whole?
         @textures = (0...Holding::WALL_PAGES).to_a
         return
       end
 
+      @codes = Array(level).flat_map { |one| wall_codes(one) }.uniq.sort
       @textures = @codes.flat_map { |code| [texture_index(code, LIT), texture_index(code, DARK)] }
       # A door's panel, and the lever of a lift pulled down. Neither is a wall the map builds
       # with, so neither turns up in the codes above — a pulled lever appears in no map at all,

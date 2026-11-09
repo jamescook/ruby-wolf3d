@@ -242,7 +242,7 @@ module Wolf3D
       tables = @this_floor.tables
       @piece_x = tables.declare_items(:thing_x, slot: :piece_x, plus: 0.5) { |f| pieces_of(f).map { |p| p.x + 0.5 } }
       @piece_y = tables.declare_items(:thing_y, slot: :piece_y, plus: 0.5) { |f| pieces_of(f).map { |p| p.y + 0.5 } }
-      @piece_shape = tables.declare_piece_rule(:thing_shape, pieces: pieces, width: :half) do |p|
+      @piece_shape = tables.declare_piece_rule(:thing_shape, pieces_of: ->(f) { pieces_of(f) }, width: :half) do |p|
         @things.position_of(p.picture)
       end
     end
