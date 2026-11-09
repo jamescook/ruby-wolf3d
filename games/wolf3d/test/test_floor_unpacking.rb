@@ -338,7 +338,7 @@ class TestFloorUnpacking < Minitest::Test
     unpacking = Wolf3D::DataPack.declare(VBlank::Builder.new, from: original).unpacking
     # The routine waits a frame every 256 bytes it writes (VBlank's progress bar), and writes each
     # byte of the pack about once, with a few frames more for each block it unpacks.
-    unpacking.slot_bytes_in(Reference.new.run(unpacking.program, frames: (unpacking.byte_size / 256) + 400))
+    unpacking.slot_bytes_in(unpacking.run_on(Reference.new, frames: (unpacking.byte_size / 256) + 400))
   end
 
   # Every floor's cells mean what the readers say, or the first floor and cell that do not.

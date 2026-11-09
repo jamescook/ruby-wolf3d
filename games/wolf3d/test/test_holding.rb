@@ -81,6 +81,29 @@ class TestHolding < Minitest::Test
                  "the whole build's first floor"
   end
 
+  # A WHOLE BUILD DRAWS THE WALLS AND THINGS ITS PACK HOLDS, not pictures read from the copy while
+  # building: handed the six episodes' pack, the first room looks as the trimmed build draws it;
+  # handed the same pack with every wall place nought, the walls are the palette's first colour;
+  # with every thing place nought, the piece the player stands facing is drawn in it too.
+  def test_a_whole_build_draws_the_pictures_its_pack_holds
+    piece = first_piece_with_room_south(&:blocks)
+    start = "#{piece.x},#{piece.y + 2},north"
+    program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1, screen: "playing", hold: "whole", start: start },
+                                           pack_at_start: true)
+    walls = Wolf3D::Holding::WALL_PAGES * Wolf3D::PictureUnpacking::PAGE_BYTES
+    things = Wolf3D::Holding::SPRITES * Wolf3D::PictureUnpacking::PAGE_BYTES
+    slots = slots_unpacked_from(real_copy)
+    seen = [{}, { wall_pictures: "\x00".b * walls }, { sprite_pictures: "\x00".b * things }].map do |changed|
+      Reference.new.hand_file(pack_file_of(slots.merge(changed))).run(program, frames: STANDING_FRAMES).screen
+    end
+    trimmed_settings = { floors: 1, screen: "playing", hold: "trimmed", start: start }
+    trimmed = Reference.new.run(Wolf3D::GAME.program(settings: trimmed_settings), frames: STANDING_FRAMES).screen
+
+    assert_equal 0, count_differing_pixels(seen[0], trimmed), "the pack's own pictures"
+    assert_operator count_differing_pixels(seen[1], trimmed), :>, 1000, "walls of place nought"
+    assert_operator count_differing_pixels(seen[2], trimmed), :>, 100, "things of place nought"
+  end
+
   # ONE WHOLE BUILD OFFERS THE EPISODES ITS COPY HOLDS, read from the pack it is handed as it runs:
   # given the shareware's, the list steps over the five episodes the shareware lacks and A starts the
   # first; given the six episodes', down lands on the second, which starts at its own first floor.
@@ -288,10 +311,17 @@ class TestHolding < Minitest::Test
   # THE DATA PACK A SHELL MAKES FROM +data+ (a GameData), the file a whole build left without its pack
   # is handed: FloorUnpacking's routine run over that copy. The pack names no copy's SHA-1, which
   # only a shell checks.
-  def whole_pack_of(data)
+  def whole_pack_of(data) = pack_file_of(slots_unpacked_from(data))
+
+  # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+.
+  def slots_unpacked_from(data)
     unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
     # The routine waits a frame every 256 bytes it writes (VBlank's progress bar).
-    slots = unpacking.slot_bytes_in(Reference.new.run(unpacking.program, frames: (unpacking.byte_size / 256) + 400))
+    unpacking.slot_bytes_in(unpacking.run_on(Reference.new, frames: (unpacking.byte_size / 256) + 400))
+  end
+
+  # The pack file holding +slots+.
+  def pack_file_of(slots)
     VBlank::Original::Pack.holding(slots, sha1: "0" * 40, build_version: Wolf3D::DataPack::VERSION).to_bytes
   end
 

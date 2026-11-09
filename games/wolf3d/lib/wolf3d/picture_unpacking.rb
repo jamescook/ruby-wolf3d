@@ -39,8 +39,8 @@ module Wolf3D
 
     # The slots the pictures take, declared on +slots+ (the data pack's).
     def self.declare(slots)
-      slots.numbers :wall_pictures, count: PAGE_BYTES * WALL_PAGES, width: :byte, signed: false, layout: :gba
-      slots.numbers :sprite_pictures, count: PAGE_BYTES * SPRITES, width: :byte, signed: false, layout: :gba
+      slots.pixels :wall_pictures, count: PAGE_BYTES * WALL_PAGES
+      slots.pixels :sprite_pictures, count: PAGE_BYTES * SPRITES
       SPRITE_EDGES.each { |name| slots.numbers name, count: SPRITES, width: :byte, signed: false, layout: :gba }
     end
 

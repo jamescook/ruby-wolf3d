@@ -61,12 +61,13 @@ module Wolf3D
     # +player+ is where the eye is and which way it points.
     # +floors+ is every floor the cartridge holds, when there is more than one, and +this_floor+
     # says where the floor being played begins in the tables of every floor's pieces and how many
-    # it has.
+    # it has. +pictures+ says where the row of things' pictures comes from (ViewPictures).
     def initialize(build:, things:, player:, scenery: nil, pool: nil, mind: nil, march: nil,
                    pickups: nil, floors: nil, this_floor: nil,
-                   rooms: nil, piece_room: nil)
+                   rooms: nil, piece_room: nil, pictures: ViewPictures.for(build: build))
       @b = build
       @things = things
+      @pictures = pictures
       @player = player
       @scenery = scenery
       @floors = floors
@@ -118,8 +119,7 @@ module Wolf3D
     def declare
       b = @b
       declare_the_scratch
-      b.image :things, width: @things.width, height: @things.height,
-                       data: @things.pixels, transparent: true
+      @pictures.declare_things(@things)
 
       @depth = b.list :_seen_at, capacity: FP::COLUMNS
       FP::COLUMNS.times { @depth << 0 }
@@ -135,14 +135,11 @@ module Wolf3D
       # WHICH COLUMNS OF EACH PICTURE hold anything, read by where the picture sits in the row
       # rather than by what is wearing it — a shooting guard is a different shape from a walking
       # one, a lamp is thinner than either, and all three are asked the same question.
-      @first_column = b.table :thing_first, @things.sprites.map { |p| @things.first_column(p) },
-                              width: :byte
-      @last_column = b.table :thing_last, @things.sprites.map { |p| @things.last_column(p) },
-                             width: :byte
-      @first_row = b.table :thing_top, @things.sprites.map { |p| @things.first_row(p) },
-                           width: :byte
-      @last_row = b.table :thing_bottom, @things.sprites.map { |p| @things.last_row(p) },
-                          width: :byte
+      edges = @pictures.declare_thing_edges(@things)
+      @first_column = edges.fetch(:thing_first)
+      @last_column = edges.fetch(:thing_last)
+      @first_row = edges.fetch(:thing_top)
+      @last_row = edges.fetch(:thing_bottom)
 
       declare_scenery
       declare_what_guards_leave

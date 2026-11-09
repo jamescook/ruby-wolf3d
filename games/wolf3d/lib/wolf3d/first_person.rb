@@ -655,7 +655,8 @@ module Wolf3D
       @lift_wait = @lasting.var :lift_wait, 0
       declare_the_way_out
 
-      b.image :walls, width: @atlas.width, height: @atlas.height, data: @atlas.pixels
+      @pictures = ViewPictures.for(build: b, pack: @pack)
+      @pictures.declare_walls(@atlas)
 
       # THE PLAYER, all of them at once, handed whole to everything below that touches them.
       # A whole build does not know where the first floor starts until the pack is read, so it
@@ -976,7 +977,7 @@ module Wolf3D
                                  floors: (@floors if @floors.count > 1), this_floor: @this_floor,
                                  rooms: @rooms, piece_room: declare_piece_rooms,
                                  pool: @guard_pool&.pool, mind: @mind,
-                                 pickups: @pickups, player: @player)
+                                 pickups: @pickups, player: @player, pictures: @pictures)
     end
 
     # BJ'S RUN, where his pictures are on the cartridge. See VictoryMarch.
