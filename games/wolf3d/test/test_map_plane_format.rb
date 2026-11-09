@@ -65,7 +65,7 @@ class TestMapPlaneFormat < Minitest::Test
     end.unpacking
     # A floor is 8192 bytes, and the routine waits a frame every 256 it writes (VBlank's progress
     # bar): 32 frames a floor, and one more for each block.
-    run = Reference.new.run(unpacking.program, frames: (34 * floors) + 4)
+    run = unpacking.run_on(Reference.new, frames: (34 * floors) + 4)
 
     unpacking.slot_bytes_in(run).fetch(:walls).b.scan(/.{#{CELLS * 2}}/mo)
   end
