@@ -364,13 +364,10 @@ class TestHolding < Minitest::Test
   # only a shell checks.
   def whole_pack_of(data) = pack_file_of(slots_unpacked_from(data))
 
-  # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+: once a worker,
-  # since unpacking a whole copy is most of what these tests spend.
+  # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+.
   def slots_unpacked_from(data)
-    (Ractor.current[:holding_slots] ||= {})[data.dir] ||= begin
-      unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
-      slots_unpacked_by(unpacking)
-    end
+    unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
+    slots_unpacked_by(unpacking)
   end
 
   # The pack file holding +slots+.

@@ -65,12 +65,19 @@ module Wolf3DTest
   # interpreter and handed its copy. The routine waits a frame every 256 bytes it counts, and it
   # counts fewer than the pack holds (a slot it leaves at nought is never written), so the bytes give
   # it frames to spare; a routine that has not finished in them is a fault, not a short pack.
+  #
+  # KEPT IN THE BUILD'S OWN PACK CACHE (DataPack::CACHE), since a whole copy takes minutes on the
+  # interpreter. Its key is the copy's bytes, the routine and its slots, VBlank and the Ruby, so a hit
+  # is exactly what this run would have written: a change to any of them, or a copy a test damaged,
+  # runs the routine again.
   def slots_unpacked_by(unpacking)
-    frames = (unpacking.byte_size / 256) + 400
-    run = unpacking.run_on(Reference.new, frames: frames)
-    raise "the unpacking did not finish in #{frames} frames" unless unpacking.finished_in?(run)
+    VBlank::Original::PackCache.new(Wolf3D::DataPack::CACHE).slot_bytes(unpacking) do
+      frames = (unpacking.byte_size / 256) + 400
+      run = unpacking.run_on(Reference.new, frames: frames)
+      raise "the unpacking did not finish in #{frames} frames" unless unpacking.finished_in?(run)
 
-    unpacking.slot_bytes_in(run)
+      unpacking.slot_bytes_in(run)
+    end
   end
 
   # WHOLE CARTRIDGES, BUILT ONCE AND KEPT, in a folder git ignores because a cartridge holds your
