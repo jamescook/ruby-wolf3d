@@ -42,7 +42,7 @@ module Wolf3D
       pack ? Packed.new(build, floors, pack) : Baked.new(build, floors, wall_picture)
     end
 
-    # THE TABLES WORKED OUT IN RUBY, as a trimmed build has always held them.
+    # THE TABLES WORKED OUT IN RUBY, the floors a trimmed build holds end to end.
     class Baked
       def initialize(build, floors, wall_picture)
         @b = build
@@ -71,7 +71,7 @@ module Wolf3D
       def declare_floor_value(name, what, on: @b, &baked) = on.var(name, fetch_floor_value(what, 0, &baked))
 
       # ...and the same number where the build knows it while building, which a baked one always does.
-      def known_floor_value(what, n, &baked) = fetch_floor_value(what, n, &baked)
+      def floor_value_while_building(what, n, &baked) = fetch_floor_value(what, n, &baked)
 
       # A table of one number for each floor the build holds, read by the floor's place in them.
       def declare_per_floor(name, width: nil, slot: nil, &value) # rubocop:disable Lint/UnusedMethodArgument
@@ -90,7 +90,8 @@ module Wolf3D
       # holds only floors it read.
       def holds_floor?(_slot) = true
 
-      # Whether no floor the build holds has any of +kind+ (Floors#no_floor_has?).
+      # Whether no floor the build holds has any of +kind+ (Floors#no_floor_has?), for a part handed
+      # no Floors of its own: Billboards on a one-floor build.
       def none?(kind) = @floors.no_floor_has?(kind)
 
       # A run of items per floor, every floor's end to end; a table must hold something, so a build
@@ -111,7 +112,7 @@ module Wolf3D
       end
 
       # The first floor's guards a game set +difficulty+ stands up, known while building.
-      def known_first_guards(difficulty) = @floors.first_floor.guards&.at(difficulty) || []
+      def first_guards_while_building(difficulty) = @floors.first_floor.guards&.at(difficulty) || []
 
       # What lies on each cell, counted from one, laid out like the world; +cells+ answers a
       # floor's.
@@ -195,10 +196,10 @@ module Wolf3D
         return baked.call(n) if moved_start?(what, n)
 
         index = @floors[n].index
-        return declare(:kill_total)[(index * Guards::SETTINGS.length) + DEFAULT_SETTING] if what == :kills
+        return slot_table(:kill_total)[(index * Guards::SETTINGS.length) + DEFAULT_SETTING] if what == :kills
 
 
-        declare(FLOOR_VALUES.fetch(what))[index]
+        slot_table(FLOOR_VALUES.fetch(what))[index]
       end
 
       # ...so a variable holding the first floor's starts at nought and is given it at power-on:
@@ -211,7 +212,7 @@ module Wolf3D
 
       # Not known while building, but for a first floor's start moved by WOLF3D_START, which the
       # build set itself (Floors#start_moved?).
-      def known_floor_value(what, n, &baked) = moved_start?(what, n) ? baked.call(n) : nil
+      def floor_value_while_building(what, n, &baked) = moved_start?(what, n) ? baked.call(n) : nil
 
       # A floor's slot, read at the floor's own number in the copy: by its place in the build,
       # through a table of each place's number.
@@ -223,8 +224,8 @@ module Wolf3D
       # given to the block as it runs; a wall with no such pair gives nought twice, which joins
       # nothing (Rooms::NOWHERE is always open).
       def join_secret_wall_rooms(this_floor:, pairs_of: nil, &join) # rubocop:disable Lint/UnusedMethodArgument
-        near = declare(:push_room_a)
-        far = declare(:push_room_b)
+        near = slot_table(:push_room_a)
+        far = slot_table(:push_room_b)
         @b.repeat(this_floor.pushwall_count) do |wall|
           join.call(near[this_floor.pushwall(wall)], far[this_floor.pushwall(wall)])
         end
@@ -235,20 +236,20 @@ module Wolf3D
       # Whether the copy holds the floor the build holds at +slot+ (a number, or a variable as the
       # game runs): a test on the pack's floor count, since a whole build holds sixty floors and the
       # shareware has ten.
-      def holds_floor?(slot) = declare(:floor_count)[0] > declare_floor_index[slot]
+      def holds_floor?(slot) = slot_table(:floor_count)[0] > declare_floor_index[slot]
 
       # Never known before the copy is read.
       def none?(_kind) = false
 
-      def declare_world = declare(:world)
+      def declare_world = slot_table(:world)
 
       # Always a table: whether anything blocks is not known until the copy is read.
-      def declare_blocked = declare(:blocked)
+      def declare_blocked = slot_table(:blocked)
 
-      def declare_lying_at = declare(:lying_at)
+      def declare_lying_at = slot_table(:lying_at)
 
       # The slot of the same name.
-      def declare_map(name, width: nil) = declare(name) # rubocop:disable Lint/UnusedMethodArgument
+      def declare_map(name, width: nil) = slot_table(name) # rubocop:disable Lint/UnusedMethodArgument
 
       # The slot +slot+ holds the run, read through +plus+ where it keeps a raw number the baked
       # table holds worked (a cell, where the table holds its middle).
@@ -261,7 +262,7 @@ module Wolf3D
       def declare_piece_rule(name, pieces_of: nil, width: nil, &rule) # rubocop:disable Lint/UnusedMethodArgument
         rules = @b.table(name, (0...Scenery::PICTURES.length).map { |kind| rule.call(Scenery.make_piece(kind)) },
                          width: width)
-        ByKind.new(rules, declare(:piece_kind))
+        ByKind.new(rules, slot_table(:piece_kind))
       end
 
       # The rule run over each kind of enemy, standing and patrolling (two entries a kind, the
@@ -271,11 +272,11 @@ module Wolf3D
         values = Enemy::ALL.flat_map do |kind|
           [false, true].map { |patrolling| Guards.can_stand_up?(kind, patrolling) ? rule.call(Guards.make_guard(kind, patrolling)) : 0 }
         end
-        GuardRule.new(@b.table(name, values, width: width), declare(:guard_kind), declare(:guard_patrolling))
+        GuardRule.new(@b.table(name, values, width: width), slot_table(:guard_kind), slot_table(:guard_patrolling))
       end
 
       # Not known: the pack is read after the build. The first floor is stood up from the tables.
-      def known_first_guards(_difficulty) = nil
+      def first_guards_while_building(_difficulty) = nil
 
       # Where each kind's runs sit in the pack (FloorUnpacking's per-floor limits).
       PER_FLOOR = {
@@ -313,7 +314,7 @@ module Wolf3D
       def moved_start?(what, n) = n.zero? && @floors.start_moved? && STARTS.include?(what)
 
       # Each slot's table, declared the first time anything asks for it.
-      def declare(slot) = (@declared ||= {})[slot] ||= @b.table(slot, @pack[slot])
+      def slot_table(slot) = (@declared ||= {})[slot] ||= @b.table(slot, @pack[slot])
 
       # Each floor's number in the copy, by its place in the build.
       def declare_floor_index

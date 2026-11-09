@@ -26,6 +26,22 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
+  # A FLOOR WHOSE PLANE STARTS PAST THE END OF GAMEMAPS ENDS THE FLOORS, rather than unpacking
+  # whatever file the copy holds after it. Here the made-up floor's walls are said to start beyond
+  # the file, so the release has no floor the routine can read.
+  def test_a_floor_whose_plane_lies_past_gamemaps_is_not_unpacked
+    Dir.mktmpdir do |dir|
+      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
+      path = File.join(dir, "GAMEMAPS.WL6")
+      maps = File.binread(path)
+      level_at = File.binread(File.join(dir, "MAPHEAD.WL6"))[2, 4].unpack1("V")
+      maps[level_at, 4] = [maps.bytesize + 100].pack("V")
+      File.binwrite(path, maps)
+
+      assert_equal 0, unpacked(made_up_original(dir)).fetch(:floor_count).getbyte(0)
+    end
+  end
+
   def test_every_floor_of_the_six_episodes_means_what_the_readers_say
     assert_same_floors Wolf3D.maps, Wolf3D.vswap, unpacked(original_of(real_copy))
   end

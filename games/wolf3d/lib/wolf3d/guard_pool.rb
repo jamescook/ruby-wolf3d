@@ -152,7 +152,7 @@ module Wolf3D
       @pool = @lasting.pool :guard, x: 0.0, y: 0.0, dir: 0, state: 0, ticks: 0, wait: 0, togo: 0.0,
                             hp: 0, shown: 0, awake: 0, turn: 0, dropped: 0, ambush: 0, noticed: 0, door: 0,
                             capacity: @floors.room_for(:guards), widths: widths
-      first_guards = @tables.known_first_guards(Guards::DEFAULT_DIFFICULTY)
+      first_guards = @tables.first_guards_while_building(Guards::DEFAULT_DIFFICULTY)
       stand_up_first_floor(first_guards) if first_guards
       declare_where_they_start
       stand_up_first_floor_from_tables unless first_guards

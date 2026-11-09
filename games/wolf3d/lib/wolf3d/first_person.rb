@@ -662,9 +662,9 @@ module Wolf3D
       # starts the player nowhere and puts them down at power-on (below).
       tables = @this_floor.tables
       @player = Player.declare(build: b, lasting: @lasting,
-                               x: tables.known_floor_value(:start_x, 0) { start_x } || 0.0,
-                               y: tables.known_floor_value(:start_y, 0) { start_y } || 0.0,
-                               angle: tables.known_floor_value(:start_turns, 0) { start_view } || 0,
+                               x: tables.floor_value_while_building(:start_x, 0) { start_x } || 0.0,
+                               y: tables.floor_value_while_building(:start_y, 0) { start_y } || 0.0,
+                               angle: tables.floor_value_while_building(:start_turns, 0) { start_view } || 0,
                                ammo: @start_ammo,
                                looks: anything_stands_anywhere?)
 
@@ -677,7 +677,7 @@ module Wolf3D
       @floor = @playthrough.floor
       # ...and the player put down where the first floor starts, at power-on, where the build could
       # not start them there (above).
-      place_player if tables.known_floor_value(:start_x, 0) { start_x }.nil?
+      place_player if tables.floor_value_while_building(:start_x, 0) { start_x }.nil?
 
       # HOW TOUGH YOU SAID YOU WERE, and it lives with the world rather than with the screen
       # that asks it, because two things in the world read it: which guards stand up when a
@@ -1123,9 +1123,9 @@ module Wolf3D
     # Read by the floor's place in the build (FloorTables#declare_per_floor), which a whole build
     # reads from the pack, where it cannot know while building that no floor has one.
     def declare_the_way_out
-      tables = @this_floor.tables
-      return if tables.none?(:exits)
+      return unless any_floor_has_a_way_out?
 
+      tables = @this_floor.tables
       @exit_first = tables.declare_per_floor(:exit_first, width: :half) { |floor| the_way_out_of(floor.level)&.first || 1 }
       @exit_last = tables.declare_per_floor(:exit_last, width: :half) { |floor| the_way_out_of(floor.level)&.last || 0 }
     end
