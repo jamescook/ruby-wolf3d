@@ -83,8 +83,8 @@ module Wolf3D
 
       def one_floor? = @floors.count == 1
 
-      # Whether no floor the build holds has any of +kind+.
-      def none?(kind) = @floors.counts_of(kind).all?(&:zero?)
+      # Whether no floor the build holds has any of +kind+ (Floors#no_floor_has?).
+      def none?(kind) = @floors.no_floor_has?(kind)
 
       # A run of items per floor, every floor's end to end; a table must hold something, so a build
       # with none gets one entry nothing reads. +slot:+ and +plus:+ are for a packed build only.

@@ -83,12 +83,6 @@ module Wolf3D
       declare
     end
 
-    # Is there anything standing in this level at all? A floor with none of either needs none of
-    # what follows, and paying for none of it is worth the question.
-    def self.needed?(scenery:, guards:)
-      !(scenery.nil? || scenery.empty?) || !(guards.nil? || guards.empty?)
-    end
-
     # EVERYTHING STANDING IN THE LEVEL, after the walls it has to stand behind. Look at all of
     # it first and draw it afterwards, FURTHEST FIRST — so a nearer thing paints over a further
     # one, and where the nearer one is see-through the further one is simply left showing.

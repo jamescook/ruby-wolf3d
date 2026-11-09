@@ -52,11 +52,9 @@ module Wolf3D
 
     # Does this cartridge need any of it? A floor that is all one room has nothing to shut off,
     # and a cartridge with no doors on any floor can never join two rooms anyway — either way
-    # every room is always reached and none of this is emitted. The sibling of Billboards.needed?.
-    def self.needed?(floors)
-      floors.any? { |floor| rooms_in(floor.level).length > 1 } &&
-        floors.any? { |floor| floor.doors.count.positive? }
-    end
+    # every room is always reached and none of this is emitted. A whole build needs it, since the
+    # floors loaded into it later may (Floors#no_floor_has?).
+    def self.needed?(floors) = !floors.no_floor_has?(:rooms_beyond_one) && !floors.no_floor_has?(:doors)
 
     def self.rooms_in(level)
       level.each_cell.filter_map { |x, y| level.area(x, y) }.uniq

@@ -668,7 +668,7 @@ module Wolf3D
                                y: tables.known_floor_value(:start_y, 0) { start_y } || 0.0,
                                angle: tables.known_floor_value(:start_turns, 0) { start_view } || 0,
                                ammo: @start_ammo,
-                               looks: Billboards.needed?(scenery: @scenery, guards: @guards))
+                               looks: anything_stands_anywhere?)
 
       # WHAT STARTS PLAY, and which floor is being played. Its steps are this view's own (see
       # #reset_game and the four after it), and it writes them into routine bodies, which the
@@ -961,7 +961,7 @@ module Wolf3D
 
     # Can any floor on this cartridge be walked out of? Only a boss floor can — see Level::EXIT
     # — so nearly every cartridge builds none of the winning at all.
-    def any_floor_has_a_way_out? = @floors.any? { |floor| floor.level.exits.any? }
+    def any_floor_has_a_way_out? = !@floors.no_floor_has?(:exits)
 
     # ...and can an episode be won at all, by that or by a boss whose fall ends it?
     def any_episode_can_end? = any_floor_has_a_way_out? || @behaviour.any?(:cam)
@@ -1004,9 +1004,7 @@ module Wolf3D
 
     # Does anything stand in ANY floor the cartridge holds? A game with nothing anywhere pays for
     # none of the drawing that puts things in rooms.
-    def anything_stands_anywhere?
-      @floors.any? { |floor| Billboards.needed?(scenery: floor.scenery, guards: floor.guards) }
-    end
+    def anything_stands_anywhere? = !@floors.no_floor_has?(:pieces) || !@floors.no_floor_has?(:guards)
 
     # DYING NEEDS SOMETHING THAT CAN KILL YOU, so a floor with no guards on it declares none of
     # this and pays for none of it.
@@ -1469,7 +1467,7 @@ module Wolf3D
         # One comparison, whatever the cartridge holds: which cell means the secret lift on THIS
         # floor was settled when the floor started (see #select_floor), so there is no arm
         # per floor here and no table to read.
-        if @floors.any? { |floor| floor.lifts && !floor.lifts.secret_cars.empty? }
+        unless @floors.no_floor_has?(:secret_cars)
           @here = (@player.y.to_i * @level.width) + @player.x.to_i
           @lift_secret = 1 if @here == @this_floor.secret_car
         end

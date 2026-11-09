@@ -163,6 +163,9 @@ module Wolf3D
       when :guards    then floor.guards&.count || 0
       when :pieces    then floor.scenery&.count || 0
       when :exits     then floor.level.exits.length
+      when :secret_cars then floor.lifts&.secret_cars&.length || 0
+      # Rooms beyond the first: a floor of one room has nothing a door can shut off.
+      when :rooms_beyond_one then [Rooms.rooms_in(floor.level).length - 1, 0].max
       else raise ArgumentError, "no such thing on a floor: #{kind}"
       end
     end
