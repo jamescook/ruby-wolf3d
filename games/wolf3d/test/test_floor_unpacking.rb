@@ -126,6 +126,39 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_gun vswap, pack
     assert_same_picture_table graph, pack
     assert_same_named_pictures graph, pack
+    assert_same_fonts graph, pack
+    assert_same_end_articles graph, pack
+  end
+
+  # BOTH ALPHABETS, each character a picture of its own row by row, one after another in the order
+  # of Vgagraph::FONT_WIDTHS: place nought for a character the release draws at another width, or
+  # a font of another height.
+  def assert_same_fonts(graph, pack)
+    got = pack.fetch(:font_glyphs)
+    at = 0
+    Wolf3D::Vgagraph::FONT_WIDTHS.each_with_index do |widths, n|
+      font = graph.font(n)
+      height = Wolf3D::Vgagraph::FONT_HEIGHTS.fetch(n)
+      widths.each do |code, width|
+        fits = font.height == height && font.width(code) == width
+        wanted = fits ? font.rows(code).flatten : Array.new(width * height, 0)
+        assert_equal wanted, got.byteslice(at, width * height).bytes, "font #{n}'s character #{code}"
+        at += width * height
+      end
+    end
+    assert_equal at, got.bytesize, "every character and nothing more"
+  end
+
+  # THE END OF EACH EPISODE, the article's own bytes as the release keeps them, with its length;
+  # nothing for an episode the release does not end.
+  def assert_same_end_articles(graph, pack)
+    room = Wolf3D::VgagraphUnpacking::ARTICLE_BYTES
+    held = Wolf3D::Vgagraph::END_ARTICLES.fetch(graph.set, 0)
+    Wolf3D::VgagraphUnpacking::ARTICLES.times do |episode|
+      text = episode < held ? graph.text(graph.end_article_chunk(episode)).b : "".b
+      assert_equal text.bytesize, pack.fetch(:end_article_length).unpack("v*")[episode], "episode #{episode + 1}'s length"
+      assert_equal text, pack.fetch(:end_articles).byteslice(episode * room, text.bytesize), "episode #{episode + 1}'s words"
+    end
   end
 
   # EVERY NAMED PICTURE, put back together from its four planes, one after another in the order
@@ -384,9 +417,7 @@ class TestFloorUnpacking < Minitest::Test
     # The pack a whole build declares, whose routine is run here on its own, not read back from
     # the packs kept between builds.
     unpacking = Wolf3D::DataPack.declare(VBlank::Builder.new, from: original).unpacking
-    # The routine waits a frame every 256 bytes it writes (VBlank's progress bar), and writes each
-    # byte of the pack about once, with a few frames more for each block it unpacks.
-    unpacking.slot_bytes_in(unpacking.run_on(Reference.new, frames: (unpacking.byte_size / 256) + 400))
+    slots_unpacked_by(unpacking)
   end
 
   # Every floor's cells mean what the readers say, or the first floor and cell that do not.

@@ -59,6 +59,18 @@ module Wolf3DTest
                                releases: Wolf3D::Vanilla::RELEASES, platform: :pc)
   end
 
+  # EACH SLOT OF A DATA PACK AS +unpacking+ (an Original::Unpacking) LEAVES IT, run on the
+  # interpreter and handed its copy. The routine waits a frame every 256 bytes it counts, and it
+  # counts fewer than the pack holds (a slot it leaves at nought is never written), so the bytes give
+  # it frames to spare; a routine that has not finished in them is a fault, not a short pack.
+  def slots_unpacked_by(unpacking)
+    frames = (unpacking.byte_size / 256) + 400
+    run = unpacking.run_on(Reference.new, frames: frames)
+    raise "the unpacking did not finish in #{frames} frames" unless unpacking.finished_in?(run)
+
+    unpacking.slot_bytes_in(run)
+  end
+
   # WHOLE CARTRIDGES, BUILT ONCE AND KEPT, in a folder git ignores because a cartridge holds your
   # copy of the game. The key is the program the game's block builds, with its settings, so a
   # change to the game, to the copy it reads or to the framework builds it again, and nothing else

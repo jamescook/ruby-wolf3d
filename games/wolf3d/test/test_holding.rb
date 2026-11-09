@@ -322,8 +322,7 @@ class TestHolding < Minitest::Test
   # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+.
   def slots_unpacked_from(data)
     unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
-    # The routine waits a frame every 256 bytes it writes (VBlank's progress bar).
-    unpacking.slot_bytes_in(unpacking.run_on(Reference.new, frames: (unpacking.byte_size / 256) + 400))
+    slots_unpacked_by(unpacking)
   end
 
   # The pack file holding +slots+.

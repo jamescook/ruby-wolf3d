@@ -2,7 +2,7 @@
 
 module Wolf3D
   # VGAGRAPH, UNPACKED BY THE GAME ITSELF into the data pack (DataPack): what Vgagraph reads in Ruby
-  # for MenuArt, BarArt and the lettering.
+  # for MenuArt, BarArt, the lettering and the end of each episode.
   #
   # Three files work together (Vgagraph says how): VGAHEAD lists where each chunk starts, three
   # bytes a place; VGAGRAPH holds the chunks, each its unpacked length in four bytes and then
@@ -10,6 +10,10 @@ module Wolf3D
   # CA_CacheGrChunk; IdSoftware::Codec::Huffman). The tree is in a file of its own, so the walk is
   # written here, reading both files, rather than as a format, which reads the one file its block
   # comes from.
+  #
+  # ONE WALK FOR EVERY CHUNK. The routine is game code, and the walk written out once per chunk
+  # overruns the build's stack, so the chunks this pack wants are a table (#chunk_jobs) and the walk
+  # runs in a loop over it, each byte going where its kind of chunk says.
   #
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
   # branch in it, and every count is a variable of the routine's (#routine_var).
@@ -31,6 +35,12 @@ module Wolf3D
 
     PLANES = Vgagraph::PLANES
 
+    # WHAT EACH CHUNK IN THE TABLE IS, which says where its bytes go.
+    PICTURE_TABLE = 0
+    PICTURE = 1
+    FONT = 2
+    ARTICLE = 3
+
     # WHERE EACH NAMED PICTURE STARTS in the slot of them, one after another in Vgagraph::SIZES'
     # order, each row by row at its own size; and how many places they take in all.
     NAMED_PLACES = Vgagraph::SIZES.values.sum { |width, height| width * height }
@@ -40,11 +50,50 @@ module Wolf3D
                      .to_h
     )
 
+    # A FONT AS ITS CHUNK KEEPS IT (Vgagraph::Font): its height, where each of 256 characters starts,
+    # each one's width, then the lettering. Kept whole first, one after the other, so each character
+    # can then be cut out into a picture of its own; the chunk is the size the widths make it.
+    FONT_HEIGHT_BYTES = Vgagraph::Font::HEIGHT_BYTES
+    FONT_WIDTHS_AT = FONT_HEIGHT_BYTES + (Vgagraph::Font::CHARACTERS * Vgagraph::Font::LOCATION_BYTES)
+    FONT_CHUNK_BYTES = Ractor.make_shareable(
+      Vgagraph::FONT_WIDTHS.each_with_index.map do |widths, n|
+        Vgagraph::Font::HEADER_BYTES + (widths.values.sum * Vgagraph::FONT_HEIGHTS.fetch(n))
+      end
+    )
+    FONT_CHUNK_AT = Ractor.make_shareable([0, FONT_CHUNK_BYTES.first])
+
+    # EACH CHARACTER AS A PICTURE, row by row at its own width, font 0's then font 1's, in the order
+    # of Vgagraph::FONT_WIDTHS: where each starts, by font and code.
+    def self.glyph_starts
+      total = 0
+      Vgagraph::FONT_WIDTHS.each_with_index.map do |widths, n|
+        widths.to_h do |code, width|
+          at = total
+          total += width * Vgagraph::FONT_HEIGHTS.fetch(n)
+          [code, at]
+        end
+      end
+    end
+    GLYPH_AT = Ractor.make_shareable(glyph_starts)
+    GLYPH_PLACES = Vgagraph::FONT_WIDTHS.each_with_index.sum do |widths, n|
+      widths.values.sum * Vgagraph::FONT_HEIGHTS.fetch(n)
+    end
+
+    # THE END OF EACH EPISODE, the words as the release keeps them (wl_text.cpp reads its own markup
+    # out of them as it shows them), in a run of this many bytes each: the longest of either release
+    # is 822.
+    ARTICLES = 6
+    ARTICLE_BYTES = 1024
+
     # The slots VGAGRAPH takes, declared on +slots+ (the data pack's).
     def self.declare(slots)
       slots.numbers :picture_count, count: 1, width: :half, signed: false, layout: :gba
       slots.numbers :picture_sizes, count: PICTURES * 2, width: :half, signed: false, layout: :gba
       slots.pixels :vga_pictures, count: NAMED_PLACES
+      slots.numbers :font_chunks, count: FONT_CHUNK_BYTES.sum, width: :byte, signed: false, layout: :gba
+      slots.pixels :font_glyphs, count: GLYPH_PLACES
+      slots.numbers :end_articles, count: ARTICLES * ARTICLE_BYTES, width: :byte, signed: false, layout: :gba
+      slots.numbers :end_article_length, count: ARTICLES, width: :half, signed: false, layout: :gba
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.
@@ -59,80 +108,152 @@ module Wolf3D
       @head = @copy.file("VGAHEAD.#{@release}")
       @graph = @copy.file("VGAGRAPH.#{@release}")
       @dictionary = @copy.file("VGADICT.#{@release}")
-      unpack_picture_table
-      unpack_named_pictures
+      unpack_chunks
+      cut_glyphs
     end
 
     private
 
-    # EVERY PICTURE THIS GAME DRAWS BY NAME, at its place in the slot (PICTURE_AT), by the number
-    # this release keeps it under (Vgagraph::NAMES; a release with no names gives none). A picture is
-    # four quarter-width pictures one after another, the display's four planes, so column x of the
-    # whole is column x / 4 of plane x % 4 (wolf4sdl: id_vh.cpp, VWB_DrawPic; Vgagraph::Picture). A
-    # picture the release's table gives another size is left at place nought.
-    #
-    # One walk, over tables of each picture's number, place and size, so the Huffman walk is written
-    # into the routine once rather than once a picture.
-    def unpack_named_pictures
-      names = Vgagraph::NAMES.fetch(@release, {})
-      return if names.empty? # a plain Ruby value: decided while building
+    # ONE ROW OF THE TABLE OF CHUNKS: which chunk, what kind, where its bytes start in their slot,
+    # its width and height (a picture's) or how many bytes it may take (a font's, an article's), and
+    # its number among its kind (a picture's in the release, a font's, an episode's).
+    ChunkJob = Data.define(:chunk, :kind, :at, :width, :height, :number)
 
-      numbers = @b.table(:vga_named_number, names.values, width: :half)
-      starts = @b.table(:vga_named_at, names.keys.map { |name| PICTURE_AT.fetch(name) }, width: :word)
-      widths = @b.table(:vga_named_width, names.keys.map { |name| Vgagraph::SIZES.fetch(name).first }, width: :half)
-      heights = @b.table(:vga_named_height, names.keys.map { |name| Vgagraph::SIZES.fetch(name).last }, width: :half)
-      number = routine_var(:number)
-      @b.repeat(names.length) do |n|
-        number.store!(numbers[n])
-        routine_var(:at).store!(starts[n])
-        routine_var(:width).store!(widths[n])
-        routine_var(:height).store!(heights[n])
-        if (@pack[:picture_sizes][2 * number] == routine_var(:width)) &
-           (@pack[:picture_sizes][(2 * number) + 1] == routine_var(:height))
-          unpack_picture(Vgagraph::FIRST_PICTURE + number)
+    # The chunks this release's pack wants, the picture table first, since a picture is checked
+    # against it. A release with no names (Vgagraph::NAMES) has no pictures here.
+    def chunk_jobs
+      jobs = [ChunkJob.new(chunk: Vgagraph::PICTURE_TABLE, kind: PICTURE_TABLE, at: 0, width: 0, height: 0, number: 0)]
+      Vgagraph::NAMES.fetch(@release, {}).each do |name, number|
+        width, height = Vgagraph::SIZES.fetch(name)
+        jobs << ChunkJob.new(chunk: Vgagraph::FIRST_PICTURE + number, kind: PICTURE, at: PICTURE_AT.fetch(name),
+                             width: width, height: height, number: number)
+      end
+      Vgagraph::FONTS.times do |n|
+        jobs << ChunkJob.new(chunk: Vgagraph::FIRST_FONT + n, kind: FONT, at: FONT_CHUNK_AT.fetch(n),
+                             width: FONT_CHUNK_BYTES.fetch(n), height: 0, number: n)
+      end
+      Vgagraph::END_ARTICLES.fetch(@release, 0).times do |episode|
+        jobs << ChunkJob.new(chunk: Vgagraph::FIRST_END_ARTICLE.fetch(@release) + episode, kind: ARTICLE,
+                             at: episode * ARTICLE_BYTES, width: ARTICLE_BYTES, height: 0, number: episode)
+      end
+      jobs
+    end
+
+    # EVERY CHUNK OF THE TABLE, through the one walk. A picture the release's table gives another
+    # size than Vgagraph::SIZES is not unpacked, and stays place nought.
+    def unpack_chunks
+      jobs = chunk_jobs
+      tables = %i[chunk kind at width height number].to_h do |field|
+        [field, @b.table(:"vga_job_#{field}", jobs.map { |job| job.to_h.fetch(field) }, width: :word)]
+      end
+      @pack[:picture_count][0] = 0
+      @b.repeat(jobs.length) do |n|
+        %i[chunk kind at width height number].each { |field| routine_var(field).store!(tables.fetch(field)[n]) }
+        wanted = routine_var(:wanted)
+        wanted.store!(1)
+        if routine_var(:kind) == PICTURE
+          wanted.store!(0) unless (@pack[:picture_sizes][2 * routine_var(:number)] == routine_var(:width)) &
+                                  (@pack[:picture_sizes][(2 * routine_var(:number)) + 1] == routine_var(:height))
         end
+        unpack_job if wanted == 1
       end
     end
 
-    # The picture in chunk +chunk+, routine_var(:width) by routine_var(:height), into the slot from
-    # routine_var(:at).
-    def unpack_picture(chunk)
-      width = routine_var(:width)
-      quarter = routine_var(:quarter)
-      plane_places = routine_var(:plane_places)
-      quarter.store!(width / PLANES)
-      plane_places.store!(quarter * routine_var(:height))
-      unpack_chunk(chunk) do |byte, made|
-        if made < width * routine_var(:height)
-          @pack[:vga_pictures][routine_var(:at) + (((made % plane_places) / quarter) * width) +
-                               ((made % quarter) * PLANES) + (made / plane_places)] = byte
+    # The chunk the routine's job variables name, each byte to its place.
+    def unpack_job
+      kind = routine_var(:kind)
+      routine_var(:quarter).store!(routine_var(:width) / PLANES)
+      routine_var(:plane_places).store!(routine_var(:quarter) * routine_var(:height))
+      unpack_chunk(routine_var(:chunk)) do |byte, made|
+        if kind == PICTURE_TABLE
+          put_size_byte(byte, made)
+        elsif kind == PICTURE
+          put_picture_byte(byte, made)
+        elsif made < routine_var(:width) # a font's or an article's run
+          if kind == FONT
+            @pack[:font_chunks][routine_var(:at) + made] = byte
+          else
+            @pack[:end_articles][routine_var(:at) + made] = byte
+          end
           @copy.count_written 1
         end
       end
+      finish_job
     end
 
-    # THE PICTURE TABLE, chunk nought: a width and a height for each picture, two bytes each, so
-    # the release's count of pictures is a quarter of its length. One past PICTURES is not kept.
-    def unpack_picture_table
-      low = routine_var(:low)
-      @pack[:picture_count][0] = 0
-      unpack_chunk(Vgagraph::PICTURE_TABLE) do |byte, at|
-        if (at & 1) == 0
-          low.store!(byte)
-        elsif (at >> 1) < PICTURES * 2
-          @pack[:picture_sizes][at >> 1] = low | (byte << 8)
-          @copy.count_written 2
+    # A byte of the picture table: a width and a height for each picture, two bytes each.
+    def put_size_byte(byte, made)
+      if (made & 1) == 0
+        routine_var(:low).store!(byte)
+      elsif (made >> 1) < PICTURES * 2
+        @pack[:picture_sizes][made >> 1] = routine_var(:low) | (byte << 8)
+        @copy.count_written 2
+      end
+    end
+
+    # A byte of a picture, kept as four quarter-width pictures one after another, the display's four
+    # planes, so column x of the whole is column x / 4 of plane x % 4 (wolf4sdl: id_vh.cpp,
+    # VWB_DrawPic; Vgagraph::Picture).
+    def put_picture_byte(byte, made)
+      width = routine_var(:width)
+      quarter = routine_var(:quarter)
+      plane_places = routine_var(:plane_places)
+      if made < width * routine_var(:height)
+        @pack[:vga_pictures][routine_var(:at) + (((made % plane_places) / quarter) * width) +
+                             ((made % quarter) * PLANES) + (made / plane_places)] = byte
+        @copy.count_written 1
+      end
+    end
+
+    # What a chunk leaves once it is walked: the release's count of pictures, a quarter of the
+    # table's length and no more than PICTURES; an article's length, no more than its run.
+    def finish_job
+      length = routine_var(:chunk_length)
+      if routine_var(:kind) == PICTURE_TABLE
+        count = routine_var(:pictures)
+        count.store!(length >> 2)
+        count.store!(PICTURES) if count > PICTURES
+        @pack[:picture_count][0] = count
+      elsif routine_var(:kind) == ARTICLE
+        length.store!(ARTICLE_BYTES) if length > ARTICLE_BYTES
+        @pack[:end_article_length][routine_var(:number)] = length
+      end
+    end
+
+    # EACH CHARACTER OF BOTH FONTS CUT OUT OF ITS CHUNK into a picture of its own (GLYPH_AT), where
+    # the chunk says it starts. A font of another height than Vgagraph::FONT_HEIGHTS, a character of
+    # another width than FONT_WIDTHS, or one whose pixels would run past its chunk, stays place
+    # nought.
+    def cut_glyphs
+      Vgagraph::FONT_WIDTHS.each_with_index do |widths, n|
+        font_at = FONT_CHUNK_AT.fetch(n)
+        height = Vgagraph::FONT_HEIGHTS.fetch(n)
+        codes = @b.table(:"font_#{n}_code", widths.keys, width: :half)
+        sizes = @b.table(:"font_#{n}_width", widths.values, width: :byte)
+        starts = @b.table(:"font_#{n}_glyph_at", widths.keys.map { |code| GLYPH_AT.fetch(n).fetch(code) }, width: :word)
+        tall = font_byte(font_at) | (font_byte(font_at + 1) << 8)
+        @b.repeat(widths.length) do |g|
+          code = routine_var(:code)
+          location = routine_var(:location)
+          code.store!(codes[g])
+          location.store!(font_byte(font_at + FONT_HEIGHT_BYTES + (2 * code)) |
+                          (font_byte(font_at + FONT_HEIGHT_BYTES + (2 * code) + 1) << 8))
+          if (tall == height) & (font_byte(font_at + FONT_WIDTHS_AT + code) == sizes[g]) &
+             (location + (sizes[g] * height) <= FONT_CHUNK_BYTES.fetch(n))
+            @b.repeat(sizes[g] * height) do |pixel|
+              @pack[:font_glyphs][starts[g] + pixel] = font_byte(font_at + location + pixel)
+              @copy.count_written 1
+            end
+          end
         end
       end
-      count = routine_var(:pictures)
-      count.store!(routine_var(:chunk_length) >> 2)
-      count.store!(PICTURES) if count > PICTURES
-      @pack[:picture_count][0] = count
     end
 
+    def font_byte(at) = @pack[:font_chunks][at]
+
     # CHUNK +n+, each byte it unpacks to handed to the block with its place counted from nought. A
-    # chunk never made, or one whose start or packed bits are not inside VGAGRAPH, gives nothing;
-    # its length (#routine_var :chunk_length) is then nought.
+    # chunk VGAHEAD does not list, one never made, or one whose start or packed bits are not inside
+    # VGAGRAPH, gives nothing; its length (#routine_var :chunk_length) is then nought.
     def unpack_chunk(n)
       start = routine_var(:chunk_start)
       length = routine_var(:chunk_length)
@@ -141,8 +262,11 @@ module Wolf3D
       node = routine_var(:node)
       bits = routine_var(:bits)
       branch = routine_var(:branch)
-      start.store!(@head.byte(OFFSET_BYTES * n) | (@head.byte((OFFSET_BYTES * n) + 1) << 8) |
-                   (@head.byte((OFFSET_BYTES * n) + 2) << 16))
+      start.store!(ABSENT)
+      if (OFFSET_BYTES * n) + OFFSET_BYTES <= @head.size
+        start.store!(@head.byte(OFFSET_BYTES * n) | (@head.byte((OFFSET_BYTES * n) + 1) << 8) |
+                     (@head.byte((OFFSET_BYTES * n) + 2) << 16))
+      end
       length.store!(0)
       length.store!(@graph.word(start)) if start != ABSENT && start + LENGTH_BYTES <= @graph.size
       at.store!(start + LENGTH_BYTES)

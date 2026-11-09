@@ -199,6 +199,19 @@ class TestVgagraph < Minitest::Test
     end
   end
 
+  # BOTH ALPHABETS ARE THE HEIGHT AND WIDTHS Vgagraph::FONT_HEIGHTS AND FONT_WIDTHS SAY, in both
+  # releases.
+  def test_both_alphabets_are_the_shape_both_releases_say
+    [real, Wolf3D::Vgagraph.from(real_shareware)].each do |vg|
+      Wolf3D::Vgagraph::FONTS.times do |n|
+        font = vg.font(n)
+        assert_equal Wolf3D::Vgagraph::FONT_HEIGHTS.fetch(n), font.height, "#{vg.set} font #{n}'s height"
+        assert_equal Wolf3D::Vgagraph::FONT_WIDTHS.fetch(n), font.codes.to_h { |c| [c, font.width(c)] },
+                     "#{vg.set} font #{n}'s widths"
+      end
+    end
+  end
+
   # THE ONE THE STATUS BAR IS BUILT ON. Named rather than numbered, because a number here
   # says nothing about what it is, and the numbers differ from one release to the next.
   def test_a_named_picture_is_the_size_that_release_draws_it
