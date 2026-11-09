@@ -9,6 +9,7 @@ require "vblank/testing/in_ractors"
 require_relative "support/field"
 require_relative "support/turning_scene"
 require_relative "support/episode_scene"
+require_relative "support/menu_scene"
 VBlank.require_game_file "support/counting_worlds"
 
 module Wolf3DTest

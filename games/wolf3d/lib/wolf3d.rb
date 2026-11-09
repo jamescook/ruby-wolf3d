@@ -66,6 +66,7 @@ VBlank.require_game_file "wolf3d/vgagraph_unpacking"
 VBlank.require_game_file "wolf3d/data_pack"
 # ...and where the view's walls and things come from, baked or from that pack.
 VBlank.require_game_file "wolf3d/view_pictures"
+VBlank.require_game_file "wolf3d/menu_pictures"
 # ...and where its tables come from, baked or from that pack, after both.
 VBlank.require_game_file "wolf3d/floor_tables"
 require_relative "wolf3d/lasting_state"
@@ -423,7 +424,7 @@ module Wolf3D
                                   holding: holding)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
                                   palette: Wolf3D.palette, sound_setting: sound_setting, music: music,
-                                  starting_on: Wolf3D.which_screen(boot_screen))
+                                  starting_on: Wolf3D.which_screen(boot_screen), pack: pack)
         game_loop { menus.update }
       else
         game_loop { view.update }

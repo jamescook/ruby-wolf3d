@@ -86,6 +86,26 @@ class TestHolding < Minitest::Test
   # handed the same pack with every wall place nought, the walls are the palette's first colour;
   # with every thing place nought, the piece the player stands facing is drawn in it too, and with
   # every gun place nought, the pistol in the player's hands.
+  # ...AND ITS TITLE AND MENU PICTURES: handed the six episodes' pack, the title screen (shortened
+  # by the unpacking as MenuArt shortens it) and the main menu look as the trimmed build draws
+  # them; handed the same pack with VGAGRAPH's pictures and the shortened screens blanked, neither does.
+  def test_a_whole_build_draws_the_menu_pictures_its_pack_holds
+    slots = slots_unpacked_from(real_copy)
+    blank = %i[vga_pictures screen_pictures].to_h { |slot| [slot, "\x00".b * slots.fetch(slot).bytesize] }
+    MenuScene::SCREENS.each do |screen|
+      program = Wolf3D::GAME.checked_program(err: nil, settings: { screen: screen, hold: "whole" }, pack_at_start: true)
+      # Built for a computer too, which starts the music on and so changes what the SOUND row says.
+      trimmed_program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1, screen: screen, hold: "trimmed" })
+      trimmed = Reference.new.run(trimmed_program, frames: MenuScene::FRAMES).screen
+      seen = [{}, blank].map do |changed|
+        Reference.new.hand_file(pack_file_of(slots.merge(changed))).run(program, frames: MenuScene::FRAMES).screen
+      end
+
+      assert_equal 0, count_differing_pixels(seen[0], trimmed), "the #{screen} screen from the pack"
+      assert_operator count_differing_pixels(seen[1], trimmed), :>, 1000, "the #{screen} screen with its pictures blanked"
+    end
+  end
+
   def test_a_whole_build_draws_the_pictures_its_pack_holds
     piece = first_piece_with_room_south(&:blocks)
     start = "#{piece.x},#{piece.y + 2},north"

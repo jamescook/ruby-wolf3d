@@ -45,6 +45,16 @@ module Wolf3D
     # The pictures that were painted for the whole of that bigger screen.
     FULL_SCREEN = %i[title credits].freeze
 
+    # How light each of the game's colours is, worked out once for the whole picture. The
+    # console holds five bits a channel, so this is a number from 0 to 93. Also asked by
+    # VgagraphUnpacking, which shortens the same pictures as the game runs.
+    def self.brightness_of(palette)
+      Array.new(palette.length) do |ink|
+        colour = palette[ink]
+        (colour & 31) + ((colour >> 5) & 31) + ((colour >> 10) & 31)
+      end
+    end
+
     # +vgagraph+ is a release whose pictures have names. Nil for a release we cannot name, and
     # then there are no menus in the game's own art to draw.
     def self.of(vgagraph)
@@ -68,10 +78,12 @@ module Wolf3D
     # How big a picture comes out, without decoding it — which is what a screen laying itself
     # out needs, and it needs it before there is anything to draw. A picture painted for a
     # bigger screen keeps its WIDTH; only its height is brought down.
+    #
+    # Read from Vgagraph::SIZES rather than the copy, so a whole build knows them before any copy is
+    # read; both releases hold their pictures at those sizes.
     def size(name)
-      return [@vg.size(name).first, DOWN] if FULL_SCREEN.include?(name)
-
-      @vg.size(name)
+      width, height = Vgagraph::SIZES.fetch(name) { @vg.size(name) }
+      FULL_SCREEN.include?(name) ? [width, DOWN] : [width, height]
     end
 
     def width(name) = size(name).first
@@ -98,7 +110,7 @@ module Wolf3D
               "Only a picture painted taller has rows to give up."
       end
 
-      rows = keep(pic, brightness_of(palette), pic.height - DOWN)
+      rows = keep(pic, self.class.brightness_of(palette), pic.height - DOWN)
       { width: pic.width, height: DOWN,
         data: rows.flat_map { |y| (0...pic.width).map { |x| palette[pic[x, y]] } } }
     end
@@ -131,13 +143,5 @@ module Wolf3D
       (0...pic.width).sum { |x| (light[pic[x, a]] - light[pic[x, b]]).abs }
     end
 
-    # How light each of the game's colours is, worked out once for the whole picture. The
-    # console holds five bits a channel, so this is a number from 0 to 93.
-    def brightness_of(palette)
-      Array.new(palette.length) do |ink|
-        colour = palette[ink]
-        (colour & 31) + ((colour >> 5) & 31) + ((colour >> 10) & 31)
-      end
-    end
   end
 end

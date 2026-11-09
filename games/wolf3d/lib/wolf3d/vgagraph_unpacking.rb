@@ -85,6 +85,17 @@ module Wolf3D
     ARTICLES = 6
     ARTICLE_BYTES = 1024
 
+    # THE TWO PICTURES PAINTED FOR A BIGGER SCREEN (MenuArt::FULL_SCREEN), each made MenuArt::DOWN
+    # rows tall by the routine as MenuArt#keep makes it while building, one after the other.
+    SCREENS = MenuArt::FULL_SCREEN
+    SCREEN_ROWS = MenuArt::DOWN
+    SCREEN_AT = Ractor.make_shareable(
+      SCREENS.each_with_index.to_h { |name, n| [name, n * Vgagraph::SIZES.fetch(name).first * SCREEN_ROWS] }
+    )
+
+    # HOW LIGHT EACH OF THE GAME'S COLOURS IS, as MenuArt#brightness_of works it out.
+    LIGHT = Ractor.make_shareable(MenuArt.brightness_of(Palette.game))
+
     # The slots VGAGRAPH takes, declared on +slots+ (the data pack's).
     def self.declare(slots)
       slots.numbers :picture_count, count: 1, width: :half, signed: false, layout: :gba
@@ -94,6 +105,7 @@ module Wolf3D
       slots.pixels :font_glyphs, count: GLYPH_PLACES
       slots.numbers :end_articles, count: ARTICLES * ARTICLE_BYTES, width: :byte, signed: false, layout: :gba
       slots.numbers :end_article_length, count: ARTICLES, width: :half, signed: false, layout: :gba
+      slots.pixels :screen_pictures, count: SCREENS.sum { |name| Vgagraph::SIZES.fetch(name).first * SCREEN_ROWS }
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.
@@ -110,9 +122,78 @@ module Wolf3D
       @dictionary = @copy.file("VGADICT.#{@release}")
       unpack_chunks
       cut_glyphs
+      SCREENS.each { |name| shorten_screen(name) }
     end
 
     private
+
+    # THE PICTURE +name+ MADE SCREEN_ROWS TALL, out of vga_pictures into screen_pictures, by
+    # MenuArt#keep's rule: take the row least different from the one above it (the gap added along
+    # the whole width, by LIGHT), the first such row on a tie, never the top row, one at a time and
+    # asking again after each, until SCREEN_ROWS are left. A taken row is marked rather than moved
+    # out of a list, so "the row above" is the nearest row above still kept.
+    def shorten_screen(name)
+      width, height = Vgagraph::SIZES.fetch(name)
+      from = PICTURE_AT.fetch(name)
+      light = @b.table(:"#{name}_light", LIGHT, width: :byte)
+      kept = @b.list(:"_#{name}_kept", capacity: height)
+      gaps = @b.list(:"_#{name}_gap", capacity: height)
+      above = routine_var(:above)
+      best = routine_var(:best)
+      best_row = routine_var(:best_row)
+      @b.repeat(height) do
+        kept << 1
+        gaps << 0
+      end
+      @b.repeat(height - 1) { |row| gaps[row + 1] = row_gap(from, width, light, row + 1, row) }
+      @b.repeat(height - SCREEN_ROWS) do
+        best.store!(-1)
+        best_row.store!(0)
+        @b.repeat(height - 1) do |row|
+          if kept[row + 1] == 1 && (best < 0 || gaps[row + 1] < best)
+            best.store!(gaps[row + 1])
+            best_row.store!(row + 1)
+          end
+        end
+        kept[best_row] = 0
+        # The next kept row below now has a new row above it.
+        routine_var(:below).store!(-1)
+        @b.repeat(height - 1) do |row|
+          routine_var(:below).store!(row + 1) if routine_var(:below) < 0 && row + 1 > best_row && kept[row + 1] == 1
+        end
+        if routine_var(:below) >= 0
+          above.store!(0)
+          @b.repeat(height) { |row| above.store!(row) if row < routine_var(:below) && kept[row] == 1 }
+          gaps[routine_var(:below)] = row_gap(from, width, light, routine_var(:below), above)
+        end
+      end
+      written = routine_var(:written)
+      written.store!(0)
+      @b.repeat(height) do |row|
+        if kept[row] == 1
+          @b.repeat(width) do |x|
+            @pack[:screen_pictures][SCREEN_AT.fetch(name) + (written * width) + x] =
+              @pack[:vga_pictures][from + (row * width) + x]
+          end
+          @copy.count_written width
+          written.increase!(1)
+        end
+      end
+    end
+
+    # How different rows +a+ and +b+ of the picture at +from+ are, added along its +width+.
+    def row_gap(from, width, light, a, b)
+      sum = routine_var(:gap_sum)
+      sum.store!(0)
+      @b.repeat(width) do |x|
+        difference = routine_var(:difference)
+        difference.store!(light[@pack[:vga_pictures][from + (a * width) + x]] -
+                          light[@pack[:vga_pictures][from + (b * width) + x]])
+        difference.store!(0 - difference) if difference < 0
+        sum.increase!(difference)
+      end
+      sum
+    end
 
     # ONE ROW OF THE TABLE OF CHUNKS: which chunk, what kind, where its bytes start in their slot,
     # its width and height (a picture's) or how many bytes it may take (a font's, an article's), and

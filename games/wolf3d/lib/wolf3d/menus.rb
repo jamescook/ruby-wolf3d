@@ -192,12 +192,14 @@ module Wolf3D
     # exists on a cartridge carrying more than one episode, so a cartridge that boots straight
     # to the one you want to look at is worth being able to build.
     #
-    # +music+ is the Music on this cartridge, or nil on one with none.
-    def initialize(build:, view:, art:, palette:, sound_setting:, starting_on: NOTICE, music: nil)
+    # +music+ is the Music on this cartridge, or nil on one with none. +pack+ is a whole build's data
+    # pack, which its pictures are drawn from (MenuPictures).
+    def initialize(build:, view:, art:, palette:, sound_setting:, starting_on: NOTICE, music: nil, pack: nil)
       @b = build
       @view = view
       @art = art
       @palette = palette
+      @pictures = MenuPictures.for(build: build, art: art, palette: palette, pack: pack)
       @sound_setting = sound_setting
       @music = music
       @episodes = view.floors.episodes
@@ -339,8 +341,7 @@ module Wolf3D
     end
 
     def picture(name)
-      cut = @art.picture(name, @palette)
-      @b.image :"menu_#{name}", width: cut[:width], height: cut[:height], data: cut[:data]
+      @pictures.declare(name)
       name
     end
 
