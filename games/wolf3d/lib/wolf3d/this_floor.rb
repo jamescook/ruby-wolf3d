@@ -40,6 +40,7 @@ module Wolf3D
       @floors = floors
       @tables = tables
       @width = floors.width
+      @height = floors.height
       declare
     end
 
@@ -52,6 +53,10 @@ module Wolf3D
     # Where every part of the game gets its per-floor tables (FloorTables): the view, the pickups
     # and the drawing of what stands in the rooms all ask.
     attr_reader :tables
+
+    # How many cells across a floor is, and down: every floor of a build is the same size
+    # (Floors#refuse_mixed_sizes!).
+    attr_reader :width, :height
 
     # POINT EVERYTHING AT FLOOR +n+, a number known while building: this writes that floor's own
     # numbers in. The caller picks which arm runs — see FirstPerson#select_floor.

@@ -91,7 +91,6 @@ module Wolf3D
       @floors = floors || Floors.of(level: level, doors: Doors.new(level, nil),
                                     pushwalls: Pushwalls.new(level),
                                     scenery: scenery || Scenery.new(level))
-      @level = @floors.first_floor.level
       @player = player
       @lives = lives
       # A FLOOR WITH NO SCENERY IS READ FOR ITSELF, which is what the note above means and what

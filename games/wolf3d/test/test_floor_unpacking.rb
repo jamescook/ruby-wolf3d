@@ -50,6 +50,19 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_rooms maps, pack
     assert_same_totals maps, pack
     assert_same_starts maps, pack
+    assert_same_arrows maps, pack
+  end
+
+  # Each floor's turning points, laid out like the map: the way each sends a patrolling guard, or
+  # nowhere (Guards#arrow_at).
+  def assert_same_arrows(maps, pack)
+    arrows = pack.fetch(:guard_arrow).bytes
+    maps.count.times do |n|
+      guards = Wolf3D::Guards.new(maps[n])
+      wanted = maps[n].each_cell.map { |x, y| guards.arrow_at(x, y) || Wolf3D::Guards::NOWHERE }
+
+      assert_equal wanted, arrows[CELLS * n, CELLS], "floor #{n}'s turning points"
+    end
   end
 
   # Where the player starts each floor (Level#start): the cell, and the way they face as quarter

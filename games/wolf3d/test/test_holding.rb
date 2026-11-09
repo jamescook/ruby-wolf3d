@@ -173,6 +173,26 @@ class TestHolding < Minitest::Test
     assert_equal [1, 1], secret, "the lift pulled from #{start} is the secret one"
   end
 
+  # A PATROL WALKS ITS BEAT held either way: the whole build reads each floor's turning points from
+  # the data pack. The player is put down in the room of the first floor's first patrolling guard,
+  # three cells behind him so he walks away unseeing, and waits while he patrols.
+  def test_a_patrol_turns_where_the_map_says_held_whole
+    real_copy
+    start = behind_first_patrol
+    places = %w[trimmed whole].map do |hold|
+      settings = { floors: 1, screen: "playing", hold: hold, start: start }
+      run = Reference.new.run(Wolf3D::GAME.program(settings: settings), frames: PATROL_FRAMES)
+      # Only the slots in use: a whole build's pool has room for the original's most.
+      %i[x y dir].map { |field| run.pool(:guard, field).compact }
+    end
+    at_start = Reference.new.run(Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: "trimmed", start: start }),
+                                 frames: STANDING_FRAMES)
+
+    refute_equal at_start.pool(:guard, :x).compact.zip(at_start.pool(:guard, :y).compact), places.first.first(2).transpose,
+                 "a guard on the trimmed build has moved, from #{start}"
+    assert_equal places.first, places.last, "where every guard is and which way he faces"
+  end
+
   # A SECRET WALL MOVES held either way: the whole build reads where each starts and the floor's
   # count from the data pack. The player is put down beside the first floor's first wall that
   # moves, facing it, and pushes.
@@ -231,6 +251,8 @@ class TestHolding < Minitest::Test
   PLAYING_FRAMES = 220
   # ...long enough after a lever is pulled to be read, before the floor ends.
   LEVER_FRAMES = 80
+  # ...long enough for a patrol to walk a few cells and turn.
+  PATROL_FRAMES = 600
 
   private
 
@@ -301,6 +323,21 @@ class TestHolding < Minitest::Test
     facing = { [-1, 0] => :west, [1, 0] => :east }
     _, face = facing.find { |(dx, dy), _| level.wall_code(x + dx, y + dy) == Wolf3D::Elevator::SWITCH }
     "#{x},#{y},#{face}"
+  end
+
+  # WOLF3D_START's x,y,facing for an empty cell three behind the first floor's first patrolling
+  # guard, in his room, facing the way he does.
+  def behind_first_patrol
+    level = Wolf3D.maps[0]
+    steps = { east: [1, 0], west: [-1, 0], north: [0, -1], south: [0, 1] }
+    Wolf3D::Guards.new(level).at(:baby).each do |g|
+      next unless g.patrolling && g.facing
+
+      dx, dy = steps.fetch(g.facing)
+      x = g.x - (3 * dx)
+      y = g.y - (3 * dy)
+      return "#{x},#{y},#{g.facing}" if empty_floor?(level, x, y) && level.area(x, y) == level.area(g.x, g.y)
+    end
   end
 
   # Floor with nothing on it: no piece, no guard, no start (Level#starting_at refuses the rest).

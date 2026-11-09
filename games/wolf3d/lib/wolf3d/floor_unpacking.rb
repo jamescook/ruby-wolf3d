@@ -46,7 +46,7 @@ module Wolf3D
     # THE DATA PACK'S VERSION, which names this build of the game in the pack's header. Must change
     # whenever the slots or what the routine writes into them change, so a player's pack is made
     # again.
-    PACK_VERSION = "1"
+    PACK_VERSION = "2"
 
     # Where packs are kept between builds, out of git, so only the first build from a copy runs the
     # routine: the repository's own .cache, wherever the build was started from. Worked out as this
@@ -93,6 +93,7 @@ module Wolf3D
     # counts against (Tally): the men to kill at each of Guards::SETTINGS, and the treasure.
     def self.declare_rooms(slots)
       slots.numbers :room_of, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
+      slots.numbers :guard_arrow, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
       %i[exit_first exit_last treasure_total].each do |name|
         slots.numbers name, count: FLOORS, width: :half, signed: false, layout: :gba
       end
@@ -230,7 +231,14 @@ module Wolf3D
           write_start(n, cell, thing)
           started.store!(1)
         end
-        @copy.count_written 1
+        # A TURNING POINT sends a patrolling guard who reaches it the way it names (Guards#arrow_at):
+        # eight codes from Guards::FIRST_ARROW in the original's order of directions. Every other
+        # cell says nowhere, which is carry on.
+        @pack[:guard_arrow][base + cell] = Guards::NOWHERE
+        if thing >= Guards::FIRST_ARROW && thing < Guards::FIRST_ARROW + Guards::NOWHERE
+          @pack[:guard_arrow][base + cell] = thing - Guards::FIRST_ARROW
+        end
+        @copy.count_written 2
       end
       first.store!(1) if first < 0
       [[:exit_first, first], [:exit_last, last]].each do |slot, value|

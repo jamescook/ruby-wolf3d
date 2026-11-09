@@ -95,7 +95,7 @@ module Wolf3D
     # Nothing is a target.
     NOBODY = -1
 
-    def initialize(build:, guards:, pool:, level:, this_floor:, player:, door_open:, door_linger:, things:, pushwall_cell: nil,
+    def initialize(build:, pool:, this_floor:, player:, door_open:, door_linger:, things:, pushwall_cell: nil,
                    behaviour: nil, dying: nil, pickups: nil, sounds: nil,
                    rooms: nil, floors: nil, difficulty: nil, lasting: nil, death_cam: nil, flash:,
                    scoring:, floor: nil, rare_scream_odds: RARE_SCREAM_ODDS)
@@ -113,9 +113,7 @@ module Wolf3D
       @dying = dying      # what to tell when a shot takes the last of the health, or nil
       @pickups = pickups  # what to tell when a guard falls, so he can leave a clip behind
       @sounds = sounds    # the recorded sounds, or nil on a build with none
-      @guards = guards
       @pool = pool
-      @level = level
       @floors = floors    # every floor the cartridge holds, or nil for a game with one
       @rooms = rooms      # which rooms are open to the player's, or nil where nothing shuts off
       @this_floor = this_floor
@@ -216,17 +214,18 @@ module Wolf3D
       @step_y = b.table :guard_step_y, steps.map(&:last)
 
       # A TURNING POINT UNDER A PATROLLING GUARD sends him a new way. Nowhere means carry on.
-      # Every floor's, end to end like the map, and read with this floor's own slice added.
-      @arrow = b.table :guard_arrow, every_floors_arrows, width: :byte
+      # Every floor's, end to end like the map, and read with this floor's own slice added; a
+      # whole build reads them from its pack (FloorTables).
+      @arrow = @this_floor.tables.declare_map(:guard_arrow, width: :byte) { |floor| arrows_of(floor) }
 
-      reach = [@level.width, @level.height].max
+      reach = [@this_floor.width, @this_floor.height].max
       @shot = b.table :guard_shot, (0..reach).map { |away| shot_chance(away) }
 
       # HOW NEAR A DOG JUMPS FROM: about a cell, plus the ground it covers in the think it is
       # deciding on — which is the original's own test, made against the step it is about to take
       # rather than against where it already stands.
       @jump_from = Guards::JUMP_FROM + Enemy[:dog].speed(chasing: true)
-      @width = @level.width
+      @width = @this_floor.width
       @reach = reach
 
       declare_the_scratch
@@ -263,15 +262,9 @@ module Wolf3D
                                    rows.map { |n| @behaviour.kind_at(n).boss? ? 0 : 1 }, width: :byte
     end
 
-    # THE TURNING POINTS OF EVERY FLOOR, in the order the cartridge plays them, so that this table
-    # lines up cell for cell with the map. A cartridge with one floor is that floor's own.
-    def every_floors_arrows
-      floors = @floors&.to_a || [nil]
-      floors.flat_map do |floor|
-        level = floor&.level || @level
-        guards = floor&.guards || @guards
-        level.each_cell.map { |x, y| guards&.arrow_at(x, y) || Guards::NOWHERE }
-      end
+    # THE TURNING POINTS OF ONE FLOOR, cell for cell with the map.
+    def arrows_of(floor)
+      floor.level.each_cell.map { |x, y| floor.guards&.arrow_at(x, y) || Guards::NOWHERE }
     end
 
     # At nothing at all he cannot miss the chance; beyond that it falls away with distance.

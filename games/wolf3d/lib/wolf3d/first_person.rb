@@ -163,9 +163,6 @@ module Wolf3D
       # HOW THE WORLD IS PACED: PACING, unless the builder asks for the other setting. The tests
       # of keeping time build both.
       @pacing = pacing
-      # THE FIRST FLOOR'S OWN PIECES, which is what the build-time questions with no floor in them
-      # ask: how wide a map is, and what a wall code's picture is. Everything that differs from
-      # one floor to the next goes through @floors instead.
       # WHAT A NEW GAME PUTS IN YOUR HANDS, which is the original's pistol and eight rounds
       # unless the cartridge was built to hand you something else. A measuring and demoing dial
       # rather than a way to play: the moments worth looking at are the far ones, and reaching a
@@ -173,11 +170,9 @@ module Wolf3D
       # Wolf3D.armed_with.
       @armed_with = armed_with || Weapons::STARTING
       @start_ammo = ammo || START_AMMO
+      # THE FIRST FLOOR'S OWN MAP AND SCENERY, which a trimmed build reads for where play starts and
+      # what a one-floor game has standing in it. A whole build reads both from its pack.
       @level = here.level
-      @doors = here.doors
-      @pushwalls = here.pushwalls
-      @lifts = here.lifts
-      @guards = here.guards
       @scenery = here.scenery
       # WHICH KINDS OF ENEMY THIS CARTRIDGE CAN MEET, over every floor of it — and so which
       # states, pictures and behaviour it ships. A cartridge with no dogs on any of its floors
@@ -861,7 +856,7 @@ module Wolf3D
     def where_the_eye_stands
       @eyex = @player.x.to_i
       @eyey = @player.y.to_i
-      @eye_cell = (@eyey * @level.width) + @eyex
+      @eye_cell = (@eyey * @this_floor.width) + @eyex
       @fracx = @player.x - @eyex.to_f
       @fracy = @player.y - @eyey.to_f
       @backx = 1.0 - @fracx
@@ -977,7 +972,7 @@ module Wolf3D
       @standing = Billboards.new(build: @b, things: @things, scenery: @scenery, march: @march,
                                  floors: (@floors if @floors.count > 1), this_floor: @this_floor,
                                  rooms: @rooms, piece_room: declare_piece_rooms,
-                                 guards: @guards, pool: @guard_pool&.pool, mind: @mind,
+                                 pool: @guard_pool&.pool, mind: @mind,
                                  pickups: @pickups, player: @player)
     end
 
@@ -1009,7 +1004,7 @@ module Wolf3D
     # DYING NEEDS SOMETHING THAT CAN KILL YOU, so a floor with no guards on it declares none of
     # this and pays for none of it.
     def declare_the_dying
-      return if @guards.nil? || @guards.empty?
+      return if @floors.no_floor_has?(:guards)
 
       @dying = Dying.new(build: @b, player: @player, sines: @sin, lasting: @lasting, flash: @flash, sounds: @sounds)
     end
@@ -1093,11 +1088,11 @@ module Wolf3D
     end
 
     def declare_the_guards_minds
-      return if @guards.nil? || @guards.empty?
+      return if @floors.no_floor_has?(:guards)
 
       b = @b
-      @mind = GuardMind.new(build: b, guards: @guards, pool: @guard_pool&.pool, level: @level,
-                            this_floor: @this_floor, door_open: @open, door_linger: @linger,
+      @mind = GuardMind.new(build: b, pool: @guard_pool&.pool, this_floor: @this_floor,
+                            door_open: @open, door_linger: @linger,
                             pushwall_cell: ->(slot) { pushwall_cell(slot) },
                             things: @things, dying: @dying, pickups: @pickups,
                             behaviour: @behaviour,
@@ -1331,7 +1326,7 @@ module Wolf3D
     def reached_the_way_out
       return unless @exit_first
 
-      @here = (@player.y.to_i * @level.width) + @player.x.to_i
+      @here = (@player.y.to_i * @this_floor.width) + @player.x.to_i
       leave_by_the_way_out if @here >= @exit_first[@floor] && @here <= @exit_last[@floor]
     end
 
@@ -1349,7 +1344,7 @@ module Wolf3D
     # "and" would work out BOTH sides, and the second one reaches into the list of doors by a
     # number that is only a door number when the first side is true.
     def free?(x, y)
-      @spot = (y * @level.width) + x
+      @spot = (y * @this_floor.width) + x
       @foot = @this_floor.cell(@spot)
       @can = 0
       @can = 1 if @foot == 0
@@ -1397,7 +1392,7 @@ module Wolf3D
         @nx += @sin[@player.angle + QUARTER] * DOOR_REACH
         @ny = @player.y
         @ny += @sin[@player.angle] * DOOR_REACH
-        @ahead = (@ny.to_i * @level.width) + @nx.to_i
+        @ahead = (@ny.to_i * @this_floor.width) + @nx.to_i
         @foot = @this_floor.cell(@ahead)
 
         if lifts?
@@ -1468,7 +1463,7 @@ module Wolf3D
         # floor was settled when the floor started (see #select_floor), so there is no arm
         # per floor here and no table to read.
         unless @floors.no_floor_has?(:secret_cars)
-          @here = (@player.y.to_i * @level.width) + @player.x.to_i
+          @here = (@player.y.to_i * @this_floor.width) + @player.x.to_i
           @lift_secret = 1 if @here == @this_floor.secret_car
         end
         @sounds.level_done
@@ -1499,9 +1494,9 @@ module Wolf3D
             @push_step[@slot] = -1
           end
         elsif @sin[@player.angle] > 0.0
-          @push_step[@slot] = @level.width
+          @push_step[@slot] = @this_floor.width
         else
-          @push_step[@slot] = -@level.width
+          @push_step[@slot] = -@this_floor.width
         end
         @push_wait[@slot] = Pushwalls::FRAMES_PER_CELL
         # Found, and counted once: this arm only runs for a wall standing in its own cell that
@@ -1587,7 +1582,7 @@ module Wolf3D
     # about two a cell crossed, against eight.
     def cast(col)
       b = @b
-      width = @level.width
+      width = @this_floor.width
 
       # Which way the ray points, and how far along it from one grid line to the next — one
       # answer for the lines running one way, one for the lines running the other. The angle was
@@ -1787,11 +1782,11 @@ module Wolf3D
       if @door_across[@this_floor.door(@door)] == 0
         @mid = @sidex - (@deltax / 2)         # half a cell back from the far side
         @wallx = @player.y + (@mid * @dy)           # ...and where the ray is by then
-        @edge = @wallx.to_i - (@walked / @level.width)
+        @edge = @wallx.to_i - (@walked / @this_floor.width)
       else
         @mid = @sidey - (@deltay / 2)
         @wallx = @player.x + (@mid * @dx)
-        @edge = @wallx.to_i - (@walked % @level.width)
+        @edge = @wallx.to_i - (@walked % @this_floor.width)
       end
 
       # Still inside this cell when it got there? If not the ray went by the doorway rather

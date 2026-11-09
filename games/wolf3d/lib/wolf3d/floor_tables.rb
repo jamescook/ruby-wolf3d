@@ -22,7 +22,8 @@ module Wolf3D
   #   many it holds, :secret_car for the cell of its secret lift or minus one): a plain number
   #   baked, a table read packed. declare_floor_value(name, what) is a variable holding the first
   #   floor's, from power-on.
-  # - declare_world, declare_blocked, declare_lying_at: the tables laid out like the map.
+  # - declare_world, declare_blocked, declare_lying_at, declare_map: the tables laid out like the
+  #   map.
   # - declare_items(name, ...) { |floor| values }: a run of one kind per floor, the block naming
   #   what each item of a floor holds, which a baked build runs and a packed one reads instead.
   # - declare_piece_rule(name, ...) { |piece| value }: something about a piece that follows from
@@ -109,6 +110,9 @@ module Wolf3D
       # What lies on each cell, counted from one, laid out like the world; +cells+ answers a
       # floor's.
       def declare_lying_at(&cells) = @b.table(:lying_at, @floors.flat_map(&cells), width: :half)
+
+      # A table laid out like the world, one number a cell; +cells+ answers a floor's.
+      def declare_map(name, width: nil, &cells) = @b.table(name, @floors.flat_map(&cells), width: width)
 
       # WHAT EACH CELL OF EACH FLOOR SAYS TO THE WALK, every floor end to end (ThisFloor, where the
       # table is read, says what the numbers mean).
@@ -232,6 +236,9 @@ module Wolf3D
       def declare_blocked = declare(:blocked)
 
       def declare_lying_at = declare(:lying_at)
+
+      # The slot of the same name.
+      def declare_map(name, width: nil) = declare(name) # rubocop:disable Lint/UnusedMethodArgument
 
       # The slot +slot+ holds the run, read through +plus+ where it keeps a raw number the baked
       # table holds worked (a cell, where the table holds its middle).

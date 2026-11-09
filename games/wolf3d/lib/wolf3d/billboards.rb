@@ -62,7 +62,7 @@ module Wolf3D
     # +floors+ is every floor the cartridge holds, when there is more than one, and +this_floor+
     # says where the floor being played begins in the tables of every floor's pieces and how many
     # it has.
-    def initialize(build:, things:, player:, scenery: nil, guards: nil, pool: nil, mind: nil, march: nil,
+    def initialize(build:, things:, player:, scenery: nil, pool: nil, mind: nil, march: nil,
                    pickups: nil, floors: nil, this_floor: nil,
                    rooms: nil, piece_room: nil)
       @b = build
@@ -73,7 +73,6 @@ module Wolf3D
       @this_floor = this_floor
       @rooms = rooms          # which rooms are open to the player's, or nil where nothing shuts off
       @piece_room = piece_room # ...and which room each piece stands in, settled while building
-      @guards = guards
       @pool = pool
       @mind = mind
       @pickups = pickups  # what is still lying on the floor, and where a guard dropped one
