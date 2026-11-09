@@ -199,8 +199,7 @@ module Wolf3D
       end
       @pack[:door_count][n] = doors
       @pack[:lift_count][n] = levers
-      @pack[:secret_car][n * 2] = car
-      @pack[:secret_car][(n * 2) + 1] = car >> 8
+      @pack[:secret_car][n] = car
       @copy.count_written 4
       fill_pushwalls(n, base)
       fill_pieces(n, base)
@@ -242,8 +241,7 @@ module Wolf3D
       end
       first.store!(1) if first < 0
       [[:exit_first, first], [:exit_last, last]].each do |slot, value|
-        @pack[slot][n * 2] = value
-        @pack[slot][(n * 2) + 1] = value >> 8
+        @pack[slot][n] = value
       end
       @copy.count_written 4
     end
@@ -374,16 +372,13 @@ module Wolf3D
           @pack[:blocked][base + cell] = 1 if any_of?(kind, Scenery::BLOCKING)
           pieces.increase!(1)
           if any_of?(kind, Scenery::BONUSES.keys)
-            @pack[:lying_at][(base + cell) * 2] = pieces
-            @pack[:lying_at][((base + cell) * 2) + 1] = pieces >> 8
+            @pack[:lying_at][base + cell] = pieces
           end
           @copy.count_written 3
         end
       end
-      @pack[:piece_count][n * 2] = pieces
-      @pack[:piece_count][(n * 2) + 1] = pieces >> 8
-      @pack[:treasure_total][n * 2] = treasures
-      @pack[:treasure_total][(n * 2) + 1] = treasures >> 8
+      @pack[:piece_count][n] = pieces
+      @pack[:treasure_total][n] = treasures
       @copy.count_written 4
     end
 
@@ -470,8 +465,7 @@ module Wolf3D
     # the page of its lit face. It is made of an ordinary wall, so it wears that wall's picture
     # (FirstPerson#push_pictures), and a code's lit face is page (code - 1) * 2 in the whole row.
     def write_pushwall(at, cell, code)
-      @pack[:push_home][at * 2] = cell
-      @pack[:push_home][(at * 2) + 1] = cell >> 8
+      @pack[:push_home][at] = cell
       @pack[:push_face][at] = (code - 1) * 2
       @copy.count_written 3
     end
@@ -526,15 +520,12 @@ module Wolf3D
     # Is +value+, a number the routine reads, one of +numbers+? One comparison each, as it runs.
     def any_of?(value, numbers) = numbers.map { |number| value == number }.reduce(:|)
 
-    def wall_code(at) = word(:wall_plane, at)
-    def thing_code(at) = word(:thing_plane, at)
-    def world_at(at) = word(:world, at)
-
-    def word(slot, at) = @pack[slot][at * 2] | (@pack[slot][(at * 2) + 1] << 8)
+    def wall_code(at) = @pack[:wall_plane][at]
+    def thing_code(at) = @pack[:thing_plane][at]
+    def world_at(at) = @pack[:world][at]
 
     def write_world(at, number)
-      @pack[:world][at * 2] = number
-      @pack[:world][(at * 2) + 1] = number >> 8
+      @pack[:world][at] = number
       @copy.count_written 2
     end
 
