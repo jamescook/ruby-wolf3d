@@ -106,6 +106,30 @@ class TestHolding < Minitest::Test
     end
   end
 
+  # ...AND ITS LETTERING: handed the six episodes' pack, the screen between floors (in the big
+  # letters, VGAGRAPH's named pictures) and the table of high scores (its names in the small
+  # alphabet, each letter widened to an even width by the unpacking) look as the trimmed build draws
+  # them; handed the same pack with the named pictures, or the small letters, blanked, neither does.
+  def test_a_whole_build_draws_the_lettering_its_pack_holds
+    slots = slots_unpacked_from(real_copy)
+    start = in_secret_car_facing_lever
+    shown = {
+      { floors: 1, screen: "playing", start: start } => [:vga_pictures, TALLY_FRAMES, PUSH_KEYS],
+      { screen: "scores" } => [:small_letter_pictures, MenuScene::FRAMES, ->(_) { [] }]
+    }
+    shown.each do |settings, (slot, frames, keys)|
+      program = Wolf3D::GAME.checked_program(err: nil, settings: settings.merge(hold: "whole"), pack_at_start: true)
+      trimmed_program = Wolf3D::GAME.checked_program(err: nil, settings: settings.merge(floors: 1, hold: "trimmed"))
+      trimmed = Reference.new.input_each_frame(&keys).run(trimmed_program, frames: frames).screen
+      seen = [{}, { slot => "\x00".b * slots.fetch(slot).bytesize }].map do |changed|
+        Reference.new.hand_file(pack_file_of(slots.merge(changed))).input_each_frame(&keys).run(program, frames: frames).screen
+      end
+
+      assert_equal 0, count_differing_pixels(seen[0], trimmed), "#{settings} from the pack"
+      assert_operator count_differing_pixels(seen[1], trimmed), :>, 100, "#{settings} with #{slot} blanked"
+    end
+  end
+
   def test_a_whole_build_draws_the_pictures_its_pack_holds
     piece = first_piece_with_room_south(&:blocks)
     start = "#{piece.x},#{piece.y + 2},north"
@@ -329,6 +353,8 @@ class TestHolding < Minitest::Test
   PLAYING_FRAMES = 220
   # ...long enough after a lever is pulled to be read, before the floor ends.
   LEVER_FRAMES = 80
+  # ...long enough after a lever is pulled for the lift to be in and the screen between floors up.
+  TALLY_FRAMES = 70 + Wolf3D::FirstPerson::LIFT_WAIT + 40
   # ...long enough for a patrol to walk a few cells and turn.
   PATROL_FRAMES = 600
 
@@ -341,10 +367,13 @@ class TestHolding < Minitest::Test
   # only a shell checks.
   def whole_pack_of(data) = pack_file_of(slots_unpacked_from(data))
 
-  # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+.
+  # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+: once a worker,
+  # since unpacking a whole copy is most of what these tests spend.
   def slots_unpacked_from(data)
-    unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
-    slots_unpacked_by(unpacking)
+    (Ractor.current[:holding_slots] ||= {})[data.dir] ||= begin
+      unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
+      slots_unpacked_by(unpacking)
+    end
   end
 
   # The pack file holding +slots+.

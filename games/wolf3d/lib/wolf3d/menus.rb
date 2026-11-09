@@ -199,6 +199,7 @@ module Wolf3D
       @view = view
       @art = art
       @palette = palette
+      @pack = pack
       @pictures = MenuPictures.for(build: build, art: art, palette: palette, pack: pack)
       @sound_setting = sound_setting
       @music = music
@@ -307,7 +308,8 @@ module Wolf3D
       # declares it and this asks the view for it.
       @difficulty = @view.difficulty
       @saved = SavedGames.new(build: @b, view: @view)
-      @letters = SmallLetters.new(build: @b, art: @art, palette: @palette, ink: HighScores::INK, ground: BACKGROUND)
+      @letters = SmallLetters.new(build: @b, art: @art, palette: @palette, ink: HighScores::INK, ground: BACKGROUND,
+                                  pack: @pack)
       @scores = HighScores.new(build: @b, letters: @letters, palette: @palette, view: @view,
                                player: @view.player, floor: @view.playthrough.floor, setting: @sound_setting)
       @view.hand_end_of_game_to_menus

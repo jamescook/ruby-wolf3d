@@ -1078,7 +1078,8 @@ module Wolf3D
       @big_lettering ||= begin
         printed = (lifts? ? Tally::PRINTED : []) + (@behaviour.any?(:cam) ? DeathCam::PRINTED : []) +
                   (any_episode_can_end? ? EpisodeEnd::PRINTED : [])
-        BigLettering.new(build: @b, art: @lettering, printed: printed.uniq, figures: lifts? || any_episode_can_end?)
+        BigLettering.new(build: @b, art: @lettering, printed: printed.uniq, figures: lifts? || any_episode_can_end?,
+                         pack: @pack)
       end
     end
 

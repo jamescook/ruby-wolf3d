@@ -11,13 +11,16 @@ module Wolf3D
     FIRST_CODE = 32
     LAST_CODE = 126
 
-    # +ground+ is the colour behind the letters, for a picture has no see-through in it.
-    def initialize(build:, art:, palette:, ink:, ground:)
+    # +ground+ is the colour behind the letters, for a picture has no see-through in it. +pack+ is a
+    # whole build's data pack, whose small_letter_pictures the letters are drawn from
+    # (SmallLetterUnpacking); a trimmed build makes them from +art+.
+    def initialize(build:, art:, palette:, ink:, ground:, pack: nil)
       @b = build
       @art = art
       @palette = palette
       @ink = ink
       @ground = ground
+      @pack = pack
       declare
     end
 
@@ -53,6 +56,18 @@ module Wolf3D
     private
 
     def declare
+      @pack ? declare_packed_pictures : declare_baked_pictures
+      @width_table = @b.table :small_letter_width, (0..LAST_CODE).map { |code| @widths[code] || BLANK_WIDTH }, width: :byte
+      @code = @b.var :_small_letter_code, 0
+      @half_x = @b.var :_small_letter_half_x, 0
+      @y = @b.var :_small_letter_y, 0
+      @b.func(:draw_small_letter, fast: false) do
+        @pictured.each { |char| @b.blit picture_name(char), @half_x * 2, @y if @code == char.ord }
+      end
+    end
+
+    # Each letter made from font 0 while building, in the ink on the ground.
+    def declare_baked_pictures
       glyphs = @art.font(0)
       @pictured = (FIRST_CODE..LAST_CODE).map(&:chr).select { |char| char != " " && glyphs[char] }
       @widths = @pictured.to_h { |char| [char.ord, even_width(glyphs[char])] }
@@ -61,12 +76,20 @@ module Wolf3D
         @b.image picture_name(char), width: width_of(char), height: rows.length,
                                      data: rows.flat_map { |row| painted(row, width_of(char)) }
       end
-      @width_table = @b.table :small_letter_width, (0..LAST_CODE).map { |code| @widths[code] || BLANK_WIDTH }, width: :byte
-      @code = @b.var :_small_letter_code, 0
-      @half_x = @b.var :_small_letter_half_x, 0
-      @y = @b.var :_small_letter_y, 0
-      @b.func(:draw_small_letter, fast: false) do
-        @pictured.each { |char| @b.blit picture_name(char), @half_x * 2, @y if @code == char.ord }
+    end
+
+    # Each letter as the pack holds it, its places drawn through a list whose place nought is the
+    # ground and every other place the ink, as #painted paints a glyph.
+    def declare_packed_pictures
+      letters = SmallLetterUnpacking.letters
+      @pictured = letters.map { |letter| letter.code.chr }
+      @widths = letters.to_h { |letter| [letter.code, letter.even_width] }
+      colours = [@palette[@ground]] + ([@palette[@ink]] * (Palette::ENTRIES - 1))
+      letters.each do |letter|
+        places = letter.even_width * SmallLetterUnpacking::HEIGHT
+        @b.image picture_name(letter.code.chr), width: letter.even_width, height: SmallLetterUnpacking::HEIGHT,
+                                                colors: colours,
+                                                places: @pack[:small_letter_pictures].pixels(letter.at, places)
       end
     end
 

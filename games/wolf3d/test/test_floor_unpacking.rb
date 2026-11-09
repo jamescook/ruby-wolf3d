@@ -98,6 +98,27 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_named_pictures graph, pack
     assert_same_fonts graph, pack
     assert_same_end_articles graph, pack
+    assert_same_small_letters graph, pack
+  end
+
+  # THE SMALL ALPHABET'S PRINTABLE CHARACTERS as the high scores draw them, each one's rows widened
+  # with a column of place nought where its width is odd, one after another in code order; all place
+  # nought for a character the font draws at another size, as assert_same_fonts has it.
+  def assert_same_small_letters(graph, pack)
+    got = pack.fetch(:small_letter_pictures)
+    font = graph.font(0)
+    height = Wolf3D::Vgagraph::FONT_HEIGHTS.fetch(0)
+    at = 0
+    Wolf3D::Vgagraph::FONT_WIDTHS.fetch(0).each do |code, width|
+      next unless code.between?(33, 126)
+
+      wide = width.odd? ? width + 1 : width
+      rows = font.height == height && font.width(code) == width ? font.rows(code) : Array.new(height) { [0] * width }
+      wanted = rows.flat_map { |row| row + ([0] * (wide - width)) }
+      assert_equal wanted, got.byteslice(at, wanted.length).bytes, "small letter #{code.chr}"
+      at += wanted.length
+    end
+    assert_equal at, got.bytesize, "every letter and nothing more"
   end
 
   # BOTH ALPHABETS, each character a picture of its own row by row, one after another in the order

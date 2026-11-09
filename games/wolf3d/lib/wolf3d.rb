@@ -64,6 +64,7 @@ VBlank.require_game_file "wolf3d/floor_unpacking"
 VBlank.require_game_file "wolf3d/picture_unpacking"
 VBlank.require_game_file "wolf3d/vgagraph_unpacking"
 VBlank.require_game_file "wolf3d/bar_unpacking"
+VBlank.require_game_file "wolf3d/small_letter_unpacking"
 VBlank.require_game_file "wolf3d/data_pack"
 # ...and where the view's walls and things come from, baked or from that pack.
 VBlank.require_game_file "wolf3d/view_pictures"
