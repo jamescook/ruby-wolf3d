@@ -679,10 +679,12 @@ module Wolf3D
           EPISODE_NAMES.each_with_index do |name, n|
             slot = @episodes[n + 1]
             # An episode this cartridge does not hold is there to be seen and not to be
-            # picked, so it has nothing to do either.
+            # picked, so it has nothing to do either. A whole build holds every episode's floors
+            # and learns as it runs which its copy has: the shareware's five are dim, as the
+            # original's are (wolf4sdl: wl_menu.cpp, NewEmenu).
             next m.item(name, enabled: false) if slot.nil?
 
-            m.item(name) { @start_floor = slot; leaving_for DIFFICULTY }
+            m.item(name, enabled: @view.holds_floor?(slot)) { @start_floor = slot; leaving_for DIFFICULTY }
           end
         end
         the_gun(at, y, picked)

@@ -31,6 +31,8 @@ module Wolf3D
   # - one_floor?: whether the build holds one floor and knows its counts while building, so a walk
   #   over its things can be counted by a plain number. none?(kind): whether it knows while
   #   building that no floor has any, so it can leave out what they would need.
+  # - holds_floor?(slot): whether the copy has the floor the build holds at +slot+, true baked and a
+  #   test on the pack's floor count packed.
   module FloorTables
     # The source a build reads: from +pack+ (the data pack's handle) where it has one, else baked
     # from +floors+, every floor the build holds. +wall_picture+ answers where a wall code's lit
@@ -83,6 +85,10 @@ module Wolf3D
       end
 
       def one_floor? = @floors.count == 1
+
+      # Whether the copy holds the floor the build holds at +slot+: always, since a baked build
+      # holds only floors it read.
+      def holds_floor?(_slot) = true
 
       # Whether no floor the build holds has any of +kind+ (Floors#no_floor_has?).
       def none?(kind) = @floors.no_floor_has?(kind)
@@ -210,8 +216,7 @@ module Wolf3D
       # A floor's slot, read at the floor's own number in the copy: by its place in the build,
       # through a table of each place's number.
       def declare_per_floor(name, slot: name, width: nil) # rubocop:disable Lint/UnusedMethodArgument
-        floor_index = (@declared ||= {})[:_floor_index] ||= @b.table(:floor_index, @floors.map(&:index), width: :byte)
-        ByKind.new(@b.table(name, @pack[slot]), floor_index)
+        ByKind.new(@b.table(name, @pack[slot]), declare_floor_index)
       end
 
       # This floor's walls that move, each the pair of rooms it stands between (push_room_a and _b),
@@ -226,6 +231,11 @@ module Wolf3D
       end
 
       def one_floor? = false
+
+      # Whether the copy holds the floor the build holds at +slot+ (a number, or a variable as the
+      # game runs): a test on the pack's floor count, since a whole build holds sixty floors and the
+      # shareware has ten.
+      def holds_floor?(slot) = declare(:floor_count)[0] > declare_floor_index[slot]
 
       # Never known before the copy is read.
       def none?(_kind) = false
@@ -304,6 +314,11 @@ module Wolf3D
 
       # Each slot's table, declared the first time anything asks for it.
       def declare(slot) = (@declared ||= {})[slot] ||= @b.table(slot, @pack[slot])
+
+      # Each floor's number in the copy, by its place in the build.
+      def declare_floor_index
+        (@declared ||= {})[:_floor_index] ||= @b.table(:floor_index, @floors.map(&:index), width: :byte)
+      end
     end
   end
 end

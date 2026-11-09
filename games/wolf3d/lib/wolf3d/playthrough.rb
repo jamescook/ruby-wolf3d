@@ -157,9 +157,12 @@ module Wolf3D
       end
     end
 
+    # Past the last floor held, the lift goes back to the first; and past the last the copy has,
+    # which only a whole build learns as it runs (the shareware has ten of its sixty).
     def advance_one_floor
       @floor += 1
       @floor = 0 if @floor > @floors.count - 1
+      @floor = 0 unless @world.holds_floor?(@floor)
     end
 
     # Does any lever on this cartridge lead to a secret floor, or back from one? Worked out once,

@@ -20,6 +20,9 @@ module Wolf3DTest
     def place_player = step(:place_player)
     def reset_floor = step(:reset_floor)
 
+    # Every floor held is one the copy has, as in any trimmed build.
+    def holds_floor?(_slot) = true
+
     private
 
     def step(name)
@@ -43,6 +46,7 @@ module Wolf3DTest
     def reset_player = nil
     def select_floor = nil
     def place_player = nil
+    def holds_floor?(_slot) = true
 
     def reset_floor
       @restarts += 1

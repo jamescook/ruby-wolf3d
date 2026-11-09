@@ -27,13 +27,13 @@ class TestFloorUnpacking < Minitest::Test
   end
 
   def test_every_floor_of_the_six_episodes_means_what_the_readers_say
-    assert_same_floors Wolf3D.maps, Wolf3D.vswap, unpacked(real_original(real_copy))
+    assert_same_floors Wolf3D.maps, Wolf3D.vswap, unpacked(original_of(real_copy))
   end
 
   # The shareware's ten floors fill the same slots, and the pack says it has ten.
   def test_every_floor_of_the_shareware_means_what_the_readers_say
     data = real_shareware
-    assert_same_floors Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), unpacked(real_original(data))
+    assert_same_floors Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), unpacked(original_of(data))
   end
 
   private
@@ -74,12 +74,6 @@ class TestFloorUnpacking < Minitest::Test
       assert_equal [start.x, start.y, turns.fetch(start.facing)],
                    %i[start_x start_y start_quarter_turns].map { |slot| pack.fetch(slot).getbyte(n) }, "floor #{n}'s start"
     end
-  end
-
-  def real_original(data)
-    VBlank::Original::Game.new(title: "Wolfenstein 3D", setting: "WOLF3D_DATA", settings_file: "/dev/null",
-                               env: { "WOLF3D_DATA" => data.dir }, key: "data",
-                               releases: Wolf3D::Vanilla::RELEASES, platform: :pc)
   end
 
   NOWHERE = Wolf3D::Rooms::NOWHERE

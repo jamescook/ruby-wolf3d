@@ -8,6 +8,7 @@ require "vblank/testing"
 require "vblank/testing/in_ractors"
 require_relative "support/field"
 require_relative "support/turning_scene"
+require_relative "support/episode_scene"
 VBlank.require_game_file "support/counting_worlds"
 
 module Wolf3DTest
@@ -48,6 +49,14 @@ module Wolf3DTest
       shareware = original_copy(Wolf3D::GameData.original(env: { Wolf3D::GameData::COPY_VAR => "shareware" }))
       Wolf3D::GameData.new(dir: shareware.path, set: shareware.release)
     end
+  end
+
+  # +data+ (a GameData) as the framework names a copy, which a data pack is filled from: the one
+  # folder, whichever release it holds.
+  def original_of(data)
+    VBlank::Original::Game.new(title: "Wolfenstein 3D", setting: "WOLF3D_DATA", settings_file: "/dev/null",
+                               env: { "WOLF3D_DATA" => data.dir }, key: "data",
+                               releases: Wolf3D::Vanilla::RELEASES, platform: :pc)
   end
 
   # WHOLE CARTRIDGES, BUILT ONCE AND KEPT, in a folder git ignores because a cartridge holds your

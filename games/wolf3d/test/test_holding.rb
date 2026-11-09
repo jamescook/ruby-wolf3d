@@ -81,6 +81,20 @@ class TestHolding < Minitest::Test
                  "the whole build's first floor"
   end
 
+  # ONE WHOLE BUILD OFFERS THE EPISODES ITS COPY HOLDS, read from the pack it is handed as it runs:
+  # given the shareware's, the list steps over the five episodes the shareware lacks and A starts the
+  # first; given the six episodes', down lands on the second, which starts at its own first floor.
+  def test_a_whole_build_offers_the_episodes_its_pack_holds
+    program = Wolf3D::GAME.checked_program(err: nil, settings: EpisodeScene::SETTINGS, pack_at_start: true)
+    picked = [real_shareware, real_copy].map do |data|
+      run = Reference.new.hand_file(whole_pack_of(data)).input_each_frame { |f| EpisodeScene.keys(f) }
+                     .run(program, frames: EpisodeScene::FRAMES)
+      [run[:screen], run[:_start_floor]]
+    end
+
+    assert_equal [[Wolf3D::Menus::DIFFICULTY, 0], [Wolf3D::Menus::DIFFICULTY, Wolf3D::Floors::PER_EPISODE]], picked
+  end
+
   # THE SAME FLOOR LOOKS THE SAME held either way: the walls, the guards and the gun come from the
   # whole row of pictures in place of the trimmed one, and the whole build reads its map from the
   # data pack (FloorTables), and nothing on the screen moves. Looked at twice: standing in the first
@@ -270,6 +284,16 @@ class TestHolding < Minitest::Test
   private
 
   def first_floor(hold:) = Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: hold })
+
+  # THE DATA PACK A SHELL MAKES FROM +data+ (a GameData), the file a whole build left without its pack
+  # is handed: FloorUnpacking's routine run over that copy. The pack names no copy's SHA-1, which
+  # only a shell checks.
+  def whole_pack_of(data)
+    unpacking = Wolf3D::FloorUnpacking.declare_pack(Builder.new, from: original_of(data)).unpacking
+    # The routine waits a frame every 256 bytes it writes (VBlank's progress bar).
+    slots = unpacking.slot_bytes_in(Reference.new.run(unpacking.program, frames: (unpacking.byte_size / 256) + 400))
+    VBlank::Original::Pack.holding(slots, sha1: "0" * 40, build_version: Wolf3D::FloorUnpacking::PACK_VERSION).to_bytes
+  end
 
   # The same keys on the first floor held trimmed, then whole, each run for PLAYING_FRAMES.
   def play_both(keys:, start: nil)

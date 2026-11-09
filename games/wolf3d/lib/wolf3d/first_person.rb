@@ -191,6 +191,10 @@ module Wolf3D
     # WHICH FLOORS THIS CARTRIDGE HOLDS, so a menu can offer the episodes they make up.
     attr_reader :floors
 
+    # ...and whether the copy has the floor held at +slot+, which a whole build learns from its data
+    # pack as the game runs (FloorTables#holds_floor?).
+    def holds_floor?(slot) = @this_floor.tables.holds_floor?(slot)
+
     # ...and how tough the game is set, so the screen that asks can write the answer here.
     attr_reader :difficulty
 
