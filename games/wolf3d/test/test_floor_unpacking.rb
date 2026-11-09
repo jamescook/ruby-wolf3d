@@ -102,6 +102,7 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_arrows maps, pack
     assert_same_walls vswap, pack
     assert_same_sprites vswap, pack
+    assert_same_gun vswap, pack
     assert_same_picture_table graph, pack
   end
 
@@ -112,6 +113,21 @@ class TestFloorUnpacking < Minitest::Test
     assert_equal graph.picture_count, pack.fetch(:picture_count).unpack1("v"), "how many pictures"
     wanted = (0...most).flat_map { |n| n < graph.picture_count ? graph.size(n) : [0, 0] }
     assert_equal wanted, pack.fetch(:picture_sizes).unpack("v*"), "every picture's width and height"
+  end
+
+  # THE GUN IN YOUR HANDS, the release's last twenty sprites in a row of their own as WeaponAtlas
+  # lays them, see-through where no post covers a pixel, with each frame's first and last columns.
+  def assert_same_gun(vswap, pack)
+    guns = Wolf3D::WeaponAtlas::COUNT
+    first = Wolf3D::WeaponAtlas.first_sprite(vswap)
+    got = pack.fetch(:gun_pictures)
+    clear = Wolf3D::PictureUnpacking::SEE_THROUGH
+    wanted = (0...SIDE).flat_map do |y|
+      (0...guns).flat_map { |n| (0...SIDE).map { |x| vswap.sprite(first + n)[x, y] || clear } }
+    end
+    assert_equal wanted, got.bytes, "the gun's row"
+    assert_equal (0...guns).map { |n| vswap.sprite(first + n).first_column }, pack.fetch(:gun_first_column).bytes
+    assert_equal (0...guns).map { |n| vswap.sprite(first + n).last_column }, pack.fetch(:gun_last_column).bytes
   end
 
   # EVERY SPRITE, laid out as ThingAtlas.whole lays its row: row by row across every sprite of the

@@ -12,7 +12,8 @@ module Wolf3D
   #
   # WHAT IT ANSWERS: declare_walls(atlas), declare_things(things), and declare_thing_edges(things),
   # each sprite's four edges (ThingAtlas#first_column and the rest) as four tables, by its place in
-  # the row.
+  # the row; and declare_gun(atlas), the gun in your hands (WeaponAtlas) and its first and last
+  # columns as two tables.
   module ViewPictures
     def self.for(build:, pack: nil) = pack ? Packed.new(build, pack) : Baked.new(build)
 
@@ -30,6 +31,11 @@ module Wolf3D
 
       def declare_things(things)
         @b.image :things, width: things.width, height: things.height, data: things.pixels, transparent: true
+      end
+
+      def declare_gun(atlas)
+        @b.image :weapons, width: atlas.width, height: atlas.height, data: atlas.pixels, transparent: true
+        [@b.table(:gun_first, atlas.first_columns, width: :byte), @b.table(:gun_last, atlas.last_columns, width: :byte)]
       end
 
       def declare_thing_edges(things)
@@ -63,6 +69,12 @@ module Wolf3D
       def declare_things(things)
         @b.image :things, width: things.width, height: things.height, colors: Palette.game.colours,
                           places: @pack[:sprite_pictures], see_through: PictureUnpacking::SEE_THROUGH
+      end
+
+      def declare_gun(atlas)
+        @b.image :weapons, width: atlas.width, height: atlas.height, colors: Palette.game.colours,
+                           places: @pack[:gun_pictures], see_through: PictureUnpacking::SEE_THROUGH
+        [@b.table(:gun_first, @pack[:gun_first_column]), @b.table(:gun_last, @pack[:gun_last_column])]
       end
 
       def declare_thing_edges(_things)

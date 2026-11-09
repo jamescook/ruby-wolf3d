@@ -37,11 +37,21 @@ module Wolf3D
     # The four edges of each sprite ThingAtlas tells the drawing (ThingAtlas#first_column and the rest).
     SPRITE_EDGES = %i[sprite_first_column sprite_last_column sprite_first_row sprite_last_row].freeze
 
+    # THE GUN IN YOUR HANDS is the last WeaponAtlas::COUNT sprites of whichever release is loaded, so
+    # where it starts differs (Spear has fewer sprites): it gets a row of its own, as WeaponAtlas lays
+    # it, copied out of the sprites' row, with its first and last columns.
+    GUNS = WeaponAtlas::COUNT
+    GUN_ACROSS = GUNS * SIDE
+
     # The slots the pictures take, declared on +slots+ (the data pack's).
     def self.declare(slots)
       slots.pixels :wall_pictures, count: PAGE_BYTES * WALL_PAGES
       slots.pixels :sprite_pictures, count: PAGE_BYTES * SPRITES
       SPRITE_EDGES.each { |name| slots.numbers name, count: SPRITES, width: :byte, signed: false, layout: :gba }
+      slots.pixels :gun_pictures, count: PAGE_BYTES * GUNS
+      %i[gun_first_column gun_last_column].each do |name|
+        slots.numbers name, count: GUNS, width: :byte, signed: false, layout: :gba
+      end
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.
@@ -59,9 +69,32 @@ module Wolf3D
       routine_var(:first_sound).store!(@vswap.half(4))
       unpack_walls
       unpack_sprites
+      unpack_gun
     end
 
     private
+
+    # THE GUN'S ROW, out of the sprites' row: the release's last GUNS sprites, the knife's first
+    # frame first (WeaponAtlas.first_sprite). A release with fewer sprites than that has no gun, and
+    # its row stays place nought, which nothing draws.
+    def unpack_gun
+      first = routine_var(:first_gun)
+      first.store!(routine_var(:first_sound) - routine_var(:first_sprite) - GUNS)
+      has_gun = first >= 0
+      @b.repeat(GUNS) do |frame|
+        if has_gun
+          @pack[:gun_first_column][frame] = @pack[:sprite_first_column][first + frame]
+          @pack[:gun_last_column][frame] = @pack[:sprite_last_column][first + frame]
+          @b.repeat(SIDE) do |y|
+            @b.repeat(SIDE) do |x|
+              @pack[:gun_pictures][(y * GUN_ACROSS) + (frame * SIDE) + x] =
+                @pack[:sprite_pictures][(y * SPRITE_ACROSS) + ((first + frame) * SIDE) + x]
+            end
+            @copy.count_written SIDE
+          end
+        end
+      end
+    end
 
     # EVERY WALL PAGE THE COPY HAS, laid out as WallAtlas lays a whole build's row of pictures: row by
     # row across every page, so page p's pixel at x, y is at y * WALL_ACROSS + p * SIDE + x. A page is

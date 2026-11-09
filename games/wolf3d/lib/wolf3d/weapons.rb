@@ -90,12 +90,14 @@ module Wolf3D
     # a guard listens for.
     # +starting+ is what a new game puts in your hands, which is the pistol unless a cartridge
     # was built to hand you something else — a measuring and demoing dial, not a way to play.
-    # See Wolf3D.armed_with. +lasting+ is what a saved game holds (see LastingState).
+    # See Wolf3D.armed_with. +lasting+ is what a saved game holds (see LastingState). +pictures+
+    # says where the gun's pictures come from (ViewPictures).
     def initialize(build:, player:, atlas: nil, sounds: nil, starting: STARTING,
-                   lasting: LastingState.new(build:))
+                   lasting: LastingState.new(build:), pictures: ViewPictures.for(build: build))
       @b = build
       @player = player
       @atlas = atlas
+      @pictures = pictures
       @sounds = sounds
       @starting = starting
       @lasting = lasting
@@ -188,14 +190,10 @@ module Wolf3D
       return if @atlas.nil?
 
       b = @b
-      b.image :weapons, width: @atlas.width, height: @atlas.height,
-                        data: @atlas.pixels, transparent: true
-
-      # WHICH COLUMNS OF EACH FRAME HOLD ANYTHING. A knife at rest is ten columns of its
-      # sixty-four and the rest is room showing through, so walking those columns would be the
-      # whole depth of the picture paid for nothing at all — the same saving the guards make.
-      @first_column = b.table :gun_first, @atlas.first_columns, width: :byte
-      @last_column = b.table :gun_last, @atlas.last_columns, width: :byte
+      # THE PICTURES, and WHICH COLUMNS OF EACH FRAME HOLD ANYTHING. A knife at rest is ten columns
+      # of its sixty-four and the rest is room showing through, so walking those columns would be
+      # the whole depth of the picture paid for nothing at all — the same saving the guards make.
+      @first_column, @last_column = @pictures.declare_gun(@atlas)
 
       @shape, @column, @wide, @at =
         %i[shape column wide at].map { |name| b.var(:"_gun_#{name}", 0) }

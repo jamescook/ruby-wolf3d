@@ -53,10 +53,11 @@ module Wolf3D
     # Where the knife's first picture sits in VSWAP's own numbering.
     def self.first_sprite(vswap) = vswap.sprite_count - COUNT
 
+    # The frames are read from +vswap+ only when something asks for their pixels or edges, which a
+    # whole build never does: it takes them from its data pack (ViewPictures).
     def initialize(vswap, palette)
+      @vswap = vswap
       @palette = palette
-      first = self.class.first_sprite(vswap)
-      @frames = (0...COUNT).map { |n| vswap.sprite(first + n) }
     end
 
     def width = COUNT * SIDE
@@ -66,7 +67,7 @@ module Wolf3D
     # the whole square is drawn and the framework skips the empty rows for itself. It is here
     # because it is the fact that makes cropping look like a good idea (see the note above), and
     # because a test that wants to find the gun on the screen has to know where it hangs.
-    def art_rows = @art_rows ||= (@frames.map(&:first_row).min..@frames.map(&:last_row).max)
+    def art_rows = @art_rows ||= (frames.map(&:first_row).min..frames.map(&:last_row).max)
 
     # Where a frame's columns start in the row of them. Which frame is `weapon * FRAMES + pose`.
     def slice_of(frame) = frame * SIDE
@@ -74,19 +75,29 @@ module Wolf3D
     # WHICH COLUMNS OF EACH FRAME HOLD ANYTHING, which is what stops the drawing walking down
     # the screen for nothing. The knife at rest is ten columns of its sixty-four; a chain gun
     # firing is over fifty. Both numbers come out of the file's own header.
-    def first_columns = @frames.map(&:first_column)
-    def last_columns = @frames.map(&:last_column)
+    def first_columns = frames.map(&:first_column)
+    def last_columns = frames.map(&:last_column)
 
     # Column-major in the file, and a picture here is row-major, so this is the one place the
     # two orders meet — the same crossing the walls make, over a sprite's see-through pixels.
     def pixels
       (0...SIDE).flat_map do |y|
-        @frames.flat_map do |frame|
+        frames.flat_map do |frame|
           (0...SIDE).map do |x|
             value = frame[x, y]
             value.nil? ? :transparent : @palette[value]
           end
         end
+      end
+    end
+
+    private
+
+    # The twenty frames, read from VSWAP the first time they are asked for.
+    def frames
+      @frames ||= begin
+        first = self.class.first_sprite(@vswap)
+        (0...COUNT).map { |n| @vswap.sprite(first + n) }
       end
     end
   end

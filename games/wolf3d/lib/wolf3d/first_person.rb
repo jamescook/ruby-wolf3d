@@ -712,7 +712,7 @@ module Wolf3D
       # The gun in your hands goes before the things lying on the floor, because two of those ARE
       # guns.
       @weapons = Weapons.new(build: b, player: @player, atlas: @gun_art, sounds: @sounds,
-                             starting: @armed_with, lasting: @lasting)
+                             starting: @armed_with, lasting: @lasting, pictures: @pictures)
       # ...and before both of them, because a guard asks it whether to think and every piece of
       # scenery asks it whether to be looked at.
       declare_the_rooms
