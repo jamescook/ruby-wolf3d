@@ -22,7 +22,7 @@ class TestFloorUnpacking < Minitest::Test
       maps = Wolf3D::Maps.new(maphead: release.files["MAPHEAD"], gamemaps: release.files["GAMEMAPS"])
       pack = unpacked(made_up_original(dir))
 
-      assert_unpacked_as_read maps, Wolf3D::Vswap.new(release.files["VSWAP"]), pack
+      assert_unpacked_as_read maps, Wolf3D::Vswap.new(release.files["VSWAP"]), release.pictures, pack
     end
   end
 
@@ -57,19 +57,37 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
+  # ...and A VGAGRAPH CHUNK PLACED PAST THE END OF THE FILE unpacks to nothing: the picture table,
+  # said by VGAHEAD to start beyond VGAGRAPH, gives a release of no pictures.
+  def test_a_chunk_past_vgagraph_is_not_unpacked
+    Dir.mktmpdir do |dir|
+      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
+      path = File.join(dir, "VGAHEAD.WL6")
+      head = File.binread(path)
+      past = File.size(File.join(dir, "VGAGRAPH.WL6")) + 100
+      head[0, Wolf3D::Vgagraph::OFFSET_BYTES] = [past].pack("V")[0, Wolf3D::Vgagraph::OFFSET_BYTES]
+      File.binwrite(path, head)
+      pack = unpacked(made_up_original(dir))
+
+      assert_equal 0, pack.fetch(:picture_count).unpack1("v")
+      assert_equal [0], pack.fetch(:picture_sizes).unpack("v*").uniq
+    end
+  end
+
   def test_the_six_episodes_unpack_as_the_readers_read_them
-    assert_unpacked_as_read Wolf3D.maps, Wolf3D.vswap, unpacked(original_of(real_copy))
+    assert_unpacked_as_read Wolf3D.maps, Wolf3D.vswap, Wolf3D.vgagraph, unpacked(original_of(real_copy))
   end
 
   # The shareware's ten floors fill the same slots, and the pack says it has ten.
   def test_the_shareware_unpacks_as_the_readers_read_it
     data = real_shareware
-    assert_unpacked_as_read Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), unpacked(original_of(data))
+    assert_unpacked_as_read Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), Wolf3D::Vgagraph.from(data),
+                            unpacked(original_of(data))
   end
 
   private
 
-  def assert_unpacked_as_read(maps, vswap, pack)
+  def assert_unpacked_as_read(maps, vswap, graph, pack)
     assert_equal maps.count, pack.fetch(:floor_count).getbyte(0)
     assert_same_world maps, pack
     assert_same_doors maps, vswap, pack
@@ -84,6 +102,16 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_arrows maps, pack
     assert_same_walls vswap, pack
     assert_same_sprites vswap, pack
+    assert_same_picture_table graph, pack
+  end
+
+  # VGAGRAPH'S PICTURE TABLE, Huffman-packed in its first chunk: how many pictures the release
+  # has, and each one's width and height in turn, nought past the last.
+  def assert_same_picture_table(graph, pack)
+    most = Wolf3D::Holding::VGA_PICTURES
+    assert_equal graph.picture_count, pack.fetch(:picture_count).unpack1("v"), "how many pictures"
+    wanted = (0...most).flat_map { |n| n < graph.picture_count ? graph.size(n) : [0, 0] }
+    assert_equal wanted, pack.fetch(:picture_sizes).unpack("v*"), "every picture's width and height"
   end
 
   # EVERY SPRITE, laid out as ThingAtlas.whole lays its row: row by row across every sprite of the

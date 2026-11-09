@@ -30,6 +30,10 @@ module Wolf3D
     WALL_PAGES = 134
     SPRITES = 436
 
+    # The most pictures in a release's VGAGRAPH: Spear's 147 (wolf4sdl gfxv_sod.h, NUMPICS); the
+    # shareware's has 144 and the six episodes' 132 (gfxv_wl6.h), read off the copies' picture tables.
+    VGA_PICTURES = 147
+
     # The most floors a release has: the six episodes' sixty. MAPHEAD keeps room for a hundred.
     FLOORS = 60
 
