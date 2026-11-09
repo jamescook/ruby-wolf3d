@@ -9,7 +9,7 @@ module Wolf3D
     # THE PACK'S VERSION, which names this build of the game in the pack's header. Must change
     # whenever the slots or what the routine writes into them change, so a player's pack is made
     # again.
-    VERSION = "3"
+    VERSION = "4"
 
     # Where packs are kept between builds, out of git, so only the first build from a copy runs the
     # routine: the repository's own .cache, wherever the build was started from. Worked out as this

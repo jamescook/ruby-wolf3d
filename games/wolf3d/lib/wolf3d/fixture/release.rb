@@ -251,11 +251,19 @@ module Wolf3D
         pool = Array.new(columns * rows) { SPRITE_INK + index }.pack("C*")
         pool << "\x00" if pool.bytesize.odd?
 
-        posts_at = 4 + (columns * 2) + pool.bytesize
-        post = bands.map { |top, bottom| [bottom * 2, 0, top * 2].pack("v3") }.join + [0].pack("v")
-        offsets = Array.new(columns) { |i| posts_at + (i * post.bytesize) }
+        pool_at = 4 + (columns * 2)
+        posts_at = pool_at + pool.bytesize
+        # Each post's middle word is where its pixels are in the sprite, less the row it starts on,
+        # so the row's pixel is that place plus the row (wolf4sdl: wl_draw.cpp, ScaleShape).
+        posts = Array.new(columns) do |i|
+          at = pool_at + (i * rows)
+          bands.map do |top, bottom|
+            [bottom * 2, at - top, top * 2].pack("v3").tap { at += bottom - top }
+          end.join + [0].pack("v")
+        end
+        offsets = Array.new(columns) { |i| posts_at + (i * posts.first.bytesize) }
 
-        [first_col, last_col].pack("v2") + offsets.pack("v*") + pool + (post * columns)
+        [first_col, last_col].pack("v2") + offsets.pack("v*") + pool + posts.join
       end
 
       # Which rows of its square a sprite fills: the last twenty are the weapons and hang off

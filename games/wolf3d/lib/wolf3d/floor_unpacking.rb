@@ -146,7 +146,7 @@ module Wolf3D
       outside = routine_var(:outside)
       floors.store!(0)
       outside.store!(0)
-      @b.repeat(FLOORS, stop_when: head.word(2 + (4 * floors)) == 0 || outside == 1) do
+      @b.repeat(FLOORS, stop_when: (head.word(2 + (4 * floors)) == 0) | (outside == 1)) do
         level_at.store!(head.word(2 + (4 * floors)))
         outside.store!(1) unless planes_inside?(maps, level_at)
         if outside == 0

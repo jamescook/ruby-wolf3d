@@ -83,6 +83,35 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_starts maps, pack
     assert_same_arrows maps, pack
     assert_same_walls vswap, pack
+    assert_same_sprites vswap, pack
+  end
+
+  # EVERY SPRITE, laid out as ThingAtlas.whole lays its row: row by row across every sprite of the
+  # largest VSWAP, a pixel no post covers (or a sprite the copy lacks) the see-through place. And
+  # each sprite's four edges as ThingAtlas reads them, nought for one the copy lacks.
+  def assert_same_sprites(vswap, pack)
+    sprites = Wolf3D::Holding::SPRITES
+    across = sprites * SIDE
+    got = pack.fetch(:sprite_pictures)
+    assert_equal across * SIDE, got.bytesize, "every sprite of the largest VSWAP"
+    clear = Wolf3D::PictureUnpacking::SEE_THROUGH
+    sprites.times do |n|
+      wanted = vswap.sprite?(n) ? vswap.sprite(n) : nil
+      seen = (0...SIDE).flat_map { |y| got.byteslice((y * across) + (n * SIDE), SIDE).bytes }
+      assert_equal (0...SIDE).flat_map { |y| (0...SIDE).map { |x| wanted&.[](x, y) || clear } }, seen, "sprite #{n}"
+    end
+    atlas = Wolf3D::ThingAtlas.whole(vswap, Wolf3D.palette)
+    %i[first_column last_column first_row last_row].each do |edge|
+      wanted = (0...sprites).map do |n|
+        case edge
+        when :first_column then atlas.first_column(n)
+        when :last_column then atlas.last_column(n)
+        when :first_row then atlas.first_row(n)
+        when :last_row then atlas.last_row(n)
+        end
+      end
+      assert_equal wanted, pack.fetch(:"sprite_#{edge}").bytes, "every sprite's #{edge}"
+    end
   end
 
   # EVERY WALL PAGE, as places in the game's colours, laid out as WallAtlas lays its row of
