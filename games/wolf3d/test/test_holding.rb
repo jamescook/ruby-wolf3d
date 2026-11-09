@@ -112,9 +112,9 @@ class TestHolding < Minitest::Test
   # them; handed the same pack with the named pictures, or the small letters, blanked, neither does.
   def test_a_whole_build_draws_the_lettering_its_pack_holds
     slots = slots_unpacked_from(real_copy)
-    start = in_secret_car_facing_lever
     shown = {
-      { floors: 1, screen: "playing", start: start } => [:vga_pictures, TALLY_FRAMES, PUSH_KEYS],
+      { floors: 1, screen: "playing", start: LiftScene.start } => [:vga_pictures, LiftScene::TALLY_FRAMES,
+                                                                   ->(frame) { LiftScene.keys(frame) }],
       { screen: "scores" } => [:small_letter_pictures, MenuScene::FRAMES, ->(_) { [] }]
     }
     shown.each do |settings, (slot, frames, keys)|
@@ -266,10 +266,11 @@ class TestHolding < Minitest::Test
   # its levers, and pulls it.
   def test_the_secret_lift_is_known_held_whole
     real_copy
-    start = in_secret_car_facing_lever
+    start = LiftScene.start
     secret = %w[trimmed whole].map do |hold|
       settings = { floors: 1, screen: "playing", hold: hold, start: start }
-      Reference.new.input_each_frame(&PUSH_KEYS).run(Wolf3D::GAME.program(settings: settings), frames: LEVER_FRAMES)[:lift_secret]
+      Reference.new.input_each_frame { |frame| LiftScene.keys(frame) }
+               .run(Wolf3D::GAME.program(settings: settings), frames: LiftScene::PULLED_FRAMES)[:lift_secret]
     end
 
     assert_equal [1, 1], secret, "the lift pulled from #{start} is the secret one"
@@ -351,10 +352,6 @@ class TestHolding < Minitest::Test
   # ...or opens the door in front of it, waits for it to open, and walks through.
   OPEN_AND_WALK_KEYS = ->(frame) { frame == 70 ? [:a] : (frame.between?(110, 150) ? [:up] : []) }
   PLAYING_FRAMES = 220
-  # ...long enough after a lever is pulled to be read, before the floor ends.
-  LEVER_FRAMES = 80
-  # ...long enough after a lever is pulled for the lift to be in and the screen between floors up.
-  TALLY_FRAMES = 70 + Wolf3D::FirstPerson::LIFT_WAIT + 40
   # ...long enough for a patrol to walk a few cells and turn.
   PATROL_FRAMES = 600
 
@@ -433,19 +430,6 @@ class TestHolding < Minitest::Test
         return "#{door.x + dx},#{door.y + dy},#{face}" if empty_floor?(level, door.x + dx, door.y + dy)
       end
     end
-  end
-
-  # WOLF3D_START's x,y,facing for the first floor's secret car (Elevator#secret_cars), facing a
-  # lever beside it east or west: a lever is pulled only along the east-west axis
-  # (FirstPerson#pull_the_lever, the original's Cmd_Use).
-  def in_secret_car_facing_lever
-    level = Wolf3D.maps[0]
-    car = Wolf3D::Elevator.new(level).secret_cars.first
-    x = car % level.width
-    y = car / level.width
-    facing = { [-1, 0] => :west, [1, 0] => :east }
-    _, face = facing.find { |(dx, dy), _| level.wall_code(x + dx, y + dy) == Wolf3D::Elevator::SWITCH }
-    "#{x},#{y},#{face}"
   end
 
   # WOLF3D_START's x,y,facing for an empty cell three behind the first floor's first patrolling
