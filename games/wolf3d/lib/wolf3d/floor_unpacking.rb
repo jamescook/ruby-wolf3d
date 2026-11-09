@@ -52,26 +52,6 @@ module Wolf3D
     # The four cells beside one, east, west, south and north, as steps across and down.
     BESIDE = Ractor.make_shareable([[1, 0], [-1, 0], [0, 1], [0, -1]])
 
-    # THE DATA PACK'S VERSION, which names this build of the game in the pack's header. Must change
-    # whenever the slots or what the routine writes into them change, so a player's pack is made
-    # again.
-    PACK_VERSION = "2"
-
-    # Where packs are kept between builds, out of git, so only the first build from a copy runs the
-    # routine: the repository's own .cache, wherever the build was started from. Worked out as this
-    # file loads (it is games/wolf3d/lib/wolf3d/), since the game's own code may not reach the files.
-    PACK_CACHE = File.expand_path("../../../../.cache/packs", __dir__).freeze
-
-    # THE DATA PACK OF A WHOLE BUILD, declared on +game+ (a build's self) and filled from +from+
-    # (an Original::Game naming the copy). Hands back the pack's handle.
-    def self.declare_pack(game, from:)
-      game.data_pack(from: from, version: PACK_VERSION, formats: [MapPlaneFormat], cache: PACK_CACHE) do |slots|
-        declare(slots)
-        # The routine is a program of its own, and the block runs on its builder: self here.
-        slots.fill_from_copy { |copy, pack, release| FloorUnpacking.new(self, copy, pack, release).fill }
-      end
-    end
-
     # The slots the floors take, declared on +slots+ (the data pack's).
     def self.declare(slots)
       slots.numbers :floor_count, count: 1, width: :byte, signed: false, layout: :gba

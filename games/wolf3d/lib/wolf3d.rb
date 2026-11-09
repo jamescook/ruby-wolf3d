@@ -60,6 +60,9 @@ VBlank.require_game_file "wolf3d/status_bar"
 VBlank.require_game_file "wolf3d/this_floor"
 # ...and the same numbers worked out by the game itself, for a whole build's data pack.
 VBlank.require_game_file "wolf3d/floor_unpacking"
+# ...and VSWAP's pictures, the other part of that pack, which DataPack declares.
+VBlank.require_game_file "wolf3d/picture_unpacking"
+VBlank.require_game_file "wolf3d/data_pack"
 # ...and where its tables come from, baked or from that pack, after both.
 VBlank.require_game_file "wolf3d/floor_tables"
 require_relative "wolf3d/lasting_state"
@@ -390,7 +393,7 @@ module Wolf3D
       menu_art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
       # A WHOLE BUILD READS ITS FLOORS FROM A DATA PACK, which FloorUnpacking fills from the copy:
       # here as the build is made, in a shell at LOAD ROM. A trimmed one bakes them (FloorTables).
-      pack = holding.whole? ? Wolf3D::FloorUnpacking.declare_pack(self, from: Wolf3D::GameData.original) : nil
+      pack = holding.whole? ? Wolf3D::DataPack.declare(self, from: Wolf3D::GameData.original) : nil
       # WHAT THE SOUND ROW IS SET TO, which every one of the game's sounds and songs is played
       # under. Declared here rather than inside either of them because both need it and neither
       # owns it.

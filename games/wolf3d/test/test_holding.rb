@@ -289,10 +289,10 @@ class TestHolding < Minitest::Test
   # is handed: FloorUnpacking's routine run over that copy. The pack names no copy's SHA-1, which
   # only a shell checks.
   def whole_pack_of(data)
-    unpacking = Wolf3D::FloorUnpacking.declare_pack(Builder.new, from: original_of(data)).unpacking
+    unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
     # The routine waits a frame every 256 bytes it writes (VBlank's progress bar).
     slots = unpacking.slot_bytes_in(Reference.new.run(unpacking.program, frames: (unpacking.byte_size / 256) + 400))
-    VBlank::Original::Pack.holding(slots, sha1: "0" * 40, build_version: Wolf3D::FloorUnpacking::PACK_VERSION).to_bytes
+    VBlank::Original::Pack.holding(slots, sha1: "0" * 40, build_version: Wolf3D::DataPack::VERSION).to_bytes
   end
 
   # The same keys on the first floor held trimmed, then whole, each run for PLAYING_FRAMES.

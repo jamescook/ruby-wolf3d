@@ -15,14 +15,14 @@ class TestFloorUnpacking < Minitest::Test
   ThisFloor = Wolf3D::ThisFloor
   CELLS = Unpacking::CELLS
 
-  def test_the_made_up_floor_means_what_the_readers_say
+  def test_the_made_up_release_unpacks_as_the_readers_read_it
     Dir.mktmpdir do |dir|
       release = Wolf3D::Fixture::Release.new(set: "WL6")
       release.write(dir)
       maps = Wolf3D::Maps.new(maphead: release.files["MAPHEAD"], gamemaps: release.files["GAMEMAPS"])
       pack = unpacked(made_up_original(dir))
 
-      assert_same_floors maps, Wolf3D::Vswap.new(release.files["VSWAP"]), pack
+      assert_unpacked_as_read maps, Wolf3D::Vswap.new(release.files["VSWAP"]), pack
     end
   end
 
@@ -42,19 +42,34 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
-  def test_every_floor_of_the_six_episodes_means_what_the_readers_say
-    assert_same_floors Wolf3D.maps, Wolf3D.vswap, unpacked(original_of(real_copy))
+  # ...and A WALL PAGE PLACED PAST THE END OF VSWAP is left at place nought, as a page the copy
+  # does not have, rather than read from whatever follows.
+  def test_a_wall_page_past_vswap_is_not_unpacked
+    Dir.mktmpdir do |dir|
+      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
+      path = File.join(dir, "VSWAP.WL6")
+      vswap = File.binread(path)
+      vswap[Wolf3D::Vswap::HEADER_BYTES, 4] = [vswap.bytesize + 100].pack("V")
+      File.binwrite(path, vswap)
+      walls = unpacked(made_up_original(dir)).fetch(:wall_pictures)
+
+      assert_equal [0], (0...SIDE).flat_map { |y| walls.byteslice(y * Wolf3D::Holding::WALL_PAGES * SIDE, SIDE).bytes }.uniq
+    end
+  end
+
+  def test_the_six_episodes_unpack_as_the_readers_read_them
+    assert_unpacked_as_read Wolf3D.maps, Wolf3D.vswap, unpacked(original_of(real_copy))
   end
 
   # The shareware's ten floors fill the same slots, and the pack says it has ten.
-  def test_every_floor_of_the_shareware_means_what_the_readers_say
+  def test_the_shareware_unpacks_as_the_readers_read_it
     data = real_shareware
-    assert_same_floors Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), unpacked(original_of(data))
+    assert_unpacked_as_read Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), unpacked(original_of(data))
   end
 
   private
 
-  def assert_same_floors(maps, vswap, pack)
+  def assert_unpacked_as_read(maps, vswap, pack)
     assert_equal maps.count, pack.fetch(:floor_count).getbyte(0)
     assert_same_world maps, pack
     assert_same_doors maps, vswap, pack
@@ -67,7 +82,24 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_totals maps, pack
     assert_same_starts maps, pack
     assert_same_arrows maps, pack
+    assert_same_walls vswap, pack
   end
+
+  # EVERY WALL PAGE, as places in the game's colours, laid out as WallAtlas lays its row of
+  # pictures in a whole build: row by row across every page, a page the copy does not have (past
+  # its walls, or left empty) all place nought.
+  def assert_same_walls(vswap, pack)
+    across = Wolf3D::Holding::WALL_PAGES * SIDE
+    got = pack.fetch(:wall_pictures)
+    assert_equal across * SIDE, got.bytesize, "every page of the largest VSWAP"
+    Wolf3D::Holding::WALL_PAGES.times do |page|
+      wanted = vswap.wall?(page) ? vswap.wall(page) : nil
+      seen = (0...SIDE).flat_map { |y| got.byteslice((y * across) + (page * SIDE), SIDE).bytes }
+      assert_equal (0...SIDE).flat_map { |y| (0...SIDE).map { |x| wanted ? wanted[x, y] : 0 } }, seen, "wall page #{page}"
+    end
+  end
+
+  SIDE = Wolf3D::Vswap::Texture::SIDE
 
   # Each floor's turning points, laid out like the map: the way each sends a patrolling guard, or
   # nowhere (Guards#arrow_at).
@@ -246,7 +278,7 @@ class TestFloorUnpacking < Minitest::Test
   def unpacked(original)
     # The pack a whole build declares, whose routine is run here on its own, not read back from
     # the packs kept between builds.
-    unpacking = Unpacking.declare_pack(VBlank::Builder.new, from: original).unpacking
+    unpacking = Wolf3D::DataPack.declare(VBlank::Builder.new, from: original).unpacking
     # The routine waits a frame every 256 bytes it writes (VBlank's progress bar), and writes each
     # byte of the pack about once, with a few frames more for each block it unpacks.
     unpacking.slot_bytes_in(Reference.new.run(unpacking.program, frames: (unpacking.byte_size / 256) + 400))
