@@ -273,11 +273,16 @@ module Wolf3D
     end
 
     # WHERE THE FLOOR STARTS YOU, and which way it points you.
+    #
+    # In the middle of the start cell, facing a quarter turn at a time clockwise from east. A whole
+    # build reads both from the pack (FloorTables).
     def place_player
-      on_each_floor do |floor, _|
-        @player.x = floor.level.start.x + 0.5
-        @player.y = floor.level.start.y + 0.5
-        @player.angle = facing_angle(floor.level.start.facing)
+      tables = @this_floor.tables
+      on_each_floor do |floor, n|
+        start = floor.level.start
+        @player.x = tables.fetch_floor_value(:start_x, n) { start.x }.to_f + 0.5
+        @player.y = tables.fetch_floor_value(:start_y, n) { start.y }.to_f + 0.5
+        @player.angle = tables.fetch_floor_value(:start_turns, n) { facing_angle(start.facing) / QUARTER } * QUARTER
       end
     end
 
@@ -300,9 +305,10 @@ module Wolf3D
       @player.secrets = 0
       @player.treasures = 0
       # ...and how much there is to find on it. The kill total is counted as the guards stand up.
-      on_each_floor do |floor, n|
-        @secret_total = floor.pushwalls.count
-        @treasure_total = @pickups.treasure_total(n)
+      tables = @this_floor.tables
+      on_each_floor do |_floor, n|
+        @secret_total = tables.fetch_floor_value(:pushwalls, n)
+        @treasure_total = tables.fetch_floor_value(:treasure, n) { @pickups.treasure_total(n) }
       end
       # The lever comes back up and the lift forgets it was ever called.
       if lifts?
@@ -654,7 +660,13 @@ module Wolf3D
       b.image :walls, width: @atlas.width, height: @atlas.height, data: @atlas.pixels
 
       # THE PLAYER, all of them at once, handed whole to everything below that touches them.
-      @player = Player.declare(build: b, lasting: @lasting, x: start_x, y: start_y, angle: start_view,
+      # A whole build does not know where the first floor starts until the pack is read, so it
+      # starts the player nowhere and puts them down at power-on (below).
+      tables = @this_floor.tables
+      @player = Player.declare(build: b, lasting: @lasting,
+                               x: tables.known_floor_value(:start_x, 0) { start_x } || 0.0,
+                               y: tables.known_floor_value(:start_y, 0) { start_y } || 0.0,
+                               angle: tables.known_floor_value(:start_turns, 0) { start_view } || 0,
                                ammo: @start_ammo,
                                looks: Billboards.needed?(scenery: @scenery, guards: @guards))
 
@@ -665,6 +677,9 @@ module Wolf3D
       @playthrough = Playthrough.new(build: b, floors: @floors, score: @player.score, world: self,
                                      lasting: @lasting)
       @floor = @playthrough.floor
+      # ...and the player put down where the first floor starts, at power-on, where the build could
+      # not start them there (above).
+      place_player if tables.known_floor_value(:start_x, 0) { start_x }.nil?
 
       # HOW TOUGH YOU SAID YOU WERE, and it lives with the world rather than with the screen
       # that asks it, because two things in the world read it: which guards stand up when a
@@ -1028,9 +1043,12 @@ module Wolf3D
     # power-on the game simply begins there with nothing having set it up.
     def declare_what_there_is_to_find
       first = @floors.first_floor
-      @kill_total = @lasting.var :kill_total, first.guards&.to_kill(Guards::DEFAULT_DIFFICULTY) || 0
-      @secret_total = @lasting.var :secret_total, first.pushwalls.count
-      @treasure_total = @lasting.var :treasure_total, @pickups.treasure_total(0)
+      tables = @this_floor.tables
+      @kill_total = tables.declare_floor_value(:kill_total, :kills, on: @lasting) do
+        first.guards&.to_kill(Guards::DEFAULT_DIFFICULTY) || 0
+      end
+      @secret_total = tables.declare_floor_value(:secret_total, :pushwalls, on: @lasting)
+      @treasure_total = tables.declare_floor_value(:treasure_total, :treasure, on: @lasting) { @pickups.treasure_total(0) }
     end
 
     # THE SCREEN AT THE BOTTOM OF THE LIFT, and the bar stays under it as it does in the original.
@@ -1105,12 +1123,15 @@ module Wolf3D
     # WHERE THE WAY OUT OF EACH FLOOR IS, as the first and last cell of its run of exit tiles.
     # Nothing at all on a cartridge holding no floor with one, which is nearly every cartridge:
     # two floors of the whole game have a way out this way, and both are boss floors.
+    #
+    # Read by the floor's place in the build (FloorTables#declare_per_floor), which a whole build
+    # reads from the pack, where it cannot know while building that no floor has one.
     def declare_the_way_out
-      ways = @floors.map { |floor| the_way_out_of(floor.level) }
-      return if ways.all?(&:nil?)
+      tables = @this_floor.tables
+      return if tables.none?(:exits)
 
-      @exit_first = @b.table :exit_first, ways.map { |way| way&.first || 1 }, width: :half
-      @exit_last = @b.table :exit_last, ways.map { |way| way&.last || 0 }, width: :half
+      @exit_first = tables.declare_per_floor(:exit_first, width: :half) { |floor| the_way_out_of(floor.level)&.first || 1 }
+      @exit_last = tables.declare_per_floor(:exit_last, width: :half) { |floor| the_way_out_of(floor.level)&.last || 0 }
     end
 
     # ONE FLOOR'S WAY OUT, as the range of cell numbers its exit tiles cover — or nothing where

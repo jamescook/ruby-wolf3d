@@ -142,6 +142,37 @@ class TestHolding < Minitest::Test
     assert_equal 0, count_differing_pixels(*played.map(&:screen)), "pixels that differ"
   end
 
+  # HOW MUCH THERE IS TO FIND IS THE SAME held either way: the men to kill, the walls that move
+  # and the treasure the screen between floors counts against, which a whole build reads from the
+  # data pack (FirstPerson#declare_what_there_is_to_find), on the first floor and the second.
+  def test_the_floor_totals_are_the_same_held_whole
+    real_copy
+    [0, 1].each do |from|
+      totals = %w[trimmed whole].map do |hold|
+        settings = { floors: 1, from: from, screen: "playing", hold: hold }
+        run = Reference.new.run(Wolf3D::GAME.program(settings: settings), frames: STANDING_FRAMES)
+        %i[kill_total secret_total treasure_total].map { |name| run[name] }
+      end
+
+      assert_operator totals.first.sum, :>, 0, "floor #{from + 1} has something to find"
+      assert_equal totals.first, totals.last, "floor #{from + 1}'s men to kill, secrets and treasure"
+    end
+  end
+
+  # THE SECRET LIFT IS KNOWN held either way: the whole build reads the cell of a floor's secret
+  # lift from the data pack. The player is put down in the first floor's secret car, facing one of
+  # its levers, and pulls it.
+  def test_the_secret_lift_is_known_held_whole
+    real_copy
+    start = in_secret_car_facing_lever
+    secret = %w[trimmed whole].map do |hold|
+      settings = { floors: 1, screen: "playing", hold: hold, start: start }
+      Reference.new.input_each_frame(&PUSH_KEYS).run(Wolf3D::GAME.program(settings: settings), frames: LEVER_FRAMES)[:lift_secret]
+    end
+
+    assert_equal [1, 1], secret, "the lift pulled from #{start} is the secret one"
+  end
+
   # A SECRET WALL MOVES held either way: the whole build reads where each starts and the floor's
   # count from the data pack. The player is put down beside the first floor's first wall that
   # moves, facing it, and pushes.
@@ -198,6 +229,8 @@ class TestHolding < Minitest::Test
   # ...or opens the door in front of it, waits for it to open, and walks through.
   OPEN_AND_WALK_KEYS = ->(frame) { frame == 70 ? [:a] : (frame.between?(110, 150) ? [:up] : []) }
   PLAYING_FRAMES = 220
+  # ...long enough after a lever is pulled to be read, before the floor ends.
+  LEVER_FRAMES = 80
 
   private
 
@@ -255,6 +288,19 @@ class TestHolding < Minitest::Test
         return "#{door.x + dx},#{door.y + dy},#{face}" if empty_floor?(level, door.x + dx, door.y + dy)
       end
     end
+  end
+
+  # WOLF3D_START's x,y,facing for the first floor's secret car (Elevator#secret_cars), facing a
+  # lever beside it east or west: a lever is pulled only along the east-west axis
+  # (FirstPerson#pull_the_lever, the original's Cmd_Use).
+  def in_secret_car_facing_lever
+    level = Wolf3D.maps[0]
+    car = Wolf3D::Elevator.new(level).secret_cars.first
+    x = car % level.width
+    y = car / level.width
+    facing = { [-1, 0] => :west, [1, 0] => :east }
+    _, face = facing.find { |(dx, dy), _| level.wall_code(x + dx, y + dy) == Wolf3D::Elevator::SWITCH }
+    "#{x},#{y},#{face}"
   end
 
   # Floor with nothing on it: no piece, no guard, no start (Level#starting_at refuses the rest).

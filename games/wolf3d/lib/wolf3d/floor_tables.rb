@@ -54,13 +54,32 @@ module Wolf3D
       # ...and in a run of +kind+: after every item of the floors before it.
       def run_start(kind, n) = @floors.first_of(kind, n)
 
-      def fetch_floor_value(what, n)
+      # A number floor +n+ has: the block's, where the caller works it out, else how many of +what+
+      # it holds, or its secret lift's cell.
+      def fetch_floor_value(what, n, &baked)
+        return baked.call(n) if baked
         return @floors[n].lifts&.secret_cars&.first || -1 if what == :secret_car
 
         @floors.count_of(what, n)
       end
 
-      def declare_floor_value(name, what) = @b.var(name, fetch_floor_value(what, 0))
+      # A variable holding the first floor's, declared on +on+ (the build, or what a saved game
+      # holds).
+      def declare_floor_value(name, what, on: @b, &baked) = on.var(name, fetch_floor_value(what, 0, &baked))
+
+      # ...and the same number where the build knows it while building, which a baked one always does.
+      def known_floor_value(what, n, &baked) = fetch_floor_value(what, n, &baked)
+
+      # A table of one number for each floor the build holds, read by the floor's place in them.
+      def declare_per_floor(name, width: nil, slot: nil, &value) # rubocop:disable Lint/UnusedMethodArgument
+        @b.table name, @floors.map(&value), width: width
+      end
+
+      # THE ROOMS A WALL THAT MOVES STANDS BETWEEN, each pair given to the block: +pairs+, worked out
+      # while building over every floor (Rooms#always_joined).
+      def join_secret_wall_rooms(pairs:, this_floor: nil, &join) # rubocop:disable Lint/UnusedMethodArgument
+        pairs.each { |near, far| join.call(near, far) }
+      end
 
       def one_floor? = @floors.count == 1
 
@@ -159,15 +178,47 @@ module Wolf3D
       # ...and in a run of +kind+: a fixed run per floor, so at its own number times the run.
       def run_start(kind, n) = @floors[n].index * PER_FLOOR.fetch(kind)
 
-      # Read from the pack as the game runs, since it is not known until the copy is read.
-      def fetch_floor_value(what, n) = declare(FLOOR_VALUES.fetch(what))[@floors[n].index]
+      # Read from the pack as the game runs, since it is not known until the copy is read. The men
+      # to kill are the ones the setting a game opens on stands up (Guards::DEFAULT_DIFFICULTY); a
+      # floor's start counts them again at whatever setting was picked (GuardPool#refill).
+      def fetch_floor_value(what, n, &baked)
+        return baked.call(n) if moved_start?(what, n)
+
+        index = @floors[n].index
+        return declare(:kill_total)[(index * Guards::SETTINGS.length) + DEFAULT_SETTING] if what == :kills
+
+
+        declare(FLOOR_VALUES.fetch(what))[index]
+      end
 
       # ...so a variable holding the first floor's starts at nought and is given it at power-on:
       # this is written where the build declares it, before the game loop, which runs once.
-      def declare_floor_value(name, what)
-        held = { value: @b.var(name, 0) } # a Hash, since a name holds a value
+      def declare_floor_value(name, what, on: @b, &_baked)
+        held = { value: on.var(name, 0) } # a Hash, since a name holds a value
         held[:value] = fetch_floor_value(what, 0)
         held[:value]
+      end
+
+      # Not known while building, but for a first floor's start moved by WOLF3D_START, which the
+      # build set itself (Floors#start_moved?).
+      def known_floor_value(what, n, &baked) = moved_start?(what, n) ? baked.call(n) : nil
+
+      # A floor's slot, read at the floor's own number in the copy: by its place in the build,
+      # through a table of each place's number.
+      def declare_per_floor(name, slot: name, width: nil) # rubocop:disable Lint/UnusedMethodArgument
+        floor_index = (@declared ||= {})[:_floor_index] ||= @b.table(:floor_index, @floors.map(&:index), width: :byte)
+        ByKind.new(@b.table(name, @pack[slot]), floor_index)
+      end
+
+      # This floor's walls that move, each the pair of rooms it stands between (push_room_a and _b),
+      # given to the block as it runs; a wall with no such pair gives nought twice, which joins
+      # nothing (Rooms::NOWHERE is always open).
+      def join_secret_wall_rooms(this_floor:, pairs: nil, &join) # rubocop:disable Lint/UnusedMethodArgument
+        near = declare(:push_room_a)
+        far = declare(:push_room_b)
+        @b.repeat(this_floor.pushwall_count) do |wall|
+          join.call(near[this_floor.pushwall(wall)], far[this_floor.pushwall(wall)])
+        end
       end
 
       def one_floor? = false
@@ -217,7 +268,11 @@ module Wolf3D
 
       # The slot each number a floor has is kept in.
       FLOOR_VALUES = { doors: :door_count, pushwalls: :pushwall_count, pieces: :piece_count,
-                       guards: :guard_count, secret_car: :secret_car }.freeze
+                       guards: :guard_count, secret_car: :secret_car, treasure: :treasure_total,
+                       start_x: :start_x, start_y: :start_y, start_turns: :start_quarter_turns }.freeze
+
+      # Which of the men-to-kill counts a game opening on its default setting reads.
+      DEFAULT_SETTING = Guards::SETTINGS.index(Guards::DEFAULT_DIFFICULTY)
 
       # A table read with a number added: a cell's middle, from the cell.
       Plus = Data.define(:table, :plus) do
@@ -235,6 +290,10 @@ module Wolf3D
       end
 
       private
+
+      STARTS = %i[start_x start_y start_turns].freeze
+
+      def moved_start?(what, n) = n.zero? && @floors.start_moved? && STARTS.include?(what)
 
       # Each slot's table, declared the first time anything asks for it.
       def declare(slot) = (@declared ||= {})[slot] ||= @b.table(slot, @pack[slot])

@@ -260,7 +260,7 @@ module Wolf3D
 
     x, y, facing = where
     moved = floors.first_floor.level.starting_at(x, y, **(facing ? { facing: facing } : {}))
-    Floors.from(SwappedFirstFloor.new(maps, moved, which.first), vswap, which, holding: holding)
+    Floors.from(SwappedFirstFloor.new(maps, moved, which.first), vswap, which, holding: holding, start_moved: true)
   end
 
   # A GAMEMAPS with one floor read differently, so that moving the start needs no new path

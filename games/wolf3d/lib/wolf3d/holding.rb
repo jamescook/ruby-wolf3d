@@ -17,11 +17,11 @@ module Wolf3D
   # with no change of shape; until then the extra room holds nothing.
   class Holding
     # The most of each thing one floor may hold. wolf4sdl wl_def.h: MAXDOORS, MAXACTORS (the
-    # player is one of them, so one fewer is left for guards) and MAXSTATS. The original sets no
-    # limit on walls that move or on lifts; these are the most any floor of the three releases has
-    # (a floor of the six episodes has 179 walls that move, Spear's busiest has 17 lifts), with
-    # room to spare.
-    ROOM = Ractor.make_shareable({ doors: 64, guards: 149, pieces: 400, pushwalls: 192, lifts: 24 })
+    # player is one of them, so one fewer is left for guards), MAXSTATS and NUMAREAS (the rooms,
+    # counted from one here, since nought is Rooms::NOWHERE). The original sets no limit on walls
+    # that move or on lifts; these are the most any floor of the three releases has (a floor of
+    # the six episodes has 179 walls that move, Spear's busiest has 17 lifts), with room to spare.
+    ROOM = Ractor.make_shareable({ doors: 64, guards: 149, pieces: 400, pushwalls: 192, lifts: 24, rooms: 37 })
 
     # Every page of walls and doors in the largest VSWAP, and every sprite in the largest, counted
     # off the copies (VSWAP's header says them; the original's source does not): Spear's has 134

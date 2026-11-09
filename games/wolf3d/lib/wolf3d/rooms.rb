@@ -229,8 +229,11 @@ module Wolf3D
     end
 
     # The most rooms any one floor has, which is what the list is sized for — only one floor is
-    # ever being played. Numbered from one, so the count is the highest number.
-    def most_rooms = @floors.map { |floor| self.class.rooms_in(floor.level).max.to_i + 1 }.max
+    # ever being played. Numbered from one, so the count is the highest number. A whole build has
+    # room for the original's own limit, since its floors are read after it is built (Holding).
+    def most_rooms
+      @floors.holding.room_for(:rooms) || @floors.map { |floor| self.class.rooms_in(floor.level).max.to_i + 1 }.max
+    end
 
     # A ROUTINE, placed by what a frame really spends in it. It runs ONCE a frame, and what it
     # competes with for the quick memory is :remember_a_standing_thing, which runs once for every
@@ -265,8 +268,11 @@ module Wolf3D
       @spread = 1
       b.repeat(@count, stop_when: @spread == 0) do
         @spread = 0
-        # THE ROOMS THAT ARE ALWAYS JOINED, if this cartridge has any — see always_joined.
-        @always.each { |near, far| join(near, far) }
+        # THE ROOMS THAT ARE ALWAYS JOINED, if this cartridge has any — see always_joined. A whole
+        # build joins this floor's own, as it runs (FloorTables).
+        @this_floor.tables.join_secret_wall_rooms(pairs: @always, this_floor: @this_floor) do |near, far|
+          join(near, far)
+        end
         b.repeat(@this_floor.door_count) do |door|
           if @open[door] > AJAR
             @near = @side_a[@this_floor.door(door)]

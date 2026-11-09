@@ -34,7 +34,9 @@ module Wolf3D
     # plays them. +vswap+ is wanted only because a door's picture comes out of it.
     # +holding+ says whether the lists played with are sized for these floors or for any floor of
     # the original (Holding).
-    def self.from(maps, vswap, which, holding: Holding.trimmed)
+    # +start_moved+ says the first floor's start was moved by WOLF3D_START, so the build knows
+    # where play starts even where it reads the floors themselves from a pack (FloorTables).
+    def self.from(maps, vswap, which, holding: Holding.trimmed, start_moved: false)
       new(which.map do |index|
         level = maps[index]
         Floor.new(index: index, level: level,
@@ -43,7 +45,7 @@ module Wolf3D
                   lifts: Elevator.new(level),
                   guards: Guards.new(level),
                   scenery: Scenery.new(level))
-      end, episodes_of_ten: maps.episodes_of_ten?, holding: holding)
+      end, episodes_of_ten: maps.episodes_of_ten?, holding: holding, start_moved: start_moved)
     end
 
     # ...and the one-floor case, given the pieces already made rather than making them again.
@@ -58,17 +60,21 @@ module Wolf3D
 
     # +episodes_of_ten+ says the release these floors come from is Wolfenstein's own layout — see
     # #episodes_of_ten?.
-    def initialize(floors, episodes_of_ten: true, holding: Holding.trimmed)
+    def initialize(floors, episodes_of_ten: true, holding: Holding.trimmed, start_moved: false)
       raise ArgumentError, "a game needs at least one floor" if floors.empty?
 
       @floors = floors
       @episodes_of_ten = episodes_of_ten
       @holding = holding
+      @start_moved = start_moved
       refuse_mixed_sizes!
       refuse_overfull_floors!
     end
 
     attr_reader :holding
+
+    # Was the first floor's start moved by WOLF3D_START?
+    def start_moved? = @start_moved
 
     # IS THE RELEASE EPISODES OF TEN, the last of each its secret floor? Wolfenstein's are, the
     # shareware's one episode as much as the registered six. Spear of Destiny is not — see
@@ -156,6 +162,7 @@ module Wolf3D
       when :lifts     then floor.lifts&.count || 0
       when :guards    then floor.guards&.count || 0
       when :pieces    then floor.scenery&.count || 0
+      when :exits     then floor.level.exits.length
       else raise ArgumentError, "no such thing on a floor: #{kind}"
       end
     end
