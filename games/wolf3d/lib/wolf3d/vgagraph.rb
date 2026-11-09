@@ -103,6 +103,31 @@ module Wolf3D
 
     NAMES = { "WL6" => WL6_NAMES, "WL1" => WL1_NAMES }.freeze
 
+    # HOW BIG EACH NAMED PICTURE IS, the same in both releases, as their picture tables say
+    # (test_vgagraph.rb holds both copies to it). A whole build declares each picture before any
+    # copy is read (VgagraphUnpacking), so it needs the shape while building; the art comes later.
+    SIZES = Ractor.make_shareable({
+      [152, 48] => %i[menu_heading],
+      [24, 16] => %i[menu_gun menu_gun_firing],
+      [216, 48] => %i[load_game_heading save_game_heading],
+      [32, 8] => %i[level_label name_label score_label],
+      [88, 88] => %i[bj_wins],
+      [320, 40] => %i[status_bar],
+      [320, 200] => %i[title credits],
+      [88, 64] => %i[notice],
+      [224, 56] => %i[high_scores],
+      [48, 24] => %i[knife pistol machine_gun chain_gun episode_1 episode_2 episode_3 episode_4 episode_5 episode_6],
+      [8, 16] => %i[no_key gold_key silver_key blank_digit digit_0 digit_1 digit_2 digit_3 digit_4 digit_5 digit_6
+                    digit_7 digit_8 digit_9 tally_colon tally_exclamation tally_apostrophe],
+      [24, 32] => %i[difficulty_baby difficulty_easy difficulty_normal difficulty_hard face_1a face_1b face_1c
+                     face_2a face_2b face_2c face_3a face_3b face_3c face_4a face_4b face_4c face_5a face_5b face_5c
+                     face_6a face_6b face_6c face_7a face_7b face_7c face_8a face_8b face_8c],
+      [16, 16] => %i[tally_0 tally_1 tally_2 tally_3 tally_4 tally_5 tally_6 tally_7 tally_8 tally_9 tally_percent
+                     tally_a tally_b tally_c tally_d tally_e tally_f tally_g tally_h tally_i tally_j tally_k
+                     tally_l tally_m tally_n tally_o tally_p tally_q tally_r tally_s tally_t tally_u tally_v
+                     tally_w tally_x tally_y tally_z]
+    }.flat_map { |size, names| names.map { |name| [name, size] } }.to_h)
+
     # WHERE THE TEXT OF THE FIRST EPISODE'S ENDING IS (T_ENDART1). The shareware has only that one,
     # and it is the last chunk of the file.
     FIRST_END_ARTICLE = { "WL6" => 143, "WL1" => 155 }.freeze

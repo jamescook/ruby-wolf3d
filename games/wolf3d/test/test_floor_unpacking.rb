@@ -125,6 +125,22 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_sprites vswap, pack
     assert_same_gun vswap, pack
     assert_same_picture_table graph, pack
+    assert_same_named_pictures graph, pack
+  end
+
+  # EVERY NAMED PICTURE, put back together from its four planes, one after another in the order
+  # Vgagraph::SIZES names them, each row by row at its own size: place nought for one the release
+  # has at another size, which this game cannot draw.
+  def assert_same_named_pictures(graph, pack)
+    got = pack.fetch(:vga_pictures)
+    at = 0
+    Wolf3D::Vgagraph::SIZES.each do |name, (width, height)|
+      fits = graph.names.include?(name) && graph.size(name) == [width, height]
+      wanted = fits ? graph.picture(name).pixels : Array.new(width * height, 0)
+      assert_equal wanted, got.byteslice(at, width * height).bytes, "the picture #{name}"
+      at += width * height
+    end
+    assert_equal at, got.bytesize, "every named picture and nothing more"
   end
 
   # VGAGRAPH'S PICTURE TABLE, Huffman-packed in its first chunk: how many pictures the release

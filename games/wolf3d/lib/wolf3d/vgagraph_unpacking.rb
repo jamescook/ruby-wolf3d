@@ -29,10 +29,22 @@ module Wolf3D
     # The most packed bytes one chunk can take: the largest VGAGRAPH there is (the shareware's).
     MOST_PACKED = 330_000
 
+    PLANES = Vgagraph::PLANES
+
+    # WHERE EACH NAMED PICTURE STARTS in the slot of them, one after another in Vgagraph::SIZES'
+    # order, each row by row at its own size; and how many places they take in all.
+    NAMED_PLACES = Vgagraph::SIZES.values.sum { |width, height| width * height }
+    PICTURE_AT = Ractor.make_shareable(
+      Vgagraph::SIZES.keys.zip(Vgagraph::SIZES.values.map { |width, height| width * height }
+                                              .each_with_object([0]) { |places, starts| starts << (starts.last + places) })
+                     .to_h
+    )
+
     # The slots VGAGRAPH takes, declared on +slots+ (the data pack's).
     def self.declare(slots)
       slots.numbers :picture_count, count: 1, width: :half, signed: false, layout: :gba
       slots.numbers :picture_sizes, count: PICTURES * 2, width: :half, signed: false, layout: :gba
+      slots.pixels :vga_pictures, count: NAMED_PLACES
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.
@@ -48,9 +60,56 @@ module Wolf3D
       @graph = @copy.file("VGAGRAPH.#{@release}")
       @dictionary = @copy.file("VGADICT.#{@release}")
       unpack_picture_table
+      unpack_named_pictures
     end
 
     private
+
+    # EVERY PICTURE THIS GAME DRAWS BY NAME, at its place in the slot (PICTURE_AT), by the number
+    # this release keeps it under (Vgagraph::NAMES; a release with no names gives none). A picture is
+    # four quarter-width pictures one after another, the display's four planes, so column x of the
+    # whole is column x / 4 of plane x % 4 (wolf4sdl: id_vh.cpp, VWB_DrawPic; Vgagraph::Picture). A
+    # picture the release's table gives another size is left at place nought.
+    #
+    # One walk, over tables of each picture's number, place and size, so the Huffman walk is written
+    # into the routine once rather than once a picture.
+    def unpack_named_pictures
+      names = Vgagraph::NAMES.fetch(@release, {})
+      return if names.empty? # a plain Ruby value: decided while building
+
+      numbers = @b.table(:vga_named_number, names.values, width: :half)
+      starts = @b.table(:vga_named_at, names.keys.map { |name| PICTURE_AT.fetch(name) }, width: :word)
+      widths = @b.table(:vga_named_width, names.keys.map { |name| Vgagraph::SIZES.fetch(name).first }, width: :half)
+      heights = @b.table(:vga_named_height, names.keys.map { |name| Vgagraph::SIZES.fetch(name).last }, width: :half)
+      number = routine_var(:number)
+      @b.repeat(names.length) do |n|
+        number.store!(numbers[n])
+        routine_var(:at).store!(starts[n])
+        routine_var(:width).store!(widths[n])
+        routine_var(:height).store!(heights[n])
+        if (@pack[:picture_sizes][2 * number] == routine_var(:width)) &
+           (@pack[:picture_sizes][(2 * number) + 1] == routine_var(:height))
+          unpack_picture(Vgagraph::FIRST_PICTURE + number)
+        end
+      end
+    end
+
+    # The picture in chunk +chunk+, routine_var(:width) by routine_var(:height), into the slot from
+    # routine_var(:at).
+    def unpack_picture(chunk)
+      width = routine_var(:width)
+      quarter = routine_var(:quarter)
+      plane_places = routine_var(:plane_places)
+      quarter.store!(width / PLANES)
+      plane_places.store!(quarter * routine_var(:height))
+      unpack_chunk(chunk) do |byte, made|
+        if made < width * routine_var(:height)
+          @pack[:vga_pictures][routine_var(:at) + (((made % plane_places) / quarter) * width) +
+                               ((made % quarter) * PLANES) + (made / plane_places)] = byte
+          @copy.count_written 1
+        end
+      end
+    end
 
     # THE PICTURE TABLE, chunk nought: a width and a height for each picture, two bytes each, so
     # the release's count of pictures is a quarter of its length. One past PICTURES is not kept.

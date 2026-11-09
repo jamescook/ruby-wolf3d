@@ -190,6 +190,15 @@ class TestVgagraph < Minitest::Test
     end
   end
 
+  # EVERY NAMED PICTURE IS THE SIZE Vgagraph::SIZES SAYS, in both releases, which a whole build
+  # declares its pictures at before any copy is read.
+  def test_every_named_picture_is_the_size_both_releases_say
+    [real, Wolf3D::Vgagraph.from(real_shareware)].each do |vg|
+      assert_equal Wolf3D::Vgagraph::SIZES.keys.sort, vg.names.sort, "#{vg.set}'s names"
+      vg.names.each { |name| assert_equal Wolf3D::Vgagraph::SIZES.fetch(name), vg.size(name), "#{vg.set} #{name}" }
+    end
+  end
+
   # THE ONE THE STATUS BAR IS BUILT ON. Named rather than numbered, because a number here
   # says nothing about what it is, and the numbers differ from one release to the next.
   def test_a_named_picture_is_the_size_that_release_draws_it
