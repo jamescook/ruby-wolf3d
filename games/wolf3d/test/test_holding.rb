@@ -162,6 +162,23 @@ class TestHolding < Minitest::Test
     assert_operator count_differing_pixels(seen[4], trimmed), :>, 100, "the status bar of place nought"
   end
 
+  # A WHOLE BUILD DRAWS THE DOORS ITS PACK HOLDS: walked up to the first floor's door, the door
+  # handed the six episodes' pack looks as the trimmed build draws it, and with the door's pictures
+  # (the last Doors::DOOR_PICTURES wall pages of the copy) place nought in the pack, it does not.
+  def test_a_whole_build_draws_the_doors_its_pack_holds
+    program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1, screen: "playing", hold: "whole" },
+                                           pack_at_start: true)
+    slots = slots_unpacked_from(real_copy)
+    seen = [slots, slots.merge(wall_pictures: without_door_pictures(slots.fetch(:wall_pictures)))].map do |held|
+      Reference.new.hand_file(pack_file_of(held)).input_each_frame(&WALK_KEYS).run(program, frames: DOOR_FRAMES).screen
+    end
+    trimmed = Reference.new.input_each_frame(&WALK_KEYS).run(first_floor(hold: "trimmed"), frames: DOOR_FRAMES).screen
+
+    assert_equal 0, count_differing_pixels(seen[0], trimmed), "the pack's own door"
+    # The door fills most of the view from where the walk stops.
+    assert_operator count_differing_pixels(seen[1], trimmed), :>, 1000, "a door of place nought"
+  end
+
   # A WHOLE BUILD LAYS OUT ITS MENUS AND STATUS BAR WITHOUT OPENING VGAGRAPH: every size and place it
   # needs is a constant the code holds (Vgagraph::SIZES, BarArt::PLATE), so a shell built where there
   # is no copy has both. Built with any question to VGAGRAPH refused, its main menu, bar and all,
@@ -427,6 +444,20 @@ class TestHolding < Minitest::Test
   def slots_unpacked_from(data)
     unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
     slots_unpacked_by(unpacking)
+  end
+
+  # The pack's wall_pictures, +walls+, with the six episodes' door pages place nought: the row holds
+  # every page side by side, a page's row of SIDE places at page * SIDE along each of its rows.
+  def without_door_pictures(walls)
+    side = Wolf3D::Vswap::Texture::SIDE
+    across = Wolf3D::Holding::WALL_PAGES * side
+    first_door = Wolf3D.vswap.wall_count - Wolf3D::Doors::DOOR_PICTURES
+    walls.dup.tap do |blanked|
+      side.times do |y|
+        blanked[(y * across) + (first_door * side), Wolf3D::Doors::DOOR_PICTURES * side] =
+          "\x00".b * (Wolf3D::Doors::DOOR_PICTURES * side)
+      end
+    end
   end
 
   # The pack file holding +slots+.

@@ -27,56 +27,132 @@ class TestFloorUnpacking < Minitest::Test
   end
 
   # A COPY DAMAGED WHERE A PLACE POINTS OUTSIDE ITS FILE, or outside its page, unpacks nothing from
-  # that place rather than reading whatever the copy holds after it. One made-up copy is damaged in
-  # four such places at once, since each unpack is minutes on the interpreter:
+  # that place rather than reading whatever the copy holds after it, and the rest of the pack is
+  # unpacked as the readers read the undamaged copy. One damaged file a case, so a guard that fails
+  # cannot hide another.
   #
-  # - its floor's walls said to start past the end of GAMEMAPS: no floor the routine can read;
-  # - its first wall page said to start past the end of VSWAP: that page left at place nought;
-  # - its first sprite's header naming columns outside its square: left see-through, no edges;
-  # - VGAGRAPH's picture table said by VGAHEAD to start past the file: a release of no pictures.
-  def test_places_outside_their_file_are_not_unpacked
-    Dir.mktmpdir do |dir|
-      Wolf3D::Fixture::Release.new(set: "WL6").write(dir)
-      damage(dir, "GAMEMAPS.WL6") do |maps|
-        level_at = File.binread(File.join(dir, "MAPHEAD.WL6"))[2, 4].unpack1("V")
-        maps[level_at, 4] = [maps.bytesize + 100].pack("V")
-      end
-      damage(dir, "VSWAP.WL6") do |vswap|
-        first_sprite = vswap[2, 2].unpack1("v")
-        sprite_at = vswap[Wolf3D::Vswap::HEADER_BYTES + (4 * first_sprite), 4].unpack1("V")
-        vswap[sprite_at + 2, 2] = [200].pack("v")
-        vswap[Wolf3D::Vswap::HEADER_BYTES, 4] = [vswap.bytesize + 100].pack("V")
-      end
-      past = File.size(File.join(dir, "VGAGRAPH.WL6")) + 100
-      damage(dir, "VGAHEAD.WL6") { |head| head[0, Wolf3D::Vgagraph::OFFSET_BYTES] = [past].pack("V")[0, Wolf3D::Vgagraph::OFFSET_BYTES] }
-      pack = unpacked(made_up_original(dir))
-      walls = pack.fetch(:wall_pictures)
-      sprites = pack.fetch(:sprite_pictures)
-      sprite_across = Wolf3D::Holding::SPRITES * SIDE
-
-      assert_equal 0, pack.fetch(:floor_count).getbyte(0), "a floor past GAMEMAPS"
-      assert_equal [0], (0...SIDE).flat_map { |y| walls.byteslice(y * Wolf3D::Holding::WALL_PAGES * SIDE, SIDE).bytes }.uniq,
-                   "a wall page past VSWAP"
-      assert_equal [Wolf3D::PictureUnpacking::SEE_THROUGH],
-                   (0...SIDE).flat_map { |y| sprites.byteslice(y * sprite_across, SIDE).bytes }.uniq, "a sprite's columns"
-      assert_equal [0, 0], [pack.fetch(:sprite_first_column).getbyte(0), pack.fetch(:sprite_last_column).getbyte(0)]
-      assert_equal 0, pack.fetch(:picture_count).unpack1("v"), "a chunk past VGAGRAPH"
-      assert_equal [0], pack.fetch(:picture_sizes).unpack("v*").uniq
+  # Its floor's walls said to start past the end of GAMEMAPS: no floor the routine can read.
+  def test_a_floor_past_gamemaps_is_not_unpacked
+    pack, release = unpacked_with_damage("GAMEMAPS.WL6") do |maps, dir|
+      level_at = File.binread(File.join(dir, "MAPHEAD.WL6"))[2, 4].unpack1("V")
+      maps[level_at, 4] = [maps.bytesize + 100].pack("V")
     end
+
+    assert_equal 0, pack.fetch(:floor_count).getbyte(0), "a floor past GAMEMAPS"
+    assert_same_walls Wolf3D::Vswap.new(release.files["VSWAP"]), pack
+    assert_same_named_pictures release.pictures, pack
   end
 
+  # Its first wall page said to start past the end of VSWAP: that page left at place nought.
+  def test_a_wall_page_past_vswap_is_not_unpacked
+    pack, release = unpacked_with_damage("VSWAP.WL6") do |vswap|
+      vswap[Wolf3D::Vswap::HEADER_BYTES, 4] = [vswap.bytesize + 100].pack("V")
+    end
+    walls = pack.fetch(:wall_pictures)
+
+    assert_equal [0], (0...SIDE).flat_map { |y| walls.byteslice(y * Wolf3D::Holding::WALL_PAGES * SIDE, SIDE).bytes }.uniq,
+                 "a wall page past VSWAP"
+    assert_same_sprites Wolf3D::Vswap.new(release.files["VSWAP"]), pack
+    assert_same_world Wolf3D::Maps.new(maphead: release.files["MAPHEAD"], gamemaps: release.files["GAMEMAPS"]), pack
+  end
+
+  # Its first sprite's header naming columns outside its square: left see-through, with no edges.
+  def test_a_sprite_past_its_page_is_not_unpacked
+    pack, release = unpacked_with_damage("VSWAP.WL6") do |vswap|
+      first_sprite = vswap[2, 2].unpack1("v")
+      sprite_at = vswap[Wolf3D::Vswap::HEADER_BYTES + (4 * first_sprite), 4].unpack1("V")
+      vswap[sprite_at + 2, 2] = [200].pack("v")
+    end
+    sprites = pack.fetch(:sprite_pictures)
+    sprite_across = Wolf3D::Holding::SPRITES * SIDE
+
+    assert_equal [Wolf3D::PictureUnpacking::SEE_THROUGH],
+                 (0...SIDE).flat_map { |y| sprites.byteslice(y * sprite_across, SIDE).bytes }.uniq, "a sprite's columns"
+    assert_equal [0, 0], [pack.fetch(:sprite_first_column).getbyte(0), pack.fetch(:sprite_last_column).getbyte(0)]
+    assert_same_walls Wolf3D::Vswap.new(release.files["VSWAP"]), pack
+  end
+
+  # VGAGRAPH's picture table said by VGAHEAD to start past the file: a release of no pictures, so no
+  # named picture, no shortened screen and no piece of the bar, while its fonts and the end of each
+  # episode, chunks of their own, are read as ever.
+  def test_a_picture_table_past_vgagraph_is_not_unpacked
+    pack, release = unpacked_with_damage("VGAHEAD.WL6") do |head, dir|
+      past = File.size(File.join(dir, "VGAGRAPH.WL6")) + 100
+      head[0, Wolf3D::Vgagraph::OFFSET_BYTES] = [past].pack("V")[0, Wolf3D::Vgagraph::OFFSET_BYTES]
+    end
+
+    assert_equal 0, pack.fetch(:picture_count).unpack1("v"), "a chunk past VGAGRAPH"
+    assert_equal [0], pack.fetch(:picture_sizes).unpack("v*").uniq
+    %i[vga_pictures screen_pictures bar_pictures].each do |slot|
+      assert_equal [0], pack.fetch(slot).bytes.uniq, "#{slot} with no pictures to make them of"
+    end
+    assert_same_fonts release.pictures, pack
+    assert_same_end_articles release.pictures, pack
+    assert_same_small_letters release.pictures, pack
+  end
+
+  # A real copy's status bar and shortened title too, which the made-up release's plate is not
+  # painted to be measured for.
   def test_the_six_episodes_unpack_as_the_readers_read_them
-    assert_unpacked_as_read Wolf3D.maps, Wolf3D.vswap, Wolf3D.vgagraph, unpacked(original_of(real_copy))
+    pack = unpacked(original_of(real_copy))
+    assert_unpacked_as_read Wolf3D.maps, Wolf3D.vswap, Wolf3D.vgagraph, pack
+    assert_same_bar Wolf3D.vgagraph, pack
+    assert_same_screens Wolf3D.vgagraph, pack
   end
 
   # The shareware's ten floors fill the same slots, and the pack says it has ten.
   def test_the_shareware_unpacks_as_the_readers_read_it
     data = real_shareware
-    assert_unpacked_as_read Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), Wolf3D::Vgagraph.from(data),
-                            unpacked(original_of(data))
+    graph = Wolf3D::Vgagraph.from(data)
+    pack = unpacked(original_of(data))
+    assert_unpacked_as_read Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), graph, pack
+    assert_same_bar graph, pack
+    assert_same_screens graph, pack
   end
 
   private
+
+  # THE STATUS BAR'S PIECES, each where BarUnpacking.pieces puts it and as BarArt makes it for a
+  # trimmed build: the faces, the keys, the numerals and the shrunk weapons each one row, each label
+  # and the groove cut out of the plate. Held as places: BarArt is handed PLACES for a palette.
+  def assert_same_bar(graph, pack)
+    art = Wolf3D::BarArt.of(graph)
+    got = pack.fetch(:bar_pictures)
+    Wolf3D::BarUnpacking.pieces.each do |piece|
+      assert_equal bar_piece(art, piece.name), got.byteslice(piece.at, piece.width * piece.height).bytes,
+                   "the bar's #{piece.name}"
+    end
+    assert_equal Wolf3D::BarUnpacking.places, got.bytesize, "every piece and nothing more"
+  end
+
+  # A "palette" that turns each place into itself, so BarArt answers in places.
+  PLACES = (0..255).to_a
+
+  # The piece of the bar called +name+ (BarUnpacking.pieces) as +art+ makes it.
+  def bar_piece(art, name)
+    case name
+    when :faces then art.faces(PLACES)
+    when :keys then art.keys(PLACES)
+    when :numerals then art.numerals(PLACES)
+    when :weapons then art.weapons(PLACES)
+    when :rule then art.rule(Wolf3D::BarUnpacking::RULE_HEIGHT, PLACES)[:data]
+    else art.label(name.to_s.delete_prefix("label_").to_sym, PLACES)[:data]
+    end
+  end
+
+  # THE TITLE AND THE CREDITS MADE SHORTER, each where VgagraphUnpacking::SCREEN_AT puts it, as
+  # MenuArt#picture shortens them for a trimmed build. Held as colours, which is how MenuArt gives
+  # them: it chooses its rows by how light each colour is.
+  def assert_same_screens(graph, pack)
+    palette = Wolf3D.palette
+    art = Wolf3D::MenuArt.of(graph)
+    Wolf3D::VgagraphUnpacking::SCREENS.each do |name|
+      wanted = art.picture(name, palette)
+      places = pack.fetch(:screen_pictures).byteslice(Wolf3D::VgagraphUnpacking::SCREEN_AT.fetch(name),
+                                                      wanted[:width] * wanted[:height]).bytes
+      assert_equal wanted[:data], places.map { |place| palette[place] }, "the shortened #{name}"
+    end
+  end
 
   def assert_unpacked_as_read(maps, vswap, graph, pack)
     assert_equal maps.count, pack.fetch(:floor_count).getbyte(0)
@@ -431,12 +507,18 @@ class TestFloorUnpacking < Minitest::Test
     end
   end
 
-  # The file +name+ of the copy in +dir+, its bytes handed to the block to change and written back.
-  def damage(dir, name)
-    path = File.join(dir, name)
-    bytes = File.binread(path)
-    yield bytes
-    File.binwrite(path, bytes)
+  # The pack unpacked from the made-up release with its file +name+ damaged, and that release
+  # undamaged: the file's bytes, and the directory it is in, are handed to the block to change.
+  def unpacked_with_damage(name)
+    Dir.mktmpdir do |dir|
+      release = Wolf3D::Fixture::Release.new(set: "WL6")
+      release.write(dir)
+      path = File.join(dir, name)
+      bytes = File.binread(path)
+      yield bytes, dir
+      File.binwrite(path, bytes)
+      [unpacked(made_up_original(dir)), release]
+    end
   end
 
   def unpacked(original)
