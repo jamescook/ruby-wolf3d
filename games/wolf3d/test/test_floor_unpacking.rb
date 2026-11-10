@@ -99,6 +99,33 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_fonts graph, pack
     assert_same_end_articles graph, pack
     assert_same_small_letters graph, pack
+    assert_same_article_pages graph, pack
+  end
+
+  # EACH EPISODE'S END ARTICLE LAID OUT AS EndArticle.pages LAYS IT OUT for EpisodeEnd, at the
+  # small letters' widths: page for page and line for line, each line in its row of the page, and
+  # where each episode's pages start.
+  def assert_same_article_pages(graph, pack)
+    episode_end = Wolf3D::EpisodeEnd
+    widths = Wolf3D::SmallLetterUnpacking.letters.to_h { |letter| [letter.code, letter.even_width] }
+    held = Wolf3D::Vgagraph::END_ARTICLES.fetch(graph.set, 0)
+    pages = (0...Wolf3D::EndArticleUnpacking::ARTICLES).map do |episode|
+      text = episode < held ? graph.text(graph.end_article_chunk(episode)) : ""
+      Wolf3D::EndArticle.pages(text, width: episode_end::TEXT_WIDTH, lines: episode_end::LINES) do |char|
+        widths.fetch(char.ord, Wolf3D::SmallLetters::BLANK_WIDTH)
+      end
+    end
+    starts = pages.map(&:length).each_with_object([0]) { |count, all| all << (all.last + count) }
+    assert_equal starts, pack.fetch(:article_first_page).bytes, "where each episode's pages start"
+
+    room = episode_end::LINES * episode_end::COLUMNS
+    pages.flatten(1).each_with_index do |page, n|
+      page.each_with_index do |line, row|
+        wanted = line.b.ljust(episode_end::COLUMNS, "\0").byteslice(0, episode_end::COLUMNS)
+        assert_equal wanted, pack.fetch(:article_pages).byteslice((n * room) + (row * episode_end::COLUMNS), episode_end::COLUMNS),
+                     "page #{n}, line #{row}"
+      end
+    end
   end
 
   # THE SMALL ALPHABET'S PRINTABLE CHARACTERS as the high scores draw them, each one's rows widened

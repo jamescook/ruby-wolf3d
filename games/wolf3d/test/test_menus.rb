@@ -472,6 +472,16 @@ class TestMenus < Minitest::Test
     assert_match(/more floors/, error.message, "and it should say how to fix it")
   end
 
+  # Nor can one whose floors cannot end an episode boot on the screen that says you won.
+  def test_a_cartridge_that_cannot_end_an_episode_cannot_be_told_to_boot_on_the_win
+    error = assert_raises(ArgumentError) do
+      self.class.cartridge(episodes: 1, starting_on: Menus::WINNING)
+    end
+
+    assert_match(/"won" screen/, error.message)
+    assert_match(/last floor of an episode/, error.message, "and it should say how to fix it")
+  end
+
   # --- THE GAME'S OWN LETTERING ---------------------------------------------------------------
 
   # THE ROWS ARE WRITTEN IN WOLFENSTEIN'S OWN ALPHABET, which is the whole of what this bead was

@@ -107,19 +107,21 @@ class TestHolding < Minitest::Test
   end
 
   # ...AND ITS LETTERING: handed the six episodes' pack, the screen between floors (in the big
-  # letters, VGAGRAPH's named pictures) and the table of high scores (its names in the small
-  # alphabet, each letter widened to an even width by the unpacking) look as the trimmed build draws
-  # them; handed the same pack with the named pictures, or the small letters, blanked, neither does.
+  # letters, VGAGRAPH's named pictures), the table of high scores (its names in the small alphabet,
+  # each letter widened to an even width by the unpacking) and the first page of the first episode's
+  # end article (laid out by the unpacking) look as the trimmed build draws them; handed the same
+  # pack with the named pictures, the small letters or the article's pages blanked, none does.
   def test_a_whole_build_draws_the_lettering_its_pack_holds
     slots = slots_unpacked_from(real_copy)
     shown = {
       { floors: 1, screen: "playing", start: LiftScene.start } => [:vga_pictures, LiftScene::TALLY_FRAMES,
                                                                    ->(frame) { LiftScene.keys(frame) }],
-      { screen: "scores" } => [:small_letter_pictures, MenuScene::FRAMES, ->(_) { [] }]
+      { screen: "scores" } => [:small_letter_pictures, MenuScene::FRAMES, ->(_) { [] }],
+      ArticleScene::SETTINGS => [:article_pages, ArticleScene::FRAMES, ->(frame) { ArticleScene.keys(frame) }]
     }
     shown.each do |settings, (slot, frames, keys)|
       program = Wolf3D::GAME.checked_program(err: nil, settings: settings.merge(hold: "whole"), pack_at_start: true)
-      trimmed_program = Wolf3D::GAME.checked_program(err: nil, settings: settings.merge(floors: 1, hold: "trimmed"))
+      trimmed_program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1 }.merge(settings, hold: "trimmed"))
       trimmed = Reference.new.input_each_frame(&keys).run(trimmed_program, frames: frames).screen
       seen = [{}, { slot => "\x00".b * slots.fetch(slot).bytesize }].map do |changed|
         Reference.new.hand_file(pack_file_of(slots.merge(changed))).input_each_frame(&keys).run(program, frames: frames).screen

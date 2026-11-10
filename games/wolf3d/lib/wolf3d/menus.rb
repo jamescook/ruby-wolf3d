@@ -321,13 +321,20 @@ module Wolf3D
     NOWHERE = -1
 
     # A cartridge asked to boot on a screen it does not carry would boot to nothing at all, so
-    # it says so instead. The one screen that can be missing is the episode list.
+    # it says so instead. Two screens can be missing: the episode list, on a cartridge of one
+    # episode, and the screen that says you won, on one whose floors cannot end an episode.
     def check_it_can_start_there!
       return if screens.key?(@starting_on)
 
+      if @starting_on == EPISODES
+        raise ArgumentError,
+              "This cartridge has no episode list to start on. It holds #{@episodes.length} " \
+              "episode. To fix this, build it with more floors. Or start on another screen."
+      end
+
       raise ArgumentError,
-            "This cartridge has no episode list to start on. It holds #{@episodes.length} " \
-            "episode. To fix this, build it with more floors. Or start on another screen."
+            "This cartridge has no \"#{BY_NAME.key(@starting_on)}\" screen to start on. Its floors cannot end " \
+            "an episode. To fix this, build it with the last floor of an episode. Or start on another screen."
     end
 
     def declare_the_lettering
@@ -607,7 +614,8 @@ module Wolf3D
 
     def declare_episode_end_screens
       @episode_end = EpisodeEnd.new(build: @b, art: @art, letters: @letters, lettering: @view.big_lettering,
-                                    records: @view.records, floor: @view.playthrough.floor, floors: @view.floors)
+                                    records: @view.records, floor: @view.playthrough.floor, floors: @view.floors,
+                                    pack: @pack)
       # A cartridge built to boot here has won nothing, so the sums are done for it.
       @episode_end.add_up_the_episode if @starting_on == WINNING
       @b.scene(:you_win) do

@@ -37,7 +37,9 @@ module Wolf3D
     COLUMNS = 40
 
     # +letters+ is the small alphabet, +lettering+ the big one, +records+ the floors of the episode.
-    def initialize(build:, art:, letters:, lettering:, records:, floor:, floors:)
+    # +pack+ is a whole build's data pack, whose article_pages and article_first_page hold every
+    # episode's article laid out (EndArticleUnpacking); a trimmed build lays them out from +art+.
+    def initialize(build:, art:, letters:, lettering:, records:, floor:, floors:, pack: nil)
       @b = build
       @art = art
       @letters = letters
@@ -45,6 +47,7 @@ module Wolf3D
       @records = records
       @floor = floor
       @floors = floors
+      @pack = pack
       declare
     end
 
@@ -81,14 +84,24 @@ module Wolf3D
       @last_page = b.var :_end_last_page, 0
       @base = b.var :_end_base, 0
       @code = b.var :_end_code, 0
-      pages = (0...Floors.episodes_in(@floors)).map { |n| paged(n) }
-      @first_page = b.table :article_first_page, pages.map(&:length).inject([0]) { |all, count| all + [all.last + count] },
-                            width: :byte
-      @text = b.table :article_text, Floors.at_least_one(pages.flatten(1).flat_map { |page| flatten_page(page) }), width: :byte
+      declare_the_articles
       @episode_of = b.table :article_episode, @floors.map { |f| f.index / Floors::PER_EPISODE }, width: :byte
       @summary = b.keep_showing(:episode_summary) { paint_summary }
       @page_picture = b.keep_showing(:article_page) { paint_page }
       b.func(:add_up_the_episode, fast: false) { add_up }
+    end
+
+    # EVERY ARTICLE'S PAGES, LINES rows of COLUMNS bytes each, and where each episode's start.
+    def declare_the_articles
+      if @pack
+        @first_page = @b.table :article_first_page, @pack[:article_first_page]
+        @text = @b.table :article_text, @pack[:article_pages]
+      else
+        pages = (0...Floors.episodes_in(@floors)).map { |n| paged(n) }
+        @first_page = @b.table :article_first_page, pages.map(&:length).inject([0]) { |all, count| all + [all.last + count] },
+                               width: :byte
+        @text = @b.table :article_text, Floors.at_least_one(pages.flatten(1).flat_map { |page| flatten_page(page) }), width: :byte
+      end
     end
 
     def paged(episode)
