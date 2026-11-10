@@ -413,8 +413,8 @@ module Wolf3D
       view = Wolf3D::FirstPerson.new(build: self, floors: floors,
                                      atlas: source.wall_atlas(floors, holding: holding),
                                      things: source.thing_atlas(floors),
-                                     vswap: Wolf3D.vswap,
-                                     adlib: Wolf3D.adlib,
+                                     vswap: source.digitized_sounds,
+                                     adlib: source.adlib_sounds,
                                      bar_art: source.bar_art,
                                      gun_art: source.gun_art,
                                      lettering: menu_art,
@@ -423,7 +423,7 @@ module Wolf3D
                                      ammo: Wolf3D.starting_ammo(ammo),
                                      source: source)
       if menu_art
-        music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_setting,
+        music = Wolf3D::Music.new(build: self, tracks: source.adlib_music, floors: floors, setting: sound_setting,
                                   holding: holding)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
                                   palette: Wolf3D.palette, sound_setting: sound_setting, music: music,
