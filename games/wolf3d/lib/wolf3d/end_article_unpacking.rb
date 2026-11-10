@@ -43,8 +43,8 @@ module Wolf3D
     def self.page_bytes = EpisodeEnd::LINES * EpisodeEnd::COLUMNS
 
     def self.declare(slots)
-      slots.numbers :article_pages, count: PAGES * page_bytes, width: :byte, signed: false, layout: :gba
-      slots.numbers :article_first_page, count: ARTICLES + 1, width: :byte, signed: false, layout: :gba
+      slots.numbers :article_pages, count: PAGES * page_bytes, width: :byte, signed: false
+      slots.numbers :article_first_page, count: ARTICLES + 1, width: :byte, signed: false
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.

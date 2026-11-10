@@ -54,25 +54,25 @@ module Wolf3D
 
     # The slots the floors take, declared on +slots+ (the data pack's).
     def self.declare(slots)
-      slots.numbers :floor_count, count: 1, width: :byte, signed: false, layout: :gba
-      slots.numbers :wall_plane, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
-      slots.numbers :thing_plane, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
-      slots.numbers :world, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
+      slots.numbers :floor_count, count: 1, width: :byte, signed: false
+      slots.numbers :wall_plane, count: CELLS * FLOORS, width: :half, signed: false
+      slots.numbers :thing_plane, count: CELLS * FLOORS, width: :half, signed: false
+      slots.numbers :world, count: CELLS * FLOORS, width: :half, signed: false
       %i[door_count pushwall_count lift_count].each do |name|
-        slots.numbers name, count: FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: FLOORS, width: :byte, signed: false
       end
       %i[door_picture door_across door_lock door_side_a door_side_b].each do |name|
-        slots.numbers name, count: DOORS_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: DOORS_PER_FLOOR * FLOORS, width: :byte, signed: false
       end
-      slots.numbers :push_home, count: PUSHWALLS_PER_FLOOR * FLOORS, width: :half, signed: false, layout: :gba
+      slots.numbers :push_home, count: PUSHWALLS_PER_FLOOR * FLOORS, width: :half, signed: false
       %i[push_face push_room_a push_room_b].each do |name|
-        slots.numbers name, count: PUSHWALLS_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: PUSHWALLS_PER_FLOOR * FLOORS, width: :byte, signed: false
       end
       # Minus one where a floor has no secret lift, because nought is a real cell (ThisFloor).
-      slots.numbers :secret_car, count: FLOORS, width: :half, signed: true, layout: :gba
+      slots.numbers :secret_car, count: FLOORS, width: :half, signed: true
       declare_pieces(slots)
-      slots.numbers :guard_count, count: FLOORS, width: :byte, signed: false, layout: :gba
-      GUARD_SLOTS.each { |name| slots.numbers name, count: GUARDS_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba }
+      slots.numbers :guard_count, count: FLOORS, width: :byte, signed: false
+      GUARD_SLOTS.each { |name| slots.numbers name, count: GUARDS_PER_FLOOR * FLOORS, width: :byte, signed: false }
       declare_rooms(slots)
     end
 
@@ -81,16 +81,16 @@ module Wolf3D
     # exit tiles, first above last where a floor has none. And the totals the screen between floors
     # counts against (Tally): the men to kill at each of Guards::SETTINGS, and the treasure.
     def self.declare_rooms(slots)
-      slots.numbers :room_of, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
-      slots.numbers :guard_arrow, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
+      slots.numbers :room_of, count: CELLS * FLOORS, width: :byte, signed: false
+      slots.numbers :guard_arrow, count: CELLS * FLOORS, width: :byte, signed: false
       %i[exit_first exit_last treasure_total].each do |name|
-        slots.numbers name, count: FLOORS, width: :half, signed: false, layout: :gba
+        slots.numbers name, count: FLOORS, width: :half, signed: false
       end
-      slots.numbers :kill_total, count: FLOORS * Guards::SETTINGS.length, width: :byte, signed: false, layout: :gba
+      slots.numbers :kill_total, count: FLOORS * Guards::SETTINGS.length, width: :byte, signed: false
       # Where the player starts each floor, and the way they face as quarter turns clockwise from
       # east, the way FirstPerson's angle runs.
       %i[start_x start_y start_quarter_turns].each do |name|
-        slots.numbers name, count: FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: FLOORS, width: :byte, signed: false
       end
     end
 
@@ -99,12 +99,12 @@ module Wolf3D
     # for a cell a foot cannot pass, one for a cell with something to pick up, as the piece's number
     # in its floor counting from one. A floor can hold more pieces than a byte counts.
     def self.declare_pieces(slots)
-      slots.numbers :piece_count, count: FLOORS, width: :half, signed: false, layout: :gba
+      slots.numbers :piece_count, count: FLOORS, width: :half, signed: false
       %i[piece_x piece_y piece_kind piece_picture piece_room].each do |name|
-        slots.numbers name, count: PIECES_PER_FLOOR * FLOORS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: PIECES_PER_FLOOR * FLOORS, width: :byte, signed: false
       end
-      slots.numbers :blocked, count: CELLS * FLOORS, width: :byte, signed: false, layout: :gba
-      slots.numbers :lying_at, count: CELLS * FLOORS, width: :half, signed: false, layout: :gba
+      slots.numbers :blocked, count: CELLS * FLOORS, width: :byte, signed: false
+      slots.numbers :lying_at, count: CELLS * FLOORS, width: :half, signed: false
     end
 
     # +b+ is the routine's builder, and +copy+, +pack+ and +release+ what `fill_from_copy` hands it.

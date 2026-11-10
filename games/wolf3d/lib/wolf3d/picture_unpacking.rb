@@ -54,10 +54,10 @@ module Wolf3D
     def self.declare(slots)
       slots.pixels :wall_pictures, count: PAGE_BYTES * WALL_PAGES
       slots.pixels :sprite_pictures, count: PAGE_BYTES * SPRITES
-      SPRITE_EDGES.each_value { |name| slots.numbers name, count: SPRITES, width: :byte, signed: false, layout: :gba }
+      SPRITE_EDGES.each_value { |name| slots.numbers name, count: SPRITES, width: :byte, signed: false }
       slots.pixels :gun_pictures, count: PAGE_BYTES * GUNS
       %i[gun_first_column gun_last_column].each do |name|
-        slots.numbers name, count: GUNS, width: :byte, signed: false, layout: :gba
+        slots.numbers name, count: GUNS, width: :byte, signed: false
       end
     end
 

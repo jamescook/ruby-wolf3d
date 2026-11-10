@@ -98,13 +98,13 @@ module Wolf3D
 
     # The slots VGAGRAPH takes, declared on +slots+ (the data pack's).
     def self.declare(slots)
-      slots.numbers :picture_count, count: 1, width: :half, signed: false, layout: :gba
-      slots.numbers :picture_sizes, count: PICTURES * 2, width: :half, signed: false, layout: :gba
+      slots.numbers :picture_count, count: 1, width: :half, signed: false
+      slots.numbers :picture_sizes, count: PICTURES * 2, width: :half, signed: false
       slots.pixels :vga_pictures, count: NAMED_PLACES
-      slots.numbers :font_chunks, count: FONT_CHUNK_BYTES.sum, width: :byte, signed: false, layout: :gba
+      slots.numbers :font_chunks, count: FONT_CHUNK_BYTES.sum, width: :byte, signed: false
       slots.pixels :font_glyphs, count: GLYPH_PLACES
-      slots.numbers :end_articles, count: ARTICLES * ARTICLE_BYTES, width: :byte, signed: false, layout: :gba
-      slots.numbers :end_article_length, count: ARTICLES, width: :half, signed: false, layout: :gba
+      slots.numbers :end_articles, count: ARTICLES * ARTICLE_BYTES, width: :byte, signed: false
+      slots.numbers :end_article_length, count: ARTICLES, width: :half, signed: false
       slots.pixels :screen_pictures, count: SCREENS.sum { |name| Vgagraph::SIZES.fetch(name).first * SCREEN_ROWS }
     end
 

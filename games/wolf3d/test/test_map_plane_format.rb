@@ -53,7 +53,7 @@ class TestMapPlaneFormat < Minitest::Test
   # The walls plane of the first +floors+ floors, unpacked on the interpreter, one string a floor.
   def unpacked(original, floors:)
     unpacking = VBlank::Builder.new.data_pack(from: original, version: "1", formats: [Wolf3D::MapPlaneFormat]) do |slots|
-      slots.numbers :walls, count: CELLS * floors, width: :half, signed: false, layout: :gba
+      slots.numbers :walls, count: CELLS * floors, width: :half, signed: false
       slots.fill_from_copy do |copy, pack, release|
         head = copy.file("MAPHEAD.#{release}")
         maps = copy.file("GAMEMAPS.#{release}")
