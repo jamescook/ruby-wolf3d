@@ -170,6 +170,7 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_walls vswap, pack
     assert_same_sprites vswap, pack
     assert_same_gun vswap, pack
+    assert_same_sounds vswap, pack
     assert_same_picture_table graph, pack
     assert_same_named_pictures graph, pack
     assert_same_fonts graph, pack
@@ -292,6 +293,21 @@ class TestFloorUnpacking < Minitest::Test
     assert_equal wanted, got.bytes, "the gun's row"
     assert_equal (0...guns).map { |n| vswap.sprite(first + n).first_column }, pack.fetch(:gun_first_column).bytes
     assert_equal (0...guns).map { |n| vswap.sprite(first + n).last_column }, pack.fetch(:gun_last_column).bytes
+  end
+
+  # EVERY RECORDED SOUND, its samples as VSWAP keeps them (Vswap::Sound, 128 for silence), each at
+  # its own place in sound_samples and the rest of its room silent, with its length; nought long
+  # and all silence for a sound the copy lacks.
+  def assert_same_sounds(vswap, pack)
+    got = pack.fetch(:sound_samples)
+    silent = Wolf3D::Vswap::Sound::MIDPOINT
+    assert_equal Wolf3D::SoundUnpacking::ROOM.sum, got.bytesize, "every sound's room and nothing more"
+    Wolf3D::SoundUnpacking::ROOM.each_with_index do |room, n|
+      samples = n < vswap.sound_count ? vswap.sound(n).pcm.map { |sample| sample + silent } : []
+      assert_equal samples.length, pack.fetch(:sound_length).unpack("v*")[n], "sound #{n}'s length"
+      wanted = samples + ([silent] * (room - samples.length))
+      assert_equal wanted, got.byteslice(Wolf3D::SoundUnpacking::SOUND_AT[n], room).bytes, "sound #{n}"
+    end
   end
 
   # EVERY SPRITE, laid out as ThingAtlas.whole lays its row: row by row across every sprite of the
