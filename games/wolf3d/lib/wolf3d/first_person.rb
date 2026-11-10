@@ -149,14 +149,13 @@ module Wolf3D
 
     # +floors+ is every floor the cartridge holds.
     # +sound_setting+ is the menu's own sound switch, or nil where there is no menu to turn it off.
-    # +pack+ is a whole build's data pack, which its floor tables are read from (FloorTables); a
-    # build without one bakes them.
+    # +source+ is where the build's floor tables and pictures come from (Source).
     def initialize(build:, atlas:, floors:, things: nil, vswap: nil, adlib: nil, bar_art: nil, gun_art: nil,
                    lettering: nil, sound_setting: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil,
-                   rare_scream_odds: GuardMind::RARE_SCREAM_ODDS, pack: nil)
+                   rare_scream_odds: GuardMind::RARE_SCREAM_ODDS, source: Source::BAKED)
       @rare_scream_odds = rare_scream_odds
       @floors = floors
-      @pack = pack
+      @source = source
       here = @floors.first_floor
       @b = build
       @atlas = atlas
@@ -604,8 +603,7 @@ module Wolf3D
 
       # THE FLOOR BEING PLAYED: the map, what stops a foot, and where its slice of every table
       # begins. The guards' own slices are kept with them, in GuardPool.
-      tables = FloorTables.for(build: b, floors: @floors, pack: @pack,
-                               wall_picture: ->(code) { wall_picture(code) })
+      tables = @source.floor_tables(b, floors: @floors, wall_picture: ->(code) { wall_picture(code) })
       @this_floor = ThisFloor.new(build: b, floors: @floors, tables: tables)
 
       # How far open each door is: 0 is shut, 1 is out of the way. A door is only ever moving
@@ -655,7 +653,7 @@ module Wolf3D
       @lift_wait = @lasting.var :lift_wait, 0
       declare_the_way_out
 
-      @pictures = ViewPictures.for(build: b, pack: @pack)
+      @pictures = @source.view_pictures(b)
       @pictures.declare_walls(@atlas)
 
       # THE PLAYER, all of them at once, handed whole to everything below that touches them.
@@ -895,7 +893,7 @@ module Wolf3D
 
     def declare_the_bar
       @bar = StatusBar.new(build: @b, top: VIEW_H, art: @bar_art, player: @player,
-                           lives: @lives.left, weapon: @weapons.in_hand, pack: @pack)
+                           lives: @lives.left, weapon: @weapons.in_hand, source: @source)
     end
 
     # WORKING ROOM. Every one of these is scratch — set, read and finished with inside a single
@@ -1079,7 +1077,7 @@ module Wolf3D
         printed = (lifts? ? Tally::PRINTED : []) + (@behaviour.any?(:cam) ? DeathCam::PRINTED : []) +
                   (any_episode_can_end? ? EpisodeEnd::PRINTED : [])
         BigLettering.new(build: @b, art: @lettering, printed: printed.uniq, figures: lifts? || any_episode_can_end?,
-                         pack: @pack)
+                         source: @source)
       end
     end
 

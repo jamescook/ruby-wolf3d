@@ -190,11 +190,11 @@ module Wolf3D
     # bar, or nil for a release whose pictures we cannot name — then the bar draws as it drew
     # before there was any art to draw with.
     #
-    # +pack+ is a whole build's data pack, which the bar's pictures are drawn from (BarPictures).
-    def initialize(build:, top:, player:, lives:, weapon:, art: nil, pack: nil)
+    # +source+ is where the build's pictures come from (Source).
+    def initialize(build:, top:, player:, lives:, weapon:, art: nil, source: Source::BAKED)
       @b = build
       @top = top
-      @pictures = art && BarPictures.for(build: build, art: art, pack: pack)
+      @pictures = art && source.bar_pictures(build, art: art)
       # What to put in each field, by name.
       @shows = { score: player.score, lives: lives, health: player.health, ammo: player.ammo,
                  keys: player.keys, weapon: weapon }

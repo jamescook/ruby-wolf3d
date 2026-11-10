@@ -3,7 +3,7 @@
 module Wolf3D
   # THE SMALL ALPHABET AS SMALLLETTERS DRAWS IT, MADE BY THE GAME ITSELF into the data pack
   # (DataPack), out of the characters of font 0 VgagraphUnpacking left in font_glyphs: each printable
-  # one widened to an even width, the new column place nought, as SmallLetters makes it in Ruby for a
+  # one widened to an even width, the new column place nought, as SmallLetterPictures makes it in Ruby for a
   # trimmed build. All of them in one slot of pixels, small_letter_pictures, each row by row at its
   # own place (.letters).
   #
@@ -22,7 +22,7 @@ module Wolf3D
       at = 0
       drawn = Vgagraph::FONT_WIDTHS.fetch(FONT).select { |code, _| code.between?(SmallLetters::FIRST_CODE + 1, SmallLetters::LAST_CODE) }
       drawn.map do |code, width|
-        even = (width + 1) & ~1
+        even = SmallLetterPictures.even_width(width)
         Letter.new(code: code, at: at, width: width, even_width: even).tap { at += even * HEIGHT }
       end
     end

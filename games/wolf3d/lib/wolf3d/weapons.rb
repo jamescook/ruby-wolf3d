@@ -93,7 +93,7 @@ module Wolf3D
     # See Wolf3D.armed_with. +lasting+ is what a saved game holds (see LastingState). +pictures+
     # says where the gun's pictures come from (ViewPictures).
     def initialize(build:, player:, atlas: nil, sounds: nil, starting: STARTING,
-                   lasting: LastingState.new(build:), pictures: ViewPictures.for(build: build))
+                   lasting: LastingState.new(build:), pictures: ViewPictures::Baked.new(build))
       @b = build
       @player = player
       @atlas = atlas

@@ -34,14 +34,6 @@ module Wolf3D
   # - holds_floor?(slot): whether the copy has the floor the build holds at +slot+, true baked and a
   #   test on the pack's floor count packed.
   module FloorTables
-    # The source a build reads: from +pack+ (the data pack's handle) where it has one, else baked
-    # from +floors+, every floor the build holds. +wall_picture+ answers where a wall code's lit
-    # picture sits in the row of pictures, counting from one (FirstPerson#wall_picture); a baked
-    # world is made with it.
-    def self.for(build:, floors:, wall_picture:, pack: nil)
-      pack ? Packed.new(build, floors, pack) : Baked.new(build, floors, wall_picture)
-    end
-
     # THE TABLES WORKED OUT IN RUBY, the floors a trimmed build holds end to end.
     class Baked
       def initialize(build, floors, wall_picture)

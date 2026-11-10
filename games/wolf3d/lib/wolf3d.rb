@@ -71,8 +71,13 @@ VBlank.require_game_file "wolf3d/data_pack"
 VBlank.require_game_file "wolf3d/view_pictures"
 VBlank.require_game_file "wolf3d/menu_pictures"
 VBlank.require_game_file "wolf3d/bar_pictures"
+VBlank.require_game_file "wolf3d/small_letter_pictures"
+VBlank.require_game_file "wolf3d/alphabets"
+VBlank.require_game_file "wolf3d/article_pages"
 # ...and where its tables come from, baked or from that pack, after both.
 VBlank.require_game_file "wolf3d/floor_tables"
+# ...and the one choice between baking and the pack, which hands each part its own of those.
+VBlank.require_game_file "wolf3d/source"
 require_relative "wolf3d/lasting_state"
 require_relative "wolf3d/player"
 VBlank.require_game_file "wolf3d/guard_pool"
@@ -402,9 +407,13 @@ module Wolf3D
       # then the cartridge boots straight into the game, because there is nothing to write a
       # menu with. The same pictures hold the lettering of the screen between floors.
       menu_art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
-      # A WHOLE BUILD READS ITS FLOORS FROM A DATA PACK, which FloorUnpacking fills from the copy:
-      # here as the build is made, in a shell at LOAD ROM. A trimmed one bakes them (FloorTables).
-      pack = holding.whole? ? Wolf3D::DataPack.declare(self, from: Wolf3D::GameData.original) : nil
+      # A WHOLE BUILD READS ITS FLOORS AND PICTURES FROM A DATA PACK, which the unpacking fills from
+      # the copy: here as the build is made, in a shell at LOAD ROM. A trimmed one bakes them (Source).
+      source = if holding.whole?
+                 Wolf3D::Source::Packed.new(Wolf3D::DataPack.declare(self, from: Wolf3D::GameData.original))
+               else
+                 Wolf3D::Source::BAKED
+               end
       # WHAT THE SOUND ROW IS SET TO, which every one of the game's sounds and songs is played
       # under. Declared here rather than inside either of them because both need it and neither
       # owns it.
@@ -422,13 +431,13 @@ module Wolf3D
                                      sound_setting: sound_setting,
                                      armed_with: Wolf3D.armed_with(armed),
                                      ammo: Wolf3D.starting_ammo(ammo),
-                                     pack: pack)
+                                     source: source)
       if menu_art
         music = Wolf3D::Music.new(build: self, tracks: Wolf3D.adlib_music, floors: floors, setting: sound_setting,
                                   holding: holding)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
                                   palette: Wolf3D.palette, sound_setting: sound_setting, music: music,
-                                  starting_on: Wolf3D.which_screen(boot_screen), pack: pack)
+                                  starting_on: Wolf3D.which_screen(boot_screen), source: source)
         game_loop { menus.update }
       else
         game_loop { view.update }

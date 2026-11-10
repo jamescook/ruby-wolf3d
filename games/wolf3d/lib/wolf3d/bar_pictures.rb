@@ -9,8 +9,6 @@ module Wolf3D
   # TAKES THEM FROM ITS DATA PACK (Packed), where BarUnpacking lays each piece out in bar_pictures.
   # StatusBar asks for each here and never which kind of build it is in.
   module BarPictures
-    def self.for(build:, art:, pack: nil) = pack ? Packed.new(build, art, pack) : Baked.new(build, art)
-
     STRIPS = %i[faces keys numerals weapons].freeze
 
     # THE PICTURES AS COLOURS, made from VGAGRAPH while building.
@@ -40,7 +38,7 @@ module Wolf3D
 
     # THE PICTURES AS THE PACK HOLDS THEM (BarUnpacking.pieces).
     class Packed
-      def initialize(build, _art, pack)
+      def initialize(build, pack)
         @b = build
         @pack = pack
       end

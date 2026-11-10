@@ -13,12 +13,11 @@ module Wolf3D
 
     # +art+ is the game's own (see MenuArt), or nil. +printed+ is every character the cartridge
     # writes, so only those pictures go on it. +figures+ says whether it also writes numbers.
-    # +pack+ is a whole build's data pack, whose vga_pictures the letters are drawn from
-    # (VgagraphUnpacking); a trimmed build draws them from +art+.
-    def initialize(build:, art:, printed:, figures: false, pack: nil)
+    # +source+ is where the build's pictures come from (Source); the letters are menu pictures.
+    def initialize(build:, art:, printed:, figures: false, source: Source::BAKED)
       @b = build
       @art = art
-      @pack = pack
+      @pictures = art && source.menu_pictures(build, art: art, palette: Palette.game)
       declare(printed, figures) if art
     end
 
@@ -78,22 +77,14 @@ module Wolf3D
     private
 
     def declare(printed, figures)
-      printed.each { |char| declare_picture(picture_of(char)) }
-      declare_the_figures if figures
-    end
-
-    def declare_picture(name)
-      if @pack
-        width, height = @art.size(name)
-        @b.image name, width: width, height: height, colors: Palette.game.colours,
-                       places: @pack[:vga_pictures].pixels(VgagraphUnpacking::PICTURE_AT.fetch(name), width * height)
-      else
-        cut = @art.picture(name, Palette.game)
-        @b.image name, width: cut[:width], height: cut[:height], data: cut[:data]
+      printed.each do |char|
+        name = picture_of(char)
+        @pictures.declare(name, called: name)
       end
+      declare_figures if figures
     end
 
-    def declare_the_figures
+    def declare_figures
       @numeral = @b.var :_tally_numeral, 0
       @half_x = @b.var :_tally_half_x, 0
       @row = @b.var :_tally_row, 0

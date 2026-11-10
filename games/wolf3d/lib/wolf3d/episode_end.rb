@@ -37,17 +37,15 @@ module Wolf3D
     COLUMNS = 40
 
     # +letters+ is the small alphabet, +lettering+ the big one, +records+ the floors of the episode.
-    # +pack+ is a whole build's data pack, whose article_pages and article_first_page hold every
-    # episode's article laid out (EndArticleUnpacking); a trimmed build lays them out from +art+.
-    def initialize(build:, art:, letters:, lettering:, records:, floor:, floors:, pack: nil)
+    # +source+ is where the build's articles come from (Source).
+    def initialize(build:, art:, letters:, lettering:, records:, floor:, floors:, source: Source::BAKED)
       @b = build
-      @art = art
       @letters = letters
       @lettering = lettering
       @records = records
       @floor = floor
       @floors = floors
-      @pack = pack
+      @articles = source.article_pages(build, art: art, letters: letters, floors: floors)
       declare
     end
 
@@ -93,26 +91,9 @@ module Wolf3D
 
     # EVERY ARTICLE'S PAGES, LINES rows of COLUMNS bytes each, and where each episode's start.
     def declare_articles
-      if @pack
-        @first_page = @b.table :article_first_page, @pack[:article_first_page]
-        @text = @b.table :article_text, @pack[:article_pages]
-      else
-        pages = (0...Floors.episodes_in(@floors)).map { |n| paged(n) }
-        @first_page = @b.table :article_first_page, pages.map(&:length).inject([0]) { |all, count| all + [all.last + count] },
-                               width: :byte
-        @text = @b.table :article_text, Floors.at_least_one(pages.flatten(1).flat_map { |page| flatten_page(page) }), width: :byte
-      end
-    end
-
-    def paged(episode)
-      EndArticle.pages(@art.end_article(episode), width: TEXT_WIDTH, lines: LINES) do |char|
-        @letters.width_of(char)
-      end
-    end
-
-    # A page as LINES rows of COLUMNS bytes, blanks to the end of each.
-    def flatten_page(page)
-      Array.new(LINES) { |n| (page[n] || "").ljust(COLUMNS, "\0").bytes.first(COLUMNS) }.flatten
+      tables = @articles.declare
+      @first_page = tables.first_page
+      @text = tables.text
     end
 
     # The original's sums and divides by eight whatever you played, and its clock stops at 99:99.

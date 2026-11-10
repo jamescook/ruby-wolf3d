@@ -15,8 +15,6 @@ module Wolf3D
   # sprite's four edges as four tables, by its place in the row: a ThingAtlas::Edges of tables), and
   # declare_gun(atlas) (the gun and its first and last columns as two tables: a GunColumns).
   module ViewPictures
-    def self.for(build:, pack: nil) = pack ? Packed.new(build, pack) : Baked.new(build)
-
     # The tables of the gun's first and last columns, by frame.
     GunColumns = Data.define(:first_column, :last_column)
 

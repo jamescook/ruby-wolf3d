@@ -192,15 +192,15 @@ module Wolf3D
     # exists on a cartridge carrying more than one episode, so a cartridge that boots straight
     # to the one you want to look at is worth being able to build.
     #
-    # +music+ is the Music on this cartridge, or nil on one with none. +pack+ is a whole build's data
-    # pack, which its pictures are drawn from (MenuPictures).
-    def initialize(build:, view:, art:, palette:, sound_setting:, starting_on: NOTICE, music: nil, pack: nil)
+    # +music+ is the Music on this cartridge, or nil on one with none. +source+ is where the build's
+    # pictures and alphabets come from (Source).
+    def initialize(build:, view:, art:, palette:, sound_setting:, starting_on: NOTICE, music: nil, source: Source::BAKED)
       @b = build
       @view = view
       @art = art
       @palette = palette
-      @pack = pack
-      @pictures = MenuPictures.for(build: build, art: art, palette: palette, pack: pack)
+      @source = source
+      @pictures = source.menu_pictures(build, art: art, palette: palette)
       @sound_setting = sound_setting
       @music = music
       @episodes = view.floors.episodes
@@ -309,7 +309,7 @@ module Wolf3D
       @difficulty = @view.difficulty
       @saved = SavedGames.new(build: @b, view: @view)
       @letters = SmallLetters.new(build: @b, art: @art, palette: @palette, ink: HighScores::INK, ground: BACKGROUND,
-                                  pack: @pack)
+                                  source: @source)
       @scores = HighScores.new(build: @b, letters: @letters, palette: @palette, view: @view,
                                player: @view.player, floor: @view.playthrough.floor, setting: @sound_setting)
       @view.hand_end_of_game_to_menus
@@ -337,26 +337,11 @@ module Wolf3D
             "an episode. To fix this, build it with the last floor of an episode. Or start on another screen."
     end
 
-    # Both of Wolfenstein's alphabets: read off VGAGRAPH while building, or, in a whole build,
-    # each letter a run of the pack's font_glyphs, where VgagraphUnpacking cut it out.
+    # Both of Wolfenstein's alphabets (Alphabets).
     def declare_lettering
-      if @pack
-        @b.font LETTERING, glyphs: packed_glyphs(0), height: Vgagraph::FONT_HEIGHTS.fetch(0)
-        @b.font HEADING, glyphs: packed_glyphs(1), height: Vgagraph::FONT_HEIGHTS.fetch(1)
-      else
-        @b.font LETTERING, glyphs: @art.font(0)
-        @b.font HEADING, glyphs: @art.font(1)
-      end
-    end
-
-    # The letters Vgagraph::Font#glyphs hands over, the printable ones, each as its pixels in the pack.
-    def packed_glyphs(font)
-      height = Vgagraph::FONT_HEIGHTS.fetch(font)
-      Vgagraph::FONT_WIDTHS.fetch(font)
-                           .select { |code, width| width.positive? && Vgagraph::Font::PRINTABLE.cover?(code) }
-                           .to_h do |code, width|
-        [code.chr, @pack[:font_glyphs].pixels(VgagraphUnpacking::GLYPH_AT.fetch(font).fetch(code), width * height)]
-      end
+      alphabets = @source.alphabets(@b, art: @art)
+      alphabets.declare LETTERING, 0
+      alphabets.declare HEADING, 1
     end
 
     def declare_art
@@ -632,7 +617,7 @@ module Wolf3D
     def declare_episode_end_screens
       @episode_end = EpisodeEnd.new(build: @b, art: @art, letters: @letters, lettering: @view.big_lettering,
                                     records: @view.records, floor: @view.playthrough.floor, floors: @view.floors,
-                                    pack: @pack)
+                                    source: @source)
       # A cartridge built to boot here has won nothing, so the sums are done for it.
       @episode_end.add_up_the_episode if @starting_on == WINNING
       @b.scene(:you_win) do

@@ -64,7 +64,7 @@ module Wolf3D
     # it has. +pictures+ says where the row of things' pictures comes from (ViewPictures).
     def initialize(build:, things:, player:, scenery: nil, pool: nil, mind: nil, march: nil,
                    pickups: nil, floors: nil, this_floor: nil,
-                   rooms: nil, piece_room: nil, pictures: ViewPictures.for(build: build))
+                   rooms: nil, piece_room: nil, pictures: ViewPictures::Baked.new(build))
       @b = build
       @things = things
       @pictures = pictures

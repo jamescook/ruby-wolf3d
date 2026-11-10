@@ -7,12 +7,11 @@ module Wolf3D
   # A TRIMMED BUILD GIVES THEM AS COLOURS (Baked), read from VGAGRAPH and shortened while it is
   # built. A WHOLE BUILD TAKES THEM FROM ITS DATA PACK (Packed), as places in the game's 256 colours:
   # VgagraphUnpacking writes every named picture into vga_pictures and the two shortened screens into
-  # screen_pictures. Menus asks for each picture here and never which kind of build it is in.
+  # screen_pictures. Menus and BigLettering ask for each picture here and never which kind of build
+  # they are in.
+  #
+  # WHAT IT ANSWERS: declare(name, called:), the picture declared under +called+.
   module MenuPictures
-    def self.for(build:, art:, palette:, pack: nil)
-      pack ? Packed.new(build, art, pack) : Baked.new(build, art, palette)
-    end
-
     # THE PICTURES AS COLOURS, worked out from VGAGRAPH while building.
     class Baked
       def initialize(build, art, palette)
@@ -21,9 +20,9 @@ module Wolf3D
         @palette = palette
       end
 
-      def declare(name)
+      def declare(name, called: :"menu_#{name}")
         cut = @art.picture(name, @palette)
-        @b.image :"menu_#{name}", width: cut[:width], height: cut[:height], data: cut[:data]
+        @b.image called, width: cut[:width], height: cut[:height], data: cut[:data]
       end
     end
 
@@ -35,14 +34,14 @@ module Wolf3D
         @pack = pack
       end
 
-      def declare(name)
+      def declare(name, called: :"menu_#{name}")
         width, height = @art.size(name)
         places = if MenuArt::FULL_SCREEN.include?(name)
                    @pack[:screen_pictures].pixels(VgagraphUnpacking::SCREEN_AT.fetch(name), width * height)
                  else
                    @pack[:vga_pictures].pixels(VgagraphUnpacking::PICTURE_AT.fetch(name), width * height)
                  end
-        @b.image :"menu_#{name}", width: width, height: height, colors: Palette.game.colours, places: places
+        @b.image called, width: width, height: height, colors: Palette.game.colours, places: places
       end
     end
   end
