@@ -86,6 +86,7 @@ module Wolf3D
       # +rate+ is how many times a second #step is called, which a track keeps down to save time.
       def initialize(operator, rate: NATIVE_RATE)
         @rate = rate
+        @tick_seconds = 1.0 / rate
         @block = 0
         @fnum = 0
         @char = 0
@@ -102,23 +103,25 @@ module Wolf3D
         case name
         when :char
           @char = value
+          @tremolo = value.anybits?(0x80)
+          @vibrato = value.anybits?(0x40)
+          @holds_sustain = value.anybits?(0x20)
           tune(@block, @fnum)
         when :scale
           @level = value & 0x3f
+          @level_decibels = @level * LEVEL_STEP_DECIBELS
           @key_scale = value >> 6
           tune(@block, @fnum)
         when :attack
           @attack = value >> 4
           @decay = value & 0x0f
+          @decay_fall = fall_a_step(@decay)
         when :sustain then set_sustain(value)
         when :wave then @wave = value & 3
         end
       end
 
       def multiple = MULTIPLES[@char & 0x0f]
-      def tremolo? = @char.anybits?(0x80)
-      def vibrato? = @char.anybits?(0x40)
-      def holds_sustain? = @char.anybits?(0x20)
       def scales_rate_by_key? = @char.anybits?(0x10)
 
       # A key already down keeps its envelope, which is why a run of notes is one long sound.
@@ -140,23 +143,29 @@ module Wolf3D
         @block = block
         @fnum = fnum
         @hertz = fnum * NATIVE_RATE * (2.0**(block - 20)) * multiple
+        @cycles_a_step = @hertz / @rate
         @key_code = (block * 2) + (fnum >> 9 & 1)
         @rate_offset = scales_rate_by_key? ? @key_code : @key_code >> 2
+        @decay_fall = fall_a_step(@decay)
+        @release_fall = fall_a_step(@release)
         octave_cut = KEY_SCALE_DECIBELS[fnum >> 6] - (3.0 * (7 - block))
         @scale_decibels = [octave_cut, 0.0].max * KEY_SCALE_SHARES[@key_scale]
       end
 
       # One of the chip's samples. +modulation+ is in cycles. +wobble+ is the slow shift of pitch and
       # +tremor+ the slow loss of level, both for this moment.
+      #
+      # This runs twice for every channel on every step of a track, tens of millions of times a
+      # track, so what a register write settles is worked out at the write and kept: the cycles a
+      # step moves, the decibels a step of decay or release falls, the level's decibels.
       def step(modulation, wobble, tremor)
         move_envelope
-        pitch = @hertz * (vibrato? ? 1.0 + wobble : 1.0)
-        @phase = (@phase + (pitch / @rate)) % 1.0
-        loss = @decibels + (@level * LEVEL_STEP_DECIBELS) + @scale_decibels + (tremolo? ? tremor : 0.0)
+        @phase = (@phase + (@vibrato ? (@hertz * (1.0 + wobble)) / @rate : @cycles_a_step)) % 1.0
+        loss = @decibels + @level_decibels + @scale_decibels + (@tremolo ? tremor : 0.0)
         wave_at(@phase + modulation) * (10.0**(-loss / 20))
       end
 
-      def quiet? = @stage == :off || @decibels + (@level * LEVEL_STEP_DECIBELS) >= QUIET_DECIBELS
+      def quiet? = @stage == :off || @decibels + @level_decibels >= QUIET_DECIBELS
 
       private
 
@@ -164,6 +173,7 @@ module Wolf3D
         level = value >> 4
         @sustain_decibels = (level == LOWEST_SUSTAIN_LEVEL ? LOWEST_SUSTAIN_STEPS : level) * SUSTAIN_STEP_DECIBELS
         @release = value & 0x0f
+        @release_fall = fall_a_step(@release)
       end
 
       def wave_at(phase)
@@ -179,9 +189,9 @@ module Wolf3D
       def move_envelope
         case @stage
         when :attack then rise
-        when :decay then fall_to(@sustain_decibels, @decay) { @stage = :sustain }
-        when :sustain then fall_to(SILENT_DECIBELS, @release) { @stage = :off } unless holds_sustain?
-        when :release then fall_to(SILENT_DECIBELS, @release) { @stage = :off }
+        when :decay then @stage = :sustain if fallen_to?(@sustain_decibels, @decay_fall)
+        when :sustain then @stage = :off if !@holds_sustain && fallen_to?(SILENT_DECIBELS, @release_fall)
+        when :release then @stage = :off if fallen_to?(SILENT_DECIBELS, @release_fall)
         end
       end
 
@@ -189,20 +199,27 @@ module Wolf3D
       def rise
         return if @attack_seconds.infinite?
 
-        @attack_elapsed += 1.0 / @rate
+        @attack_elapsed += @tick_seconds
         amplitude = @attack_elapsed / @attack_seconds
         @decibels = amplitude >= 1.0 ? 0.0 : -20 * Math.log10(amplitude)
         @stage = :decay if amplitude >= 1.0
       end
 
-      def fall_to(floor, register)
-        return yield if @decibels >= floor
+      # One step down toward +floor+, +fall+ decibels (nil where the rate never moves): whether the
+      # level has got there.
+      def fallen_to?(floor, fall)
+        return true if @decibels >= floor
+        return false unless fall
 
-        span = seconds(SLOWEST_DECAY_SECONDS, register)
-        return if span.infinite?
+        @decibels += fall
+        @decibels >= floor
+      end
 
-        @decibels += SILENT_DECIBELS / (span * @rate)
-        yield if @decibels >= floor
+      # The decibels one step of a decay or release at +register+ falls, nil where it never moves.
+      # Worked out at each write that changes it, never as the envelope moves.
+      def fall_a_step(register)
+        span = seconds(SLOWEST_DECAY_SECONDS, register || 0)
+        span.infinite? ? nil : SILENT_DECIBELS / (span * @rate)
       end
 
       # A setting of nought never moves at all.

@@ -9,6 +9,16 @@
 # file run on its own.
 require "bundler/setup"
 
+# YJIT ON, for everything that loads the game but the suite: a build, a tool, a film. Building is
+# plain Ruby doing arithmetic in loops (the chip in Opl2, the atlases, the unpacking routine played
+# as Ruby), which is the work a JIT is for, and the chip renders in about half the time with it.
+# A Ruby built without it carries on as it was.
+#
+# NOT UNDER MINITEST, which the test setup loads before this file. The suite plays its tests in a
+# pool of Ractors, and YJIT's compiled code is shared between them under one lock: measured, the
+# check before a commit took several times as long with it on.
+RubyVM::YJIT.enable if defined?(RubyVM::YJIT) && !RubyVM::YJIT.enabled? && !defined?(Minitest)
+
 # The framework, as any other game built on it would have it: a gem, resolved by the Gemfile
 # beside this file. The public entry point only, never its internals.
 require "vblank"
