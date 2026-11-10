@@ -380,29 +380,17 @@ module Wolf3D
     floors_picked = !episodes.nil? || !how_many.nil? || !start.nil? || from.to_i != 0
     holding = Wolf3D::Holding.for(setting(:hold, nil), computer: built_for_computer?, dialled: floors_picked)
 
-    if Wolf3D.maps
-      # A WHOLE BUILD HOLDS EVERY FLOOR THE ORIGINAL CAN HAVE, whichever copy it is made from; a dial
-      # picks some of the copy's floors to measure.
-      which = if holding.whole? && !floors_picked
-                (0...Wolf3D::Holding::FLOORS).to_a
-              else
-                Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many)
-              end
+    # A WHOLE BUILD HOLDS EVERY FLOOR THE ORIGINAL CAN HAVE, whichever copy it is made from, and opens
+    # no GAMEMAPS to know it; a dial picks some of the copy's floors to measure. With no copy to pick
+    # from there are none, and the build is the title alone.
+    which = if holding.whole? && !floors_picked
+              (0...Wolf3D::Holding::FLOORS).to_a
+            elsif Wolf3D.maps
+              Wolf3D.which_floors(episodes: episodes, from: from, floors: how_many)
+            end
+
+    if which
       floors = Wolf3D.floors(which, start: start, holding: holding)
-      # A WHOLE BUILD'S ROWS OF PICTURES are only their shape here, with no VSWAP behind them: the
-      # pictures themselves come from its data pack (ViewPictures).
-      pictures_from = holding.whole? ? nil : Wolf3D.vswap
-      atlas = Wolf3D::WallAtlas.new(pictures_from, Wolf3D.palette, floors.map(&:level),
-                                    doors: floors.map(&:doors), lifts: floors.map(&:lifts), holding: holding)
-      things = if holding.whole?
-                 Wolf3D::ThingAtlas.whole(pictures_from, Wolf3D.palette)
-               else
-                 Wolf3D::ThingAtlas.new(Wolf3D.vswap, Wolf3D.palette,
-                                        floors.flat_map { |f|
-                                          f.guards.pictures + f.scenery.pictures +
-                                            Wolf3D::Pickups.pictures(f.guards)
-                                        }.then { |seen| seen + Wolf3D::VictoryMarch.pictures(floors, Wolf3D.vswap) }.uniq.sort)
-               end
       # A WHOLE BUILD READS ITS FLOORS AND PICTURES FROM A DATA PACK, which the unpacking fills from
       # the copy: here as the build is made, in a shell at LOAD ROM. A trimmed one bakes them (Source).
       source = if holding.whole?
@@ -422,11 +410,13 @@ module Wolf3D
       # rather than of the level: every floor is played holding the same four weapons, where the
       # walls and the things standing in the rooms differ from one floor to the next. Every release
       # holds them, so a whole build has a gun whatever copy its pack is made from.
-      view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
+      view = Wolf3D::FirstPerson.new(build: self, floors: floors,
+                                     atlas: source.wall_atlas(floors, holding: holding),
+                                     things: source.thing_atlas(floors),
                                      vswap: Wolf3D.vswap,
                                      adlib: Wolf3D.adlib,
                                      bar_art: source.bar_art,
-                                     gun_art: holding.whole? ? Wolf3D::WeaponAtlas.new(nil, Wolf3D.palette) : Wolf3D.gun_art,
+                                     gun_art: source.gun_art,
                                      lettering: menu_art,
                                      sound_setting: sound_setting,
                                      armed_with: Wolf3D.armed_with(armed),

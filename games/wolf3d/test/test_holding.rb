@@ -167,13 +167,28 @@ class TestHolding < Minitest::Test
   # is no copy has both. Built with any question to VGAGRAPH refused, its main menu, bar and all,
   # still looks as the trimmed build draws it.
   def test_a_whole_build_lays_out_its_screens_without_vgagraph
-    program = with_vgagraph_refused do
+    program = with_copy_refused(:wolf3d_vgagraph, "VGAGRAPH") do
       Wolf3D::GAME.checked_program(err: nil, settings: { screen: "menu", hold: "whole" }, pack_at_start: true)
     end
     trimmed_program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1, screen: "menu", hold: "trimmed" })
     trimmed = Reference.new.run(trimmed_program, frames: MenuScene::FRAMES).screen
     seen = Reference.new.hand_file(whole_pack_of(real_copy)).run(program, frames: MenuScene::FRAMES).screen
 
+    assert_equal 0, count_differing_pixels(seen, trimmed)
+  end
+
+  # A WHOLE BUILD HOLDS EVERY FLOOR WITHOUT OPENING GAMEMAPS: its floors are the original's sixty
+  # numbers (Holding::FLOORS), each read from the pack as it is played, so a shell built where there
+  # is no copy still has the game. Built with any question to GAMEMAPS refused, its first floor looks
+  # as the trimmed build draws it.
+  def test_a_whole_build_holds_its_floors_without_gamemaps
+    program = with_copy_refused(:wolf3d_maps, "GAMEMAPS") do
+      Wolf3D::GAME.checked_program(err: nil, settings: { screen: "playing", hold: "whole" }, pack_at_start: true)
+    end
+    trimmed = Reference.new.run(first_floor(hold: "trimmed"), frames: STANDING_FRAMES).screen
+    seen = Reference.new.hand_file(whole_pack_of(real_copy)).run(program, frames: STANDING_FRAMES).screen
+
+    refute trimmed.pixel(120, 60).zero?, "the view should be drawn by frame #{STANDING_FRAMES}"
     assert_equal 0, count_differing_pixels(seen, trimmed)
   end
 
@@ -380,21 +395,27 @@ class TestHolding < Minitest::Test
 
   def first_floor(hold:) = Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: hold })
 
-  # A VGAGRAPH THAT ANSWERS NOTHING, standing in for one no machine has.
-  class RefusedVgagraph < BasicObject
-    def method_missing(name, *) = ::Kernel.raise(::RuntimeError, "the build asked VGAGRAPH for #{name}")
+  # ONE OF THE COPY'S FILES ANSWERING NOTHING, standing in for one no machine has. +called+ names it
+  # in the error.
+  class RefusedFile < BasicObject
+    def initialize(called)
+      @called = called
+    end
+
+    def method_missing(name, *) = ::Kernel.raise(::RuntimeError, "the build asked #{@called} for #{name}")
     def respond_to_missing?(*) = true
   end
 
-  # The block's builds with Wolf3D.vgagraph refused. Wolf3D keeps the copy's VGAGRAPH for this worker
-  # under :wolf3d_vgagraph, and a test may not swap Wolf3D.vgagraph itself, so the stand-in goes
-  # there and what was there comes back after.
-  def with_vgagraph_refused
-    kept = Ractor.current[:wolf3d_vgagraph]
-    Ractor.current[:wolf3d_vgagraph] = RefusedVgagraph.new
+  # The block's builds with one of the copy's files refused. Wolf3D keeps each file it reads for this
+  # worker under a key of its own (:wolf3d_vgagraph for Wolf3D.vgagraph, :wolf3d_maps for
+  # Wolf3D.maps), and a test may not swap those methods, so the stand-in goes under +key+ and what
+  # was there comes back after.
+  def with_copy_refused(key, called)
+    kept = Ractor.current[key]
+    Ractor.current[key] = RefusedFile.new(called)
     yield
   ensure
-    Ractor.current[:wolf3d_vgagraph] = kept
+    Ractor.current[key] = kept
   end
 
   # THE DATA PACK A SHELL MAKES FROM +data+ (a GameData), the file a whole build left without its pack

@@ -26,11 +26,25 @@ module Wolf3D
   # menus) and bar_art (BarArt, or nil likewise). A whole build opens no VGAGRAPH for them: every
   # size is in Vgagraph::SIZES and every place on the plate in BarArt::PLATE, and both releases it
   # takes have menus and a bar.
+  #
+  # And the three atlases FirstPerson is handed, which lay out the rows of pictures the view draws
+  # from: wall_atlas(floors, holding:) (WallAtlas), thing_atlas(floors) (ThingAtlas) and gun_art
+  # (WeaponAtlas, or nil for a copy without the gun's pictures). Baked fills them from the copy's
+  # VSWAP with just the pictures +floors+ use. Packed opens no VSWAP: each is only its shape, every
+  # picture the original can show, and the pictures themselves are in the pack (ViewPictures).
   module Source
     # EVERYTHING WORKED OUT IN RUBY, while building.
     class Baked
       def menu_art = MenuArt.of(Wolf3D.vgagraph)
       def bar_art = BarArt.of(Wolf3D.vgagraph)
+
+      def wall_atlas(floors, holding:)
+        WallAtlas.new(Wolf3D.vswap, Wolf3D.palette, floors.map(&:level),
+                      doors: floors.map(&:doors), lifts: floors.map(&:lifts), holding: holding)
+      end
+
+      def thing_atlas(floors) = ThingAtlas.new(Wolf3D.vswap, Wolf3D.palette, things_seen_on(floors))
+      def gun_art = Wolf3D.gun_art
 
       def floor_tables(build, floors:, wall_picture:) = FloorTables::Baked.new(build, floors, wall_picture)
       def view_pictures(build) = ViewPictures::Baked.new(build)
@@ -41,6 +55,15 @@ module Wolf3D
 
       def article_pages(build, art:, letters:, floors:)
         ArticlePages::Baked.new(build, art, letters, floors)
+      end
+
+      private
+
+      # Every picture a thing on +floors+ can wear: the guards and what they drop, the scenery, and
+      # the victory march's runner.
+      def things_seen_on(floors)
+        seen = floors.flat_map { |f| f.guards.pictures + f.scenery.pictures + Pickups.pictures(f.guards) }
+        (seen + VictoryMarch.pictures(floors, Wolf3D.vswap)).uniq.sort
       end
     end
 
@@ -55,6 +78,14 @@ module Wolf3D
 
       def menu_art = MenuArt.new(nil)
       def bar_art = BarArt.new(nil, plate: BarArt::PLATE)
+
+      def wall_atlas(floors, holding:)
+        WallAtlas.new(nil, Wolf3D.palette, floors.map(&:level),
+                      doors: floors.map(&:doors), lifts: floors.map(&:lifts), holding: holding)
+      end
+
+      def thing_atlas(_floors) = ThingAtlas.whole(nil, Wolf3D.palette)
+      def gun_art = WeaponAtlas.new(nil, Wolf3D.palette)
 
       def floor_tables(build, floors:, wall_picture:) = FloorTables::Packed.new(build, floors, @pack)
       def view_pictures(build) = ViewPictures::Packed.new(build, @pack)
