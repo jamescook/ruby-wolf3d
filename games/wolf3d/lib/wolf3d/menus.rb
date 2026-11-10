@@ -282,9 +282,9 @@ module Wolf3D
     end
 
     def declare
-      check_it_can_start_there!
-      declare_the_lettering
-      declare_the_art
+      check_start_screen!
+      declare_lettering
+      declare_art
       @screen = @b.var :screen, @starting_on
       # Where the table goes back to, and whether it moves on by itself as it does in the attract loop.
       @scores_lead_to = @b.var :_scores_lead_to, TITLE
@@ -313,8 +313,8 @@ module Wolf3D
       @scores = HighScores.new(build: @b, letters: @letters, palette: @palette, view: @view,
                                player: @view.player, floor: @view.playthrough.floor, setting: @sound_setting)
       @view.hand_end_of_game_to_menus
-      declare_the_fades
-      declare_the_screens
+      declare_fades
+      declare_screens
     end
 
     # No screen at all, which is what "no fade is running" is written as.
@@ -323,7 +323,7 @@ module Wolf3D
     # A cartridge asked to boot on a screen it does not carry would boot to nothing at all, so
     # it says so instead. Two screens can be missing: the episode list, on a cartridge of one
     # episode, and the screen that says you won, on one whose floors cannot end an episode.
-    def check_it_can_start_there!
+    def check_start_screen!
       return if screens.key?(@starting_on)
 
       if @starting_on == EPISODES
@@ -339,7 +339,7 @@ module Wolf3D
 
     # Both of Wolfenstein's alphabets: read off VGAGRAPH while building, or, in a whole build,
     # each letter a run of the pack's font_glyphs, where VgagraphUnpacking cut it out.
-    def declare_the_lettering
+    def declare_lettering
       if @pack
         @b.font LETTERING, glyphs: packed_glyphs(0), height: Vgagraph::FONT_HEIGHTS.fetch(0)
         @b.font HEADING, glyphs: packed_glyphs(1), height: Vgagraph::FONT_HEIGHTS.fetch(1)
@@ -359,7 +359,7 @@ module Wolf3D
       end
     end
 
-    def declare_the_art
+    def declare_art
       %i[notice title credits menu_heading menu_gun menu_gun_firing load_game_heading save_game_heading
          high_scores level_label name_label score_label bj_wins]
         .each { |name| picture(name) }
@@ -374,20 +374,20 @@ module Wolf3D
     # THE FADE, AS TWO ROUTINES rather than as code in each screen. Three screens can start a
     # fade and each would otherwise carry its own copy of it; more to the point, a fade is one
     # thing the display does, so there should be one place that says how this game fades.
-    def declare_the_fades
+    def declare_fades
       @b.func(:_menu_fade_out) { @b.fade_out fade_colour, frames: FADE_FRAMES }
       @b.func(:_win_fade_out) { @b.fade_out @b.rgb(0, 0, 0), frames: WIN_FADE_FRAMES }
       @b.func(:_menu_fade_in) { @b.fade_in }
     end
 
-    def declare_the_screens
+    def declare_screens
       still_screen(:the_notice, :notice, after: TITLE, holding: NOTICE_FRAMES)
       still_screen(:the_title, :title, after: CREDITS, holding: TITLE_FRAMES)
       still_screen(:the_credits, :credits, after: SCORES, holding: CREDITS_FRAMES)
-      declare_the_menu
-      declare_the_episodes if offers_episodes?
-      declare_the_difficulty
-      declare_the_game
+      declare_menu
+      declare_episodes if offers_episodes?
+      declare_difficulty
+      declare_game
       declare_slot_screen(:load_game, :load_game_heading) { |n| load_slot(n) }
       declare_slot_screen(:save_game, :save_game_heading) { |n| save_to_slot(n) }
       declare_overwrite_question
@@ -448,7 +448,7 @@ module Wolf3D
 
     # --- THE MAIN MENU, WHICH IS ALSO THE PAUSE MENU -----------------------------------------
 
-    def declare_the_menu
+    def declare_menu
       rows = NEW_GAME + [LOAD_GAME, SAVE_GAME, VIEW_SCORES] + SOUND + BACK
       at = layout_for(rows)
       y = rows_top(@art.height(:menu_heading) + HEADING_GAP, MENU_ROWS)
@@ -697,7 +697,7 @@ module Wolf3D
     # dial for measuring a later floor's cost makes — has no episode start at all.
     def offers_episodes? = @episodes.length > 1
 
-    def declare_the_episodes
+    def declare_episodes
       at = layout_for(EPISODE_NAMES)
       y = rows_top(under_a_written_heading, EPISODE_NAMES.length)
       @b.scene(:the_episodes) do
@@ -722,7 +722,7 @@ module Wolf3D
 
     # --- THE DIFFICULTY SCREEN ---------------------------------------------------------------
 
-    def declare_the_difficulty
+    def declare_difficulty
       at = layout_for(DIFFICULTIES.map { |(_, words, _)| words })
       y = rows_top(under_a_written_heading, DIFFICULTIES.length)
       @b.scene(:the_difficulty) do
@@ -759,7 +759,7 @@ module Wolf3D
 
     # --- THE GAME ----------------------------------------------------------------------------
 
-    def declare_the_game
+    def declare_game
       @b.scene(:playing) do
         @view.update
         pausing

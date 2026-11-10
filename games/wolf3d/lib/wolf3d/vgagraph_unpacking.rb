@@ -11,9 +11,9 @@ module Wolf3D
   # written here, reading both files, rather than as a format, which reads the one file its block
   # comes from.
   #
-  # ONE WALK FOR EVERY CHUNK. The routine is game code, and the walk written out once per chunk
-  # overruns the build's stack, so the chunks this pack wants are a table (#chunk_jobs) and the walk
-  # runs in a loop over it, each byte going where its kind of chunk says.
+  # ONE WALK FOR EVERY CHUNK. The routine is game code, so a walk written out once per chunk is
+  # that many copies of it in the routine. Instead the chunks this pack wants are a table
+  # (#chunk_jobs) and one walk runs in a loop over it, each byte going where its kind of chunk says.
   #
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
   # branch in it, and every count is a variable of the routine's (#routine_var).
@@ -224,12 +224,13 @@ module Wolf3D
     # size than Vgagraph::SIZES is not unpacked, and stays place nought.
     def unpack_chunks
       jobs = chunk_jobs
-      tables = %i[chunk kind at width height number].to_h do |field|
+      # The table as one column for each field of ChunkJob, read into the routine variable of that name.
+      columns = ChunkJob.new(**ChunkJob.members.to_h do |field|
         [field, @b.table(:"vga_job_#{field}", jobs.map { |job| job.to_h.fetch(field) }, width: :word)]
-      end
+      end)
       @pack[:picture_count][0] = 0
       @b.repeat(jobs.length) do |n|
-        %i[chunk kind at width height number].each { |field| routine_var(field).store!(tables.fetch(field)[n]) }
+        columns.to_h.each { |field, column| routine_var(field).store!(column[n]) }
         wanted = routine_var(:wanted)
         wanted.store!(1)
         if routine_var(:kind) == PICTURE

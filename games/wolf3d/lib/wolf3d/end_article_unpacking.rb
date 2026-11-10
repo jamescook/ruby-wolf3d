@@ -112,8 +112,8 @@ module Wolf3D
       @b.repeat(ARTICLE_BYTES, stop_when: (read >= length) | (cut == 1)) do
         skip.store!(0)
         hexes = routine_var(:hexes)
-        hexes.store!(hex?(@buffer[read + 2]))
-        hexes.increase!(hex?(@buffer[read + 3]))
+        hexes.store!(flag_hex_digit(@buffer[read + 2]))
+        hexes.increase!(flag_hex_digit(@buffer[read + 3]))
         if @buffer[read] == CARET
           if @buffer[read + 1] == "E".ord
             cut.store!(1)
@@ -138,7 +138,7 @@ module Wolf3D
     end
 
     # 1 where +byte+ is a hex digit, as a regexp's \h takes one.
-    def hex?(byte)
+    def flag_hex_digit(byte)
       found = routine_var(:hex)
       found.store!(0)
       found.store!(1) if ((byte >= "0".ord) & (byte <= "9".ord)) | ((byte >= "a".ord) & (byte <= "f".ord)) |
@@ -178,7 +178,7 @@ module Wolf3D
     end
 
     # 1 where the byte at +at+ separates words.
-    def space?(at)
+    def flag_space(at)
       found = routine_var(:space)
       found.store!(0)
       SPACES.each { |space| found.store!(1) if @buffer[at] == space }
@@ -186,7 +186,7 @@ module Wolf3D
     end
 
     # 1 where ^P starts at +at+.
-    def page_break?(at)
+    def flag_page_break(at)
       found = routine_var(:page_break)
       found.store!(0)
       found.store!(1) if (@buffer[at] == CARET) & (@buffer[at + 1] == "P".ord)
@@ -208,8 +208,8 @@ module Wolf3D
       @b.repeat(ARTICLE_BYTES, stop_when: read >= length) do
         breaks = routine_var(:breaks)
         spaced = routine_var(:spaced)
-        breaks.store!(page_break?(read))
-        spaced.store!(space?(read))
+        breaks.store!(flag_page_break(read))
+        spaced.store!(flag_space(read))
         if breaks == 1
           if open == 1
             page.increase!(1)
@@ -245,8 +245,8 @@ module Wolf3D
       ended.store!(0)
       @b.repeat(ARTICLE_BYTES, stop_when: ended == 1) do
         stops = routine_var(:stops)
-        stops.store!(space?(ends))
-        stops.increase!(page_break?(ends))
+        stops.store!(flag_space(ends))
+        stops.increase!(flag_page_break(ends))
         if (ends >= routine_var(:length)) | (stops > 0)
           ended.store!(1)
         else

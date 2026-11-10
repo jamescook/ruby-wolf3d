@@ -81,12 +81,7 @@ class TestHolding < Minitest::Test
                  "the whole build's first floor"
   end
 
-  # A WHOLE BUILD DRAWS THE WALLS AND THINGS ITS PACK HOLDS, not pictures read from the copy while
-  # building: handed the six episodes' pack, the first room looks as the trimmed build draws it;
-  # handed the same pack with every wall place nought, the walls are the palette's first colour;
-  # with every thing place nought, the piece the player stands facing is drawn in it too, and with
-  # every gun place nought, the pistol in the player's hands.
-  # ...AND ITS TITLE AND MENU PICTURES: handed the six episodes' pack, the title screen (shortened
+  # A WHOLE BUILD DRAWS THE TITLE AND MENU PICTURES ITS PACK HOLDS: handed the six episodes' pack, the title screen (shortened
   # by the unpacking as MenuArt shortens it) and the main menu look as the trimmed build draws
   # them; handed the same pack with VGAGRAPH's pictures and the shortened screens blanked, neither does.
   def test_a_whole_build_draws_the_menu_pictures_its_pack_holds
@@ -136,6 +131,11 @@ class TestHolding < Minitest::Test
     end
   end
 
+  # A WHOLE BUILD DRAWS THE WALLS AND THINGS ITS PACK HOLDS, not pictures read from the copy while
+  # building: handed the six episodes' pack, the first room looks as the trimmed build draws it;
+  # handed the same pack with every wall place nought, the walls are the palette's first colour;
+  # with every thing place nought, the piece the player stands facing is drawn in it too, and with
+  # every gun place nought, the pistol in the player's hands.
   def test_a_whole_build_draws_the_pictures_its_pack_holds
     piece = first_piece_with_room_south(&:blocks)
     start = "#{piece.x},#{piece.y + 2},north"

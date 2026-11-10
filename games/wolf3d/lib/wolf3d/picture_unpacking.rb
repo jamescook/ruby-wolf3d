@@ -83,13 +83,16 @@ module Wolf3D
 
     # THE GUN'S ROW, out of the sprites' row: the release's last GUNS sprites, the knife's first
     # frame first (WeaponAtlas.first_sprite). A release with fewer sprites than that has no gun, and
-    # its row stays place nought, which nothing draws.
+    # its row stays nought: the palette's first colour, not see-through, so a square of it would
+    # show. Every release Vanilla accepts has one.
     def unpack_gun
       first = routine_var(:first_gun)
       first.store!(routine_var(:first_sound) - routine_var(:first_sprite) - GUNS)
-      has_gun = first >= 0
+      has_gun = routine_var(:has_gun)
+      has_gun.store!(0)
+      has_gun.store!(1) if first >= 0
       @b.repeat(GUNS) do |frame|
-        if has_gun
+        if has_gun == 1
           @pack[:gun_first_column][frame] = @pack[:sprite_first_column][first + frame]
           @pack[:gun_last_column][frame] = @pack[:sprite_last_column][first + frame]
           @b.repeat(SIDE) do |y|

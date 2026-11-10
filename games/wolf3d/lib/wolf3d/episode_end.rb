@@ -84,7 +84,7 @@ module Wolf3D
       @last_page = b.var :_end_last_page, 0
       @base = b.var :_end_base, 0
       @code = b.var :_end_code, 0
-      declare_the_articles
+      declare_articles
       @episode_of = b.table :article_episode, @floors.map { |f| f.index / Floors::PER_EPISODE }, width: :byte
       @summary = b.keep_showing(:episode_summary) { paint_summary }
       @page_picture = b.keep_showing(:article_page) { paint_page }
@@ -92,7 +92,7 @@ module Wolf3D
     end
 
     # EVERY ARTICLE'S PAGES, LINES rows of COLUMNS bytes each, and where each episode's start.
-    def declare_the_articles
+    def declare_articles
       if @pack
         @first_page = @b.table :article_first_page, @pack[:article_first_page]
         @text = @b.table :article_text, @pack[:article_pages]

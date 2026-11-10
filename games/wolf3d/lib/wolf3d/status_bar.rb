@@ -260,8 +260,8 @@ module Wolf3D
     # loop itself out of that memory, which costs about two and a half times on every instruction
     # in the game.
     def declare
-      declare_the_art
-      declare_the_strip_routines if @art
+      declare_art
+      declare_strip_routines if @art
 
       # The bar itself: painted when a field moves and then left alone. How many times a
       # change has to be painted is `keep_showing`'s business, not this file's — the screen
@@ -280,12 +280,12 @@ module Wolf3D
       @remembered = @shows.filter_map do |name, value|
         [name, @b.var(:"_bar_last_#{name}", -1)] unless value.is_a?(Integer)
       end.to_h
-      declare_the_parts
+      declare_parts
     end
 
     # One `keep_showing` per figure in PAINTED_ALONE that this bar shows as a variable, for the
     # same reason the bar has one: the screen keeps two pictures.
-    def declare_the_parts
+    def declare_parts
       @parts = {}
       return unless @art
 
@@ -309,7 +309,7 @@ module Wolf3D
 
     # The faces and the keys, each as ONE wide picture of all of them side by side, so which one
     # to show is a column worked out rather than a choice made.
-    def declare_the_art
+    def declare_art
       return unless @art
 
       @pictures.declare_strips
@@ -437,7 +437,7 @@ module Wolf3D
 
     # One routine per strip, because which picture a walk reads from is settled while building
     # and only WHICH ONE ALONG IT is worked out as the game runs.
-    def declare_the_strip_routines
+    def declare_strip_routines
       @col_x = @b.var :_bar_col_x, 0
       @col_y = @b.var :_bar_col_y, 0
       @col_slot = @b.var :_bar_col_slot, 0
@@ -452,12 +452,12 @@ module Wolf3D
       # 24 pictures of 24 columns and 72 of 8 are the same columns counted differently.
       strip_routine(:_bar_face, :bar_faces, FACE_GROUP, @art.face_height)
       strip_routine(:_bar_weapon, :bar_weapons, WEAPON_GROUP, @art.weapon_height)
-      declare_the_rule
+      declare_rule
     end
 
     # The groove between two fields, as a picture and a routine that draws it wherever the
     # column variable says. One drawing in the cartridge, called once per boundary.
-    def declare_the_rule
+    def declare_rule
       @pictures.declare_rule(inside_height)
       @rule_half = @b.var :_bar_rule_half, 0
 

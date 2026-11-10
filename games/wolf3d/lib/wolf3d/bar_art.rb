@@ -194,7 +194,7 @@ module Wolf3D
     # WHAT THE PLATE OF THIS COPY SAYS, read off it as PLATE was: asked by test_status_bar, which holds
     # each copy to the record.
     def measure_plate
-      Plate.new(ground: measured_ground,
+      Plate.new(ground: measure_ground,
                 top_edge: TOP_ROWS.map { |y| commonest(plate.rows[y]) },
                 bottom_edge: BOTTOM_ROWS.map { |y| commonest(plate.rows[y]) },
                 label_boxes: measured_label_boxes)
@@ -224,7 +224,7 @@ module Wolf3D
     # letter, on the edge of a bevel — and the answer looks plausible and is wrong.
     def commonest(pixels) = pixels.tally.max_by { |_, count| count }.first
 
-    def measured_ground = commonest(plate.rows[GROUND_ROW])
+    def measure_ground = commonest(plate.rows[GROUND_ROW])
 
     def plate_facts = @plate_facts ||= measure_plate
 
@@ -235,7 +235,7 @@ module Wolf3D
     def plate_fields
       @plate_fields ||= begin
         plate = @vg.picture(:status_bar)
-        g = measured_ground
+        g = measure_ground
         dense = (0...plate.width).select do |x|
           RULE_ROWS.count { |y| plate[x, y] != g } > RULE_INK
         end
@@ -249,7 +249,7 @@ module Wolf3D
     def measured_label_boxes
       @measured_label_boxes ||= begin
         plate = @vg.picture(:status_bar)
-        g = measured_ground
+        g = measure_ground
         LABEL_FIELDS.each_with_index.to_h do |name, n|
           from, to = plate_fields.fetch(n)
           inked = (from..to).select { |x| LABEL_ROWS.any? { |y| plate[x, y] != g } }

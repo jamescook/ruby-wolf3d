@@ -137,7 +137,7 @@ class TestFloorUnpacking < Minitest::Test
     height = Wolf3D::Vgagraph::FONT_HEIGHTS.fetch(0)
     at = 0
     Wolf3D::Vgagraph::FONT_WIDTHS.fetch(0).each do |code, width|
-      next unless code.between?(33, 126)
+      next unless code.between?(Wolf3D::SmallLetters::FIRST_CODE + 1, Wolf3D::SmallLetters::LAST_CODE)
 
       wide = width.odd? ? width + 1 : width
       rows = font.height == height && font.width(code) == width ? font.rows(code) : Array.new(height) { [0] * width }
