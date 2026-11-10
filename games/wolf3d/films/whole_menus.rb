@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 # A WHOLE BUILD'S TITLE, THEN ITS MAIN MENU, every picture drawn from the data pack (MenuPictures):
-# the title shortened by the unpacking, the plate over the rows, the gun. The copy is the one this
+# the title shortened by the unpacking, the plate over the rows, the gun, and the rows written in
+# Wolfenstein's alphabet, each letter cut out of VGAGRAPH by the unpacking. The copy is the one this
 # machine names, so the film is made once for each:
 #
 #   rake film NAME=whole_menus

@@ -337,9 +337,26 @@ module Wolf3D
             "an episode. To fix this, build it with the last floor of an episode. Or start on another screen."
     end
 
+    # Both of Wolfenstein's alphabets: read off VGAGRAPH while building, or, in a whole build,
+    # each letter a run of the pack's font_glyphs, where VgagraphUnpacking cut it out.
     def declare_the_lettering
-      @b.font LETTERING, glyphs: @art.font(0)
-      @b.font HEADING, glyphs: @art.font(1)
+      if @pack
+        @b.font LETTERING, glyphs: packed_glyphs(0), height: Vgagraph::FONT_HEIGHTS.fetch(0)
+        @b.font HEADING, glyphs: packed_glyphs(1), height: Vgagraph::FONT_HEIGHTS.fetch(1)
+      else
+        @b.font LETTERING, glyphs: @art.font(0)
+        @b.font HEADING, glyphs: @art.font(1)
+      end
+    end
+
+    # The letters Vgagraph::Font#glyphs hands over, the printable ones, each as its pixels in the pack.
+    def packed_glyphs(font)
+      height = Vgagraph::FONT_HEIGHTS.fetch(font)
+      Vgagraph::FONT_WIDTHS.fetch(font)
+                           .select { |code, width| width.positive? && Vgagraph::Font::PRINTABLE.cover?(code) }
+                           .to_h do |code, width|
+        [code.chr, @pack[:font_glyphs].pixels(VgagraphUnpacking::GLYPH_AT.fetch(font).fetch(code), width * height)]
+      end
     end
 
     def declare_the_art
