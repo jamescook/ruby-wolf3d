@@ -61,6 +61,7 @@ module Wolf3D
       new(vgagraph) if vgagraph && vgagraph.names.include?(:menu_gun)
     end
 
+    # +vgagraph+ is nil in a whole build, which asks only for sizes (see Source).
     def initialize(vgagraph)
       @vg = vgagraph
     end
@@ -82,7 +83,11 @@ module Wolf3D
     # Read from Vgagraph::SIZES rather than the copy, so a whole build knows them before any copy is
     # read; both releases hold their pictures at those sizes.
     def size(name)
-      width, height = Vgagraph::SIZES.fetch(name) { @vg.size(name) }
+      width, height = Vgagraph::SIZES.fetch(name) do
+        raise KeyError, "Vgagraph::SIZES holds no size for #{name}, and a whole build reads no VGAGRAPH." unless @vg
+
+        @vg.size(name)
+      end
       FULL_SCREEN.include?(name) ? [width, DOWN] : [width, height]
     end
 

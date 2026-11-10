@@ -95,8 +95,8 @@ module Wolf3D
     # themselves (#faces and the rest), which a whole build takes from its pack, decode any.
     #
     # +plate+ is what the plate says (a Plate): measured off the copy's own plate where it is left
-    # out, which a trimmed build does, or PLATE, which a whole build hands in since it reads no
-    # plate while building.
+    # out, which a trimmed build does, or PLATE, which a whole build hands in with no +vgagraph+ at
+    # all, since it reads no picture while building (see Source).
     def initialize(vgagraph, plate: nil)
       @vg = vgagraph
       @plate_facts = plate

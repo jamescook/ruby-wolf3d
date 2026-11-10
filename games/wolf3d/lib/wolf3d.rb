@@ -403,10 +403,6 @@ module Wolf3D
                                             Wolf3D::Pickups.pictures(f.guards)
                                         }.then { |seen| seen + Wolf3D::VictoryMarch.pictures(floors, Wolf3D.vswap) }.uniq.sort)
                end
-      # WOLFENSTEIN'S OWN MENU ART, or nil for a release whose pictures we cannot name — and
-      # then the cartridge boots straight into the game, because there is nothing to write a
-      # menu with. The same pictures hold the lettering of the screen between floors.
-      menu_art = Wolf3D::MenuArt.of(Wolf3D.vgagraph)
       # A WHOLE BUILD READS ITS FLOORS AND PICTURES FROM A DATA PACK, which the unpacking fills from
       # the copy: here as the build is made, in a shell at LOAD ROM. A trimmed one bakes them (Source).
       source = if holding.whole?
@@ -414,6 +410,10 @@ module Wolf3D
                else
                  Wolf3D::Source::BAKED
                end
+      # WOLFENSTEIN'S OWN MENU ART, or nil for a release whose pictures we cannot name — and
+      # then the cartridge boots straight into the game, because there is nothing to write a
+      # menu with. The same pictures hold the lettering of the screen between floors.
+      menu_art = source.menu_art
       # WHAT THE SOUND ROW IS SET TO, which every one of the game's sounds and songs is played
       # under. Declared here rather than inside either of them because both need it and neither
       # owns it.
@@ -425,7 +425,7 @@ module Wolf3D
       view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
                                      vswap: Wolf3D.vswap,
                                      adlib: Wolf3D.adlib,
-                                     bar_art: Wolf3D::BarArt.of(Wolf3D.vgagraph, plate: holding.whole? ? Wolf3D::BarArt::PLATE : nil),
+                                     bar_art: source.bar_art,
                                      gun_art: holding.whole? ? Wolf3D::WeaponAtlas.new(nil, Wolf3D.palette) : Wolf3D.gun_art,
                                      lettering: menu_art,
                                      sound_setting: sound_setting,

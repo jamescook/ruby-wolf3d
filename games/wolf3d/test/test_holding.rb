@@ -162,6 +162,21 @@ class TestHolding < Minitest::Test
     assert_operator count_differing_pixels(seen[4], trimmed), :>, 100, "the status bar of place nought"
   end
 
+  # A WHOLE BUILD LAYS OUT ITS MENUS AND STATUS BAR WITHOUT OPENING VGAGRAPH: every size and place it
+  # needs is a constant the code holds (Vgagraph::SIZES, BarArt::PLATE), so a shell built where there
+  # is no copy has both. Built with any question to VGAGRAPH refused, its main menu, bar and all,
+  # still looks as the trimmed build draws it.
+  def test_a_whole_build_lays_out_its_screens_without_vgagraph
+    program = with_vgagraph_refused do
+      Wolf3D::GAME.checked_program(err: nil, settings: { screen: "menu", hold: "whole" }, pack_at_start: true)
+    end
+    trimmed_program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1, screen: "menu", hold: "trimmed" })
+    trimmed = Reference.new.run(trimmed_program, frames: MenuScene::FRAMES).screen
+    seen = Reference.new.hand_file(whole_pack_of(real_copy)).run(program, frames: MenuScene::FRAMES).screen
+
+    assert_equal 0, count_differing_pixels(seen, trimmed)
+  end
+
   # ONE WHOLE BUILD OFFERS THE EPISODES ITS COPY HOLDS, read from the pack it is handed as it runs:
   # given the shareware's, the list steps over the five episodes the shareware lacks and A starts the
   # first; given the six episodes', down lands on the second, which starts at its own first floor.
@@ -364,6 +379,23 @@ class TestHolding < Minitest::Test
   private
 
   def first_floor(hold:) = Wolf3D::GAME.program(settings: { floors: 1, screen: "playing", hold: hold })
+
+  # A VGAGRAPH THAT ANSWERS NOTHING, standing in for one no machine has.
+  class RefusedVgagraph < BasicObject
+    def method_missing(name, *) = ::Kernel.raise(::RuntimeError, "the build asked VGAGRAPH for #{name}")
+    def respond_to_missing?(*) = true
+  end
+
+  # The block's builds with Wolf3D.vgagraph refused. Wolf3D keeps the copy's VGAGRAPH for this worker
+  # under :wolf3d_vgagraph, and a test may not swap Wolf3D.vgagraph itself, so the stand-in goes
+  # there and what was there comes back after.
+  def with_vgagraph_refused
+    kept = Ractor.current[:wolf3d_vgagraph]
+    Ractor.current[:wolf3d_vgagraph] = RefusedVgagraph.new
+    yield
+  ensure
+    Ractor.current[:wolf3d_vgagraph] = kept
+  end
 
   # THE DATA PACK A SHELL MAKES FROM +data+ (a GameData), the file a whole build left without its pack
   # is handed: FloorUnpacking's routine run over that copy. The pack names no copy's SHA-1, which

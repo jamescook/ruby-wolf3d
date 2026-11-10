@@ -20,9 +20,18 @@ module Wolf3D
   # - small_letter_pictures(build, art:, palette:): SmallLetterPictures.
   # - alphabets(build, art:): Alphabets, the menus' two proportional fonts.
   # - article_pages(build, art:, letters:, floors:): ArticlePages, the articles an episode ends on.
+  #
+  # And the two layouts the parts are handed, which say how big each picture is and where the bar's
+  # labels sit: menu_art (MenuArt, or nil for a copy whose pictures we cannot name, which then has no
+  # menus) and bar_art (BarArt, or nil likewise). A whole build opens no VGAGRAPH for them: every
+  # size is in Vgagraph::SIZES and every place on the plate in BarArt::PLATE, and both releases it
+  # takes have menus and a bar.
   module Source
     # EVERYTHING WORKED OUT IN RUBY, while building.
     class Baked
+      def menu_art = MenuArt.of(Wolf3D.vgagraph)
+      def bar_art = BarArt.of(Wolf3D.vgagraph)
+
       def floor_tables(build, floors:, wall_picture:) = FloorTables::Baked.new(build, floors, wall_picture)
       def view_pictures(build) = ViewPictures::Baked.new(build)
       def bar_pictures(build, art:) = BarPictures::Baked.new(build, art)
@@ -43,6 +52,9 @@ module Wolf3D
       def initialize(pack)
         @pack = pack
       end
+
+      def menu_art = MenuArt.new(nil)
+      def bar_art = BarArt.new(nil, plate: BarArt::PLATE)
 
       def floor_tables(build, floors:, wall_picture:) = FloorTables::Packed.new(build, floors, @pack)
       def view_pictures(build) = ViewPictures::Packed.new(build, @pack)
