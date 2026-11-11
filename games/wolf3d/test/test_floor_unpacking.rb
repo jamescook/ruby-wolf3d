@@ -23,6 +23,7 @@ class TestFloorUnpacking < Minitest::Test
       pack = unpacked(made_up_original(dir))
 
       assert_unpacked_as_read maps, Wolf3D::Vswap.new(release.files["VSWAP"]), release.pictures, pack
+      assert_same_adlib_effects Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"]), pack
     end
   end
 
@@ -91,11 +92,48 @@ class TestFloorUnpacking < Minitest::Test
     assert_same_small_letters release.pictures, pack
   end
 
+  # THE MADE-UP RELEASE'S ADLIB EFFECTS, two of those the game plays (the wall and the knife), played
+  # through the chip by the routine as Opl2 plays them, and the rest it lacks left silent.
+  def test_the_made_up_releases_adlib_effects_are_played_as_the_chip_plays_them
+    Dir.mktmpdir do |dir|
+      release = Wolf3D::Fixture::Release.new(set: "WL6", adlib: MADE_UP_EFFECTS)
+      release.write(dir)
+      adlib = Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"])
+
+      refute_nil adlib.recording(MADE_UP_EFFECTS.first), "the made-up effect should make a sound"
+      assert_same_adlib_effects adlib, unpacked(made_up_original(dir))
+    end
+  end
+
+  MADE_UP_EFFECTS = [0, 23].freeze
+
+  # An effect said to start past the end of AUDIOT, and of every file after it: nothing is read
+  # there, its room is left silent and its numbers nought, and the other effect is played as the
+  # chip plays it.
+  PAST_THE_COPY = 0x4000_0000
+
+  def test_an_effect_past_audiot_is_not_played
+    first_chunk = Wolf3D::AdlibSounds::FIRST_CHUNK
+    pack, release = unpacked_with_damage("AUDIOHED.WL6", adlib: MADE_UP_EFFECTS) do |head|
+      head[4 * first_chunk, 8] = [PAST_THE_COPY, PAST_THE_COPY + 100].pack("V2")
+    end
+    adlib = Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"])
+    knife = Wolf3D::AdlibUnpacking.numbers.index(MADE_UP_EFFECTS.last)
+    room = Wolf3D::AdlibUnpacking::ROOM[knife]
+    pcm = samples_in_room(adlib.recording(MADE_UP_EFFECTS.last), room)
+
+    assert_equal [0], pack.fetch(:adlib_samples).byteslice(0, Wolf3D::AdlibUnpacking::ROOM[0]).bytes.uniq, "the effect past AUDIOT"
+    assert_equal [0, 0, 0], %i[adlib_length adlib_note_frames adlib_priority].map { |slot| pack.fetch(slot).unpack1("v") }
+    assert_equal pcm + ([0] * (room - pcm.length)),
+                 pack.fetch(:adlib_samples).unpack("c*")[Wolf3D::AdlibUnpacking::EFFECT_AT[knife], room], "the knife"
+  end
+
   # A real copy's status bar and shortened title too, which the made-up release's plate is not
   # painted to be measured for.
   def test_the_six_episodes_unpack_as_the_readers_read_them
     pack = unpacked(original_of(real_copy))
     assert_unpacked_as_read Wolf3D.maps, Wolf3D.vswap, Wolf3D.vgagraph, pack
+    assert_same_adlib_effects Wolf3D.adlib, pack
     assert_same_bar Wolf3D.vgagraph, pack
     assert_same_screens Wolf3D.vgagraph, pack
   end
@@ -106,6 +144,7 @@ class TestFloorUnpacking < Minitest::Test
     graph = Wolf3D::Vgagraph.from(data)
     pack = unpacked(original_of(data))
     assert_unpacked_as_read Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), graph, pack
+    assert_same_adlib_effects Wolf3D::AdlibSounds.from(data), pack
     assert_same_bar graph, pack
     assert_same_screens graph, pack
   end
@@ -293,6 +332,34 @@ class TestFloorUnpacking < Minitest::Test
     assert_equal wanted, got.bytes, "the gun's row"
     assert_equal (0...guns).map { |n| vswap.sprite(first + n).first_column }, pack.fetch(:gun_first_column).bytes
     assert_equal (0...guns).map { |n| vswap.sprite(first + n).last_column }, pack.fetch(:gun_last_column).bytes
+  end
+
+  # THE ADLIB EFFECTS, each in its room of AdlibUnpacking::ROOM at EFFECT_AT, sample for sample
+  # what Opl2 makes of it for a trimmed build (AdlibSounds#recording) with nought after, and its
+  # length, the frames its notes last and its priority beside. An effect the copy lacks, or one
+  # that makes no sound, is a silent room and three noughts. One longer than its room, which only a
+  # made-up effect is, is cut to it.
+  def assert_same_adlib_effects(adlib, pack)
+    unpacking = Wolf3D::AdlibUnpacking
+    got = pack.fetch(:adlib_samples).unpack("c*")
+    assert_equal unpacking::ROOM.sum, got.length, "every effect's room and nothing more"
+    unpacking.numbers.each_with_index do |number, n|
+      recording = adlib.recording(number)
+      pcm = samples_in_room(recording, unpacking::ROOM[n])
+      assert_equal pcm + ([0] * (unpacking::ROOM[n] - pcm.length)), got[unpacking::EFFECT_AT[n], unpacking::ROOM[n]],
+                   "effect #{number}"
+      assert_equal [pcm.length, recording&.note_frames.to_i, recording&.priority.to_i],
+                   %i[adlib_length adlib_note_frames adlib_priority].map { |slot| pack.fetch(slot).unpack("v*")[n] },
+                   "effect #{number}'s length, note frames and priority"
+    end
+  end
+
+  # +recording+'s samples as far as +room+ holds them, ending at the last that is not nought; none
+  # for no recording.
+  def samples_in_room(recording, room)
+    samples = recording ? recording.pcm.first(room) : []
+    samples = samples[0...-1] while samples.last&.zero?
+    samples
   end
 
   # EVERY RECORDED SOUND, its samples as VSWAP keeps them (Vswap::Sound, 128 for silence), each at
@@ -525,9 +592,9 @@ class TestFloorUnpacking < Minitest::Test
 
   # The pack unpacked from the made-up release with its file +name+ damaged, and that release
   # undamaged: the file's bytes, and the directory it is in, are handed to the block to change.
-  def unpacked_with_damage(name)
+  def unpacked_with_damage(name, adlib: [])
     Dir.mktmpdir do |dir|
-      release = Wolf3D::Fixture::Release.new(set: "WL6")
+      release = Wolf3D::Fixture::Release.new(set: "WL6", adlib: adlib)
       release.write(dir)
       path = File.join(dir, name)
       bytes = File.binread(path)

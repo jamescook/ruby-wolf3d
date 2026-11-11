@@ -73,6 +73,7 @@ VBlank.require_game_file "wolf3d/floor_unpacking"
 # ...and VSWAP's pictures, the other part of that pack, which DataPack declares.
 VBlank.require_game_file "wolf3d/picture_unpacking"
 VBlank.require_game_file "wolf3d/sound_unpacking"
+VBlank.require_game_file "wolf3d/adlib_unpacking"
 VBlank.require_game_file "wolf3d/vgagraph_unpacking"
 VBlank.require_game_file "wolf3d/bar_unpacking"
 VBlank.require_game_file "wolf3d/small_letter_unpacking"
