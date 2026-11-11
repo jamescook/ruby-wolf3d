@@ -391,32 +391,18 @@ module Wolf3D
     end
 
     # THE FIGURE IN THE GAME'S OWN NUMERALS, which are pictures rather than letters — the
-    # original keeps ten of them, all one size, and an eleventh that is blank.
-    #
-    # Each digit place works out its own digit and shows the numeral that many along the row of
-    # them, so nothing is chosen: the column is `slot * width + column`, the same arithmetic the
-    # face uses. A place the number has not reached yet shows the blank one instead, which is
-    # what drops the leading noughts; the ones place always shows, so a value of nothing still
-    # reads as 0.
+    # original keeps ten of them, all one size, and an eleventh that is blank (NUMERALS). A place
+    # the number has not reached shows the blank one, which paints over the digit that was there,
+    # as the original's LatchNumber draws N_BLANKPIC (wolf4sdl: wl_agent.cpp, LatchNumber).
     def draw_a_figure_in_numerals(field)
-      value = @shows.fetch(field.name)
-      wide = @art.digit_width
-      left = centred(field, field.digits * wide)
-      slots = (@digit_slots ||= {})
-      slots[field.name] ||= @b.var(:"_bar_digit_#{field.name}", 0)
-
-      field.digits.times do |i|
-        place = 10**(field.digits - 1 - i)
-        digit = place == 1 ? value % 10 : (value / place) % 10
-        if place == 1
-          slots[field.name] = digit + 1
-        else
-          slots[field.name] = BarArt::BLANK
-          slots[field.name] = digit + 1 if value >= place
-        end
-        draw_from_strip(:_bar_numeral, slots[field.name], left + (i * wide), @top + FIGURE_ROW)
-      end
+      @b.draw_number @shows.fetch(field.name), centred(field, field.digits * @art.digit_width),
+                     @top + FIGURE_ROW, digits: field.digits, font: NUMERALS_FONT
     end
+
+    # The bar's numerals as a font: the row of them cut into its eleven pictures, the blank first
+    # (BarArt::BLANK) and then nought to nine, which is how BarArt lays the row out.
+    NUMERALS_FONT = :bar_numerals
+    NUMERALS = " 0123456789"
 
     # ONE PICTURE OUT OF A ROW OF THEM, walked column by column. The row holds every picture the
     # thing can show side by side, so which one is `slot * width + column` — arithmetic instead
@@ -442,7 +428,7 @@ module Wolf3D
       @col_y = @b.var :_bar_col_y, 0
       @col_slot = @b.var :_bar_col_slot, 0
 
-      strip_routine(:_bar_numeral, :bar_numerals, @art.digit_width, @art.digit_height)
+      @b.font NUMERALS_FONT, strip: :bar_numerals, characters: NUMERALS
       strip_routine(:_bar_key, :bar_keys, @art.key_width, @art.key_height)
       # THE FACE IS WALKED IN GROUPS rather than in one go, for the same reason the walk is a
       # routine at all. A routine 24 columns wide is 24 column draws in the cartridge and
