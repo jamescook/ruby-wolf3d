@@ -7,6 +7,9 @@ module Wolf3D
   class BigLettering
     LETTER = 16
 
+    # The ten numerals as a font of their pictures, which figures are drawn in.
+    NUMERALS_FONT = :tally_numerals
+
     # For a release with no lettering, and the ink it is written in.
     FONT = :default
     INK = 15
@@ -36,25 +39,16 @@ module Wolf3D
       end
     end
 
-    # A FIGURE IS NOT, so each place works out its digit as the game runs, and places the number
-    # has not reached are left as bare ground. The numerals are solid pictures of one size, so the
-    # number stands against the right of its room as the original's does.
+    # A FIGURE IS NOT, so it is drawn in NUMERALS_FONT, the numerals as a font, and places the
+    # number has not reached are left as bare ground: the font has no picture for a space. The
+    # numerals are solid pictures of one size, so the number stands against the right of its
+    # room as the original's does.
     #
     # +zeros+ writes those places as noughts, as a clock does.
     def draw_a_figure(value, x, y, digits:, zeros: false)
       return @b.draw_number(value, x, y, colour(INK), digits: digits, font: FONT) unless @art
 
-      digits.times do |i|
-        place = 10**(digits - 1 - i)
-        if zeros || place == 1 || value >= place
-          @numeral = (value / place) % 10
-          # HALF THE COLUMN, DOUBLED: the framework draws a picture only where it can prove the
-          # column is even, and twice anything is.
-          @half_x = (x + (i * LETTER)) / 2
-          @row = y
-          @b.call :tally_numeral
-        end
-      end
+      @b.draw_number value, x, y, digits: digits, leading_zeros: zeros, font: NUMERALS_FONT
     end
 
     # A TIME, as the original writes one: two places of minutes, a colon, two places of seconds.
@@ -84,11 +78,9 @@ module Wolf3D
       declare_figures if figures
     end
 
+    # The ten numerals as a font. Must follow the pictures' own declarations, which name them.
     def declare_figures
-      @numeral = @b.var :_tally_numeral, 0
-      @half_x = @b.var :_tally_half_x, 0
-      @row = @b.var :_tally_row, 0
-      @b.func(:tally_numeral, fast: false) { draw_a_numeral }
+      @b.font NUMERALS_FONT, pictures: ("0".."9").to_h { |digit| [digit, picture_of(digit)] }
     end
 
     # What a character's picture is called in the release. See Vgagraph.
@@ -100,11 +92,6 @@ module Wolf3D
       when "'" then :tally_apostrophe
       else :"tally_#{char.downcase}"
       end
-    end
-
-    # TEN PICTURES UNDER TEN TESTS, once, and every digit place calls it.
-    def draw_a_numeral
-      10.times { |digit| @b.blit :"tally_#{digit}", @half_x * 2, @row if @numeral == digit }
     end
 
     def colour(ink) = Palette.game[ink]

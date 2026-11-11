@@ -299,4 +299,34 @@ class TestEndOfFloor < Minitest::Test
 
     assert_equal 10_000, run[:floor_score]
   end
+
+  # --- in the game's own numerals ---
+
+  # THE PAR TIME IS WRITTEN IN THE GAME'S OWN NUMERALS, read back by matching each place of the
+  # clock against VGAGRAPH's ten numeral pictures. The first floor's par is a minute and a half,
+  # which the original writes 01:30 (wolf4sdl: wl_inter.cpp, parTimes), so all four places show,
+  # the leading nought too. The lift is ridden on the real first floor (LiftScene).
+  def test_the_par_time_is_written_in_the_games_own_numerals
+    program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1, screen: "playing", start: LiftScene.start })
+    screen = Reference.new.input_each_frame { |frame| LiftScene.keys(frame) }
+                      .run(program, frames: LiftScene::TALLY_FRAMES).screen
+    places = [0, 1, 3, 4].map { |place| numeral_at(screen, Tally::CLOCK_X + (place * Wolf3D::BigLettering::LETTER), Tally::PAR_Y) }
+
+    assert_equal [0, 1, 3, 0], places
+  end
+
+  private
+
+  # Which of the ten numeral pictures is drawn with its corner at +x+, +y+, or nil for none.
+  def numeral_at(screen, x, y)
+    side = Wolf3D::BigLettering::LETTER
+    drawn = (0...side).flat_map { |row| (0...side).map { |col| screen.pixel(x + col, y + row) } }
+    (0..9).find { |digit| numeral_picture(digit) == drawn }
+  end
+
+  def numeral_picture(digit)
+    (Ractor.current[:tally_numerals] ||= Wolf3D::MenuArt.of(Wolf3D.vgagraph).then do |art|
+      (0..9).map { |n| art.picture(:"tally_#{n}", Wolf3D::Palette.game)[:data] }
+    end)[digit]
+  end
 end
