@@ -12,6 +12,7 @@ require_relative "support/episode_scene"
 require_relative "support/menu_scene"
 require_relative "support/lift_scene"
 require_relative "support/article_scene"
+require_relative "support/unpacked_pack"
 VBlank.require_game_file "support/counting_worlds"
 
 module Wolf3DTest
@@ -62,19 +63,20 @@ module Wolf3DTest
                                releases: Wolf3D::Vanilla::RELEASES, platform: :pc)
   end
 
-  # EACH SLOT OF A DATA PACK AS +unpacking+ (an Original::Unpacking) LEAVES IT, run on the
-  # interpreter and handed its copy. The routine waits a frame every 256 bytes it counts, and it
-  # counts fewer than the pack holds (a slot it leaves at nought is never written), so the bytes give
-  # it frames to spare; a routine that has not finished in them is a fault, not a short pack.
+  # EACH SLOT OF A DATA PACK AS +unpacking+ (an Original::Unpacking) LEAVES IT, built as Ruby and
+  # played in this process, handed its copy: the way a build and a shell play it, and many times
+  # faster than the interpreter, which VBlank's own suite holds that runner to. The routine waits a
+  # frame every 256 bytes it counts, and it counts fewer than the pack holds (a slot it leaves at
+  # nought is never written), so the bytes give it frames to spare; a routine that has not finished
+  # in them is a fault, not a short pack.
   #
-  # KEPT IN THE BUILD'S OWN PACK CACHE (DataPack::CACHE), since a whole copy takes minutes on the
-  # interpreter. Its key is the copy's bytes, the routine and its slots, VBlank and the Ruby, so a hit
-  # is exactly what this run would have written: a change to any of them, or a copy a test damaged,
-  # runs the routine again.
+  # KEPT IN THE BUILD'S OWN PACK CACHE (DataPack::CACHE). Its key is the copy's bytes, the routine
+  # and its slots, VBlank and the Ruby, so a hit is exactly what this run would have written: a
+  # change to any of them, or a copy a test damaged, runs the routine again.
   def slots_unpacked_by(unpacking)
     VBlank::Original::PackCache.new(Wolf3D::DataPack::CACHE).slot_bytes(unpacking) do
       frames = (unpacking.byte_size / 256) + 400
-      run = unpacking.run_on(Reference.new, frames: frames)
+      run = unpacking.run_as_ruby(frames: frames)
       raise "the unpacking did not finish in #{frames} frames" unless unpacking.finished_in?(run)
 
       unpacking.slot_bytes_in(run)

@@ -25,7 +25,7 @@ class TestOpl2Track < Minitest::Test
   CONSOLE = Wolf3D::Opl2Track::CONSOLE_SAMPLE_RATE
   COMPUTER = Wolf3D::Opl2Track::COMPUTER_SAMPLE_RATE
 
-  def render(writes, rate: CONSOLE) = Wolf3D::Opl2Track.render(writes, rate: rate)
+  def render(writes, rate: CONSOLE) = Wolf3D::Opl2Track.render(writes, rate: rate, loudest: Wolf3D::Opl2Track.loudest(writes))
 
   def test_a_track_lasts_as_long_as_its_delays_say_at_seven_hundred_ticks_a_second
     assert_in_delta CONSOLE, render(a_held_note).length, 2

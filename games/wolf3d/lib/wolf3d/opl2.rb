@@ -25,7 +25,8 @@ module Wolf3D
   #
   # NOT HERE: rhythm mode and the percussion, which no effect uses; the feedback and additive
   # connection, which this driver never turns on; and vibrato, which on the chip moves a pitch by
-  # its top three bits, and an effect's pitch is one byte, so they are always nought.
+  # its top three bits, and an effect's pitch is one byte, so they are always nought. The music
+  # uses all three, and Opl2Track is all nine channels, made of this file's Operator.
   class Opl2
     # The chip's own sample rate, and a seventh of it, which is about the rate of the recordings in
     # VSWAP. Each sample written is seven of the chip's, averaged, which keeps out the high notes
@@ -71,35 +72,52 @@ module Wolf3D
     QUIET = 256
 
     # AN ENVELOPE'S LOSS HAS 20 MORE BITS BELOW ITS STEPS, so a slow decay can move a little on every
-    # sample. FALL is what one sample of a decay or a release adds at each of the chip's 64 rates,
-    # and nought where the rate never moves. The slowest that moves, rate 4, takes 39.28 seconds
-    # to fall right down, and each four rates halve that.
+    # sample. A clock's fall is what one sample of a decay or a release adds at each of the chip's
+    # 64 rates, and nought where the rate never moves. The slowest that moves, rate 4, takes 39.28
+    # seconds to fall right down, and each four rates halve that.
     ENVELOPE_BITS = 20
     SLOWEST_DECAY_SECONDS = 39.28
     SLOWEST_RATE = 4
     RATES = 64
-    FALL = Ractor.make_shareable(
-      (0...RATES).map do |rate|
-        next 0 if rate < SLOWEST_RATE
-
-        (((SILENT + 1) << ENVELOPE_BITS) / (SLOWEST_DECAY_SECONDS * NATIVE_RATE) * (2.0**((rate - SLOWEST_RATE) / 4.0))).round
-      end
-    )
 
     # AN ATTACK CLIMBS IN AMPLITUDE and not in decibels, so it is heard from its first moments:
-    # a count runs from nought to ATTACK_FULL, RISE a sample (rate 4 takes 2.826 seconds), and its
-    # top eight bits pick the loss that amplitude is.
+    # a count runs from nought to ATTACK_FULL, a clock's rise a sample (rate 4 takes 2.826 seconds),
+    # and its top eight bits pick the loss that amplitude is.
     ATTACK_BITS = 28
     ATTACK_FULL = 1 << ATTACK_BITS
     ATTACK_PLACE_BITS = 20
     SLOWEST_ATTACK_SECONDS = 2.826
-    RISE = Ractor.make_shareable(
-      (0...RATES).map do |rate|
-        next 0 if rate < SLOWEST_RATE
 
-        (ATTACK_FULL / (SLOWEST_ATTACK_SECONDS * NATIVE_RATE) * (2.0**((rate - SLOWEST_RATE) / 4.0))).round
+    # A place in a cycle moves by the pitch times a clock's phase ratio, out of 1 << PHASE_RATIO_BITS.
+    PHASE_RATIO_BITS = 10
+
+    # HOW OFTEN AN OPERATOR IS STEPPED, and what that makes of its tables. The chip steps at
+    # NATIVE_RATE, which is what the effects use. The music steps at the rate it is written at, so
+    # it moves further each step: by +phase_ratio+ out of 1 << PHASE_RATIO_BITS, and its envelope by
+    # its own +fall+ and +rise+ for each rate.
+    Clock = Data.define(:phase_ratio, :fall, :rise)
+
+    def self.clock(rate)
+      Clock.new(
+        phase_ratio: ((NATIVE_RATE.to_f / rate) * (1 << PHASE_RATIO_BITS)).round,
+        fall: envelope_steps((SILENT + 1) << ENVELOPE_BITS, SLOWEST_DECAY_SECONDS, rate),
+        rise: envelope_steps(ATTACK_FULL, SLOWEST_ATTACK_SECONDS, rate)
+      )
+    end
+
+    # What one step at +rate+ moves an envelope that crosses +span+ in +slowest_seconds+ at rate 4,
+    # for each of the 64 rates.
+    def self.envelope_steps(span, slowest_seconds, rate)
+      (0...RATES).map do |chip_rate|
+        next 0 if chip_rate < SLOWEST_RATE
+
+        (span / (slowest_seconds * rate) * (2.0**((chip_rate - SLOWEST_RATE) / 4.0))).round
       end
-    )
+    end
+
+    NATIVE_CLOCK = Ractor.make_shareable(clock(NATIVE_RATE))
+    FALL = NATIVE_CLOCK.fall
+    RISE = NATIVE_CLOCK.rise
     ATTACK_LOSS = Ractor.make_shareable(
       (0...256).map { |place| [(-20 * Math.log10((place + 0.5) / 256) / STEP_DECIBELS).round, SILENT].min }
     )
@@ -123,6 +141,14 @@ module Wolf3D
     TREMOLO_PEAK = 105
     TREMOLO_SHIFT = 4
 
+    # AN OPERATOR'S FIVE REGISTERS, by the top bits of the register's number. The cell below them
+    # says which operator (Opl2Track::CELLS).
+    CHAR_REGISTER = 0x20
+    SCALE_REGISTER = 0x40
+    ATTACK_REGISTER = 0x60
+    SUSTAIN_REGISTER = 0x80
+    WAVE_REGISTER = 0xe0
+
     # The stages of an envelope.
     OFF = 0
     ATTACK = 1
@@ -134,39 +160,94 @@ module Wolf3D
     FULL_SUM = RATE_DIVIDER * FULL_WAVE
     FULL_SAMPLE = 127
 
-    # ONE OF THE TWO SINE WAVES, and its envelope.
+    # ONE OF THE TWO SINE WAVES, and its envelope. It starts with every register nought and its key
+    # up. A write to any of its five registers, or a new pitch, settles at once what the operator
+    # keeps for its steps: how far a step moves it, how fast it rises and falls, the loss its key
+    # scaling takes. The music writes them while a note sounds; an effect, once before its notes.
     class Operator
       attr_reader :stage
 
-      # +operator+ is the five registers (AdlibSounds::Operator) and +block+ the effect's octave,
-      # which with a pitch of one byte settles every rate for the whole effect.
-      def initialize(operator, block)
-        @block = block
-        @doubled_multiple = DOUBLED_MULTIPLES[operator.char & 0x0f]
-        @tremolo = (operator.char >> 7) & 1
-        @holds_sustain = (operator.char >> 5) & 1
-        @level = (operator.scale & 0x3f) * LEVEL_STEPS
-        @key_scale = operator.scale >> 6
-        @wave = operator.wave & 3
-        offset = (operator.char >> 4) & 1 == 1 ? block * 2 : (block * 2) >> 2
-        @attack = operator.attack >> 4
-        @rise = RISE[rate(@attack, offset)]
-        @decay_fall = FALL[rate(operator.attack & 0x0f, offset)]
-        @release_fall = FALL[rate(operator.sustain & 0x0f, offset)]
-        sustain = operator.sustain >> 4
-        @sustain = (sustain == LOWEST_SUSTAIN_LEVEL ? LOWEST_SUSTAIN : sustain * SUSTAIN_STEPS) << ENVELOPE_BITS
+      # +clock+ is how often #step is called (Opl2.clock).
+      def initialize(clock)
+        @clock = clock
+        @block = 0
+        @fnum = 0
+        @doubled_multiple = DOUBLED_MULTIPLES[0]
+        @key_scale_rate = 0
+        @holds_sustain = 0
+        @vibrato = 0
+        @tremolo = 0
+        @level = 0
+        @key_scale = 0
+        @attack = 0
+        @decay = 0
+        @sustain = 0
+        @release = 0
+        @wave = 0
         @stage = OFF
         @loss = SILENT << ENVELOPE_BITS
         @risen = 0
         @phase = 0
-        @step = 0
-        @scale_loss = 0
+        retune
+      end
+
+      # The five registers of +registers+ (AdlibSounds::Operator), as an instrument sets them.
+      def load(registers)
+        self.char = registers.char
+        self.scale = registers.scale
+        self.attack = registers.attack
+        self.sustain = registers.sustain
+        self.wave = registers.wave
+      end
+
+      # Register 0x20: tremolo, vibrato, whether the sustain holds, whether the rates scale by the
+      # key, and the multiple.
+      def char=(value)
+        @tremolo = (value >> 7) & 1
+        @vibrato = (value >> 6) & 1
+        @holds_sustain = (value >> 5) & 1
+        @key_scale_rate = (value >> 4) & 1
+        @doubled_multiple = DOUBLED_MULTIPLES[value & 0x0f]
+        retune
+      end
+
+      # Register 0x40: the key scaling of the level, and the level, four steps to each of its 64.
+      def scale=(value)
+        @key_scale = value >> 6
+        @level = (value & 0x3f) * LEVEL_STEPS
+        retune
+      end
+
+      # Register 0x60: the attack and decay rates.
+      def attack=(value)
+        @attack = value >> 4
+        @decay = value & 0x0f
+        retune
+      end
+
+      # Register 0x80: the sustain level, sixteen steps to each of its 16, the last nearly silence,
+      # and the release rate.
+      def sustain=(value)
+        level = value >> 4
+        @sustain = (level == LOWEST_SUSTAIN_LEVEL ? LOWEST_SUSTAIN : level * SUSTAIN_STEPS) << ENVELOPE_BITS
+        @release = value & 0x0f
+        retune
+      end
+
+      # Register 0xE0: which of the four shapes.
+      def wave=(value)
+        @wave = value & 3
+      end
+
+      # The channel's pitch: its block (the octave) and its ten bits of fnum.
+      def tune(block, fnum)
+        @block = block
+        @fnum = fnum
+        retune
       end
 
       # A key already down keeps its envelope, which is why a run of notes is one long sound.
-      def key_on(fnum)
-        @step = ((fnum << @block) * @doubled_multiple) >> 1
-        @scale_loss = scale_loss(fnum)
+      def key_on
         return if @stage == ATTACK || @stage == DECAY || @stage == SUSTAIN
 
         @risen = 0
@@ -180,6 +261,12 @@ module Wolf3D
 
       def key_off
         @stage = RELEASE unless @stage == OFF
+      end
+
+      # THE CHIP'S SLOW WOBBLE OF PITCH, for an operator whose vibrato is on: the pitch moved by its
+      # top three bits times +shape+, shifted down by +shift+, until the next retune or wobble.
+      def vibrate(shape, shift)
+        @step = phase_step(@fnum + (((@fnum >> 7) * shape) >> shift)) if @vibrato == 1
       end
 
       # One of the chip's samples, from -FULL_WAVE to FULL_WAVE. +bend+ is in SINE's places, and
@@ -197,6 +284,25 @@ module Wolf3D
 
       private
 
+      # What a register or the pitch settles. The key code is the block and the top bit of the
+      # pitch, and a rate goes up by all of it where the rates scale by the key, or by its top two
+      # bits where they do not.
+      def retune
+        @step = phase_step(@fnum)
+        key_code = (@block * 2) | ((@fnum >> 9) & 1)
+        offset = @key_scale_rate == 1 ? key_code : key_code >> 2
+        @rise = @clock.rise[rate(@attack, offset)]
+        @decay_fall = @clock.fall[rate(@decay, offset)]
+        @release_fall = @clock.fall[rate(@release, offset)]
+        @scale_loss = scale_loss
+      end
+
+      # How far a step moves the place in the cycle at +fnum+: fnum shifted up by the block, times
+      # the clock's ratio, times the multiple.
+      def phase_step(fnum)
+        ((((fnum << @block) * @clock.phase_ratio) >> PHASE_RATIO_BITS) * @doubled_multiple) >> 1
+      end
+
       # The chip's rate for a register's setting: four to a setting, and a little more the higher
       # the note. A setting of nought never moves at all.
       def rate(register, offset)
@@ -205,8 +311,8 @@ module Wolf3D
         [(register * 4) + offset, RATES - 1].min
       end
 
-      def scale_loss(fnum)
-        cut = KEY_SCALE_LOSS[fnum >> 6] - (KEY_SCALE_OCTAVE * (TOP_BLOCK - @block))
+      def scale_loss
+        cut = KEY_SCALE_LOSS[@fnum >> 6] - (KEY_SCALE_OCTAVE * (TOP_BLOCK - @block))
         cut = 0 if cut.negative?
         case @key_scale
         when 0 then 0
@@ -262,10 +368,10 @@ module Wolf3D
     def self.render(effect) = new(effect).render
 
     def initialize(effect)
-      block = effect.block & 7
+      @block = effect.block & 7
       @notes = effect.notes
-      @modulator = Operator.new(effect.instrument.modulator, block)
-      @carrier = Operator.new(effect.instrument.carrier, block)
+      @modulator = operator_of(effect.instrument.modulator)
+      @carrier = operator_of(effect.instrument.carrier)
       @clock = 0
       @sum = 0
       @tremor = 0
@@ -289,13 +395,24 @@ module Wolf3D
 
     private
 
+    # The instrument's registers, at the effect's block, every rate settled by it alone: a pitch of
+    # one byte never reaches the bit of fnum that would move them.
+    def operator_of(registers)
+      operator = Operator.new(NATIVE_CLOCK)
+      operator.load(registers)
+      operator.tune(@block, 0)
+      operator
+    end
+
     def key_note(note)
       count = (@clock / TREMOLO_SAMPLES) % (2 * TREMOLO_PEAK)
       @tremor = (count < TREMOLO_PEAK ? count : (2 * TREMOLO_PEAK) - count) >> TREMOLO_SHIFT
       return key_off_both if note.zero?
 
-      @modulator.key_on(note)
-      @carrier.key_on(note)
+      [@modulator, @carrier].each do |operator|
+        operator.tune(@block, note)
+        operator.key_on
+      end
     end
 
     def key_off_both

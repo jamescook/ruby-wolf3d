@@ -57,6 +57,12 @@ module Wolf3D
       FIRST_EPISODE + SECOND_EPISODE + THIRD_EPISODE + FIRST_EPISODE + SECOND_EPISODE + SIXTH_EPISODE
     )
 
+    OTHER_SONGS = [MENU_SONG, INTRO_SONG, BETWEEN_FLOORS_SONG, ROSTER_SONG, WON_SONG].freeze
+
+    # EVERY SONG THE ORIGINAL NAMES, which a whole build holds whichever floors its copy has, in the
+    # order a whole build lists them.
+    WHOLE_SONGS = (FLOOR_SONGS + OTHER_SONGS).uniq.freeze
+
     # Kept below the effects' full level, so a shot is heard over the music.
     MUSIC_VOLUME = 11
 
@@ -103,9 +109,7 @@ module Wolf3D
 
     # A whole build (Holding) wants every song the original names, whichever floors this copy has.
     def declare
-      others = [MENU_SONG, INTRO_SONG, BETWEEN_FLOORS_SONG, ROSTER_SONG, WON_SONG]
-      floor_songs = @holding.whole? ? FLOOR_SONGS : @floors.map { |floor| FLOOR_SONGS[floor.index] }
-      wanted = (floor_songs + others).compact.uniq
+      wanted = @holding.whole? ? WHOLE_SONGS : (@floors.map { |floor| FLOOR_SONGS[floor.index] } + OTHER_SONGS).compact.uniq
       @held = @tracks ? wanted.reject { |track| @tracks.writes(track).empty? } : []
       return if @held.empty?
 

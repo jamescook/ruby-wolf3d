@@ -61,12 +61,13 @@ module Wolf3D
       SPRITE_INK = 112
 
       # A set whose pictures have no names here, unless a test asks for one that does. See #named.
-      def initialize(set: "SDM", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2, adlib: [])
+      def initialize(set: "SDM", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2, adlib: [], music: [])
         @set = set
         @walls = walls
         @sprites = sprites
         @sounds = sounds
         @adlib = adlib
+        @music = music
         @rlew = IdSoftware::Codec::RLEW.new(tag: RLEW_TAG)
       end
 
@@ -530,7 +531,7 @@ module Wolf3D
       end
 
       def audiot
-        chunks = @adlib.empty? ? [Array.new(8) { |i| i }.pack("C*")] : adlib_chunks
+        chunks = @adlib.empty? && @music.empty? ? [Array.new(8) { |i| i }.pack("C*")] : audio_chunks
         body = chunks.join
         at = 0
         offsets = chunks.map { |chunk| at.tap { at += chunk.bytesize } } << body.bytesize
@@ -543,12 +544,33 @@ module Wolf3D
       ADLIB_PRIORITY = 1
       ADLIB_INSTRUMENT = [0x21, 0x21, 0x3f, 0x00, 0xf0, 0xf0, 0x0f, 0x0f, 0, 0, 0, 0, 0, 0, 0, 0].freeze
 
-      def adlib_chunks
-        Array.new(AdlibSounds::FIRST_CHUNK + @adlib.max + 1) do |chunk|
-          next "" unless @adlib.include?(chunk - AdlibSounds::FIRST_CHUNK)
+      # A TRACK FOR EACH MUSIC NUMBER ASKED FOR, two seconds of writes to the chip as AdlibMusic reads
+      # them, [register, value, ticks to wait], that reach every part of it the game's music does: the
+      # deep wobbles and then the shallow, a channel with feedback whose pitch has its top bit set, a
+      # level and a pitch changed while a note sounds, an additive channel, keys let go, and writes to
+      # a cell that is not there and a register that is no operator's.
+      MUSIC_WRITES = Ractor.make_shareable([
+        [0xbd, 0xc0, 0], [0x26, 0xff, 0], [0x08, 0x40, 0],
+        [0x20, 0x31, 0], [0x40, 0x10, 0], [0x60, 0xf4, 0], [0x80, 0x55, 0], [0xe0, 0x01, 0],
+        [0x23, 0xe1, 0], [0x43, 0x00, 0], [0x63, 0xc3, 0], [0x83, 0x24, 0], [0xe3, 0x02, 0], [0xc0, 0x0e, 0],
+        [0xa0, 0x58, 0], [0xb0, 0x32, 350], [0x43, 0x10, 140], [0xa0, 0x80, 140],
+        [0x21, 0x02, 0], [0x41, 0x05, 0], [0x61, 0xa6, 0], [0x81, 0x37, 0],
+        [0x24, 0x01, 0], [0x44, 0x08, 0], [0x64, 0xf2, 0], [0x84, 0x1a, 0], [0xc1, 0x05, 0],
+        [0xa1, 0x30, 0], [0xb1, 0x2d, 280], [0xb0, 0x12, 140], [0xbd, 0x00, 70], [0xb1, 0x0d, 280]
+      ])
 
-          [ADLIB_NOTES].pack("V") + [ADLIB_PRIORITY].pack("v") + ADLIB_INSTRUMENT.pack("C*") + [4].pack("C") +
-            ([200] * ADLIB_NOTES).pack("C*")
+      def audio_chunks
+        last = [AdlibSounds::FIRST_CHUNK + (@adlib.max || -1), AdlibMusic::FIRST_CHUNK + (@music.max || -1)].max
+        Array.new(last + 1) do |chunk|
+          if @adlib.include?(chunk - AdlibSounds::FIRST_CHUNK)
+            [ADLIB_NOTES].pack("V") + [ADLIB_PRIORITY].pack("v") + ADLIB_INSTRUMENT.pack("C*") + [4].pack("C") +
+              ([200] * ADLIB_NOTES).pack("C*")
+          elsif @music.include?(chunk - AdlibMusic::FIRST_CHUNK)
+            log = MUSIC_WRITES.flatten.pack("CCv" * MUSIC_WRITES.length)
+            [log.bytesize].pack("v") + log
+          else
+            ""
+          end
         end
       end
 

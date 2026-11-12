@@ -32,21 +32,36 @@ VBlank::Testing::RactorSettings.apply(ENV)
 GAME = "games/wolf3d"
 LIBS = ["lib", "test", "#{GAME}/lib", "#{GAME}/test"].freeze
 
-# `rake test` IS THE WHOLE SUITE, as one run on the interpreter the cartridge is checked against.
+# `rake test` IS THE SUITE, as one run on the interpreter the cartridge is checked against.
 # The framework's full set of tasks would play it again built as C, JavaScript and Ruby, which
 # this game is not tested as; its single test task is the run without the rest.
+E2E = "#{GAME}/test/e2e"
+EVERYDAY_TESTS = FileList["test/**/test_*.rb", "#{GAME}/test/**/test_*.rb"].exclude("#{E2E}/**/*")
 VBlank::Testing::TestTask.new(:test) do |t|
   t.libs = LIBS.dup
-  t.test_files = FileList["test/**/test_*.rb", "#{GAME}/test/**/test_*.rb"]
+  t.test_files = EVERYDAY_TESTS
   t.warning = false
   t.description = "Run the suite (one file with TEST=#{GAME}/test/test_maps.rb, one test with " \
                   'TESTOPTS="--name=/pattern/")'
 end
 
+# `rake e2e` IS WHAT UNPACKS A WHOLE COPY: a whole build played from its data pack, and the pack
+# held to the readers on both real copies, every song of the music played through the chip. Each
+# takes minutes the first time after the unpacking changes, so it is run sparingly, not with the
+# suite: after a change to an unpacking or to what a whole build reads from its pack.
+VBlank::Testing::TestTask.new(:e2e) do |t|
+  t.libs = LIBS.dup
+  t.test_files = FileList["#{E2E}/**/test_*.rb"]
+  t.warning = false
+  t.description = "Run the tests that unpack a whole copy (minutes; after a change to an unpacking)"
+end
+
 # THE CHECK BEFORE A COMMIT: the files the game's test/golden.txt names, each from the game's own
-# folder. Past the framework's limit it fails however well the tests did, so every game built on it
-# has the same one and this run cannot grow into one nobody bothers with.
-VBlank::Testing::GoldenTask.new(list: "#{GAME}/test/golden.txt", from: GAME) do |t|
+# folder, and a few of the suite's others drawn at random, never e2e's. Past the framework's limit
+# it fails however well the tests did, so every game built on it has the same one and this run
+# cannot grow into one nobody bothers with.
+VBlank::Testing::GoldenTask.new(list: "#{GAME}/test/golden.txt", from: GAME,
+                                test_files: FileList["#{GAME}/test/**/test_*.rb"].exclude("#{E2E}/**/*").to_a) do |t|
   t.libs = LIBS.dup
   t.warning = false
 end
