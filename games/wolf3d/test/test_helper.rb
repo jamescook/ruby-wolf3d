@@ -63,9 +63,10 @@ module Wolf3DTest
                                releases: Wolf3D::Vanilla::RELEASES, platform: :pc)
   end
 
-  # EACH SLOT OF A DATA PACK AS +unpacking+ (an Original::Unpacking) LEAVES IT, built as Ruby and
-  # played in this process, handed its copy: the way a build and a shell play it, and many times
-  # faster than the interpreter, which VBlank's own suite holds that runner to. The routine waits a
+  # EACH SLOT OF A DATA PACK AS +unpacking+ (an Original::Unpacking) LEAVES IT, handed its copy and
+  # played the fastest way this machine has: built as C where zig is installed, else as Ruby, the way
+  # a build plays it. Both are many times faster than the interpreter, which VBlank's own suite holds
+  # them to, and the music through the chip is minutes as Ruby and seconds as C. The routine waits a
   # frame every 256 bytes it counts, and it counts fewer than the pack holds (a slot it leaves at
   # nought is never written), so the bytes give it frames to spare; a routine that has not finished
   # in them is a fault, not a short pack.
@@ -76,7 +77,7 @@ module Wolf3DTest
   def slots_unpacked_by(unpacking)
     VBlank::Original::PackCache.new(Wolf3D::DataPack::CACHE).slot_bytes(unpacking) do
       frames = (unpacking.byte_size / 256) + 400
-      run = unpacking.run_as_ruby(frames: frames)
+      run = unpacking.run_fastest(frames: frames)
       raise "the unpacking did not finish in #{frames} frames" unless unpacking.finished_in?(run)
 
       unpacking.slot_bytes_in(run)
