@@ -19,18 +19,26 @@ module Wolf3D
     # file loads (it is games/wolf3d/lib/wolf3d/), since the game's own code may not reach the files.
     CACHE = File.expand_path("../../../../.cache/packs", __dir__).freeze
 
-    # Each part of the pack: its slots (`declare`) and the part of the routine that fills them.
-    PARTS = [FloorUnpacking, PictureUnpacking, SoundUnpacking, AdlibUnpacking, MusicUnpacking, VgagraphUnpacking,
-             BarUnpacking, SmallLetterUnpacking, EndArticleUnpacking].freeze
+    # Each part of the pack, by the name the pack's cache keeps it under: its slots (`declare`) and
+    # the part of the routine that fills them, in the order they run.
+    #
+    # A PART IS CACHED ON ITS OWN, so a change to one replays it and whatever reads its slots, not
+    # the whole copy: the music alone is minutes on the Ruby runner. That holds only while the parts
+    # hand each other nothing but slots. The cache does not see an instance variable or a local two
+    # parts share, so none may: the bar, the small letters and the end articles read what the
+    # vgagraph part left in its slots, and nothing else crosses.
+    PARTS = { floors: FloorUnpacking, pictures: PictureUnpacking, sounds: SoundUnpacking, adlib: AdlibUnpacking,
+              music: MusicUnpacking, vgagraph: VgagraphUnpacking, bar: BarUnpacking,
+              small_letters: SmallLetterUnpacking, end_articles: EndArticleUnpacking }.freeze
 
     # THE PACK, declared on +game+ (a build's self) and filled from +from+ (an Original::Game naming
     # the copy). Hands back the pack's handle.
     def self.declare(game, from:)
       game.data_pack(from: from, version: VERSION, formats: [MapPlaneFormat], cache: CACHE) do |slots|
-        PARTS.each { |part| part.declare(slots) }
-        # The routine is a program of its own, and the block runs on its builder: self here.
-        slots.fill_from_copy do |copy, pack, release|
-          PARTS.each { |part| part.new(self, copy, pack, release).fill }
+        PARTS.each_value { |part| part.declare(slots) }
+        # The routine is a program of its own, and each part's block runs on its builder: self here.
+        PARTS.each do |name, part|
+          slots.fill_from_copy(name) { |copy, pack, release| part.new(self, copy, pack, release).fill }
         end
       end
     end
