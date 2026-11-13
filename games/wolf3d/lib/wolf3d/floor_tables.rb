@@ -58,9 +58,8 @@ module Wolf3D
         @floors.count_of(what, n)
       end
 
-      # A variable holding the first floor's, declared on +on+ (the build, or what a saved game
-      # holds).
-      def declare_floor_value(name, what, on: @b, &baked) = on.var(name, fetch_floor_value(what, 0, &baked))
+      # A variable holding the first floor's.
+      def declare_floor_value(name, what, &baked) = @b.var(name, fetch_floor_value(what, 0, &baked))
 
       # ...and the same number where the build knows it while building, which a baked one always does.
       def floor_value_while_building(what, n, &baked) = fetch_floor_value(what, n, &baked)
@@ -196,8 +195,8 @@ module Wolf3D
 
       # ...so a variable holding the first floor's starts at nought and is given it at power-on:
       # this is written where the build declares it, before the game loop, which runs once.
-      def declare_floor_value(name, what, on: @b, &_baked)
-        held = { value: on.var(name, 0) } # a Hash, since a name holds a value
+      def declare_floor_value(name, what, &_baked)
+        held = { value: @b.var(name, 0) } # a Hash, since a name holds a value
         held[:value] = fetch_floor_value(what, 0)
         held[:value]
       end

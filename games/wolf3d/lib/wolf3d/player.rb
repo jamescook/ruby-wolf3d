@@ -6,8 +6,8 @@ module Wolf3D
   # the parts it wants by name.
   #
   # IT IS ALL DECLARED AT ONCE, so nothing has to come into being in the right order for anything
-  # else to reach it. Each field is a framework variable the game changes as it runs; the record
-  # itself never changes, so it is frozen and can be handed about freely.
+  # else to reach it. Each field is a game variable the game changes as it runs, named for what the
+  # tests and the bot read (px, view, health).
   #
   #   x, y                 where they stand, in cells, with the fraction saying where in the cell
   #   angle                which way they look, as a step round the sine table
@@ -22,8 +22,15 @@ module Wolf3D
   # +sin+ IS A NUMBER, THE SINE OF THIS ONE ANGLE, and never the table of sines. The table belongs
   # to the view rather than to the player, and anything that needs it to look up another angle is
   # handed it separately: see Dying.
-  Player = Data.define(:x, :y, :angle, :cos, :sin, :health, :ammo, :score, :keys, :kills, :secrets,
-                       :treasures, :noise, :running) do
+  Player = Struct.new(:x, :y, :angle, :cos, :sin, :health, :ammo, :score, :keys, :kills, :secrets,
+                      :treasures, :noise, :running) do
+    game_variables x: :px, y: :py, angle: :view, health: :health, ammo: :ammo, score: :score, keys: :keys,
+                   kills: :kills, secrets: :secrets, treasures: :treasures
+    # Not in a saved game: cos and sin are worked out from the angle again, running from the next
+    # move, and the noise is the original's madenoise, a global outside gamestate that a save never
+    # writes.
+    game_variables :cos, :sin, :running, noise: :noise, saved: false
+
     # A PLAYER AT +x+, +y+ LOOKING ALONG +angle+, with +ammo+ rounds. +lasting+ is what a saved game
     # holds (see LastingState), and every field but the noise and the two worked out from the angle
     # is in it.
@@ -33,15 +40,15 @@ module Wolf3D
     # nothing.
     def self.declare(build:, x:, y:, angle:, lasting: LastingState.new(build:),
                      ammo: FirstPerson::START_AMMO, looks: false)
-      new(
-        x: lasting.var(:px, x), y: lasting.var(:py, y), angle: lasting.var(:view, angle),
-        cos: (build.var(:_vcos, 0.0) if looks), sin: (build.var(:_vsin, 0.0) if looks),
-        health: lasting.var(:health, FirstPerson::START_HEALTH), ammo: lasting.var(:ammo, ammo),
-        score: lasting.var(:score, 0),
+      player = new(
+        x: x, y: y, angle: angle,
+        cos: (0.0 if looks), sin: (0.0 if looks),
+        health: FirstPerson::START_HEALTH, ammo: ammo,
+        score: 0,
         # Which keys are carried, one bit each. A key is a thing lying on the floor like a clip of
         # ammunition is, so picking one up belongs to Pickups; this is only what is carried, which
         # is the one number a locked door asks about.
-        keys: lasting.var(:keys, 0),
+        keys: 0,
         # HOW MUCH OF THE FLOOR HAS BEEN FOUND: how many of its guards are down, how many of its
         # secret walls have been shoved, how many of its treasures are in your pocket. Three
         # numbers the game keeps for the tally at the end of a floor, and they belong to the FLOOR
@@ -53,8 +60,8 @@ module Wolf3D
         #
         # How much there was to find is counted with the things lying on the floor — see
         # FirstPerson#declare_what_there_is_to_find.
-        kills: lasting.var(:kills, 0), secrets: lasting.var(:secrets, 0),
-        treasures: lasting.var(:treasures, 0),
+        kills: 0, secrets: 0,
+        treasures: 0,
         # A NOISE THE PLAYER MADE. A gun going off is one, and so is a man crying out when you hit
         # him — the original's own flag is commented "true when shooting or screaming". A guard who
         # hears one looks your way without having to see you first, which is what turns a corridor
@@ -68,9 +75,12 @@ module Wolf3D
         # stood for one pass would be heard by half the room and missed by the other half, chosen
         # by nothing anyone could see. It stands for FirstPerson::HEARD_FOR passes instead, which is
         # how long it takes every guard to have thought once.
-        noise: build.var(:noise, 0),
-        running: build.var(:_running, 0)
+        noise: 0,
+        running: 0
       )
+      lasting.keep player.x, player.y, player.angle, player.health, player.ammo, player.score, player.keys,
+                   player.kills, player.secrets, player.treasures
+      player
     end
   end
 end

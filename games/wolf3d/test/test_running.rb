@@ -32,21 +32,21 @@ class TestRunning < Minitest::Test
   end
 
   def test_holding_the_button_still_with_no_step_is_not_running
-    assert_equal 0, walked(:a)[:_running]
+    assert_equal 0, walked(:a)[:player_running]
   end
 
   # T_Shoot asks whether thrustspeed reached RUNSPEED, and a walk alone falls short of it.
   def test_a_walk_is_not_a_run
-    assert_equal 0, walked(:up)[:_running]
+    assert_equal 0, walked(:up)[:player_running]
   end
 
   def test_a_run_is_a_run
-    assert_equal 1, walked(:up, :a)[:_running]
+    assert_equal 1, walked(:up, :a)[:player_running]
   end
 
   # Thrust adds up, so a walk with a sidestep is past RUNSPEED too.
   def test_a_walk_and_a_sidestep_together_count_as_running
-    assert_equal 1, walked(:up, :l)[:_running]
+    assert_equal 1, walked(:up, :l)[:player_running]
   end
 
   def test_a_press_of_the_run_button_still_opens_a_door

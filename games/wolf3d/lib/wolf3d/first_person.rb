@@ -1079,11 +1079,12 @@ module Wolf3D
     def declare_what_there_is_to_find
       first = @floors.first_floor
       tables = @this_floor.tables
-      @kill_total = tables.declare_floor_value(:kill_total, :kills, on: @lasting) do
+      @kill_total = tables.declare_floor_value(:kill_total, :kills) do
         first.guards&.to_kill(Guards::DEFAULT_DIFFICULTY) || 0
       end
-      @secret_total = tables.declare_floor_value(:secret_total, :pushwalls, on: @lasting)
-      @treasure_total = tables.declare_floor_value(:treasure_total, :treasure, on: @lasting) { @pickups.treasure_total(0) }
+      @secret_total = tables.declare_floor_value(:secret_total, :pushwalls)
+      @treasure_total = tables.declare_floor_value(:treasure_total, :treasure) { @pickups.treasure_total(0) }
+      @lasting.keep @kill_total, @secret_total, @treasure_total
     end
 
     # THE SCREEN AT THE BOTTOM OF THE LIFT, and the bar stays under it as it does in the original.

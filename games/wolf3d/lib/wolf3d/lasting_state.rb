@@ -5,11 +5,10 @@ module Wolf3D
   # next and is not worked out again from the rest. Where the player stands, what they carry, how
   # far open each door is, where every guard is and what he is doing.
   #
-  # DECLARING A THING THROUGH THIS IS KEEPING IT. A part of the game writes
-  # `@lasting.var :keys, 0` where it would write `b.var :keys, 0`, and the declaration stays where
-  # it was, beside the comment that says what the thing is. So there is no second list of what a
-  # save holds to fall out of step with the first: a thing cannot be declared lasting and left out
-  # of the save.
+  # KEEPING A THING IS SAID WHERE IT IS DECLARED. A part gives its variable its first number and
+  # hands it over on the next line (`@left = START`, `@lasting.keep @left`), and declares a list or a
+  # pool through here (`@lasting.list :doors, ...`), beside the comment that says what the thing is.
+  # So there is no second list of what a save holds to fall out of step with the first.
   #
   # WHAT IS NOT IN IT is a part's `game_variables ..., saved: false`, or a `var` named with an
   # underscore, and is one of two things. Working room, which nothing reads from one pass to the
@@ -26,8 +25,6 @@ module Wolf3D
     # choice: SaveTheGame (wl_main.cpp) writes the game's state and the floor's, and none of these.
     # The names are what the framework's `saves_keep_everything` is told to leave out.
     LEFT_OUT = Ractor.make_shareable({
-      noise: "A shot heard for the next pass or two. The original's madenoise is a global " \
-             "outside gamestate, and a save never writes it.",
       random_numbers: "The original never writes rndindex, so a loaded game rolls on from " \
                       "wherever the numbers have got to, and the guard who was going to miss " \
                       "may hit."
@@ -44,8 +41,6 @@ module Wolf3D
     # first number, which hands over the variable itself (`@lasting.keep @left`).
     def keep(*variables) = variables.each { |variable| kept(variable.name) { variable } }
 
-    # A variable, declared and kept, for Player's record, whose fields are handed about as variables.
-    def var(name, init) = kept(name) { @b.var(name, init) }
 
     # A list, declared and kept: every item, and how many there are.
     def list(name, **) = kept(name) { @b.list(name, **) }

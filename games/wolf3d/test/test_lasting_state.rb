@@ -108,7 +108,7 @@ class TestLastingState < Minitest::Test
   # A NAME STARTING WITH AN UNDERSCORE is working room, or a thing worked out from the rest, and
   # this game never saves either. Declared lasting, one of the two is wrong.
   def test_an_underscore_name_is_refused
-    error = refused { |lasting, _| lasting.var :_ray_x, 0 }
+    error = refused { |lasting, build| lasting.keep build.var(:_ray_x, 0) }
 
     assert_match(/_ray_x/, error.message)
   end
@@ -116,9 +116,9 @@ class TestLastingState < Minitest::Test
   # TWO THINGS OF ONE NAME are one thing to the framework, which would quietly put the second's
   # starting value over the first's.
   def test_a_name_declared_twice_is_refused
-    error = refused do |lasting, _|
-      lasting.var :keys, 0
-      lasting.var :keys, 0
+    error = refused do |lasting, build|
+      lasting.keep build.var(:keys, 0)
+      lasting.keep build.var(:keys, 0)
     end
 
     assert_match(/keys/, error.message)
@@ -158,11 +158,13 @@ class TestLastingState < Minitest::Test
     @small_program ||= VBlank.game("KEEP", consoles: %i[gba]) do
       screen :bitmap
       lasting = Wolf3D::LastingState.new(build: self)
-      before = lasting.var :before, 0
+      before = var :before, 0
+      lasting.keep before
       doors = lasting.list :doors, capacity: 2
       game = save_data :game, copies: 1
       lasting.keep_in(game)
-      after = lasting.var :after, 0
+      after = var :after, 0
+      lasting.keep after
       men = lasting.pool :men, hp: 0, capacity: 2
       2.times { doors << 0 }
       game_loop do

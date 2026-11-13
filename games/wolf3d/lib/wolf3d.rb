@@ -96,7 +96,7 @@ VBlank.require_game_file "wolf3d/recordings"
 # ...and the one choice between baking and the pack, which hands each part its own of those.
 VBlank.require_game_file "wolf3d/source"
 require_relative "wolf3d/lasting_state"
-require_relative "wolf3d/player"
+VBlank.require_game_file "wolf3d/player"
 VBlank.require_game_file "wolf3d/guard_pool"
 # ...and two small things the rest of the game tells: the screen, about a hit or a pickup, and the
 # score, about points.
