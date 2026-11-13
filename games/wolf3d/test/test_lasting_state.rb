@@ -259,8 +259,9 @@ class TestLastingState < Minitest::Test
   # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE OF EACH TABLE: of the map, the doors, the walls
   # that slide, the guards and the things lying about, and which cell is its secret lift. None of
   # them is kept; each is worked out again from which floor it is.
-  CURSORS = %i[this_floor_map_base this_floor_door_first _door_count this_floor_push_first _push_count guard_pool_first
-               _guard_count this_floor_piece_first _piece_count _secret_car].freeze
+  CURSORS = %i[this_floor_map_base this_floor_door_first this_floor_door_count this_floor_push_first
+               this_floor_pushwall_count guard_pool_first guard_pool_count this_floor_piece_first
+               this_floor_piece_count this_floor_secret_car].freeze
 
   def cursors(run) = CURSORS.map { |name| run[name] }
 

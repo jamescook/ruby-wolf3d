@@ -540,7 +540,6 @@ module Wolf3D
       top = @top + ((HEIGHT - (METALS.length * @art.key_height)) / 2)
 
       METALS.each_key.with_index do |name, n|
-        slot = @b.var :"_bar_key_#{name}", 0
         slot = BarArt::BLANK
         slot = @art.key_slot(name) if carrying(keys, name)
         draw_from_strip(:_bar_key, slot, at(field), top + (n * @art.key_height))

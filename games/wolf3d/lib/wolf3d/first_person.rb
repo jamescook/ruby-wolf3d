@@ -10,6 +10,8 @@ module Wolf3D
   class FirstPerson
     game_variables pulled: :lift_pulled, lift_secret: :lift_secret, lift_wait: :lift_wait,
                    difficulty: :difficulty
+    # What this floor has to find, for the tally (#declare_what_there_is_to_find).
+    game_variables kill_total: :kill_total, secret_total: :secret_total, treasure_total: :treasure_total
 
     game_variables :ang, :walked, :eye_cell, :dist, :nx, :ny, :hit, :wall, :cell, :colh, :top, :stepmx,
                    :stepmy, :side, :dx, :dy, :deltax, :deltay, :sidex, :sidey, :depth, :wallx, :eyex, :eyey,
@@ -1079,11 +1081,11 @@ module Wolf3D
     def declare_what_there_is_to_find
       first = @floors.first_floor
       tables = @this_floor.tables
-      @kill_total = tables.declare_floor_value(:kill_total, :kills) do
+      @kill_total = tables.fetch_floor_value(:kills, 0) do
         first.guards&.to_kill(Guards::DEFAULT_DIFFICULTY) || 0
       end
-      @secret_total = tables.declare_floor_value(:secret_total, :pushwalls)
-      @treasure_total = tables.declare_floor_value(:treasure_total, :treasure) { @pickups.treasure_total(0) }
+      @secret_total = tables.fetch_floor_value(:pushwalls, 0)
+      @treasure_total = tables.fetch_floor_value(:treasure, 0) { @pickups.treasure_total(0) }
       @lasting.keep @kill_total, @secret_total, @treasure_total
     end
 

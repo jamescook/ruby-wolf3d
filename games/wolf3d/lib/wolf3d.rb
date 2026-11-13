@@ -378,6 +378,9 @@ module Wolf3D
     # torn one.
     screen :bitmap, tear_free: true
 
+    # What the sound row of the menus is set to (see below).
+    game_variables :sound_setting
+
     # THE BUILD'S SETTINGS, every one asked here at the top: the framework treats a setting the
     # game never asks for as a misspelling, and a build with no copy of the game to read would
     # otherwise ask for none of them. See DIALS for what each one means.
@@ -423,8 +426,9 @@ module Wolf3D
       recordings = source.recordings(self)
       # WHAT THE SOUND ROW IS SET TO, which every one of the game's sounds and songs is played
       # under. Declared here rather than inside either of them because both need it and neither
-      # owns it.
-      sound_setting = menu_art && var(:sound_setting, music_on ? Wolf3D::Music::EFFECTS_AND_MUSIC : Wolf3D::Music::EFFECTS_ONLY)
+      # owns it. A release with no menu art has no menus to change it, and no setting.
+      @sound_setting = music_on ? Wolf3D::Music::EFFECTS_AND_MUSIC : Wolf3D::Music::EFFECTS_ONLY if menu_art
+      sound_setting = menu_art && @sound_setting
       # `gun_art` is the pictures of the gun in your hands, and it is asked of the CARTRIDGE
       # rather than of the level: every floor is played holding the same four weapons, where the
       # walls and the things standing in the rooms differ from one floor to the next. Every release

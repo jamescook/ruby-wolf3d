@@ -144,8 +144,8 @@ class TestFloors < Minitest::Test
     before = Reference.new.run(program(floors), frames: 3)
     after = take_the_lift(floors)
 
-    assert_equal 0, before[:_door_count], "the first floor has no door"
-    assert_equal 1, after[:_door_count], "the second has one"
+    assert_equal 0, before[:this_floor_door_count], "the first floor has no door"
+    assert_equal 1, after[:this_floor_door_count], "the second has one"
     assert_equal 0, after[:this_floor_door_first], "and it is the first door in the cartridge"
   end
 

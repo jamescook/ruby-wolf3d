@@ -21,7 +21,11 @@ module Wolf3D
   # every call site. These are all one add or one comparison, so that is what a caller pays and
   # exactly what it would pay writing them out by hand.
   class ThisFloor
-    game_variables :map_base, :door_first, :push_first, :piece_first, saved: false
+    # Where this floor's slice of each table starts, and how many it has of the doors, the walls
+    # that slide and the pieces; and the cell of its secret lift. #go_to writes them as a floor
+    # starts, and a load works them out again from which floor it is, so a save keeps none.
+    game_variables :map_base, :door_first, :push_first, :piece_first, :door_count, :pushwall_count,
+                   :piece_count, :secret_car, saved: false
 
     # Where the map table stops naming walls and starts naming the things that are more than a
     # wall. Each is above every picture a level could hold, so none of them can be confused.
@@ -47,7 +51,10 @@ module Wolf3D
     end
 
     # How many of each thing this floor has, for a walk over them.
-    attr_reader :door_count, :pushwall_count, :piece_count
+    attr_reader :door_count, :pushwall_count
+
+    # ...the pieces' a plain number in a cartridge of one floor, which knows it while building.
+    def piece_count = @tables.one_floor? ? @tables.fetch_floor_value(:pieces, 0) : @piece_count
 
     # The cell that means the secret lift on this floor, or minus one where it has none.
     attr_reader :secret_car
@@ -175,23 +182,17 @@ module Wolf3D
 
       @map_base = @tables.map_base(0)
       @door_first = @tables.run_start(:doors, 0)
-      @door_count = @tables.declare_floor_value(:_door_count, :doors)
+      @door_count = @tables.fetch_floor_value(:doors, 0)
       @push_first = @tables.run_start(:pushwalls, 0)
-      @pushwall_count = @tables.declare_floor_value(:_push_count, :pushwalls)
-      @secret_car = @tables.declare_floor_value(:_secret_car, :secret_car)
-      declare_pieces
-    end
-
-    # A cartridge of one floor has its pieces from nought and knows how many while building, so
-    # the walk over them is counted by a plain number and needs neither variable.
-    def declare_pieces
-      if @tables.one_floor?
-        @piece_count = @tables.fetch_floor_value(:pieces, 0)
-        return
-      end
+      @pushwall_count = @tables.fetch_floor_value(:pushwalls, 0)
+      @secret_car = @tables.fetch_floor_value(:secret_car, 0)
+      # A cartridge of one floor has its pieces from nought and knows how many while building, so
+      # the walk over them is counted by a plain number and needs neither variable (#piece,
+      # #piece_count).
+      return if @tables.one_floor?
 
       @piece_first = @tables.run_start(:pieces, 0)
-      @piece_count = @tables.declare_floor_value(:_piece_count, :pieces)
+      @piece_count = @tables.fetch_floor_value(:pieces, 0)
     end
   end
 end

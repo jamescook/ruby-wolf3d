@@ -20,8 +20,8 @@ module Wolf3D
   #   out like the map, and in a run of one kind (:doors, :pushwalls, :pieces). Plain numbers.
   # - fetch_floor_value(what, n): a number a floor has, (:doors, :pushwalls or :pieces for how
   #   many it holds, :secret_car for the cell of its secret lift or minus one): a plain number
-  #   baked, a table read packed. declare_floor_value(name, what) is a variable holding the first
-  #   floor's, from power-on.
+  #   baked, a table read packed. A part that keeps the first floor's in a variable of its own sets
+  #   it from fetch_floor_value(what, 0) as it is built, which runs at power-on.
   # - declare_world, declare_blocked, declare_lying_at, declare_map: the tables laid out like the
   #   map.
   # - declare_items(name, ...) { |floor| values }: a run of one kind per floor, the block naming
@@ -57,9 +57,6 @@ module Wolf3D
 
         @floors.count_of(what, n)
       end
-
-      # A variable holding the first floor's.
-      def declare_floor_value(name, what, &baked) = @b.var(name, fetch_floor_value(what, 0, &baked))
 
       # ...and the same number where the build knows it while building, which a baked one always does.
       def floor_value_while_building(what, n, &baked) = fetch_floor_value(what, n, &baked)
@@ -191,14 +188,6 @@ module Wolf3D
 
 
         slot_table(FLOOR_VALUES.fetch(what))[index]
-      end
-
-      # ...so a variable holding the first floor's starts at nought and is given it at power-on:
-      # this is written where the build declares it, before the game loop, which runs once.
-      def declare_floor_value(name, what, &_baked)
-        held = { value: @b.var(name, 0) } # a Hash, since a name holds a value
-        held[:value] = fetch_floor_value(what, 0)
-        held[:value]
       end
 
       # Not known while building, but for a first floor's start moved by WOLF3D_START, which the
