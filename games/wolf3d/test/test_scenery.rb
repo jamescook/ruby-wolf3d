@@ -320,7 +320,7 @@ class TestScenery < Minitest::Test
   def guard_x(run) = run.pool(:guard, :x)[0]
 
   # How many standing things the frame that just finished queued up to draw.
-  def queued(run) = run[:_seen]
+  def queued(run) = run[:billboards_seen]
 
   # The flat colour the fixture gave the picture a code wears, and which strips of the screen
   # are showing it.

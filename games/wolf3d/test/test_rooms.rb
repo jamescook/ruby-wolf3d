@@ -164,7 +164,7 @@ class TestRooms < Minitest::Test
     run = watch(two_rooms(player: [3, 8], scenery: { [10, 8] => BARREL }), drawing: true, frames: 2)
 
     assert_empty columns_of(run, BARREL)
-    assert_equal 0, run[:_seen], "nothing was even queued to draw"
+    assert_equal 0, run[:billboards_seen], "nothing was even queued to draw"
   end
 
   # AND THE PROMISE THAT MAKES THE SAVING SAFE: open the door and it is there. A gate that hid

@@ -21,7 +21,8 @@ module Wolf3D
                    :cellx, :celly, :way, :other, :held, :slant, :back, :dodging, :homex, :homey, :away,
                    :target, :atx, :aty, :nearest, :fromx, :fromy, :man_x, :man_y, :shut_door, :line_end,
                    :line_dir, :line_slope, :line_cross, :line_middle, :blocked, :boxx, :boxy, :boxsize,
-                   :turn, saved: false
+                   :turn, :job, :slot, :clear, :done, :ahead, :picked, :tx, :ty, :odds, :wound, :spot, :blow,
+                   :left, :dx, :dy, :absx, :absy, :far, :pace, :fwd, :sideways, saved: false
 
     # A guard walks from the middle of one cell to the middle of the next and never stops
     # between them, which is what makes "can he go that way" a question about a single cell.
@@ -282,20 +283,33 @@ module Wolf3D
 
     def declare_the_scratch
       b = @b
-      @job, @slot, @clear, @done, @ahead, @picked, @tx, @ty, @odds, @wound, @spot, @blow, @left =
-        %i[gjob gslot gclear gdone gahead gpicked gtx gty godds gwound gspot gblow gleft]
-        .map { |name| b.var(:"_#{name}", 0) }
-      @dx, @dy, @absx, @absy, @far, @pace, @fwd, @sideways =
-        %i[gdx gdy gabsx gabsy gfar gpace gfwd gsideways].map { |name| b.var(:"_#{name}", 0.0) }
+      @job = 0
+      @slot = 0
+      @clear = 0
+      @done = 0
+      @ahead = 0
+      @picked = 0
+      @tx = 0
+      @ty = 0
+      @odds = 0
+      @wound = 0
+      @spot = 0
+      @blow = 0
+      @left = 0
+      @dx = 0.0
+      @dy = 0.0
+      @absx = 0.0
+      @absy = 0.0
+      @far = 0.0
+      @pace = 0.0
+      @fwd = 0.0
+      @sideways = 0.0
       @man_in_step = 0
       @man_nearby = 0
       @nearby_wait = 0
       @step_to_x = 0.0
       @step_to_y = 0.0
 
-      # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
-      # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
-      # would move the name to @b, and nothing would say so.
       @state = 0
       @dir = 0
       @try = 0

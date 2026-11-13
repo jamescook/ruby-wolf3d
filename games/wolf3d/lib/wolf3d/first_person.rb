@@ -11,7 +11,11 @@ module Wolf3D
     game_variables pulled: :lift_pulled, lift_secret: :lift_secret, lift_wait: :lift_wait,
                    difficulty: :difficulty
 
-    game_variables :ang, :walked, :eye_cell, :dist, :nx, :ny, saved: false
+    game_variables :ang, :walked, :eye_cell, :dist, :nx, :ny, :hit, :wall, :cell, :colh, :top, :stepmx,
+                   :stepmy, :side, :dx, :dy, :deltax, :deltay, :sidex, :sidey, :depth, :wallx, :eyex, :eyey,
+                   :fracx, :fracy, :backx, :backy, :foot, :here, :can, :spot, :stepx, :stepy, :isdoor,
+                   :door, :edge, :slot, :wait, :mid, :slid, :swing, :push, :pcell, :ahead, :want, :gone,
+                   :across, :along, saved: false
 
     # These are the view the game should have, not the view that happens to fit a frame.
     # HOW THE SCREEN IS DIVIDED ACROSS, and the width is not a free choice — it is what the
@@ -913,10 +917,22 @@ module Wolf3D
     def declare_the_scratch
       # THE RAY WALK. Where it points, how far along it from one grid line to the next, which
       # cell it is in, and what it met.
-      @hit, @wall, @cell, @colh, @top = whole(:hit, :wall, :cell, :colh, :top)
-      @stepmx, @stepmy, @side = whole(:stepmx, :stepmy, :side)
-      @dx, @dy, @deltax, @deltay = fraction(:dx, :dy, :deltax, :deltay)
-      @sidex, @sidey, @depth, @wallx = fraction(:sidex, :sidey, :depth, :wallx)
+      @hit = 0
+      @wall = 0
+      @cell = 0
+      @colh = 0
+      @top = 0
+      @stepmx = 0
+      @stepmy = 0
+      @side = 0
+      @dx = 0.0
+      @dy = 0.0
+      @deltax = 0.0
+      @deltay = 0.0
+      @sidex = 0.0
+      @sidey = 0.0
+      @depth = 0.0
+      @wallx = 0.0
 
       # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
       # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
@@ -931,22 +947,41 @@ module Wolf3D
       # ...AND WHERE THE EYE STANDS, which every ray needs and none of them can change: the cell
       # the player is in, how far through it they are, and how far it is to the far side. Worked
       # out once at the top of the view instead of sixty times inside it. See #where_the_eye_stands.
-      @eyex, @eyey = whole(:eyex, :eyey)
-      @fracx, @fracy, @backx, @backy = fraction(:fracx, :fracy, :backx, :backy)
+      @eyex = 0
+      @eyey = 0
+      @fracx = 0.0
+      @fracy = 0.0
+      @backx = 0.0
+      @backy = 0.0
 
       # THE PLAYER'S FEET: what is under them, where a step would land, and whether it may.
-      @foot, @here, @can, @spot = whole(:foot, :here, :can, :spot)
-      @stepx, @stepy = fraction(:stepx, :stepy)
+      @foot = 0
+      @here = 0
+      @can = 0
+      @spot = 0
+      @stepx = 0.0
+      @stepy = 0.0
 
       # DOORS. Which one, how far along its panel the ray landed, and how far it has slid.
       # +slot+ and +wait+ are shared with the walls that move and with the keys — each is
       # picked up and put down inside one step, so one of each is enough.
-      @isdoor, @door, @edge, @slot, @wait = whole(:isdoor, :door, :edge, :slot, :wait)
-      @mid, @slid, @swing = fraction(:mid, :slid, :swing)
+      @isdoor = 0
+      @door = 0
+      @edge = 0
+      @slot = 0
+      @wait = 0
+      @mid = 0.0
+      @slid = 0.0
+      @swing = 0.0
 
       # WALLS THAT MOVE: which one, where it is now, and which way the player is leaning on it.
-      @push, @pcell, @ahead, @want, @gone = whole(:push, :pcell, :ahead, :want, :gone)
-      @across, @along = fraction(:across, :along)
+      @push = 0
+      @pcell = 0
+      @ahead = 0
+      @want = 0
+      @gone = 0
+      @across = 0.0
+      @along = 0.0
 
     end
 
@@ -955,10 +990,6 @@ module Wolf3D
     # rather than chosen. A copy of the game without that recording, which reads nought here, falls
     # back to LIFT_WAIT (#pull_the_lever); a whole build learns which as it plays.
     def lift_wait_frames = @sounds ? @sounds.level_done_frames : 0
-
-    # Scratch variables, named with the leading underscore this project gives working room.
-    def whole(*names) = names.map { |name| @b.var(:"_#{name}", 0) }
-    def fraction(*names) = names.map { |name| @b.var(:"_#{name}", 0.0) }
 
     # Every floor's share of one kind of thing, end to end, in the order the floors are played.
     # Where a floor's own share begins is `Floors#first_of`, and the two must agree — so both

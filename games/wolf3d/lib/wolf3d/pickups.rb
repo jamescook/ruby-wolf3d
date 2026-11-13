@@ -23,7 +23,7 @@ module Wolf3D
   # Billboards#look_at_a_piece) rather than owning it. A floor drawn by nobody still has things to
   # pick up, which is what the tests of the doors and their keys rely on.
   class Pickups
-    game_variables :slot, saved: false
+    game_variables :slot, :here, :piece, :kind, :amount, :took, saved: false
 
     # THE KINDS, as numbers a table can hold. Everything about a pickup that the game reads as it
     # runs is one of these plus an amount.
@@ -274,10 +274,11 @@ module Wolf3D
       # +slot+ is the piece's place in the tables of every floor's pieces, which is its own number
       # plus where this floor's begin. Kept apart from +piece+, which stays this floor's own
       # number because that is what says whether it has been taken.
-      @here, @piece, @kind, @amount, @took =
-        %i[here piece kind amount took].map { |name| @b.var(:"_pick_#{name}", 0) }
-      # On a line of its own: on a one-floor cartridge it is given @piece itself, and a name made in
-      # a list would move to @piece, where this one has to stay apart from it.
+      @here = 0
+      @piece = 0
+      @kind = 0
+      @amount = 0
+      @took = 0
       @slot = 0
     end
 

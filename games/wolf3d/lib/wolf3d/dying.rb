@@ -17,7 +17,8 @@ module Wolf3D
   class Dying
     game_variables state: :dying
 
-    game_variables :kill_x, :kill_y, :was, saved: false
+    game_variables :kill_x, :kill_y, :was, :to_x, :to_y, :side, :cos, :sin, :now, :turned, :held,
+                   saved: false
 
     # What the player is doing. Everything else in the game asks this before it moves.
     ALIVE = 0
@@ -160,15 +161,17 @@ module Wolf3D
       @kill_x = 0.0
       @kill_y = 0.0
 
-      # WORKING ROOM, and every name here carries `dying` for a reason worth knowing: a program's
-      # variables are one flat set of names shared by every part that declares any, and the kind
-      # of number a name holds is settled by whichever part declares it FIRST. Two of these were
-      # called `_side` and `_spot` to begin with, which the view had already declared as whole
-      # numbers, and the handles came back holding whole numbers with nothing said.
-      @to_x, @to_y, @side, @cos, @sin =
-        %i[to_x to_y side cos sin].map { |n| b.var(:"_dying_#{n}", 0.0) }
-      @now, @turned, @held, @spot = %i[now turned held spot].map { |n| b.var(:"_dying_#{n}", 0) }
-      @was = 0 # on a line of its own, since a list would move this name to @now
+      # WORKING ROOM. Each goes by a name of its own (dying_side), so it never takes the kind of
+      # number another part's variable of the same name was given first.
+      @to_x = 0.0
+      @to_y = 0.0
+      @side = 0.0
+      @cos = 0.0
+      @sin = 0.0
+      @now = 0
+      @turned = 0
+      @held = 0
+      @was = 0
 
       @dots = Fizzle.new(build: b, name: :dying, colour: Palette.game[INK])
       declare_the_scattering

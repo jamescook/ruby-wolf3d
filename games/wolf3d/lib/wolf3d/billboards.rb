@@ -18,7 +18,9 @@ module Wolf3D
   # WHAT LIVES HERE AND WHAT DOES NOT: this puts things on the screen. Where a guard is going
   # and what he is thinking about is the mind's business, and the view's own business is walls.
   class Billboards
-    game_variables :shape, :s0, saved: false
+    game_variables :shape, :s0, :rx, :ry, :fwd, :sideways, :scale, :tex, :tstep, :pose, :pfirst, :plast,
+                   :tcol, :cx, :theight, :ttop, :ptop, :pbottom, :band_top, :band_bottom, :lstrip, :s1,
+                   :tstrip, :seen, :at, :shows, saved: false
 
     # HOW FAR FORWARD A STANDING THING IS NUDGED before its distance is used. A guard stands in
     # the middle of his cell, so half of him is in the cell behind — which can be a wall, and
@@ -198,19 +200,34 @@ module Wolf3D
     # reads are twenty variables' worth of room the ray walk does not get. It measured as a
     # frame's worth of difference on a floor with nothing standing in it.
     def declare_the_scratch
-      @rx, @ry, @fwd, @sideways = fraction(:rx, :ry, :fwd, :sideways)
-      @scale, @tex, @tstep = fraction(:scale, :tex, :tstep)
-      @pose, @pfirst, @plast, @tcol = whole(:pose, :pfirst, :plast, :tcol)
-      @shape = 0 # on a line of its own, since BJ's picture is copied into it
-      @cx, @theight, @ttop = whole(:cx, :theight, :ttop)
-      @ptop, @pbottom, @band_top, @band_bottom = whole(:ptop, :pbottom, :bandtop, :bandbot)
-      @lstrip, @s1, @tstrip = whole(:lstrip, :s1, :tstrip)
-      @s0 = 0 # on a line of its own, since a list would move this name to @lstrip
-      @seen, @at, @shows = whole(:seen, :at, :shows)
+      @rx = 0.0
+      @ry = 0.0
+      @fwd = 0.0
+      @sideways = 0.0
+      @scale = 0.0
+      @tex = 0.0
+      @tstep = 0.0
+      @pose = 0
+      @pfirst = 0
+      @plast = 0
+      @tcol = 0
+      @shape = 0
+      @cx = 0
+      @theight = 0
+      @ttop = 0
+      @ptop = 0
+      @pbottom = 0
+      @band_top = 0
+      @band_bottom = 0
+      @lstrip = 0
+      @s1 = 0
+      @tstrip = 0
+      @s0 = 0
+      @seen = 0
+      @at = 0
+      @shows = 0
     end
 
-    def whole(*names) = names.map { |name| @b.var(:"_#{name}", 0) }
-    def fraction(*names) = names.map { |name| @b.var(:"_#{name}", 0.0) }
 
     # A list used as a row of slots rather than as something that grows: made full at boot and
     # written by index from then on, so the start of a frame is one number set to nought rather

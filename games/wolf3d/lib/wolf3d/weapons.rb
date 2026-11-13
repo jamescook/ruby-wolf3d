@@ -35,7 +35,7 @@ module Wolf3D
     game_variables in_hand: :weapon, chosen: :weapon_chosen, best: :weapon_best, stage: :weapon_stage,
                    wait: :weapon_wait
 
-    game_variables :next, :acted, saved: false
+    game_variables :next, :acted, :shape, :column, :wide, :at, saved: false
 
     KNIFE = 0
     PISTOL = 1
@@ -207,8 +207,13 @@ module Wolf3D
       @first_column = columns.first_column
       @last_column = columns.last_column
 
-      @shape, @column, @wide, @at =
-        %i[shape column wide at].map { |name| b.var(:"_gun_#{name}", 0) }
+      @shape = 0
+
+      @column = 0
+
+      @wide = 0
+
+      @at = 0
 
       # A ROUTINE, for the reason everything else that draws in this game is one: written into
       # the game loop it is another block of code competing for the console's quick memory with

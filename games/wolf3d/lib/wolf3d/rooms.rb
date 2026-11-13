@@ -41,7 +41,7 @@ module Wolf3D
   class Rooms
     game_variables :player_room
 
-    game_variables :worked_out_for, :changed, saved: false
+    game_variables :worked_out_for, :changed, :room, :stood, :spread, :near, :far, saved: false
 
     # 0 IS NOT A ROOM. A wall belongs to none, and neither does a doorway or one of the ambush
     # cells the game marks with a code of its own — so every room is stored one higher and nought
@@ -170,7 +170,11 @@ module Wolf3D
       @open_room = b.list :_room_open, capacity: @count
       @count.times { @open_room << 0 }
 
-      @room, @stood, @spread, @near, @far = whole(:room, :stood, :spread, :near, :far)
+      @room = 0
+      @stood = 0
+      @spread = 0
+      @near = 0
+      @far = 0
       # THE ROOM THE PLAYER IS IN: the last one they were really standing in, which stays put
       # while they cross a doorway, because a doorway is in no room. A saved game holds it — see
       # #where_the_player_stands.
@@ -219,7 +223,6 @@ module Wolf3D
       end.uniq
     end
 
-    def whole(*names) = names.map { |name| @b.var(:"_room_#{name}", 0) }
 
     # The rooms either side of a door. A panel running one way has its neighbours the other way.
     def joins(level, door)
