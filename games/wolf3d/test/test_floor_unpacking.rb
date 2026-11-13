@@ -16,7 +16,7 @@ class TestFloorUnpacking < Minitest::Test
       release = Wolf3D::Fixture::Release.new(set: "WL6", left_out: [1])
       release.write(dir)
       maps = Wolf3D::Maps.new(maphead: release.files["MAPHEAD"], gamemaps: release.files["GAMEMAPS"])
-      pack = unpacked(made_up_original(dir))
+      pack = slots_unpacked_from(made_up_original(dir))
 
       assert_unpacked_as_read maps, Wolf3D::Vswap.new(release.files["VSWAP"]), release.pictures, pack
       assert_same_adlib_effects Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"]), pack, made_up: true
@@ -97,7 +97,7 @@ class TestFloorUnpacking < Minitest::Test
       adlib = Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"])
 
       refute_nil adlib.recording(MADE_UP_EFFECTS.first), "the made-up effect should make a sound"
-      assert_same_adlib_effects adlib, unpacked(made_up_original(dir)), made_up: true
+      assert_same_adlib_effects adlib, slots_unpacked_from(made_up_original(dir)), made_up: true
     end
   end
 
@@ -131,7 +131,7 @@ class TestFloorUnpacking < Minitest::Test
       release.write(dir)
       music = Wolf3D::AdlibMusic.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"])
 
-      assert_same_music music, unpacked(made_up_original(dir)), played: [Wolf3D::Music::ROSTER_SONG]
+      assert_same_music music, slots_unpacked_from(made_up_original(dir)), played: [Wolf3D::Music::ROSTER_SONG]
     end
   end
 

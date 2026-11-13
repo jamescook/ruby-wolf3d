@@ -12,7 +12,7 @@ class TestWholeCopiesUnpack < Minitest::Test
   # A real copy's status bar and shortened title too, which the made-up release's plate is not
   # painted to be measured for.
   def test_the_six_episodes_unpack_as_the_readers_read_them
-    pack = unpacked(original_of(real_copy))
+    pack = slots_unpacked_from(original_of(real_copy))
     assert_unpacked_as_read Wolf3D.maps, Wolf3D.vswap, Wolf3D.vgagraph, pack
     assert_same_adlib_effects Wolf3D.adlib, pack
     assert_same_music Wolf3D::AdlibMusic.from(real_copy), pack, played: songs_held(Wolf3D::AdlibMusic.from(real_copy))
@@ -24,7 +24,7 @@ class TestWholeCopiesUnpack < Minitest::Test
   def test_the_shareware_unpacks_as_the_readers_read_it
     data = real_shareware
     graph = Wolf3D::Vgagraph.from(data)
-    pack = unpacked(original_of(data))
+    pack = slots_unpacked_from(original_of(data))
     assert_unpacked_as_read Wolf3D::Maps.from(data), Wolf3D::Vswap.from(data), graph, pack
     assert_same_adlib_effects Wolf3D::AdlibSounds.from(data), pack
     assert_same_music Wolf3D::AdlibMusic.from(data), pack, played: songs_held(Wolf3D::AdlibMusic.from(data))

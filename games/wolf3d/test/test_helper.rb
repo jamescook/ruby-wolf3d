@@ -64,9 +64,11 @@ module Wolf3DTest
                                releases: Wolf3D::Vanilla::RELEASES, platform: :pc)
   end
 
-  # EACH SLOT OF A DATA PACK AS +unpacking+ (an Original::Unpacking) LEAVES IT, handed its copy and
-  # played the fastest way this machine has: built as C where zig is installed, else as Ruby, the way
-  # a build plays it. Both are many times faster than the interpreter, which VBlank's own suite holds
+  # EACH SLOT OF THE DATA PACK A WHOLE BUILD DECLARES (DataPack), unpacked from +original+ (an
+  # Original::Game naming the copy) and run here on its own, not read back from the packs builds
+  # keep. The routine is played the fastest way this machine has: built as C where zig is
+  # installed, else as Ruby, the way a build plays it. Both are many times faster than the
+  # interpreter, which VBlank's own suite holds
   # them to, and the music through the chip is minutes as Ruby and seconds as C. The routine waits a
   # frame every 256 bytes it counts, and it counts fewer than the pack holds (a slot it leaves at
   # nought is never written), so the bytes give it frames to spare; a routine that has not finished
@@ -77,16 +79,15 @@ module Wolf3DTest
   # change to any of them, or a copy a test damaged, runs the routine again. It is KEPT A PART AT A
   # TIME (DataPack::PARTS), so a change to one part replays that part and the parts that read its
   # slots: the block is handed the routine of just those, which is what it plays.
-  #
-  # +pack+ is the handle DataPack.declare gives.
-  def slots_unpacked_by(pack)
+  def slots_unpacked_from(original)
+    pack = Wolf3D::DataPack.declare(VBlank::Builder.new, from: original)
     cache = VBlank::Original::PackCache.new(Wolf3D::DataPack::CACHE)
-    cache.slot_bytes(pack.unpacking, parts: pack.unpacking_parts) do |playing, _names|
-      frames = (playing.byte_size / 256) + 400
-      run = playing.run_fastest(frames: frames)
-      raise "the unpacking did not finish in #{frames} frames" unless playing.finished_in?(run)
+    cache.slot_bytes(pack.unpacking, parts: pack.unpacking_parts) do |missed_routine, _names|
+      frames = (missed_routine.byte_size / 256) + 400
+      run = missed_routine.run_fastest(frames: frames)
+      raise "the unpacking did not finish in #{frames} frames" unless missed_routine.finished_in?(run)
 
-      playing.slot_bytes_in(run)
+      missed_routine.slot_bytes_in(run)
     end
   end
 

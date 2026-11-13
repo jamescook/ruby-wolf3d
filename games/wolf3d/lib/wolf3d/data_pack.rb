@@ -23,10 +23,11 @@ module Wolf3D
     # the part of the routine that fills them, in the order they run.
     #
     # A PART IS CACHED ON ITS OWN, so a change to one replays it and whatever reads its slots, not
-    # the whole copy: the music alone is minutes on the Ruby runner. That holds only while the parts
-    # hand each other nothing but slots. The cache does not see an instance variable or a local two
-    # parts share, so none may: the bar, the small letters and the end articles read what the
-    # vgagraph part left in its slots, and nothing else crosses.
+    # the whole copy: the music alone is minutes on the Ruby runner. The bar, the small letters and
+    # the end articles read what the vgagraph part left in its slots, and nothing else crosses.
+    #
+    # Must hand nothing between parts but slots: the cache does not see an instance variable, a
+    # local or any other Ruby object two parts share, and would replay one without the other.
     PARTS = { floors: FloorUnpacking, pictures: PictureUnpacking, sounds: SoundUnpacking, adlib: AdlibUnpacking,
               music: MusicUnpacking, vgagraph: VgagraphUnpacking, bar: BarUnpacking,
               small_letters: SmallLetterUnpacking, end_articles: EndArticleUnpacking }.freeze

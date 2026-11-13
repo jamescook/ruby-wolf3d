@@ -36,8 +36,8 @@ The shell keeps what it read in a file of its own. The next start plays at once 
 for your copy. If a new build of the shell must read the files again, the menu says so. Load your
 copy again.
 
-`rake shell:check` does all of this with nobody at the controls. It also makes sure that the shell
-plays the same pictures and sounds as a build made straight from your copy.
+`rake shell:check` does all of these steps with no player. It also checks that the shell shows the
+same pictures and plays the same sounds as a build made straight from your copy.
 
 ## Build it
 

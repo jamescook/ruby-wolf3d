@@ -492,14 +492,8 @@ module UnpackedPack
       bytes = File.binread(path)
       yield bytes, dir
       File.binwrite(path, bytes)
-      [unpacked(made_up_original(dir)), release]
+      [slots_unpacked_from(made_up_original(dir)), release]
     end
-  end
-
-  def unpacked(original)
-    # The pack a whole build declares, whose routine is run here on its own, not read back from
-    # the packs kept between builds.
-    slots_unpacked_by(Wolf3D::DataPack.declare(VBlank::Builder.new, from: original))
   end
 
   # Every floor's cells mean what the readers say, or the first floor and cell that do not.

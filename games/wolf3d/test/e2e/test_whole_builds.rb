@@ -28,7 +28,7 @@ class TestWholeBuilds < Minitest::Test
   # by the unpacking as MenuArt shortens it) and the main menu look as the trimmed build draws
   # them; handed the same pack with VGAGRAPH's pictures and the shortened screens blanked, neither does.
   def test_a_whole_build_draws_the_menu_pictures_its_pack_holds
-    slots = slots_unpacked_from(real_copy)
+    slots = slots_unpacked_from(original_of(real_copy))
     blank = %i[vga_pictures screen_pictures].to_h { |slot| [slot, "\x00".b * slots.fetch(slot).bytesize] }
     MenuScene::SCREENS.each do |screen|
       program = Wolf3D::GAME.checked_program(err: nil, settings: { screen: screen, hold: "whole" }, pack_at_start: true)
@@ -52,7 +52,7 @@ class TestWholeBuilds < Minitest::Test
   # the named pictures, the small letters, the article's pages or the alphabets blanked, none does.
   # A trimmed build needs two episodes, twenty floors, to have an episode list at all.
   def test_a_whole_build_draws_the_lettering_its_pack_holds
-    slots = slots_unpacked_from(real_copy)
+    slots = slots_unpacked_from(original_of(real_copy))
     shown = {
       { floors: 1, screen: "playing", start: LiftScene.start } => [:vga_pictures, LiftScene::TALLY_FRAMES,
                                                                    ->(frame) { LiftScene.keys(frame) }],
@@ -87,7 +87,7 @@ class TestWholeBuilds < Minitest::Test
     walls = Wolf3D::Holding::WALL_PAGES * Wolf3D::PictureUnpacking::PAGE_BYTES
     things = Wolf3D::Holding::SPRITES * Wolf3D::PictureUnpacking::PAGE_BYTES
     guns = Wolf3D::WeaponAtlas::COUNT * Wolf3D::PictureUnpacking::PAGE_BYTES
-    slots = slots_unpacked_from(real_copy)
+    slots = slots_unpacked_from(original_of(real_copy))
     changes = [{}, { wall_pictures: "\x00".b * walls }, { sprite_pictures: "\x00".b * things }, { gun_pictures: "\x00".b * guns },
                { bar_pictures: "\x00".b * Wolf3D::BarUnpacking.places }]
     seen = changes.map do |changed|
@@ -111,7 +111,7 @@ class TestWholeBuilds < Minitest::Test
   def test_a_whole_build_draws_the_doors_its_pack_holds
     program = Wolf3D::GAME.checked_program(err: nil, settings: { floors: 1, screen: "playing", hold: "whole" },
                                            pack_at_start: true)
-    slots = slots_unpacked_from(real_copy)
+    slots = slots_unpacked_from(original_of(real_copy))
     seen = [slots, slots.merge(wall_pictures: without_door_pictures(slots.fetch(:wall_pictures)))].map do |held|
       Reference.new.hand_file(pack_file_of(held)).input_each_frame(&WALK_KEYS).run(program, frames: DOOR_FRAMES).screen
     end
@@ -426,12 +426,7 @@ class TestWholeBuilds < Minitest::Test
   # THE DATA PACK A SHELL MAKES FROM +data+ (a GameData), the file a whole build left without its pack
   # is handed: FloorUnpacking's routine run over that copy. The pack names no copy's SHA-1, which
   # only a shell checks.
-  def whole_pack_of(data) = pack_file_of(slots_unpacked_from(data))
-
-  # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+.
-  def slots_unpacked_from(data)
-    slots_unpacked_by(Wolf3D::DataPack.declare(Builder.new, from: original_of(data)))
-  end
+  def whole_pack_of(data) = pack_file_of(slots_unpacked_from(original_of(data)))
 
   # The pack's wall_pictures, +walls+, with the six episodes' door pages place nought: the row holds
   # every page side by side, a page's row of SIDE places at page * SIDE along each of its rows.

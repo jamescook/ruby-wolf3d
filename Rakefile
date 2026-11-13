@@ -84,14 +84,31 @@ end
 # held byte for byte to the all-in-one build's, and a tape played on both starts and on the all-in-one
 # build, picture for picture and sound for sound (VBlank::Live::ShellCheck).
 #
-# THE TAPE is the bot finishing the shareware's first floor from power-on (tools/play_shareware.rb
-# --floors 1): through the menus, then walking, shooting, opening doors and picking things up. It is
-# presses alone, so on another build or the six episodes it plays some other game, which is as good:
-# the check holds the shell to the all-in-one build on the same presses, not to the bot's run.
+# THE TAPE is the bot finishing the shareware's first floor from power-on, recorded with
+# games/wolf3d/tools/play_shareware.rb --floors 1 --music on its fixed random numbers (seed 1). It is
+# presses alone, and the check's builds start the random numbers where the game does, so there the
+# same presses play another fight: through the menus onto the floor, the pistol emptied into the
+# guards, a kill, wounds, the knife out, but not the floor's end. That is as good, since the check
+# holds the shell to the all-in-one build on the same presses, not to the bot's run.
 VBlank::Original::ShellCheckTasks.new do |t|
   t.game_file = "#{GAME}/wolf3d.rb"
   t.tape = "#{GAME}/shell-check--shareware-floor-1.tape"
 end
+
+# The check compares whole builds as a player gets them. A WOLF3D_* dial left in the environment
+# reaches neither build today (wolf3d.rb reads the environment only when it is the file run), and
+# this keeps it so: the check stops before it starts if any dial is set.
+namespace :shell do
+  task :refuse_dials do
+    require_relative "#{GAME}/lib/wolf3d"
+    set = Wolf3D.settings_from(ENV).keys.map { |name| Wolf3D::DIALS.fetch(name) }
+    unless set.empty?
+      abort "shell:check: #{set.join(', ')} is set. The check compares whole builds with no dials. " \
+            "Unset #{set.join(' and ')}, then run the check again."
+    end
+  end
+end
+task "shell:check" => "shell:refuse_dials"
 
 # A FILM: an MP4 of the frames that show one thing, for the operator to watch without running
 # anything. Each is a file in the game's films/ that hands VBlank::Diagnostics::Film what to play;
