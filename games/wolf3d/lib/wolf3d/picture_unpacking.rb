@@ -10,8 +10,11 @@ module Wolf3D
   # the same). The walls are the pages before the first sprite.
   #
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
-  # branch in it, and every count is a variable of the routine's (#routine_var).
+  # branch in it, and a number one method sets and another reads is one of its game_variables.
   class PictureUnpacking
+    game_variables :pages, :first_sprite, :first_sound, :page_start, :page_length, :left, :right, :top, :bottom,
+                   :post, :posts_ended, :post_end, :post_pixels, :post_begins
+
     SIDE = Vswap::Texture::SIDE
     PAGE_BYTES = Vswap::Texture::BYTES
     WALL_PAGES = Holding::WALL_PAGES
@@ -71,9 +74,20 @@ module Wolf3D
 
     def fill
       @vswap = @copy.file("VSWAP.#{@release}")
-      routine_var(:pages).store!(@vswap.half(0))
-      routine_var(:first_sprite).store!(@vswap.half(2))
-      routine_var(:first_sound).store!(@vswap.half(4))
+      @pages = @vswap.half(0)
+      @first_sprite = @vswap.half(2)
+      @first_sound = @vswap.half(4)
+      @page_start = 0
+      @page_length = 0
+      @left = 0
+      @right = 0
+      @top = 0
+      @bottom = 0
+      @post = 0
+      @posts_ended = false
+      @post_end = 0
+      @post_pixels = 0
+      @post_begins = 0
       unpack_walls
       unpack_sprites
       unpack_gun
@@ -86,13 +100,10 @@ module Wolf3D
     # its row stays nought: the palette's first colour, not see-through, so a square of it would
     # show. Every release Vanilla accepts has one.
     def unpack_gun
-      first = routine_var(:first_gun)
-      first.store!(routine_var(:first_sound) - routine_var(:first_sprite) - GUNS)
-      has_gun = routine_var(:has_gun)
-      has_gun.store!(0)
-      has_gun.store!(1) if first >= 0
+      first = @first_sound - @first_sprite - GUNS
+      has_gun = first >= 0
       @b.repeat(GUNS) do |frame|
-        if has_gun == 1
+        if has_gun
           @pack[:gun_first_column][frame] = @pack[:sprite_first_column][first + frame]
           @pack[:gun_last_column][frame] = @pack[:sprite_last_column][first + frame]
           @b.repeat(SIDE) do |y|
@@ -112,12 +123,10 @@ module Wolf3D
     # past the copy's walls, one it leaves empty, or one whose place is not inside VSWAP, stays place
     # nought, which WallAtlas draws in the palette's first colour.
     def unpack_walls
-      start = routine_var(:page_start)
-      length = routine_var(:page_length)
       @b.repeat(WALL_PAGES) do |page|
-        if page < routine_var(:first_sprite)
-          read_page(page, start, length)
-          copy_wall(page, start) if length == PAGE_BYTES && start + PAGE_BYTES <= @vswap.size
+        if page < @first_sprite
+          read_page(page)
+          copy_wall(page, @page_start) if @page_length == PAGE_BYTES && @page_start + PAGE_BYTES <= @vswap.size
         end
       end
     end
@@ -126,24 +135,22 @@ module Wolf3D
     # covers SEE_THROUGH; and its four edges, left at nought for a sprite the copy lacks, as
     # ThingAtlas holds them.
     def unpack_sprites
-      start = routine_var(:page_start)
-      length = routine_var(:page_length)
       @b.repeat(SIDE) do |y|
         @b.repeat(SPRITE_ACROSS) { |x| @pack[:sprite_pictures][(y * SPRITE_ACROSS) + x] = SEE_THROUGH }
         @copy.count_written SPRITE_ACROSS
       end
       @b.repeat(SPRITES) do |sprite|
-        if sprite < routine_var(:first_sound) - routine_var(:first_sprite)
-          read_page(routine_var(:first_sprite) + sprite, start, length)
-          copy_sprite(sprite, start, length) if length > 0 && start + length <= @vswap.size
+        if sprite < @first_sound - @first_sprite
+          read_page(@first_sprite + sprite)
+          copy_sprite(sprite, @page_start, @page_length) if @page_length > 0 && @page_start + @page_length <= @vswap.size
         end
       end
     end
 
-    # Where page +page+ starts in VSWAP, into +start+, and how long it is, into +length+.
-    def read_page(page, start, length)
-      start.store!(@vswap.word(Vswap::HEADER_BYTES + (4 * page)))
-      length.store!(@vswap.half(Vswap::HEADER_BYTES + (4 * routine_var(:pages)) + (2 * page)))
+    # Where page +page+ starts in VSWAP, into @page_start, and how long it is, into @page_length.
+    def read_page(page)
+      @page_start = @vswap.word(Vswap::HEADER_BYTES + (4 * page))
+      @page_length = @vswap.half(Vswap::HEADER_BYTES + (4 * @pages) + (2 * page))
     end
 
     # SPRITE +sprite+, its page at +start+ for +length+ bytes: the first and last columns that hold
@@ -156,30 +163,26 @@ module Wolf3D
     # or a pixel whose place is outside the page is left alone. The rows are the ones a pixel was
     # written in, as ThingAtlas reads them off the pixels: the whole square for a sprite with none.
     def copy_sprite(sprite, start, length)
-      left = routine_var(:left)
-      right = routine_var(:right)
-      left.store!(0)
-      right.store!(-1)
+      @left = 0
+      @right = -1
       if length >= HEADER_BYTES
-        left.store!(@vswap.half(start))
-        right.store!(@vswap.half(start + 2))
+        @left = @vswap.half(start)
+        @right = @vswap.half(start + 2)
       end
-      if left <= right && right < SIDE && HEADER_BYTES + (2 * (right - left + 1)) <= length
-        @pack[:sprite_first_column][sprite] = left
-        @pack[:sprite_last_column][sprite] = right
-        top = routine_var(:top)
-        bottom = routine_var(:bottom)
-        top.store!(SIDE)
-        bottom.store!(-1)
+      if @left <= @right && @right < SIDE && HEADER_BYTES + (2 * (@right - @left + 1)) <= length
+        @pack[:sprite_first_column][sprite] = @left
+        @pack[:sprite_last_column][sprite] = @right
+        @top = SIDE
+        @bottom = -1
         @b.repeat(SIDE) do |column|
-          copy_column(sprite, start, length, column) if column <= right - left
+          copy_column(sprite, start, length, column) if column <= @right - @left
         end
-        if bottom < 0
-          top.store!(0)
-          bottom.store!(SIDE - 1)
+        if @bottom < 0
+          @top = 0
+          @bottom = SIDE - 1
         end
-        @pack[:sprite_first_row][sprite] = top
-        @pack[:sprite_last_row][sprite] = bottom
+        @pack[:sprite_first_row][sprite] = @top
+        @pack[:sprite_last_row][sprite] = @bottom
         @copy.count_written SPRITE_EDGES.length
       end
     end
@@ -187,38 +190,32 @@ module Wolf3D
     # The posts of the +column+th column from the sprite's left edge, each read only once it is known
     # to lie inside the page.
     def copy_column(sprite, start, length, column)
-      post = routine_var(:post)
-      ended = routine_var(:posts_ended)
-      ends = routine_var(:post_end)
-      pixels = routine_var(:post_pixels)
-      begins = routine_var(:post_begins)
-      post.store!(@vswap.half(start + HEADER_BYTES + (2 * column)))
-      ended.store!(0)
-      @b.repeat(MOST_POSTS, stop_when: ended == 1) do
-        if post + POST_BYTES > length
-          ended.store!(1)
-        elsif @vswap.half(start + post) == 0
-          ended.store!(1)
+      @post = @vswap.half(start + HEADER_BYTES + (2 * column))
+      @posts_ended = false
+      @b.repeat(MOST_POSTS, stop_when: @posts_ended) do
+        if @post + POST_BYTES > length
+          @posts_ended = true
+        elsif @vswap.half(start + @post) == 0
+          @posts_ended = true
         else
-          ends.store!(@vswap.half(start + post) / 2)
-          pixels.store!(@vswap.half(start + post + 2))
-          pixels.store!(pixels - 0x10000) if pixels >= 0x8000 # a signed word
-          begins.store!(@vswap.half(start + post + 4) / 2)
+          @post_end = @vswap.half(start + @post) / 2
+          @post_pixels = @vswap.half(start + @post + 2)
+          @post_pixels -= 0x10000 if @post_pixels >= 0x8000 # a signed word
+          @post_begins = @vswap.half(start + @post + 4) / 2
           copy_post(sprite, start, length, column)
-          post.store!(post + POST_BYTES)
+          @post += POST_BYTES
         end
       end
     end
 
-    # One post's pixels, rows from post_begins up to post_end, into the sprite's square.
+    # One post's pixels, rows from @post_begins up to @post_end, into the sprite's square.
     def copy_post(sprite, start, length, column)
-      pixels = routine_var(:post_pixels)
       @b.repeat(SIDE) do |y|
-        if y >= routine_var(:post_begins) && y < routine_var(:post_end) && pixels + y >= 0 && pixels + y < length
-          @pack[:sprite_pictures][(y * SPRITE_ACROSS) + (sprite * SIDE) + routine_var(:left) + column] =
-            @vswap.byte(start + pixels + y)
-          routine_var(:top).store!(y) if y < routine_var(:top)
-          routine_var(:bottom).store!(y) if y > routine_var(:bottom)
+        if y >= @post_begins && y < @post_end && @post_pixels + y >= 0 && @post_pixels + y < length
+          @pack[:sprite_pictures][(y * SPRITE_ACROSS) + (sprite * SIDE) + @left + column] =
+            @vswap.byte(start + @post_pixels + y)
+          @top = y if y < @top
+          @bottom = y if y > @bottom
           @copy.count_written 1
         end
       end
@@ -233,8 +230,5 @@ module Wolf3D
         @copy.count_written SIDE
       end
     end
-
-    # A variable of the routine's, made the first time it is asked for.
-    def routine_var(name) = (@routine_vars ||= {})[name] ||= @b.var(:"_picture_unpacking_#{name}", 0)
   end
 end

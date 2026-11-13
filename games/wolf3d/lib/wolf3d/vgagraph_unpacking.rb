@@ -16,8 +16,12 @@ module Wolf3D
   # (#chunk_jobs) and one walk runs in a loop over it, each byte going where its kind of chunk says.
   #
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
-  # branch in it, and every count is a variable of the routine's (#routine_var).
+  # branch in it, and a number one method sets and another reads, or a loop changes, is one of
+  # its game_variables.
   class VgagraphUnpacking
+    game_variables :quarter, :plane_places, :low, :chunk_start, :chunk_length, :packed_at, :made, :node, :bits,
+                   :branch, :above, :below, :best, :best_row, :written, :gap_sum
+
     PICTURES = Holding::VGA_PICTURES
     LENGTH_BYTES = Vgagraph::LENGTH_BYTES
     OFFSET_BYTES = Vgagraph::OFFSET_BYTES
@@ -120,6 +124,23 @@ module Wolf3D
       @head = @copy.file("VGAHEAD.#{@release}")
       @graph = @copy.file("VGAGRAPH.#{@release}")
       @dictionary = @copy.file("VGADICT.#{@release}")
+      @job = Job.new(0, 0, 0, 0, 0, 0)
+      @quarter = 0
+      @plane_places = 0
+      @low = 0
+      @chunk_start = 0
+      @chunk_length = 0
+      @packed_at = 0
+      @made = 0
+      @node = 0
+      @bits = 0
+      @branch = 0
+      @above = 0
+      @below = 0
+      @best = 0
+      @best_row = 0
+      @written = 0
+      @gap_sum = 0
       unpack_chunks
       cut_glyphs
       SCREENS.each { |name| shorten_screen(name) }
@@ -138,67 +159,65 @@ module Wolf3D
       light = @b.table(:"#{name}_light", LIGHT, width: :byte)
       kept = @b.list(:"_#{name}_kept", capacity: height)
       gaps = @b.list(:"_#{name}_gap", capacity: height)
-      above = routine_var(:above)
-      best = routine_var(:best)
-      best_row = routine_var(:best_row)
       @b.repeat(height) do
         kept << 1
         gaps << 0
       end
       @b.repeat(height - 1) { |row| gaps[row + 1] = row_gap(from, width, light, row + 1, row) }
       @b.repeat(height - SCREEN_ROWS) do
-        best.store!(-1)
-        best_row.store!(0)
+        @best = -1
+        @best_row = 0
         @b.repeat(height - 1) do |row|
-          if kept[row + 1] == 1 && (best < 0 || gaps[row + 1] < best)
-            best.store!(gaps[row + 1])
-            best_row.store!(row + 1)
+          if kept[row + 1] == 1 && (@best < 0 || gaps[row + 1] < @best)
+            @best = gaps[row + 1]
+            @best_row = row + 1
           end
         end
-        kept[best_row] = 0
+        kept[@best_row] = 0
         # The next kept row below now has a new row above it.
-        routine_var(:below).store!(-1)
+        @below = -1
         @b.repeat(height - 1) do |row|
-          routine_var(:below).store!(row + 1) if routine_var(:below) < 0 && row + 1 > best_row && kept[row + 1] == 1
+          @below = row + 1 if @below < 0 && row + 1 > @best_row && kept[row + 1] == 1
         end
-        if routine_var(:below) >= 0
-          above.store!(0)
-          @b.repeat(height) { |row| above.store!(row) if row < routine_var(:below) && kept[row] == 1 }
-          gaps[routine_var(:below)] = row_gap(from, width, light, routine_var(:below), above)
+        if @below >= 0
+          @above = 0
+          @b.repeat(height) { |row| @above = row if row < @below && kept[row] == 1 }
+          gaps[@below] = row_gap(from, width, light, @below, @above)
         end
       end
-      written = routine_var(:written)
-      written.store!(0)
+      @written = 0
       @b.repeat(height) do |row|
         if kept[row] == 1
           @b.repeat(width) do |x|
-            @pack[:screen_pictures][SCREEN_AT.fetch(name) + (written * width) + x] =
+            @pack[:screen_pictures][SCREEN_AT.fetch(name) + (@written * width) + x] =
               @pack[:vga_pictures][from + (row * width) + x]
           end
           @copy.count_written width
-          written.increase!(1)
+          @written += 1
         end
       end
     end
 
     # How different rows +a+ and +b+ of the picture at +from+ are, added along its +width+.
     def row_gap(from, width, light, a, b)
-      sum = routine_var(:gap_sum)
-      sum.store!(0)
+      @gap_sum = 0
       @b.repeat(width) do |x|
-        difference = routine_var(:difference)
-        difference.store!(light[@pack[:vga_pictures][from + (a * width) + x]] -
-                          light[@pack[:vga_pictures][from + (b * width) + x]])
-        difference.store!(0 - difference) if difference < 0
-        sum.increase!(difference)
+        difference = light[@pack[:vga_pictures][from + (a * width) + x]] - light[@pack[:vga_pictures][from + (b * width) + x]]
+        difference = 0 - difference if difference < 0
+        @gap_sum += difference
       end
-      sum
+      @gap_sum
     end
 
     # ONE ROW OF THE TABLE OF CHUNKS: which chunk, what kind, where its bytes start in their slot,
     # its width and height (a picture's) or how many bytes it may take (a font's, an article's), and
     # its number among its kind (a picture's in the release, a font's, an episode's).
     ChunkJob = Data.define(:chunk, :kind, :at, :width, :height, :number)
+
+    # ...and the one being unpacked, as the routine's variables.
+    Job = Struct.new(:chunk, :kind, :at, :width, :height, :number) do
+      game_variables :chunk, :kind, :at, :width, :height, :number
+    end
 
     # The chunks this release's pack wants, the picture table first, since a picture is checked
     # against it. A release with no names (Vgagraph::NAMES) has no pictures here.
@@ -224,38 +243,41 @@ module Wolf3D
     # size than Vgagraph::SIZES is not unpacked, and stays place nought.
     def unpack_chunks
       jobs = chunk_jobs
-      # The table as one column for each field of ChunkJob, read into the routine variable of that name.
-      columns = ChunkJob.new(**ChunkJob.members.to_h do |field|
+      # The table as one column for each field of ChunkJob, read into @job's field of that name.
+      columns = ChunkJob.members.to_h do |field|
         [field, @b.table(:"vga_job_#{field}", jobs.map { |job| job.to_h.fetch(field) }, width: :word)]
-      end)
+      end
       @pack[:picture_count][0] = 0
       @b.repeat(jobs.length) do |n|
-        columns.to_h.each { |field, column| routine_var(field).store!(column[n]) }
-        wanted = routine_var(:wanted)
-        wanted.store!(1)
-        if routine_var(:kind) == PICTURE
-          wanted.store!(0) unless (@pack[:picture_sizes][2 * routine_var(:number)] == routine_var(:width)) &
-                                  (@pack[:picture_sizes][(2 * routine_var(:number)) + 1] == routine_var(:height))
+        @job.chunk = columns[:chunk][n]
+        @job.kind = columns[:kind][n]
+        @job.at = columns[:at][n]
+        @job.width = columns[:width][n]
+        @job.height = columns[:height][n]
+        @job.number = columns[:number][n]
+        wanted = true
+        if @job.kind == PICTURE
+          wanted = (@pack[:picture_sizes][2 * @job.number] == @job.width) &&
+                   (@pack[:picture_sizes][(2 * @job.number) + 1] == @job.height)
         end
-        unpack_job if wanted == 1
+        unpack_job if wanted
       end
     end
 
-    # The chunk the routine's job variables name, each byte to its place.
+    # The chunk @job names, each byte to its place.
     def unpack_job
-      kind = routine_var(:kind)
-      routine_var(:quarter).store!(routine_var(:width) / PLANES)
-      routine_var(:plane_places).store!(routine_var(:quarter) * routine_var(:height))
-      unpack_chunk(routine_var(:chunk)) do |byte, made|
-        if kind == PICTURE_TABLE
+      @quarter = @job.width / PLANES
+      @plane_places = @quarter * @job.height
+      unpack_chunk(@job.chunk) do |byte, made|
+        if @job.kind == PICTURE_TABLE
           put_size_byte(byte, made)
-        elsif kind == PICTURE
+        elsif @job.kind == PICTURE
           put_picture_byte(byte, made)
-        elsif made < routine_var(:width) # a font's or an article's run
-          if kind == FONT
-            @pack[:font_chunks][routine_var(:at) + made] = byte
+        elsif made < @job.width # a font's or an article's run
+          if @job.kind == FONT
+            @pack[:font_chunks][@job.at + made] = byte
           else
-            @pack[:end_articles][routine_var(:at) + made] = byte
+            @pack[:end_articles][@job.at + made] = byte
           end
           @copy.count_written 1
         end
@@ -266,9 +288,9 @@ module Wolf3D
     # A byte of the picture table: a width and a height for each picture, two bytes each.
     def put_size_byte(byte, made)
       if (made & 1) == 0
-        routine_var(:low).store!(byte)
+        @low = byte
       elsif (made >> 1) < PICTURES * 2
-        @pack[:picture_sizes][made >> 1] = routine_var(:low) | (byte << 8)
+        @pack[:picture_sizes][made >> 1] = @low | (byte << 8)
         @copy.count_written 2
       end
     end
@@ -277,12 +299,9 @@ module Wolf3D
     # planes, so column x of the whole is column x / 4 of plane x % 4 (wolf4sdl: id_vh.cpp,
     # VWB_DrawPic; Vgagraph::Picture).
     def put_picture_byte(byte, made)
-      width = routine_var(:width)
-      quarter = routine_var(:quarter)
-      plane_places = routine_var(:plane_places)
-      if made < width * routine_var(:height)
-        @pack[:vga_pictures][routine_var(:at) + (((made % plane_places) / quarter) * width) +
-                             ((made % quarter) * PLANES) + (made / plane_places)] = byte
+      if made < @job.width * @job.height
+        @pack[:vga_pictures][@job.at + (((made % @plane_places) / @quarter) * @job.width) +
+                             ((made % @quarter) * PLANES) + (made / @plane_places)] = byte
         @copy.count_written 1
       end
     end
@@ -290,15 +309,13 @@ module Wolf3D
     # What a chunk leaves once it is walked: the release's count of pictures, a quarter of the
     # table's length and no more than PICTURES; an article's length, no more than its run.
     def finish_job
-      length = routine_var(:chunk_length)
-      if routine_var(:kind) == PICTURE_TABLE
-        count = routine_var(:pictures)
-        count.store!(length >> 2)
-        count.store!(PICTURES) if count > PICTURES
+      if @job.kind == PICTURE_TABLE
+        count = @chunk_length >> 2
+        count = PICTURES if count > PICTURES
         @pack[:picture_count][0] = count
-      elsif routine_var(:kind) == ARTICLE
-        length.store!(ARTICLE_BYTES) if length > ARTICLE_BYTES
-        @pack[:end_article_length][routine_var(:number)] = length
+      elsif @job.kind == ARTICLE
+        @chunk_length = ARTICLE_BYTES if @chunk_length > ARTICLE_BYTES
+        @pack[:end_article_length][@job.number] = @chunk_length
       end
     end
 
@@ -315,12 +332,10 @@ module Wolf3D
         starts = @b.table(:"font_#{n}_glyph_at", widths.keys.map { |code| GLYPH_AT.fetch(n).fetch(code) }, width: :word)
         tall = font_byte(font_at) | (font_byte(font_at + 1) << 8)
         @b.repeat(widths.length) do |g|
-          code = routine_var(:code)
-          location = routine_var(:location)
-          code.store!(codes[g])
-          location.store!(font_byte(font_at + FONT_HEIGHT_BYTES + (2 * code)) |
-                          (font_byte(font_at + FONT_HEIGHT_BYTES + (2 * code) + 1) << 8))
-          if (tall == height) & (font_byte(font_at + FONT_WIDTHS_AT + code) == sizes[g]) &
+          code = codes[g]
+          location = font_byte(font_at + FONT_HEIGHT_BYTES + (2 * code)) |
+                     (font_byte(font_at + FONT_HEIGHT_BYTES + (2 * code) + 1) << 8)
+          if (tall == height) && (font_byte(font_at + FONT_WIDTHS_AT + code) == sizes[g]) &&
              (location + (sizes[g] * height) <= FONT_CHUNK_BYTES.fetch(n))
             @b.repeat(sizes[g] * height) do |pixel|
               @pack[:font_glyphs][starts[g] + pixel] = font_byte(font_at + location + pixel)
@@ -335,48 +350,38 @@ module Wolf3D
 
     # CHUNK +n+, each byte it unpacks to handed to the block with its place counted from nought. A
     # chunk VGAHEAD does not list, one never made, or one whose start or packed bits are not inside
-    # VGAGRAPH, gives nothing; its length (#routine_var :chunk_length) is then nought.
+    # VGAGRAPH, gives nothing; its length (@chunk_length) is then nought.
     def unpack_chunk(n)
-      start = routine_var(:chunk_start)
-      length = routine_var(:chunk_length)
-      at = routine_var(:packed_at)
-      made = routine_var(:made)
-      node = routine_var(:node)
-      bits = routine_var(:bits)
-      branch = routine_var(:branch)
-      start.store!(ABSENT)
+      @chunk_start = ABSENT
       if (OFFSET_BYTES * n) + OFFSET_BYTES <= @head.size
-        start.store!(@head.byte(OFFSET_BYTES * n) | (@head.byte((OFFSET_BYTES * n) + 1) << 8) |
-                     (@head.byte((OFFSET_BYTES * n) + 2) << 16))
+        @chunk_start = @head.byte(OFFSET_BYTES * n) | (@head.byte((OFFSET_BYTES * n) + 1) << 8) |
+                       (@head.byte((OFFSET_BYTES * n) + 2) << 16)
       end
-      length.store!(0)
-      length.store!(@graph.word(start)) if start != ABSENT && start + LENGTH_BYTES <= @graph.size
-      at.store!(start + LENGTH_BYTES)
-      made.store!(0)
-      node.store!(ROOT)
-      @b.repeat(MOST_PACKED, stop_when: (made >= length) | (at >= @graph.size)) do
-        bits.store!(@graph.byte(at))
+      @chunk_length = 0
+      @chunk_length = @graph.word(@chunk_start) if @chunk_start != ABSENT && @chunk_start + LENGTH_BYTES <= @graph.size
+      @packed_at = @chunk_start + LENGTH_BYTES
+      @made = 0
+      @node = ROOT
+      @b.repeat(MOST_PACKED, stop_when: (@made >= @chunk_length) || (@packed_at >= @graph.size)) do
+        @bits = @graph.byte(@packed_at)
         @b.repeat(8) do |bit|
-          if made < length
-            branch.store!(@dictionary.half((NODE_BYTES * node) + (2 * ((bits >> bit) & 1))))
-            if branch < LEAVES
-              yield branch, made
-              made.increase!(1)
-              node.store!(ROOT)
-            elsif branch - LEAVES < NODES
-              node.store!(branch - LEAVES)
+          if @made < @chunk_length
+            @branch = @dictionary.half((NODE_BYTES * @node) + (2 * ((@bits >> bit) & 1)))
+            if @branch < LEAVES
+              yield @branch, @made
+              @made += 1
+              @node = ROOT
+            elsif @branch - LEAVES < NODES
+              @node = @branch - LEAVES
             else
               # A branch to no node of the tree's 255 would read past VGADICT: the chunk ends here.
-              length.store!(made)
+              @chunk_length = @made
             end
           end
         end
-        at.increase!(1)
+        @packed_at += 1
       end
-      length.store!(made)
+      @chunk_length = @made
     end
-
-    # A variable of the routine's, made the first time it is asked for.
-    def routine_var(name) = (@routine_vars ||= {})[name] ||= @b.var(:"_vgagraph_unpacking_#{name}", 0)
   end
 end
