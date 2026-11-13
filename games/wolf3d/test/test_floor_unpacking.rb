@@ -19,7 +19,7 @@ class TestFloorUnpacking < Minitest::Test
       pack = unpacked(made_up_original(dir))
 
       assert_unpacked_as_read maps, Wolf3D::Vswap.new(release.files["VSWAP"]), release.pictures, pack
-      assert_same_adlib_effects Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"]), pack
+      assert_same_adlib_effects Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"]), pack, made_up: true
     end
   end
 
@@ -97,7 +97,7 @@ class TestFloorUnpacking < Minitest::Test
       adlib = Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"])
 
       refute_nil adlib.recording(MADE_UP_EFFECTS.first), "the made-up effect should make a sound"
-      assert_same_adlib_effects adlib, unpacked(made_up_original(dir))
+      assert_same_adlib_effects adlib, unpacked(made_up_original(dir)), made_up: true
     end
   end
 
@@ -113,10 +113,10 @@ class TestFloorUnpacking < Minitest::Test
     end
     adlib = Wolf3D::AdlibSounds.new(head: release.files["AUDIOHED"], audio: release.files["AUDIOT"])
     knife = Wolf3D::AdlibUnpacking.numbers.index(MADE_UP_EFFECTS.last)
-    room = Wolf3D::AdlibUnpacking::ROOM[knife]
+    room = Wolf3D::AdlibUnpacking::ROOM_SAMPLES[knife]
     pcm = samples_in_room(adlib.recording(MADE_UP_EFFECTS.last), room)
 
-    assert_equal [0], pack.fetch(:adlib_samples).byteslice(0, Wolf3D::AdlibUnpacking::ROOM[0]).bytes.uniq, "the effect past AUDIOT"
+    assert_equal [0], pack.fetch(:adlib_samples).byteslice(0, Wolf3D::AdlibUnpacking::ROOM_SAMPLES[0]).bytes.uniq, "the effect past AUDIOT"
     assert_equal [0, 0, 0], %i[adlib_length adlib_note_frames adlib_priority].map { |slot| pack.fetch(slot).unpack1("v") }
     assert_equal pcm + ([0] * (room - pcm.length)),
                  pack.fetch(:adlib_samples).unpack("c*")[Wolf3D::AdlibUnpacking::EFFECT_AT[knife], room], "the knife"

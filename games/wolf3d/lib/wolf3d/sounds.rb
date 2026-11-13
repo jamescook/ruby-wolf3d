@@ -182,7 +182,7 @@ module Wolf3D
     def a_guard_dies
       return if @screams.nil?
 
-      when_sound_is_on { @screams.play(@recordings.roll_held(@scream_chunks)) }
+      when_sound_is_on { @screams.play(@recordings.roll_held_place(@scream_chunks)) }
     end
 
     private
@@ -215,10 +215,10 @@ module Wolf3D
       @voice_count = 0
       @adlib_names = []
       declare_adlib_effects
-      @recordings.sounds_held(WANTED.uniq).each do |chunk|
+      @recordings.select_held_sounds(WANTED.uniq).each do |chunk|
         @clips[chunk] = @recordings.declare_sound_sample(:"sound_#{chunk}", chunk)
       end
-      @b.enable_sound if @adlib_effects.nil? && @recordings.sounds_held(GUNS + DEATH_SCREAMS + voices_wanted).any?
+      @b.enable_sound if @adlib_effects.nil? && @recordings.select_held_sounds(GUNS + DEATH_SCREAMS + voices_wanted).any?
       declare_the_guns
       declare_the_screams
       declare_the_voices
@@ -235,14 +235,14 @@ module Wolf3D
     # all rank the same: the one asked for last wins, fading or not. The tables are of the effects'
     # numbers in the list here.
     def declare_adlib_effects
-      held = @recordings.adlib_held(ADLIB_EFFECT_NUMBERS)
+      held = @recordings.select_held_effects(ADLIB_EFFECT_NUMBERS)
       return if held.empty?
 
       @adlib_names = held.keys
       @b.enable_sound
       @adlib_effects = @b.sound_effects :adlib, held.values.map { |number| adlib_score(number) }
-      @adlib_frames = @recordings.adlib_note_frames(:adlib_frames, held.values)
-      @adlib_priorities = @recordings.adlib_priorities(:adlib_priorities, held.values)
+      @adlib_frames = @recordings.declare_adlib_frames_table(:adlib_frames, held.values)
+      @adlib_priorities = @recordings.declare_adlib_priorities_table(:adlib_priorities, held.values)
       @adlib_frames_left = @b.var :_adlib_frames_left, 0
       @adlib_priority_sounding = @b.var :_adlib_priority_sounding, 0
       @adlib_priority_asked = @b.var :_adlib_priority_asked, 0
@@ -284,7 +284,7 @@ module Wolf3D
     # number and a kind costs a column rather than a test. Like the screams, these are heard over
     # each other, and a cartridge pays only for the recordings of who is on it.
     def declare_the_voices
-      @held_voices = @recordings.sounds_held(voices_wanted)
+      @held_voices = @recordings.select_held_sounds(voices_wanted)
       @voice_count = @held_voices.length
       return if @held_voices.empty?
 
@@ -319,7 +319,7 @@ module Wolf3D
     # after it, so the table says where each gun landed. One that is missing points just past the
     # end, and a number naming no effect plays nothing.
     def declare_the_guns
-      held = @recordings.sounds_held(GUNS)
+      held = @recordings.select_held_sounds(GUNS)
       return if held.empty?
 
       @guns = @b.sound_effects :guns, held.map { |chunk| recording_as_effect(chunk, group: :player_weapon) }
@@ -340,7 +340,7 @@ module Wolf3D
     # A SCREAM NOW OUTRANKS A GUARD'S SHOUT OR SHOT when the mixer runs out of voices, because the
     # game's samples rank below every effect. It also starts a frame after it is asked for.
     def declare_the_screams
-      @scream_chunks = @recordings.sounds_held(DEATH_SCREAMS)
+      @scream_chunks = @recordings.select_held_sounds(DEATH_SCREAMS)
       return if @scream_chunks.empty?
 
       @screams = @b.sound_effects :screams, @scream_chunks.map { |chunk| recording_as_effect(chunk) }

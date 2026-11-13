@@ -197,19 +197,25 @@ module UnpackedPack
     assert_equal (0...guns).map { |n| vswap.sprite(first + n).last_column }, pack.fetch(:gun_last_column).bytes
   end
 
-  # THE ADLIB EFFECTS, each in its room of AdlibUnpacking::ROOM at EFFECT_AT, sample for sample
+  # THE ADLIB EFFECTS, each in its room of AdlibUnpacking::ROOM_SAMPLES at EFFECT_AT, sample for sample
   # what Opl2 makes of it for a trimmed build (AdlibSounds#recording) with nought after, and its
   # length, the frames its notes last and its priority beside. An effect the copy lacks, or one
-  # that makes no sound, is a silent room and three noughts. One longer than its room, which only a
-  # made-up effect is, is cut to it.
-  def assert_same_adlib_effects(adlib, pack)
+  # that makes no sound, is a silent room and three noughts. A real copy's effect must fit its room,
+  # every sample that is not nought: AdlibUnpacking::ROOM_SAMPLES is counted off the copies through
+  # Opl2, and a change to Opl2 can lengthen one. A +made_up+ release's is longer, and cut to it.
+  def assert_same_adlib_effects(adlib, pack, made_up: false)
     unpacking = Wolf3D::AdlibUnpacking
     got = pack.fetch(:adlib_samples).unpack("c*")
-    assert_equal unpacking::ROOM.sum, got.length, "every effect's room and nothing more"
+    assert_equal unpacking::ROOM_SAMPLES.sum, got.length, "every effect's room and nothing more"
     unpacking.numbers.each_with_index do |number, n|
       recording = adlib.recording(number)
-      pcm = samples_in_room(recording, unpacking::ROOM[n])
-      assert_equal pcm + ([0] * (unpacking::ROOM[n] - pcm.length)), got[unpacking::EFFECT_AT[n], unpacking::ROOM[n]],
+      room = unpacking::ROOM_SAMPLES[n]
+      unless made_up
+        sounding = samples_in_room(recording, recording ? recording.pcm.length : 0).length
+        assert_operator sounding, :<=, room, "effect #{number} fits its room"
+      end
+      pcm = samples_in_room(recording, room)
+      assert_equal pcm + ([0] * (room - pcm.length)), got[unpacking::EFFECT_AT[n], room],
                    "effect #{number}"
       assert_equal [pcm.length, recording&.note_frames.to_i, recording&.priority.to_i],
                    %i[adlib_length adlib_note_frames adlib_priority].map { |slot| pack.fetch(slot).unpack("v*")[n] },
@@ -253,8 +259,8 @@ module UnpackedPack
   # (Sounds::SHORTEST_RECORDING).
   def assert_same_sounds(vswap, pack)
     got = pack.fetch(:sound_samples)
-    assert_equal Wolf3D::SoundUnpacking::ROOM.sum, got.bytesize, "every sound's room and nothing more"
-    Wolf3D::SoundUnpacking::ROOM.each_with_index do |room, n|
+    assert_equal Wolf3D::SoundUnpacking::ROOM_SAMPLES.sum, got.bytesize, "every sound's room and nothing more"
+    Wolf3D::SoundUnpacking::ROOM_SAMPLES.each_with_index do |room, n|
       held = n < vswap.sound_count && vswap.sound(n).length >= Wolf3D::Sounds::SHORTEST_RECORDING
       samples = held ? vswap.sound(n).pcm : []
       assert_equal samples.length, pack.fetch(:sound_length).unpack("v*")[n], "sound #{n}'s length"

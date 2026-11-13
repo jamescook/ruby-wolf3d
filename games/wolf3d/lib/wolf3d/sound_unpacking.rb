@@ -6,7 +6,7 @@ module Wolf3D
   #
   # Kept as a trimmed build plays them, eight bits a sample at seven thousand a second, signed with
   # silence at nought: VSWAP's own bytes with 128 taken off each (Vswap::Sound#pcm). Each sound has a
-  # room of its own in sound_samples, ROOM long, at SOUND_AT; what a sound leaves of its room is
+  # room of its own in sound_samples, ROOM_SAMPLES long, at SOUND_AT; what a sound leaves of its room is
   # silence; and its own length is in sound_length.
   #
   # A SCRAP IS NO SOUND. The shareware keeps each sound it left out in the index at its full length,
@@ -29,22 +29,22 @@ module Wolf3D
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
   # branch in it, and every count is a variable of the routine's (#routine_var).
   class SoundUnpacking
-    # EACH SOUND'S ROOM, in bytes: the longest that sound runs in any release this game reads,
+    # EACH SOUND'S ROOM_SAMPLES, in bytes: the longest that sound runs in any release this game reads,
     # counted off the copies (the index says them; the original's source does not). The six
     # episodes' are the longer of the two everywhere; the shareware's sounds it does not ship are
     # scraps of 184 bytes. Spear keeps other sounds and will want a list of its own.
-    ROOM = [5996, 3793, 19_995, 10_022, 3600, 3605, 4065, 4495, 6334, 5781, 10_716, 5410, 2850, 3750, 2215,
+    ROOM_SAMPLES = [5996, 3793, 19_995, 10_022, 3600, 3605, 4065, 4495, 6334, 5781, 10_716, 5410, 2850, 3750, 2215,
             24_763, 3057, 5632, 10_949, 13_866, 5874, 8815, 9095, 5689, 24_577, 13_206, 14_849, 5137, 8346,
             4437, 4568, 5349, 7002, 7024, 7604, 4344, 9544, 17_448, 24_372, 3030, 6300, 5244, 6809, 8562,
             11_048, 12_499].freeze
-    SOUNDS = ROOM.length
+    SOUNDS = ROOM_SAMPLES.length
 
     # Where each sound's room starts in sound_samples.
-    SOUND_AT = ROOM.each_with_object([0]) { |room, starts| starts << (starts.last + room) }.first(SOUNDS).freeze
+    SOUND_AT = ROOM_SAMPLES.each_with_object([0]) { |room, starts| starts << (starts.last + room) }.first(SOUNDS).freeze
 
     # The slots the sounds take, declared on +slots+ (the data pack's).
     def self.declare(slots)
-      slots.samples :sound_samples, count: ROOM.sum
+      slots.samples :sound_samples, count: ROOM_SAMPLES.sum
       slots.numbers :sound_length, count: SOUNDS, width: :half, signed: false
     end
 
@@ -58,7 +58,7 @@ module Wolf3D
 
     def fill
       @vswap = @copy.file("VSWAP.#{@release}")
-      @rooms = @b.table(:sound_room, ROOM, width: :half)
+      @rooms = @b.table(:sound_room, ROOM_SAMPLES, width: :half)
       @sound_at = @b.table(:sound_at, SOUND_AT, width: :word)
       routine_var(:pages).store!(@vswap.half(0))
       routine_var(:first_sound).store!(@vswap.half(4))

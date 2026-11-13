@@ -10,7 +10,7 @@ module Wolf3D
   # Opl2Routine's, and making the samples Opl2 makes. Opl2 says what each step is and why; a change
   # to one is a change to the other, and test_floor_unpacking holds them together.
   #
-  # Each effect has a room of its own in adlib_samples, ROOM long, at EFFECT_AT, signed samples at
+  # Each effect has a room of its own in adlib_samples, ROOM_SAMPLES long, at EFFECT_AT, signed samples at
   # Opl2::RENDER_RATE with nought after it ends, and three numbers beside: its length in samples
   # (nought for an effect this copy lacks, or one that makes no sound), the frames its notes last
   # and its priority, which are AdlibSounds::Recording's.
@@ -22,26 +22,26 @@ module Wolf3D
     # Asked for as the routine is built, since Sounds loads after this file.
     def self.numbers = Sounds::ADLIB_EFFECT_NUMBERS.values
 
-    # EACH EFFECT'S ROOM, in samples: how long it runs through the chip, its fade included, counted
+    # EACH EFFECT'S ROOM_SAMPLES, in samples: how long it runs through the chip, its fade included, counted
     # off the copies with Opl2 (the original's source does not say; both releases keep the same
     # effects). Spear keeps other effects and will want a list of its own.
-    ROOM = [429, 2478, 5884, 4572, 3275, 8216, 3223, 7963, 8064, 6057, 11_107, 14_099, 16_038, 3078, 12_186,
+    ROOM_SAMPLES = [429, 2478, 5884, 4572, 3275, 8216, 3223, 7963, 8064, 6057, 11_107, 14_099, 16_038, 3078, 12_186,
             11_255, 8529, 8977, 9633].freeze
-    EFFECTS = ROOM.length
+    EFFECTS = ROOM_SAMPLES.length
 
     # Where each effect's room starts in adlib_samples.
-    EFFECT_AT = ROOM.each_with_object([0]) { |room, starts| starts << (starts.last + room) }.first(EFFECTS).freeze
+    EFFECT_AT = ROOM_SAMPLES.each_with_object([0]) { |room, starts| starts << (starts.last + room) }.first(EFFECTS).freeze
 
     # An operator's five registers are two bytes each in the instrument, the modulator's first, in
     # INSTRUMENT_REGISTERS' order.
-    INSTRUMENT_AT = 6
+    INSTRUMENT_BYTE = 6
     INSTRUMENT_REGISTERS = [Opl2::CHAR_REGISTER, Opl2::SCALE_REGISTER, Opl2::ATTACK_REGISTER, Opl2::SUSTAIN_REGISTER,
                             Opl2::WAVE_REGISTER].freeze
-    BLOCK_AT = 22
+    BLOCK_BYTE = 22
 
     # The slots the effects take, declared on +slots+ (the data pack's).
     def self.declare(slots)
-      slots.samples :adlib_samples, count: ROOM.sum
+      slots.samples :adlib_samples, count: ROOM_SAMPLES.sum
       slots.numbers :adlib_length, count: EFFECTS, width: :half, signed: false
       slots.numbers :adlib_note_frames, count: EFFECTS, width: :half, signed: false
       slots.numbers :adlib_priority, count: EFFECTS, width: :half, signed: false
@@ -59,7 +59,7 @@ module Wolf3D
       @head = @copy.file("AUDIOHED.#{@release}")
       @audio = @copy.file("AUDIOT.#{@release}")
       @numbers = @b.table(:adlib_number, self.class.numbers, width: :byte)
-      @rooms = @b.table(:adlib_room, ROOM, width: :half)
+      @rooms = @b.table(:adlib_room, ROOM_SAMPLES, width: :half)
       @effect_at = @b.table(:adlib_effect_at, EFFECT_AT, width: :word)
       @chip = Opl2Routine.new(@b, :adlib_chip, Opl2::NATIVE_CLOCK)
       @modulator = @chip.operator(:modulator)
@@ -118,7 +118,7 @@ module Wolf3D
           routine_var(:rest).store!(@audio.size - from - AdlibSounds::HEADER_BYTES)
           notes.store!(routine_var(:rest)) if (notes < 0) | (notes > routine_var(:rest))
           routine_var(:priority).store!(@audio.half(from + 4))
-          routine_var(:block).store!(@audio.byte(from + BLOCK_AT) & 7)
+          routine_var(:block).store!(@audio.byte(from + BLOCK_BYTE) & 7)
         end
       end
     end
@@ -126,7 +126,7 @@ module Wolf3D
     # One operator as the instrument sets it, +side+ nought for the modulator and one for the
     # carrier, at the effect's block: Opl2#operator_of.
     def set_up(operator, side)
-      at = routine_var(:from) + INSTRUMENT_AT + side
+      at = routine_var(:from) + INSTRUMENT_BYTE + side
       @chip.reset(operator)
       INSTRUMENT_REGISTERS.each_with_index do |kind, n|
         @chip.write_register(operator, kind, @audio.byte(at + (2 * n)))

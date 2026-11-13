@@ -109,7 +109,7 @@ module Wolf3D
     # A whole build (Holding) wants every song the original names, whichever floors this copy has.
     def declare
       wanted = @holding.whole? ? WHOLE_SONGS : (@floors.map { |floor| FLOOR_SONGS[floor.index] } + OTHER_SONGS).compact.uniq
-      @held = @recordings.songs_held(wanted)
+      @held = @recordings.select_held_songs(wanted)
       return if @held.empty?
 
       @songs = @b.songs :music, @held.map { |track| score_of(track) }

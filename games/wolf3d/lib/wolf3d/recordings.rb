@@ -14,15 +14,19 @@ module Wolf3D
   # Each is asked by the original's number: a chunk of VSWAP's sounds, an effect or a track of AUDIOT.
   module Recordings
     # EVERY COUNT OF RECORDINGS TO ROLL AMONG divides this, so a roll of it shared out among however
-    # many this copy has gives each the same chance (#roll_held). Up to seven, the death screams.
+    # many this copy has gives each the same chance (#roll_held_place). Up to seven, the death screams.
     ROLL_SPAN = 420
 
     # Must be checked for any list rolled among: a count that does not divide ROLL_SPAN favours some.
-    def self.check_roll(chunks)
+    def self.require_fair_roll!(chunks)
       return if (1..chunks.length).all? { |count| (ROLL_SPAN % count).zero? }
 
       raise ArgumentError, "Rolling among #{chunks.length} recordings needs a ROLL_SPAN they all divide."
     end
+
+    # How many frames +samples+ at +rate+ a second last, a part of one counted whole: how long a
+    # note must be to play a recording to its end.
+    def self.count_frames(samples, rate) = ((samples.to_f / rate) * AdlibSounds::FRAMES_PER_SECOND).ceil
 
     # THE RECORDINGS AS THE COPY HOLDS THEM, made while building. +vswap+ (Vswap), +adlib+
     # (AdlibSounds) and +music+ (AdlibMusic) are the copy's, each nil for a build without them.
@@ -37,7 +41,7 @@ module Wolf3D
       end
 
       # THE CHUNKS OF +chunks+ THIS BUILD HOLDS: the ones the copy has.
-      def sounds_held(chunks) = @vswap ? chunks.select { |chunk| recording(chunk) } : []
+      def select_held_sounds(chunks) = @vswap ? chunks.select { |chunk| recording(chunk) } : []
 
       # Chunk +chunk+ as a sample called +name+.
       def declare_sound_sample(name, chunk)
@@ -49,7 +53,7 @@ module Wolf3D
       def declare_sound_instrument(name, chunk)
         sound = recording(chunk)
         @b.instrument(name, pcm: sound.pcm, rate: sound.rate)
-        ((sound.pcm.length.to_f / sound.rate) * AdlibSounds::FRAMES_PER_SECOND).ceil
+        Recordings.count_frames(sound.pcm.length, sound.rate)
       end
 
       # How many frames chunk +chunk+ lasts, nought for one this build does not hold.
@@ -60,14 +64,16 @@ module Wolf3D
       end
 
       # A place in +chunks+, rolled, every one of which this build holds: the roll Packed makes, so a
-      # trimmed build and a whole one made from the same copy pick the same.
-      def roll_held(chunks)
-        Recordings.check_roll(chunks)
+      # trimmed build and a whole one made from the same copy pick the same. One is rolled for every
+      # scream, even with one to pick from, as the original rolls for every guard's
+      # (wolf4sdl: wl_act2.cpp, A_DeathScream).
+      def roll_held_place(chunks)
+        Recordings.require_fair_roll!(chunks)
         @b.rand(0...ROLL_SPAN) * chunks.length / ROLL_SPAN
       end
 
       # THE EFFECTS OF +numbers+ (a name for each number) THIS BUILD HOLDS: the ones the copy has.
-      def adlib_held(numbers) = @adlib ? numbers.select { |_, number| @adlib.recording(number) } : {}
+      def select_held_effects(numbers) = @adlib ? numbers.select { |_, number| @adlib.recording(number) } : {}
 
       # Effect +number+ as an instrument called +name+, handing back how many frames it lasts.
       def declare_adlib_instrument(name, number)
@@ -78,17 +84,17 @@ module Wolf3D
 
       # THE FRAMES EACH OF +numbers+ PLAYS NOTES FOR, and its priority, each a table of the effects
       # held in that order and a row of nought after them for the place that names none.
-      def adlib_note_frames(name, numbers) = @b.table(name, numbers.map { |n| @adlib.recording(n).note_frames } + [0], width: :half)
-      def adlib_priorities(name, numbers) = @b.table(name, numbers.map { |n| @adlib.recording(n).priority } + [0], width: :byte)
+      def declare_adlib_frames_table(name, numbers) = @b.table(name, numbers.map { |n| @adlib.recording(n).note_frames } + [0], width: :half)
+      def declare_adlib_priorities_table(name, numbers) = @b.table(name, numbers.map { |n| @adlib.recording(n).priority } + [0], width: :byte)
 
       # THE TRACKS OF +tracks+ THIS BUILD HOLDS: the ones the copy has.
-      def songs_held(tracks) = @music ? tracks.reject { |track| @music.writes(track).empty? } : []
+      def select_held_songs(tracks) = @music ? tracks.reject { |track| @music.writes(track).empty? } : []
 
       # Track +track+ as an instrument called +name+, handing back how many frames it lasts.
       def declare_song_instrument(name, track)
         pcm = @music.recording(track, rate: @music_rate)
         @b.instrument(name, pcm: pcm, rate: @music_rate)
-        ((pcm.length.to_f / @music_rate) * AdlibSounds::FRAMES_PER_SECOND).ceil
+        Recordings.count_frames(pcm.length, @music_rate)
       end
 
       # Whether the song at place +song+ of the ones held has a recording: every one held does.
@@ -113,14 +119,14 @@ module Wolf3D
       end
 
       # Every chunk of +chunks+ has a room in the pack.
-      def sounds_held(chunks) = chunks.select { |chunk| chunk < SoundUnpacking::SOUNDS }
+      def select_held_sounds(chunks) = chunks.select { |chunk| chunk < SoundUnpacking::SOUNDS }
 
       def declare_sound_sample(name, chunk) = @b.sample(name, **sound_recording(chunk))
 
       # A note the length of the chunk's room, which runs on in silence past a shorter sound.
       def declare_sound_instrument(name, chunk)
         @b.instrument(name, **sound_recording(chunk))
-        frames_of(SoundUnpacking::ROOM[chunk], Vswap::Sound::RATE)
+        Recordings.count_frames(SoundUnpacking::ROOM_SAMPLES[chunk], Vswap::Sound::RATE)
       end
 
       # The sound's length in the pack, in frames, rounded as Baked rounds it.
@@ -131,8 +137,8 @@ module Wolf3D
       # A PLACE IN +chunks+, ROLLED AMONG THE ONES THIS COPY HAS, counted as the game plays: a roll of
       # ROLL_SPAN shared out among them, then the one it lands on found by walking the list. One past
       # the end, which names nothing, when the copy has none.
-      def roll_held(chunks)
-        Recordings.check_roll(chunks)
+      def roll_held_place(chunks)
+        Recordings.require_fair_roll!(chunks)
         @held_count ||= @b.var(:_recordings_held_count, 0)
         @held_left ||= @b.var(:_recordings_held_left, 0)
         @held_picked ||= @b.var(:_recordings_held_picked, 0)
@@ -150,7 +156,7 @@ module Wolf3D
       end
 
       # Every effect has a room in the pack, in AdlibUnpacking's order, which must be these.
-      def adlib_held(numbers)
+      def select_held_effects(numbers)
         unless numbers.values == AdlibUnpacking.numbers
           raise ArgumentError, "The pack holds the effects #{AdlibUnpacking.numbers.inspect}, not #{numbers.values.inspect}."
         end
@@ -160,17 +166,17 @@ module Wolf3D
 
       def declare_adlib_instrument(name, number)
         effect = AdlibUnpacking.numbers.index(number)
-        @b.instrument(name, pcm: @pack[:adlib_samples].samples(AdlibUnpacking::EFFECT_AT[effect], AdlibUnpacking::ROOM[effect]),
+        @b.instrument(name, pcm: @pack[:adlib_samples].samples(AdlibUnpacking::EFFECT_AT[effect], AdlibUnpacking::ROOM_SAMPLES[effect]),
                             rate: Opl2::RENDER_RATE, length: @pack[:adlib_length].number(effect))
-        frames_of(AdlibUnpacking::ROOM[effect], Opl2::RENDER_RATE)
+        Recordings.count_frames(AdlibUnpacking::ROOM_SAMPLES[effect], Opl2::RENDER_RATE)
       end
 
       # Every effect is held, so no place names none.
-      def adlib_note_frames(name, _numbers) = @b.table(name, @pack[:adlib_note_frames])
-      def adlib_priorities(name, _numbers) = @b.table(name, @pack[:adlib_priority])
+      def declare_adlib_frames_table(name, _numbers) = @b.table(name, @pack[:adlib_note_frames])
+      def declare_adlib_priorities_table(name, _numbers) = @b.table(name, @pack[:adlib_priority])
 
       # Every song has a room in the pack, in MusicUnpacking's order, which must be these.
-      def songs_held(tracks)
+      def select_held_songs(tracks)
         unless tracks == MusicUnpacking.numbers
           raise ArgumentError, "The pack holds the songs #{MusicUnpacking.numbers.inspect}, not #{tracks.inspect}."
         end
@@ -178,12 +184,14 @@ module Wolf3D
         tracks
       end
 
+      # At the computer's rate whatever the build is for, since that is the rate the pack holds it at
+      # (MusicUnpacking): a whole build made for the console mixes it down as it plays.
       def declare_song_instrument(name, track)
         song = MusicUnpacking.numbers.index(track)
         room = MusicUnpacking.rooms[song]
         @b.instrument(name, pcm: @pack[:music_samples].samples(MusicUnpacking.song_at[song], room),
                             rate: Opl2Track::COMPUTER_SAMPLE_RATE, length: @pack[:music_length].number(song))
-        frames_of(room, Opl2Track::COMPUTER_SAMPLE_RATE)
+        Recordings.count_frames(room, Opl2Track::COMPUTER_SAMPLE_RATE)
       end
 
       # A song this copy lacks is nought long in the pack.
@@ -192,11 +200,10 @@ module Wolf3D
       private
 
       def sound_recording(chunk)
-        { pcm: @pack[:sound_samples].samples(SoundUnpacking::SOUND_AT[chunk], SoundUnpacking::ROOM[chunk]),
+        { pcm: @pack[:sound_samples].samples(SoundUnpacking::SOUND_AT[chunk], SoundUnpacking::ROOM_SAMPLES[chunk]),
           rate: Vswap::Sound::RATE, length: @pack[:sound_length].number(chunk) }
       end
 
-      def frames_of(samples, rate) = ((samples.to_f / rate) * AdlibSounds::FRAMES_PER_SECOND).ceil
 
       def sound_lengths = @sound_lengths ||= @b.table(:sound_length, @pack[:sound_length])
       def song_lengths = @song_lengths ||= @b.table(:music_length, @pack[:music_length])
