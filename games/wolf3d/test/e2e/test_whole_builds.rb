@@ -430,8 +430,7 @@ class TestWholeBuilds < Minitest::Test
 
   # Each slot's bytes as FloorUnpacking and the rest leave them, unpacked from +data+.
   def slots_unpacked_from(data)
-    unpacking = Wolf3D::DataPack.declare(Builder.new, from: original_of(data)).unpacking
-    slots_unpacked_by(unpacking)
+    slots_unpacked_by(Wolf3D::DataPack.declare(Builder.new, from: original_of(data)))
   end
 
   # The pack's wall_pictures, +walls+, with the six episodes' door pages place nought: the row holds

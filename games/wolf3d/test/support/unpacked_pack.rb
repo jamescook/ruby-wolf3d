@@ -499,8 +499,7 @@ module UnpackedPack
   def unpacked(original)
     # The pack a whole build declares, whose routine is run here on its own, not read back from
     # the packs kept between builds.
-    unpacking = Wolf3D::DataPack.declare(VBlank::Builder.new, from: original).unpacking
-    slots_unpacked_by(unpacking)
+    slots_unpacked_by(Wolf3D::DataPack.declare(VBlank::Builder.new, from: original))
   end
 
   # Every floor's cells mean what the readers say, or the first floor and cell that do not.

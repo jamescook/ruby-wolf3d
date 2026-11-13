@@ -74,14 +74,19 @@ module Wolf3DTest
   #
   # KEPT IN THE BUILD'S OWN PACK CACHE (DataPack::CACHE). Its key is the copy's bytes, the routine
   # and its slots, VBlank and the Ruby, so a hit is exactly what this run would have written: a
-  # change to any of them, or a copy a test damaged, runs the routine again.
-  def slots_unpacked_by(unpacking)
-    VBlank::Original::PackCache.new(Wolf3D::DataPack::CACHE).slot_bytes(unpacking) do
-      frames = (unpacking.byte_size / 256) + 400
-      run = unpacking.run_fastest(frames: frames)
-      raise "the unpacking did not finish in #{frames} frames" unless unpacking.finished_in?(run)
+  # change to any of them, or a copy a test damaged, runs the routine again. It is KEPT A PART AT A
+  # TIME (DataPack::PARTS), so a change to one part replays that part and the parts that read its
+  # slots: the block is handed the routine of just those, which is what it plays.
+  #
+  # +pack+ is the handle DataPack.declare gives.
+  def slots_unpacked_by(pack)
+    cache = VBlank::Original::PackCache.new(Wolf3D::DataPack::CACHE)
+    cache.slot_bytes(pack.unpacking, parts: pack.unpacking_parts) do |playing, _names|
+      frames = (playing.byte_size / 256) + 400
+      run = playing.run_fastest(frames: frames)
+      raise "the unpacking did not finish in #{frames} frames" unless playing.finished_in?(run)
 
-      unpacking.slot_bytes_in(run)
+      playing.slot_bytes_in(run)
     end
   end
 
