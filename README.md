@@ -15,6 +15,30 @@ Spear of Destiny, the six episodes Apogee sold, and changed files.
 The build reads the files you own. It never copies them into the repository, and the converted
 output is ignored by git.
 
+### A build with none of the game in it
+
+A shell build holds none of Wolfenstein's files, so you can give it to somebody who owns the game.
+They load their own copy into it once.
+
+```sh
+bundle exec vblank run games/wolf3d/wolf3d.rb --shell                                       # play it now
+bundle exec vblank build games/wolf3d/wolf3d.rb --format=ruby --shell --output=wolf3d-shell.rb  # a file to give
+```
+
+1. Start the shell. It shows a menu with LOAD ROM and SETTINGS.
+2. Pick LOAD ROM.
+3. Pick the folder that holds your `*.WL6` or `*.WL1` files.
+4. Wait while the bar fills. The shell reads the walls, the pictures, the sounds and the music.
+   The music takes the longest.
+5. The game starts.
+
+The shell keeps what it read in a file of its own. The next start plays at once and does not ask
+for your copy. If a new build of the shell must read the files again, the menu says so. Load your
+copy again.
+
+`rake shell:check` does all of this with nobody at the controls. It also makes sure that the shell
+plays the same pictures and sounds as a build made straight from your copy.
+
 ## Build it
 
 ```sh
