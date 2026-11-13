@@ -22,7 +22,7 @@ module Wolf3D
   # variables, so each is its own variables.
   class MusicUnpacking
     game_variables :written, :room, :held, :from, :writes, :tremolo_shift, :vibrato_shift, :steps, :dither,
-                   :limit, :scale, :tremor, :noise, :out
+                   :limit, :scale, :tremor, :out
 
     # The songs held, by their numbers in AUDIOT. Asked for as the routine is built, since Music
     # loads after this file.
@@ -97,7 +97,6 @@ module Wolf3D
       @limit = 0
       @scale = 0
       @tremor = 0
-      @noise = 0
       @out = 0
       @b.repeat(self.class.numbers.length) { |song| render(song) }
     end
@@ -297,9 +296,9 @@ module Wolf3D
       value = sum
       value = @limit if value > @limit
       value = 0 - @limit if value < 0 - @limit
-      @noise = next_dither
-      @noise -= next_dither
-      ((value * @scale) + @noise + (1 << (Opl2Track::SCALE_BITS - 1))) >> Opl2Track::SCALE_BITS
+      noise = next_dither
+      noise -= next_dither
+      ((value * @scale) + noise + (1 << (Opl2Track::SCALE_BITS - 1))) >> Opl2Track::SCALE_BITS
     end
 
     # The next step of Opl2Track's dither, Opl2Track#draw_dither.
