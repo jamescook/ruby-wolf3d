@@ -147,4 +147,29 @@ class TestElevator < Minitest::Test
     assert_operator changed, :>, 0,
                     "the wall down the middle of the view should not be the picture it was"
   end
+
+  # A LEVER IS A WALL TO A GUARD'S EYE: the original's map holds it as a wall tile like any other,
+  # and CheckLine stops at one (wl_state.cpp, CheckLine: a tile below 128 that is not a door). A
+  # guard facing the player with a lever between them goes on standing.
+  def test_a_guard_cannot_see_you_through_a_lever
+    run = Reference.new.run(view_of(lever_between_you_and_a_guard, drawing: false), frames: 200)
+
+    assert_equal STAND, run.pool(:guard, :state)[0], "a lever between them hides you"
+  end
+
+  # ...and on a floor with a secret wall too, where a lever once read as a secret wall and his look
+  # ran off the end of the walls' list.
+  def test_a_lever_on_a_floor_with_a_secret_wall_hides_you_too
+    level = lever_between_you_and_a_guard(walls: [[3, 3]], things: { [3, 3] => Wolf3D::Level::PUSHWALL })
+    run = Reference.new.run(view_of(level, drawing: false), frames: 200)
+
+    assert_equal STAND, run.pool(:guard, :state)[0], "a lever between them hides you"
+  end
+
+  STAND = Wolf3D::Guards.state_number(:stand)
+
+  # The player due west of a guard who faces him, with a lever on the row between them.
+  def lever_between_you_and_a_guard(**)
+    arena(player: [8, 8], guards: [[12, 8, :west]], cells: { [10, 8] => EL::SWITCH }, **)
+  end
 end

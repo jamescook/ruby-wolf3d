@@ -848,15 +848,24 @@ module Wolf3D
     # left of a map, a quarter for one at the far side. That is how far through a door a guard
     # sees, and so how far a bullet goes, in the game everybody played.
     def stop_line_at(cell)
-      @this_floor.sort_out(cell, door: lambda {
-        @slot = @this_floor.door_in(cell)
-        @line_middle = @line_cross - (@line_slope * 0.5)
-        @clear = 0 if @line_middle > @open[@slot] * CROSSING_STEPS_PER_CELL
-      }, pushwall: (lambda {
-        @slot = @this_floor.pushwall_in(cell)
-        @clear = 0 if @pushwall_cell.call(@slot) == (@celly * @width) + @cellx
-      } if @pushwall_cell), wall: -> { @clear = 0 })
+      # A lever is a wall tile in the original's map, and sort_out is asked only of a cell that is
+      # not one. A cartridge with no lift on any floor has none to test for.
+      if lifts? && @this_floor.lever?(cell)
+        @clear = 0
+      else
+        @this_floor.sort_out(cell, door: lambda {
+          @slot = @this_floor.door_in(cell)
+          @line_middle = @line_cross - (@line_slope * 0.5)
+          @clear = 0 if @line_middle > @open[@slot] * CROSSING_STEPS_PER_CELL
+        }, pushwall: (lambda {
+          @slot = @this_floor.pushwall_in(cell)
+          @clear = 0 if @pushwall_cell.call(@slot) == (@celly * @width) + @cellx
+        } if @pushwall_cell), wall: -> { @clear = 0 })
+      end
     end
+
+    # Does any floor of this cartridge have a lift? A game handed no floors may.
+    def lifts? = @floors.nil? || !@floors.no_floor_has?(:lifts)
 
     # --- walking a beat --------------------------------------------------------------
 
