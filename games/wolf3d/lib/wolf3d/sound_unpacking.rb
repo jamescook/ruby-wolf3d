@@ -27,8 +27,11 @@ module Wolf3D
   # sound the shareware ships, or at the last the index itself (its 184-byte scraps).
   #
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
-  # branch in it, and every count is a variable of the routine's (#routine_var).
+  # branch in it, and a number one method sets and another reads is one of its game_variables.
   class SoundUnpacking
+    game_variables :pages, :first_sound, :page_start, :page_length, :index_at, :index_length, :index_inside,
+                   :written, :length, :room, :page, :done
+
     # EACH SOUND'S ROOM_SAMPLES, in bytes: the longest that sound runs in any release this game reads,
     # counted off the copies (the index says them; the original's source does not). The six
     # episodes' are the longer of the two everywhere; the shareware's sounds it does not ship are
@@ -60,13 +63,19 @@ module Wolf3D
       @vswap = @copy.file("VSWAP.#{@release}")
       @rooms = @b.table(:sound_room, ROOM_SAMPLES, width: :half)
       @sound_at = @b.table(:sound_at, SOUND_AT, width: :word)
-      routine_var(:pages).store!(@vswap.half(0))
-      routine_var(:first_sound).store!(@vswap.half(4))
-      read_page(routine_var(:pages) - 1)
-      routine_var(:index_at).store!(routine_var(:page_start))
-      routine_var(:index_length).store!(routine_var(:page_length))
-      routine_var(:index_inside).store!(0)
-      routine_var(:index_inside).store!(1) if routine_var(:index_at) + routine_var(:index_length) <= @vswap.size
+      @pages = @vswap.half(0)
+      @first_sound = @vswap.half(4)
+      @page_start = 0
+      @page_length = 0
+      read_page(@pages - 1)
+      @index_at = @page_start
+      @index_length = @page_length
+      @index_inside = @index_at + @index_length <= @vswap.size
+      @written = 0
+      @length = 0
+      @room = 0
+      @page = 0
+      @done = false
       @b.repeat(SOUNDS) { |sound| copy_sound(sound) }
     end
 
@@ -76,83 +85,65 @@ module Wolf3D
     # or VSWAP's pages run out; then silence to the end of the room. A page outside VSWAP ends the
     # sound where it got to. Every turn of the loop moves on a page or ends it, so it ends.
     def copy_sound(sound)
-      written = routine_var(:written)
-      length = routine_var(:length)
-      done = routine_var(:done)
-      room = routine_var(:room)
-      room.store!(@rooms[sound])
-      written.store!(0)
-      length.store!(0)
-      named = routine_var(:named)
-      named.store!(0)
-      named.store!(1) if routine_var(:index_inside) == 1 && (4 * sound) + 4 <= routine_var(:index_length)
-      if named == 1
-        routine_var(:page).store!(routine_var(:first_sound) + @vswap.half(routine_var(:index_at) + (4 * sound)))
-        length.store!(@vswap.half(routine_var(:index_at) + (4 * sound) + 2))
-        length.store!(room) if length > room
+      @room = @rooms[sound]
+      @written = 0
+      @length = 0
+      named = @index_inside && (4 * sound) + 4 <= @index_length
+      if named
+        @page = @first_sound + @vswap.half(@index_at + (4 * sound))
+        @length = @vswap.half(@index_at + (4 * sound) + 2)
+        @length = @room if @length > @room
       end
-      done.store!(0)
-      done.store!(1) if written >= length
-      while done == 0
+      @done = @written >= @length
+      until @done
         copy_page(sound)
-        done.store!(1) if (written >= length) | (routine_var(:page) >= routine_var(:pages))
+        @done = true if (@written >= @length) || (@page >= @pages)
       end
-      written.store!(0) if written < Sounds::SHORTEST_RECORDING
-      @pack[:sound_length][sound] = written
+      @written = 0 if @written < Sounds::SHORTEST_RECORDING
+      @pack[:sound_length][sound] = @written
       fill_silence(sound)
     end
 
     # The next page of the sound into its room: as much of it as the sound has left, from where the
     # sound has got to. A page outside VSWAP ends the sound.
     def copy_page(sound)
-      written = routine_var(:written)
-      take = routine_var(:take)
-      read_page(routine_var(:page))
-      take.store!(routine_var(:length) - written)
-      take.store!(routine_var(:page_length)) if routine_var(:page_length) < take
-      inside = routine_var(:inside)
-      inside.store!(0)
-      inside.store!(1) if routine_var(:page) < routine_var(:pages) && routine_var(:page_start) + take <= @vswap.size
-      if inside == 1
+      read_page(@page)
+      take = @length - @written
+      take = @page_length if @page_length < take
+      if @page < @pages && @page_start + take <= @vswap.size
         copy_samples(sound, take)
-        written.store!(written + take)
-        routine_var(:page).store!(routine_var(:page) + 1)
+        @written += take
+        @page += 1
       else
-        routine_var(:done).store!(1)
+        @done = true
       end
     end
 
     # +take+ bytes of the page just read into the sound's room, from where the sound has got to, each
     # with 128 taken off.
     def copy_samples(sound, take)
-      at = routine_var(:sample_at)
-      at.store!(0)
+      at = 0
       @copy.count_written take
       while at < take
-        @pack[:sound_samples][@sound_at[sound] + routine_var(:written) + at] =
-          @vswap.byte(routine_var(:page_start) + at) - Vswap::Sound::MIDPOINT
-        at.store!(at + 1)
+        @pack[:sound_samples][@sound_at[sound] + @written + at] = @vswap.byte(@page_start + at) - Vswap::Sound::MIDPOINT
+        at += 1
       end
     end
 
     # Silence from where the sound ended to the end of its room.
     def fill_silence(sound)
-      at = routine_var(:silent_at)
-      at.store!(routine_var(:written))
-      @copy.count_written routine_var(:room) - at
-      while at < routine_var(:room)
+      at = @written
+      @copy.count_written @room - at
+      while at < @room
         @pack[:sound_samples][@sound_at[sound] + at] = 0
-        at.store!(at + 1)
+        at += 1
       end
     end
 
-    # Where page +page+ starts in VSWAP, into page_start, and how long it is, into page_length.
+    # Where page +page+ starts in VSWAP, into @page_start, and how long it is, into @page_length.
     def read_page(page)
-      routine_var(:page_start).store!(@vswap.word(Vswap::HEADER_BYTES + (4 * page)))
-      routine_var(:page_length).store!(@vswap.half(Vswap::HEADER_BYTES + (4 * routine_var(:pages)) + (2 * page)))
+      @page_start = @vswap.word(Vswap::HEADER_BYTES + (4 * page))
+      @page_length = @vswap.half(Vswap::HEADER_BYTES + (4 * @pages) + (2 * page))
     end
-
-    # A variable of the routine's, made the first time it is asked for.
-    def routine_var(name) = (@routine_vars ||= {})[name] ||= @b.var(:"_sound_unpacking_#{name}", 0)
   end
 end

@@ -16,8 +16,11 @@ module Wolf3D
   # and its priority, which are AdlibSounds::Recording's.
   #
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
-  # branch in it, and every count is a variable of the routine's (#routine_var).
+  # branch in it, and a number one method sets and another reads is one of its game_variables.
   class AdlibUnpacking
+    game_variables :written, :length, :room, :held, :from, :notes, :priority, :block,
+                   :clock, :sum, :in_sum, :tremor
+
     # The effects held, in Sounds' order, by their numbers in AUDIOT.
     # Asked for as the routine is built, since Sounds loads after this file.
     def self.numbers = Sounds::ADLIB_EFFECT_NUMBERS.values
@@ -62,8 +65,20 @@ module Wolf3D
       @rooms = @b.table(:adlib_room, ROOM_SAMPLES, width: :half)
       @effect_at = @b.table(:adlib_effect_at, EFFECT_AT, width: :word)
       @chip = Opl2Routine.new(@b, :adlib_chip, Opl2::NATIVE_CLOCK)
-      @modulator = @chip.operator(:modulator)
-      @carrier = @chip.operator(:carrier)
+      @modulator = @chip.operator
+      @carrier = @chip.operator
+      @written = 0
+      @length = 0
+      @room = 0
+      @held = false
+      @from = 0
+      @notes = 0
+      @priority = 0
+      @block = 0
+      @clock = 0
+      @sum = 0
+      @in_sum = 0
+      @tremor = 0
       @b.repeat(EFFECTS) { |effect| render(effect) }
     end
 
@@ -73,52 +88,46 @@ module Wolf3D
     # samples, then the fade until the carrier is quiet, as Opl2#render. What is left of the room
     # is counted and stays nought.
     def render(effect)
-      written = routine_var(:written)
-      length = routine_var(:length)
-      written.store!(0)
-      length.store!(0)
-      routine_var(:room).store!(@rooms[effect])
+      @written = 0
+      @length = 0
+      @room = @rooms[effect]
       find(effect)
-      if routine_var(:held) == 1
+      if @held
         set_up(@modulator, 0)
         set_up(@carrier, 1)
-        routine_var(:clock).store!(0)
-        routine_var(:sum).store!(0)
-        routine_var(:in_sum).store!(0)
+        @clock = 0
+        @sum = 0
+        @in_sum = 0
         play_notes(effect)
         play_tail(effect)
-        @pack[:adlib_length][effect] = length
-        if length > 0
-          @pack[:adlib_note_frames][effect] = ((routine_var(:notes) * AdlibSounds::FRAMES_PER_SECOND) +
+        @pack[:adlib_length][effect] = @length
+        if @length > 0
+          @pack[:adlib_note_frames][effect] = ((@notes * AdlibSounds::FRAMES_PER_SECOND) +
                                                Opl2::TICKS_PER_SECOND - 1) / Opl2::TICKS_PER_SECOND
-          @pack[:adlib_priority][effect] = routine_var(:priority)
+          @pack[:adlib_priority][effect] = @priority
         end
       end
-      @copy.count_written routine_var(:room) - written
+      @copy.count_written @room - @written
     end
 
-    # WHERE THE EFFECT IS, into from, with how many notes it has and its priority: AUDIOHED's
-    # offset for its chunk, as AdlibSounds#effect finds it. held is nought for an effect this copy
+    # WHERE THE EFFECT IS, into @from, with how many notes it has and its priority: AUDIOHED's
+    # offset for its chunk, as AdlibSounds#effect finds it. @held is false for an effect this copy
     # lacks, and for one whose header would lie outside AUDIOT, which only a damaged copy has. A
     # count of notes running past the end of AUDIOT is cut to what is there.
     def find(effect)
-      from = routine_var(:from)
-      notes = routine_var(:notes)
-      held = routine_var(:held)
-      chunk = routine_var(:chunk)
-      chunk.store!(AdlibSounds::FIRST_CHUNK + @numbers[effect])
-      held.store!(0)
+      chunk = AdlibSounds::FIRST_CHUNK + @numbers[effect]
+      @held = false
       if chunk + 1 < @head.size / 4
-        from.store!(@head.word(4 * chunk))
-        routine_var(:next_chunk).store!(@head.word((4 * chunk) + 4))
-        if (from >= 0) && (routine_var(:next_chunk) - from >= AdlibSounds::HEADER_BYTES) &&
-           (from + AdlibSounds::HEADER_BYTES <= @audio.size)
-          held.store!(1)
-          notes.store!(@audio.word(from))
-          routine_var(:rest).store!(@audio.size - from - AdlibSounds::HEADER_BYTES)
-          notes.store!(routine_var(:rest)) if (notes < 0) | (notes > routine_var(:rest))
-          routine_var(:priority).store!(@audio.half(from + 4))
-          routine_var(:block).store!(@audio.byte(from + BLOCK_BYTE) & 7)
+        @from = @head.word(4 * chunk)
+        next_chunk = @head.word((4 * chunk) + 4)
+        if (@from >= 0) && (next_chunk - @from >= AdlibSounds::HEADER_BYTES) &&
+           (@from + AdlibSounds::HEADER_BYTES <= @audio.size)
+          @held = true
+          @notes = @audio.word(@from)
+          rest = @audio.size - @from - AdlibSounds::HEADER_BYTES
+          @notes = rest if (@notes < 0) || (@notes > rest)
+          @priority = @audio.half(@from + 4)
+          @block = @audio.byte(@from + BLOCK_BYTE) & 7
         end
       end
     end
@@ -126,62 +135,51 @@ module Wolf3D
     # One operator as the instrument sets it, +side+ nought for the modulator and one for the
     # carrier, at the effect's block: Opl2#operator_of.
     def set_up(operator, side)
-      at = routine_var(:from) + INSTRUMENT_BYTE + side
+      at = @from + INSTRUMENT_BYTE + side
       @chip.reset(operator)
       INSTRUMENT_REGISTERS.each_with_index do |kind, n|
         @chip.write_register(operator, kind, @audio.byte(at + (2 * n)))
       end
-      @chip.tune(operator, routine_var(:block), 0)
+      @chip.tune(operator, @block, 0)
     end
 
     def play_notes(effect)
-      tick = routine_var(:tick)
-      left = routine_var(:left)
-      tick.store!(0)
-      while tick < routine_var(:notes)
-        key_note(@audio.byte(routine_var(:from) + AdlibSounds::HEADER_BYTES + tick))
-        left.store!(Opl2::NATIVE_SAMPLES_PER_TICK)
+      tick = 0
+      while tick < @notes
+        key_note(@audio.byte(@from + AdlibSounds::HEADER_BYTES + tick))
+        left = Opl2::NATIVE_SAMPLES_PER_TICK
         while left > 0
           play_sample(effect)
-          left.store!(left - 1)
+          left -= 1
         end
-        tick.store!(tick + 1)
+        tick += 1
       end
     end
 
     def play_tail(effect)
-      left = routine_var(:left)
       @chip.key_off(@modulator)
       @chip.key_off(@carrier)
-      left.store!(Opl2::TAIL_SAMPLES)
-      find_quiet
-      while (left > 0) & (routine_var(:quiet) == 0)
+      left = Opl2::TAIL_SAMPLES
+      quiet = @chip.quiet?(@carrier)
+      while left > 0 && !quiet
         play_sample(effect)
-        left.store!(left - 1)
-        find_quiet
+        left -= 1
+        quiet = @chip.quiet?(@carrier)
       end
-    end
-
-    # Whether the carrier has stopped, into quiet: Opl2::Operator#quiet?.
-    def find_quiet
-      routine_var(:quiet).store!(@chip.quiet(@carrier))
     end
 
     # A tick's byte: the tremolo for the tick, then the key down at that pitch, or up for nought.
     # Opl2#key_note.
     def key_note(note)
-      count = routine_var(:tremolo_count)
-      pitch = routine_var(:pitch)
-      pitch.store!(note)
-      count.store!((routine_var(:clock) >> 6) % (2 * Opl2::TREMOLO_PEAK))
-      count.store!((2 * Opl2::TREMOLO_PEAK) - count) if count >= Opl2::TREMOLO_PEAK
-      routine_var(:tremor).store!(count >> Opl2::TREMOLO_SHIFT)
-      if pitch == 0
+      count = (@clock >> 6) % (2 * Opl2::TREMOLO_PEAK)
+      count = (2 * Opl2::TREMOLO_PEAK) - count if count >= Opl2::TREMOLO_PEAK
+      @tremor = count >> Opl2::TREMOLO_SHIFT
+      if note == 0
         @chip.key_off(@modulator)
         @chip.key_off(@carrier)
       else
         [@modulator, @carrier].each do |operator|
-          @chip.tune(operator, routine_var(:block), pitch)
+          @chip.tune(operator, @block, note)
           @chip.key_on(operator)
         end
       end
@@ -191,31 +189,23 @@ module Wolf3D
     # effect's room: Opl2#play_sample. A sample that is not nought moves the effect's length on to
     # it, so the length ends at the last sound.
     def play_sample(effect)
-      bend = routine_var(:bend)
-      sum = routine_var(:sum)
-      in_sum = routine_var(:in_sum)
-      written = routine_var(:written)
-      value = routine_var(:value)
-      bend.store!(0)
-      bend.store!(@chip.step(@modulator, 0, routine_var(:tremor))) if @modulator[:stage] != Opl2::OFF
-      sum.store!(sum + @chip.step(@carrier, bend, routine_var(:tremor))) if @carrier[:stage] != Opl2::OFF
-      routine_var(:clock).store!(routine_var(:clock) + 1)
-      in_sum.store!(in_sum + 1)
-      if in_sum == Opl2::RATE_DIVIDER
-        value.store!(((((sum + Opl2::FULL_SUM) * Opl2::FULL_SAMPLE) + (Opl2::FULL_SUM / 2)) / Opl2::FULL_SUM) -
-                     Opl2::FULL_SAMPLE)
-        if written < routine_var(:room)
-          @pack[:adlib_samples][@effect_at[effect] + written] = value
+      bend = 0
+      bend = @chip.step(@modulator, 0, @tremor) if @modulator.stage != Opl2::OFF
+      @sum += @chip.step(@carrier, bend, @tremor) if @carrier.stage != Opl2::OFF
+      @clock += 1
+      @in_sum += 1
+      if @in_sum == Opl2::RATE_DIVIDER
+        value = ((((@sum + Opl2::FULL_SUM) * Opl2::FULL_SAMPLE) + (Opl2::FULL_SUM / 2)) / Opl2::FULL_SUM) -
+                Opl2::FULL_SAMPLE
+        if @written < @room
+          @pack[:adlib_samples][@effect_at[effect] + @written] = value
           @copy.count_written 1
-          written.store!(written + 1)
-          routine_var(:length).store!(written) if value != 0
+          @written += 1
+          @length = @written if value != 0
         end
-        sum.store!(0)
-        in_sum.store!(0)
+        @sum = 0
+        @in_sum = 0
       end
     end
-
-    # A variable of the routine's, made the first time it is asked for.
-    def routine_var(name) = (@routine_vars ||= {})[name] ||= @b.var(:"_adlib_unpacking_#{name}", 0)
   end
 end
