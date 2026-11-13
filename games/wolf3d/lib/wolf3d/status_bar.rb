@@ -449,10 +449,8 @@ module Wolf3D
       @pictures.declare_rule(inside_height)
       @rule_half = 0
 
-      half = @rule_half
-      build = @b
       top = inside_top
-      build.func(:_bar_rule) { build.blit :bar_rule, half * 2, top }
+      @b.func(:_bar_rule) { @b.blit :bar_rule, @rule_half * 2, top }
     end
 
     # The part of the bar inside the plate's edge, which is what a groove runs down.
@@ -469,14 +467,10 @@ module Wolf3D
     WEAPON_GROUP = 6
 
     def strip_routine(name, picture, wide, height)
-      col_x = @col_x
-      col_y = @col_y
-      col_slot = @col_slot
-      build = @b
-      build.func(name) do
+      @b.func(name) do
         wide.times do |col|
-          build.draw_column_at picture, slice: (col_slot * wide) + col,
-                                        x: col_x + col, top: col_y, height: height
+          @b.draw_column_at picture, slice: (@col_slot * wide) + col,
+                                     x: @col_x + col, top: @col_y, height: height
         end
       end
     end
