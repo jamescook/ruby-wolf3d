@@ -42,10 +42,7 @@ module Wolf3D
 
     # IT DECIDES ONCE A PASS, because a pass is what the world moves by, and a pass takes two or three
     # frames on a cartridge and one anywhere else. Counted in passes, what it does is the same on every
-    # way of running. A flag that flips every pass says when one has gone by. The world stands still
-    # for the lift, so this many frames with no flip counts as a pass as well.
-    PASS_FLAG = :guard_mind_turn
-    MOST_FRAMES_A_PASS = 8
+    # way of running. The running game counts the passes it has finished (its +passes+).
 
     # The original's four settings, top row first (gd_baby and the rest, in wl_def.h).
     DIFFICULTY_NAMES = %w[baby easy medium hard].freeze
@@ -78,7 +75,7 @@ module Wolf3D
       @scenery = @levels.map { |level| Scenery.new(level) }
       @frame = 0
       @pass = 0
-      @frames_on_pass = 0
+      @passes_seen = nil
       @buttons = []
       @difficulty_frames = 0
       @name_frames = 0
@@ -129,12 +126,9 @@ module Wolf3D
 
     # Counts one frame, and says whether it began a new pass.
     def advance_pass(game)
-      flag = game.var(PASS_FLAG)
-      @frames_on_pass += 1
-      return false if flag == @pass_flag && @frames_on_pass < MOST_FRAMES_A_PASS
+      return false if game.passes == @passes_seen
 
-      @pass_flag = flag
-      @frames_on_pass = 0
+      @passes_seen = game.passes
       @pass += 1
       true
     end
@@ -150,11 +144,7 @@ module Wolf3D
     def lost?(game) = game.var(:game_over) != 0 && game.var(:episode_won).zero?
 
     # A cartridge of one floor has no screen between floors.
-    def tally_showing?(game)
-      game.var(:tally_showing) != 0
-    rescue ArgumentError
-      false
-    end
+    def tally_showing?(game) = game.var?(:tally_showing) && game.var(:tally_showing) != 0
 
     def menu_buttons(screen)
       return press_periodically(:a) unless screen == Menus::DIFFICULTY && @difficulty.positive?

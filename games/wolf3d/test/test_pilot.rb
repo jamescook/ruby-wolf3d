@@ -28,16 +28,20 @@ class TestPilot < Minitest::Test
   class RunningGame
     STANDING_START = { menus_screen: Wolf3D::Menus::PLAYING, floor: 0, lives: 3, game_over: 0, episode_won: 0, score: 0,
                        view: 0, health: 100, ammo: 50, keys: 0, weapon: 1, weapon_best: 1, weapon_stage: -1,
-                       guard_mind_turn: 0, tally_showing: 0 }.freeze
+                       tally_showing: 0 }.freeze
 
-    def initialize(at: [3, 3], men: [], doors_open: [], gone: [], **player)
+    def initialize(at: [3, 3], men: [], doors_open: [], gone: [], passes: 0, **player)
       @vars = STANDING_START.merge(player, px: at[0] + 0.5, py: at[1] + 0.5)
       @men = men
       @doors_open = doors_open
       @gone = gone
+      @passes = passes
     end
 
+    attr_reader :passes
+
     def var(name) = @vars.fetch(name)
+    def var?(name) = @vars.key?(name)
 
     def list(name) = name == :door_open ? @doors_open : @gone
 
@@ -504,8 +508,8 @@ class TestPilot < Minitest::Test
   def test_nothing_held_on_one_floor_is_held_on_the_next
     pilot = Pilot.new([way_out_level, way_out_level], log: StringIO.new)
 
-    refute_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, guard_mind_turn: 1))
-    assert_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, guard_mind_turn: 1))
+    refute_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, passes: 1))
+    assert_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, passes: 1))
   end
 
   def test_a_new_floor_and_a_death_are_reported_in_their_own_words
