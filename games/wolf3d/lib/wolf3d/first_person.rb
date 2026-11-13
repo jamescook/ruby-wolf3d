@@ -150,7 +150,7 @@ module Wolf3D
     # +floors+ is every floor the cartridge holds.
     # +sound_setting+ is the menu's own sound switch, or nil where there is no menu to turn it off.
     # +source+ is where the build's floor tables and pictures come from (Source).
-    def initialize(build:, atlas:, floors:, things: nil, vswap: nil, adlib: nil, bar_art: nil, gun_art: nil,
+    def initialize(build:, atlas:, floors:, things: nil, recordings: nil, bar_art: nil, gun_art: nil,
                    lettering: nil, sound_setting: nil, armed_with: nil, ammo: nil, pacing: PACING, toughness: nil,
                    rare_scream_odds: GuardMind::RARE_SCREAM_ODDS, source: Source::BAKED)
       @rare_scream_odds = rare_scream_odds
@@ -178,8 +178,7 @@ module Wolf3D
       # emits nothing about dogs at all. A whole build (Holding) ships every kind.
       @behaviour = Behaviour.for(@floors.kinds, toughness: toughness)
       @things = things
-      @vswap = vswap # the player's own copy of the recorded sounds, or nil for a silent build
-      @adlib = adlib # ...and of the effects that are recipes for the AdLib chip, or nil
+      @recordings = recordings # where the sounds come from (Recordings), or nil for a silent build
       @bar_art = bar_art # Wolfenstein's own art for the bar, or nil to draw it plainly
       @gun_art = gun_art # ...and for the gun in your hands, or nil to hold one you cannot see
       @lettering = lettering # ...and the big letters between floors, or nil for the plain font
@@ -691,7 +690,7 @@ module Wolf3D
       @flash = ScreenFlash.new(build: b)
 
       # THE SOUNDS COME BEFORE ANYTHING THAT MAKES ONE: a death, a guard shouting, a gun.
-      @sounds = Sounds.new(build: b, vswap: @vswap, adlib: @adlib, switch: @sound_setting, kinds: @behaviour.kinds.map(&:name))
+      @sounds = Sounds.new(build: b, recordings: @recordings, switch: @sound_setting, kinds: @behaviour.kinds.map(&:name))
 
       # DYING AND THE GOES YOU GET COME FIRST, because what stands in the level reaches both: the
       # guard who lands the last shot sets the death off, and a thing you pick up can hand you
@@ -944,8 +943,9 @@ module Wolf3D
 
     # How long the lever stands pulled. The original plays the lift's own recording and then
     # waits for it to finish, so the recording IS the pause and the number is read off it here
-    # rather than chosen. A copy of the game without that recording falls back to LIFT_WAIT.
-    def lift_wait_frames = @sounds&.level_done_frames || LIFT_WAIT
+    # rather than chosen. A copy of the game without that recording, which reads nought here, falls
+    # back to LIFT_WAIT (#pull_the_lever); a whole build learns which as it plays.
+    def lift_wait_frames = @sounds ? @sounds.level_done_frames : 0
 
     # Scratch variables, named with the leading underscore this project gives working room.
     def whole(*names) = names.map { |name| @b.var(:"_#{name}", 0) }
@@ -1458,6 +1458,7 @@ module Wolf3D
       if @across > @along && @pulled < 0
         @pulled = @ahead
         @lift_wait = lift_wait_frames
+        @lift_wait = LIFT_WAIT if @lift_wait == 0
         # WHERE THE LIFT GOES is decided by the cell the player is standing on, not by the lever
         # — which is the original's own test, and is why nothing here has to model a car. A floor
         # has one such cell or none, so this is a comparison against a number settled at build

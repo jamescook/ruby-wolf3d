@@ -23,7 +23,7 @@ class TestMusic < Minitest::Test
     VBlank.game("MUSIC", consoles: %i[gba]) do
       enable_sound
       sound = var(:sound_setting, setting)
-      music = Music.new(build: self, tracks: tracks, floors: [Floor.new(0), Floor.new(1)], setting: sound)
+      music = Music.new(build: self, recordings: Wolf3D::Recordings::Baked.new(self, music: tracks), floors: [Floor.new(0), Floor.new(1)], setting: sound)
       frame = var(:_frame, 0)
       floor = var(:_floor_now, 0)
       game_loop do

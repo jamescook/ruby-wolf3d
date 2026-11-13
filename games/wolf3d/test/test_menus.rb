@@ -722,7 +722,7 @@ class TestMenus < Minitest::Test
       Ractor.current[:"menus_music_#{name}"] ||= begin
         menu_art = art
         cartridge_of(floors, sound: Music::EFFECTS_AND_MUSIC, lettering: menu_art) do |b, view, sound_setting|
-          music = Music.new(build: b, tracks: EveryTrack.new, floors: floors, setting: sound_setting)
+          music = Music.new(build: b, recordings: Wolf3D::Recordings::Baked.new(b, music: EveryTrack.new), floors: floors, setting: sound_setting)
           menus = Wolf3D::Menus.new(build: b, view: view, art: menu_art, palette: Wolf3D::Palette.game,
                                     sound_setting: sound_setting, starting_on: starting_on, music: music)
           b.game_loop { menus.update }

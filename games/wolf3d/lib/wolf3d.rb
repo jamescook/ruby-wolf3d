@@ -91,6 +91,8 @@ VBlank.require_game_file "wolf3d/alphabets"
 VBlank.require_game_file "wolf3d/article_pages"
 # ...and where its tables come from, baked or from that pack, after both.
 VBlank.require_game_file "wolf3d/floor_tables"
+# ...and its sounds and music.
+VBlank.require_game_file "wolf3d/recordings"
 # ...and the one choice between baking and the pack, which hands each part its own of those.
 VBlank.require_game_file "wolf3d/source"
 require_relative "wolf3d/lasting_state"
@@ -417,6 +419,8 @@ module Wolf3D
       # then the cartridge boots straight into the game, because there is nothing to write a
       # menu with. The same pictures hold the lettering of the screen between floors.
       menu_art = source.menu_art
+      # THE SOUNDS AND THE MUSIC, which the view and the menus both play.
+      recordings = source.recordings(self)
       # WHAT THE SOUND ROW IS SET TO, which every one of the game's sounds and songs is played
       # under. Declared here rather than inside either of them because both need it and neither
       # owns it.
@@ -428,8 +432,7 @@ module Wolf3D
       view = Wolf3D::FirstPerson.new(build: self, floors: floors,
                                      atlas: source.wall_atlas(floors, holding: holding),
                                      things: source.thing_atlas(floors),
-                                     vswap: source.digitized_sounds,
-                                     adlib: source.adlib_sounds,
+                                     recordings: recordings,
                                      bar_art: source.bar_art,
                                      gun_art: source.gun_art,
                                      lettering: menu_art,
@@ -438,7 +441,7 @@ module Wolf3D
                                      ammo: Wolf3D.starting_ammo(ammo),
                                      source: source)
       if menu_art
-        music = Wolf3D::Music.new(build: self, tracks: source.adlib_music, floors: floors, setting: sound_setting,
+        music = Wolf3D::Music.new(build: self, recordings: recordings, floors: floors, setting: sound_setting,
                                   holding: holding)
         menus = Wolf3D::Menus.new(build: self, view: view, art: menu_art,
                                   palette: Wolf3D.palette, sound_setting: sound_setting, music: music,

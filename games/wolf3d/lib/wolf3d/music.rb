@@ -70,18 +70,16 @@ module Wolf3D
     # tick is one frame.
     FRAME_TICKS = 150
 
-    # +tracks+ is the copy's AdlibMusic, or nil on a build with none, and then there is no music.
+    # +recordings+ is where the songs come from (Recordings); one holding none means no music.
     # +setting+ is the variable the SOUND row moves. Sounds has turned sound on by now, since a copy
     # of the game with music has effects too.
     # +holding+ says whether to hold the floors' songs or every one (Holding).
-    def initialize(build:, tracks:, floors:, setting:, holding: Holding.trimmed)
+    def initialize(build:, recordings:, floors:, setting:, holding: Holding.trimmed)
       @b = build
-      @tracks = tracks
+      @recordings = recordings
       @floors = floors
       @holding = holding
       @setting = setting
-      # A computer has room for the music at the most a speaker takes; the console at less.
-      @rate = build.built_for_computer? ? Opl2Track::COMPUTER_SAMPLE_RATE : Opl2Track::CONSOLE_SAMPLE_RATE
       declare
     end
 
@@ -92,12 +90,13 @@ module Wolf3D
     def floor_song(floor) = @floor_songs ? @floor_songs[floor] : 0
 
     # SAYS WHICH SONG IS WANTED, every pass. Naming the one already playing changes nothing, and
-    # stopping when nothing plays does nothing, so the SOUND row needs no more than this.
+    # stopping when nothing plays does nothing, so the SOUND row needs no more than this. A song this
+    # copy lacks is not played, so the one playing plays on, which a whole build learns as it plays.
     def update(wanted)
       return if @songs.nil?
 
       if @setting == EFFECTS_AND_MUSIC
-        @songs.play wanted
+        @songs.play wanted if @recordings.song_held?(wanted)
       else
         @songs.stop
       end
@@ -110,7 +109,7 @@ module Wolf3D
     # A whole build (Holding) wants every song the original names, whichever floors this copy has.
     def declare
       wanted = @holding.whole? ? WHOLE_SONGS : (@floors.map { |floor| FLOOR_SONGS[floor.index] } + OTHER_SONGS).compact.uniq
-      @held = @tracks ? wanted.reject { |track| @tracks.writes(track).empty? } : []
+      @held = @recordings.songs_held(wanted)
       return if @held.empty?
 
       @songs = @b.songs :music, @held.map { |track| score_of(track) }
@@ -118,10 +117,8 @@ module Wolf3D
     end
 
     def score_of(track)
-      pcm = @tracks.recording(track, rate: @rate)
       name = :"music_#{track}"
-      @b.instrument name, pcm: pcm, rate: @rate
-      frames = ((pcm.length.to_f / @rate) * AdlibSounds::FRAMES_PER_SECOND).ceil
+      frames = @recordings.declare_song_instrument(name, track)
       note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames)
       VBlank::Audio::Score.new(
         tempo: FRAME_TICKS, parts: [VBlank::Audio::Score::Part.new(plays: name, volume: MUSIC_VOLUME, notes: [note])]

@@ -20,6 +20,8 @@ module Wolf3D
   # - small_letter_pictures(build, art:, palette:): SmallLetterPictures.
   # - alphabets(build, art:): Alphabets, the menus' two proportional fonts.
   # - article_pages(build, art:, letters:, floors:): ArticlePages, the articles an episode ends on.
+  # - recordings(build): Recordings, the recorded sounds, the AdLib effects and the music, which
+  #   Sounds and Music make into instruments.
   #
   # And the two layouts the parts are handed, which say how big each picture is and where the bar's
   # labels sit: menu_art (MenuArt, or nil for a copy whose pictures we cannot name, which then has no
@@ -32,12 +34,6 @@ module Wolf3D
   # (WeaponAtlas, or nil for a copy without the gun's pictures). Baked fills them from the copy's
   # VSWAP with just the pictures +floors+ use. Packed opens no VSWAP: each is only its shape, every
   # picture the original can show, and the pictures themselves are in the pack (ViewPictures).
-  #
-  # And the sounds and the music, which Sounds and Music make into recordings: digitized_sounds
-  # (Vswap, whose last pages are the recorded sounds), adlib_sounds (AdlibSounds) and adlib_music
-  # (AdlibMusic), each nil for a copy without them. EVERY BUILD STILL READS THESE FROM THE COPY
-  # while it is built: a sound cannot yet take its samples from the data pack, so Packed answers
-  # what Baked does until it can.
   module Source
     # EVERYTHING WORKED OUT IN RUBY, while building.
     class Baked
@@ -52,9 +48,9 @@ module Wolf3D
       def thing_atlas(floors) = ThingAtlas.new(Wolf3D.vswap, Wolf3D.palette, things_seen_on(floors))
       def gun_art = Wolf3D.gun_art
 
-      def digitized_sounds = Wolf3D.vswap
-      def adlib_sounds = Wolf3D.adlib
-      def adlib_music = Wolf3D.adlib_music
+      def recordings(build)
+        Recordings::Baked.new(build, vswap: Wolf3D.vswap, adlib: Wolf3D.adlib, music: Wolf3D.adlib_music)
+      end
 
       def floor_tables(build, floors:, wall_picture:) = FloorTables::Baked.new(build, floors, wall_picture)
       def view_pictures(build) = ViewPictures::Baked.new(build)
@@ -97,10 +93,7 @@ module Wolf3D
       def thing_atlas(_floors) = ThingAtlas.whole(nil, Wolf3D.palette)
       def gun_art = WeaponAtlas.new(nil, Wolf3D.palette)
 
-      # Read from the copy while building, as Baked does: see above.
-      def digitized_sounds = BAKED.digitized_sounds
-      def adlib_sounds = BAKED.adlib_sounds
-      def adlib_music = BAKED.adlib_music
+      def recordings(build) = Recordings::Packed.new(build, @pack)
 
       def floor_tables(build, floors:, wall_picture:) = FloorTables::Packed.new(build, floors, @pack)
       def view_pictures(build) = ViewPictures::Packed.new(build, @pack)

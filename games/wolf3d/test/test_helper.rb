@@ -12,6 +12,7 @@ require_relative "support/episode_scene"
 require_relative "support/menu_scene"
 require_relative "support/lift_scene"
 require_relative "support/article_scene"
+require_relative "support/shot_guard_scene"
 require_relative "support/unpacked_pack"
 VBlank.require_game_file "support/counting_worlds"
 

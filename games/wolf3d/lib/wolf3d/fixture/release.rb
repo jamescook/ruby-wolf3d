@@ -61,11 +61,14 @@ module Wolf3D
       SPRITE_INK = 112
 
       # A set whose pictures have no names here, unless a test asks for one that does. See #named.
-      def initialize(set: "SDM", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2, adlib: [], music: [])
+      # +left_out+ names the sounds this release leaves out, as the shareware does (#sound).
+      def initialize(set: "SDM", walls: DEFAULT_WALLS, sprites: DEFAULT_SPRITES, sounds: 2, left_out: [], adlib: [],
+                     music: [])
         @set = set
         @walls = walls
         @sprites = sprites
         @sounds = sounds
+        @left_out = left_out
         @adlib = adlib
         @music = music
         @rlew = IdSoftware::Codec::RLEW.new(tag: RLEW_TAG)
@@ -192,7 +195,7 @@ module Wolf3D
         @sounds.times { |i| chunks << sound(i) }
         # The index counts from the FIRST SOUND, not from the start of the file — measured on a
         # real VSWAP, whose first pairs are [0, ...], [2, ...], [3, ...].
-        chunks << Array.new(@sounds) { |i| [i, chunks[first_sound + i].bytesize] }.flatten.pack("v*")
+        chunks << Array.new(@sounds) { |i| [i, sound_length(i, chunks[first_sound + i])] }.flatten.pack("v*")
 
         at = 6 + (chunks.length * 6)
         offsets = chunks.map { |chunk| at.tap { at += chunk.bytesize } }
@@ -277,8 +280,18 @@ module Wolf3D
         BAND
       end
 
+      # A SOUND THE SHAREWARE LEFT OUT keeps its place in the index, at the length the sound has in the
+      # six episodes, and its page, empty. Read, it runs on over the empty page into whatever page
+      # next holds bytes: for the last sound, the index, a scrap of a few bytes, which Sounds takes for
+      # no sound at all (Sounds::SHORTEST_RECORDING).
+      LEFT_OUT_LENGTH = 512
+
+      def sound_length(index, bytes) = @left_out.include?(index) ? LEFT_OUT_LENGTH : bytes.bytesize
+
       # Raw 8-bit unsigned samples, which is what the sample verb wants once 128 comes off.
       def sound(index)
+        return "".b if @left_out.include?(index)
+
         Array.new(512) { |i| (128 + (Math.sin(i * (index + 1) * 0.05) * 100).round) & 0xFF }.pack("C*")
       end
 

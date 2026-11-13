@@ -123,16 +123,18 @@ module Wolf3DTest
     # a shot goes to a man the renderer put on the screen, so with nothing drawn nobody is ever on
     # it and nothing can be shot.
     #
-    # +sound+ is what the sound setting starts at, or nil for a game with no such setting. Anything
-    # else in +options+ goes to the view as it is. A block is handed the build, the view and the
-    # setting, and writes the game loop itself.
-    def cartridge_of(floors, drawing: true, sound: nil, **options, &loop_body)
+    # +sound+ is what the sound setting starts at, or nil for a game with no such setting.
+    # +sounds_from+ names the readers the sounds are made from, as Recordings::Baked takes them
+    # (+vswap:+, +adlib:+), or nil for a silent game. Anything else in +options+ goes to the view as
+    # it is. A block is handed the build, the view and the setting, and writes the game loop itself.
+    def cartridge_of(floors, drawing: true, sound: nil, sounds_from: nil, **options, &loop_body)
       atlas, things = atlases_of(floors)
       VBlank.game("VIEW", consoles: %i[gba]) do
         screen :bitmap, tear_free: true
         sound_setting = sound && var(:sound_setting, sound)
+        recordings = sounds_from && Wolf3D::Recordings::Baked.new(self, **sounds_from)
         view = Wolf3D::FirstPerson.new(build: self, floors: floors, atlas: atlas, things: things,
-                                       sound_setting: sound_setting, **options)
+                                       sound_setting: sound_setting, recordings: recordings, **options)
         if loop_body
           # With `instance_exec`, because that is what reads a test's block as a game's is read.
           instance_exec(self, view, sound_setting, &loop_body)

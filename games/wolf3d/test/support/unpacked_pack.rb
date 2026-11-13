@@ -247,18 +247,19 @@ module UnpackedPack
     samples
   end
 
-  # EVERY RECORDED SOUND, its samples as VSWAP keeps them (Vswap::Sound, 128 for silence), each at
-  # its own place in sound_samples and the rest of its room silent, with its length; nought long
-  # and all silence for a sound the copy lacks.
+  # EVERY RECORDED SOUND, its samples as a trimmed build plays them (Vswap::Sound#pcm, nought for
+  # silence), each at its own place in sound_samples and the rest of its room silent, with its
+  # length; nought long and all silence for a sound the copy lacks, or keeps only a scrap of
+  # (Sounds::SHORTEST_RECORDING).
   def assert_same_sounds(vswap, pack)
     got = pack.fetch(:sound_samples)
-    silent = Wolf3D::Vswap::Sound::MIDPOINT
     assert_equal Wolf3D::SoundUnpacking::ROOM.sum, got.bytesize, "every sound's room and nothing more"
     Wolf3D::SoundUnpacking::ROOM.each_with_index do |room, n|
-      samples = n < vswap.sound_count ? vswap.sound(n).pcm.map { |sample| sample + silent } : []
+      held = n < vswap.sound_count && vswap.sound(n).length >= Wolf3D::Sounds::SHORTEST_RECORDING
+      samples = held ? vswap.sound(n).pcm : []
       assert_equal samples.length, pack.fetch(:sound_length).unpack("v*")[n], "sound #{n}'s length"
-      wanted = samples + ([silent] * (room - samples.length))
-      assert_equal wanted, got.byteslice(Wolf3D::SoundUnpacking::SOUND_AT[n], room).bytes, "sound #{n}"
+      wanted = samples + ([0] * (room - samples.length))
+      assert_equal wanted, got.byteslice(Wolf3D::SoundUnpacking::SOUND_AT[n], room).unpack("c*"), "sound #{n}"
     end
   end
 

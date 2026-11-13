@@ -81,15 +81,13 @@ module Wolf3D
                                     chain_gun: 38, end_bonus1: 42, end_bonus2: 43, one_up: 44, crown: 45,
                                     no_bonus: 47, percent100: 48 })
 
-    # +vswap+ is the player's own copy of the game's sounds, or nil on a build with no data,
-    # which makes every one of these do nothing. +adlib+ is its AdlibSounds, and nil leaves those
-    # effects out. +switch+ is a variable that is nought while sound is off — the menu's own SOUND
-    # row moves it — or nil on a cartridge with no way to turn sound off, and then nothing is tested.
-    # +kinds+ names who is on this cartridge to be heard.
-    def initialize(build:, vswap: nil, adlib: nil, switch: nil, kinds: [:guard])
+    # +recordings+ is where the sounds come from (Recordings), or nil on a build with no data, which
+    # makes every one of these do nothing. +switch+ is a variable that is nought while sound is off —
+    # the menu's own SOUND row moves it — or nil on a cartridge with no way to turn sound off, and then
+    # nothing is tested. +kinds+ names who is on this cartridge to be heard.
+    def initialize(build:, recordings: nil, switch: nil, kinds: [:guard])
       @b = build
-      @vswap = vswap
-      @adlib = adlib
+      @recordings = recordings || Recordings::Baked.new(build)
       @switch = switch
       @kinds = kinds
       declare
@@ -176,19 +174,15 @@ module Wolf3D
     def level_done = play(LEVEL_DONE)
 
     # How long that one lasts, in frames, which the lift needs: the original plays it and then
-    # WAITS for it to finish before the floor ends, so the sound is what decides the pause. Nil
-    # when this copy of the game does not hold the recording.
-    def level_done_frames
-      sound = @clips_source&.[](LEVEL_DONE) or return nil
-
-      ((sound.pcm.length.to_f / sound.rate) * 60).round
-    end
+    # WAITS for it to finish before the floor ends, so the sound is what decides the pause. Nought
+    # when this copy of the game does not hold the recording; a whole build learns which as it plays.
+    def level_done_frames = @recordings.sound_frames(LEVEL_DONE)
 
     # ...and one of his death screams, picked by a number the game rolls. See #declare_the_screams.
     def a_guard_dies
       return if @screams.nil?
 
-      when_sound_is_on { @screams.play(@scream_count == 1 ? 0 : @b.rand(0...@scream_count)) }
+      when_sound_is_on { @screams.play(@recordings.roll_held(@scream_chunks)) }
     end
 
     private
@@ -217,22 +211,14 @@ module Wolf3D
 
     def declare
       @clips = {}
-      # The recordings themselves, kept beside the clips because how LONG one lasts is a question
-      # a caller can ask and a built clip cannot answer.
-      @clips_source = {}
       @held_voices = []
       @voice_count = 0
       @adlib_names = []
       declare_adlib_effects
-      return if @vswap.nil?
-
-      WANTED.uniq.each do |chunk|
-        sound = recording(chunk) or next
-
-        @clips_source[chunk] = sound
-        @clips[chunk] = @b.sample(:"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate)
+      @recordings.sounds_held(WANTED.uniq).each do |chunk|
+        @clips[chunk] = @recordings.declare_sound_sample(:"sound_#{chunk}", chunk)
       end
-      @b.enable_sound if @adlib_effects.nil? && (GUNS + DEATH_SCREAMS + voices_wanted).any? { |chunk| recording(chunk) }
+      @b.enable_sound if @adlib_effects.nil? && @recordings.sounds_held(GUNS + DEATH_SCREAMS + voices_wanted).any?
       declare_the_guns
       declare_the_screams
       declare_the_voices
@@ -244,34 +230,38 @@ module Wolf3D
     # the original plays those on the mixer beside the chip.
     #
     # WHAT COUNTS AS STILL SOUNDING IS THE NOTES AND NOT THE FADE AFTER THEM, because that is when the
-    # original clears its own count. The tables are of the effects' numbers in the list here, and
-    # each has one more row, for the place that names no effect.
+    # original clears its own count (SoundPriority back to nought), and from then any effect replaces
+    # the one fading. So the game makes the test (#start_adlib_if_allowed) and the group's effects
+    # all rank the same: the one asked for last wins, fading or not. The tables are of the effects'
+    # numbers in the list here.
     def declare_adlib_effects
-      return if @adlib.nil?
-
-      held = ADLIB_EFFECT_NUMBERS.select { |_, number| @adlib.recording(number) }
+      held = @recordings.adlib_held(ADLIB_EFFECT_NUMBERS)
       return if held.empty?
 
       @adlib_names = held.keys
-      recordings = held.values.map { |number| @adlib.recording(number) }
-      priorities = held.map { |name, number| adlib_priority(name, @adlib.recording(number)) }
       @b.enable_sound
-      @adlib_effects = @b.sound_effects :adlib, held.values.each_with_index.map { |number, n| adlib_score(recordings[n], number, priorities[n]) }
-      @adlib_frames = @b.table :adlib_frames, recordings.map(&:note_frames) + [0], width: :half
-      @adlib_priorities = @b.table :adlib_priorities, priorities + [0], width: :byte
+      @adlib_effects = @b.sound_effects :adlib, held.values.map { |number| adlib_score(number) }
+      @adlib_frames = @recordings.adlib_note_frames(:adlib_frames, held.values)
+      @adlib_priorities = @recordings.adlib_priorities(:adlib_priorities, held.values)
       @adlib_frames_left = @b.var :_adlib_frames_left, 0
       @adlib_priority_sounding = @b.var :_adlib_priority_sounding, 0
+      @adlib_priority_asked = @b.var :_adlib_priority_asked, 0
       @adlib_asked = @b.var :_adlib_asked, 0
       @b.func(:play_adlib, fast: false) { when_sound_is_on { start_adlib_if_allowed } }
       @b.func(:play_hit_wall, fast: false) { play_adlib_named(:hit_wall) if @adlib_frames_left == 0 }
     end
 
-    # The same test the group makes, so a sound it refuses does not move the count.
+    # SD_PlaySound's test: over silence, or over an effect whose notes have ended, anything plays;
+    # over one still sounding, only one of at least its priority. The tally's rank level (below).
     def start_adlib_if_allowed
-      if @adlib_frames_left == 0 || @adlib_priorities[@adlib_asked] >= @adlib_priority_sounding
+      @adlib_priority_asked = @adlib_priorities[@adlib_asked]
+      TALLY_EFFECTS.each do |name|
+        @adlib_priority_asked = TALLY_PRIORITY if @adlib_names.include?(name) && @adlib_asked == adlib_number(name)
+      end
+      if @adlib_frames_left == 0 || @adlib_priority_asked >= @adlib_priority_sounding
         @adlib_effects.play @adlib_asked
         @adlib_frames_left = @adlib_frames[@adlib_asked]
-        @adlib_priority_sounding = @adlib_priorities[@adlib_asked]
+        @adlib_priority_sounding = @adlib_priority_asked
       end
     end
 
@@ -281,13 +271,11 @@ module Wolf3D
     TALLY_EFFECTS = %i[end_bonus1 end_bonus2 no_bonus percent100].freeze
     TALLY_PRIORITY = 60
 
-    def adlib_priority(name, recording) = TALLY_EFFECTS.include?(name) ? TALLY_PRIORITY : recording.priority
-
-    def adlib_score(recording, number, priority)
-      @b.instrument :"adlib_#{number}", pcm: recording.pcm, rate: recording.rate
-      note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: recording.sample_frames)
+    def adlib_score(number)
+      frames = @recordings.declare_adlib_instrument(:"adlib_#{number}", number)
+      note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames)
       VBlank::Audio::Score.new(
-        tempo: FRAME_TICKS, group: :adlib, priority: priority,
+        tempo: FRAME_TICKS, group: :adlib,
         parts: [VBlank::Audio::Score::Part.new(plays: :"adlib_#{number}", volume: FULL, notes: [note])]
       )
     end
@@ -296,7 +284,7 @@ module Wolf3D
     # number and a kind costs a column rather than a test. Like the screams, these are heard over
     # each other, and a cartridge pays only for the recordings of who is on it.
     def declare_the_voices
-      @held_voices = voices_wanted.select { |chunk| recording(chunk) }
+      @held_voices = @recordings.sounds_held(voices_wanted)
       @voice_count = @held_voices.length
       return if @held_voices.empty?
 
@@ -309,14 +297,6 @@ module Wolf3D
       said += [MACHINE_TREAD] if @kinds.include?(:mecha)
       said += [SLURP, RARE_SCREAM, YEAH]
       said.compact.uniq - [:a_scream]
-    end
-
-    # What this copy holds for a chunk, or nil when it holds nothing there.
-    def recording(chunk)
-      return unless chunk < @vswap.sound_count
-
-      sound = @vswap.sound(chunk)
-      sound if sound.length >= SHORTEST_RECORDING
     end
 
     # THE ORIGINAL GIVES THE PLAYER'S WEAPONS ONE MIXER CHANNEL. Its map of digitised sounds
@@ -339,7 +319,7 @@ module Wolf3D
     # after it, so the table says where each gun landed. One that is missing points just past the
     # end, and a number naming no effect plays nothing.
     def declare_the_guns
-      held = GUNS.select { |chunk| recording(chunk) }
+      held = @recordings.sounds_held(GUNS)
       return if held.empty?
 
       @guns = @b.sound_effects :guns, held.map { |chunk| recording_as_effect(chunk, group: :player_weapon) }
@@ -360,17 +340,14 @@ module Wolf3D
     # A SCREAM NOW OUTRANKS A GUARD'S SHOUT OR SHOT when the mixer runs out of voices, because the
     # game's samples rank below every effect. It also starts a frame after it is asked for.
     def declare_the_screams
-      held = DEATH_SCREAMS.select { |chunk| recording(chunk) }
-      return if held.empty?
+      @scream_chunks = @recordings.sounds_held(DEATH_SCREAMS)
+      return if @scream_chunks.empty?
 
-      @screams = @b.sound_effects :screams, held.map { |chunk| recording_as_effect(chunk) }
-      @scream_count = held.length
+      @screams = @b.sound_effects :screams, @scream_chunks.map { |chunk| recording_as_effect(chunk) }
     end
 
     def recording_as_effect(chunk, group: nil)
-      sound = recording(chunk)
-      @b.instrument :"sound_#{chunk}", pcm: sound.pcm, rate: sound.rate
-      frames = ((sound.pcm.length.to_f / sound.rate) * 60).ceil
+      frames = @recordings.declare_sound_instrument(:"sound_#{chunk}", chunk)
       note = VBlank::Audio::Score::Note.new(at: 0, key: :C4, length: frames)
 
       VBlank::Audio::Score.new(

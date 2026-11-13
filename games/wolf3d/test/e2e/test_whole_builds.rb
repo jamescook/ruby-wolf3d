@@ -333,6 +333,30 @@ class TestWholeBuilds < Minitest::Test
     assert_equal 0, count_differing_pixels(*seen.map(&:screen)), "pixels that differ in the room beyond the door"
   end
 
+  # A WHOLE BUILD SOUNDS AS A TRIMMED ONE, its recordings read from its pack: built with VSWAP and
+  # AUDIOT refused, handed the pack of either copy, the first floor's first guard shot (the gun, his
+  # shout, his scream, rolled among the screams that copy has) over the floor's song mixes the same
+  # samples, frame for frame, as the trimmed build made from that copy.
+  def test_a_whole_build_sounds_as_a_trimmed_one
+    real_copy
+    settings = ShotGuardScene.settings(Wolf3D.maps[0])
+    whole = without_sound_files do
+      Wolf3D::GAME.checked_program(err: nil, settings: settings.merge(hold: "whole"), pack_at_start: true)
+    end
+    [real_copy, real_shareware].each do |data|
+      trimmed = with_copy(data) { Wolf3D::GAME.checked_program(err: nil, settings: settings.merge(hold: "trimmed")) }
+      heard = [Reference.new, Reference.new.hand_file(whole_pack_of(data))].zip([trimmed, whole]).map do |player, program|
+        run = player.input_each_frame { |frame| ShotGuardScene.keys(frame) }.run(program, frames: ShotGuardScene::FRAMES)
+        assert_operator run[:kills], :>, 0, "the guard falls, from #{data.dir}"
+        run.mixed_sound
+      end
+
+      assert(heard.first.any? { |frame| frame.any? { |sample| sample != 0 } }, "the trimmed build is heard")
+      differing = heard.first.zip(heard.last).count { |ours, theirs| ours != theirs }
+      assert_equal 0, differing, "frames of sound that differ, from #{data.dir}"
+    end
+  end
+
   # The player stands still, then walks up to the first room's door.
   WALK_KEYS = ->(frame) { frame.between?(60, 100) ? [:up] : [] }
   STANDING_FRAMES = 59
@@ -376,6 +400,27 @@ class TestWholeBuilds < Minitest::Test
     yield
   ensure
     Ractor.current[key] = kept
+  end
+
+  # The block's builds with every file the sounds and music are read from refused.
+  def without_sound_files(&)
+    with_copy_refused(:wolf3d_vswap, "VSWAP") do
+      with_copy_refused(:wolf3d_adlib, "AUDIOT's effects") { with_copy_refused(:wolf3d_adlib_music, "AUDIOT's music", &) }
+    end
+  end
+
+  # THE BLOCK'S BUILDS MADE FROM +data+ (a GameData), as a trimmed build made where that is the copy
+  # set: everything Wolf3D reads from the copy for this worker is read from it, and what was read
+  # before comes back after.
+  COPY_KEYS = %i[wolf3d_data wolf3d_maps wolf3d_vswap wolf3d_adlib wolf3d_adlib_music wolf3d_vgagraph wolf3d_gun_art].freeze
+
+  def with_copy(data)
+    kept = COPY_KEYS.to_h { |key| [key, Ractor.current[key]] }
+    COPY_KEYS.each { |key| Ractor.current[key] = nil }
+    Ractor.current[:wolf3d_data] = data
+    yield
+  ensure
+    kept.each { |key, value| Ractor.current[key] = value }
   end
 
   # THE DATA PACK A SHELL MAKES FROM +data+ (a GameData), the file a whole build left without its pack

@@ -267,7 +267,7 @@ class TestSounds < Minitest::Test
   def sounding(run) = run.active_samples.uniq
 
   def view_of(level, chunks: Chunks.new(ALL), drawing: false, **)
-    super(level, vswap: chunks, drawing: drawing, **)
+    super(level, sounds_from: { vswap: chunks }, drawing: drawing, **)
   end
 
   # A GUN IS HEARD WHETHER OR NOT IT HITS, so nothing here needs drawing except the question about
@@ -301,7 +301,7 @@ class TestSounds < Minitest::Test
 
   def rare_heard(index:)
     floors = Wolf3D::Floors.new([floor_of(arena(guards: [[11, 8, :west]]), index: index)])
-    program = cartridge_of(floors, vswap: Chunks.new(ALL), rare_scream_odds: 1)
+    program = cartridge_of(floors, sounds_from: { vswap: Chunks.new(ALL) }, rare_scream_odds: 1)
 
     (LOOK_EVERY..120).step(LOOK_EVERY).flat_map do |frames|
       Reference.new.input_each_frame { |f| f.even? ? [:b] : [] }.run(program, frames: frames).active_samples

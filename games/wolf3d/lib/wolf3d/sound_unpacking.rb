@@ -4,10 +4,17 @@ module Wolf3D
   # THE RECORDED SOUNDS OF VSWAP, COPIED BY THE GAME ITSELF into the data pack (DataPack): the guns,
   # the guards, the doors, what Sounds makes into samples for a trimmed build (Vswap#sound).
   #
-  # Kept as VSWAP keeps them, eight bits a sample at seven thousand a second with silence at 128
-  # (Vswap::Sound), so the pack holds the original's own bytes. Each sound has a room of its own in
-  # sound_samples, ROOM long, at SOUND_AT; what a sound leaves of its room is silence; and its own
-  # length is in sound_length.
+  # Kept as a trimmed build plays them, eight bits a sample at seven thousand a second, signed with
+  # silence at nought: VSWAP's own bytes with 128 taken off each (Vswap::Sound#pcm). Each sound has a
+  # room of its own in sound_samples, ROOM long, at SOUND_AT; what a sound leaves of its room is
+  # silence; and its own length is in sound_length.
+  #
+  # A SCRAP IS NO SOUND. The shareware keeps each sound it left out in the index at its full length,
+  # on an empty page, so it runs on into the next page that holds bytes and comes to a scrap of a
+  # few; one that short is a sound this copy does not have (Sounds::SHORTEST_RECORDING). It is
+  # judged by what was copied, not by what the index says, and unpacked as nought long and all
+  # silence over the scrap, so a build playing it from the pack hears nothing, as a trimmed build
+  # that never held it.
   #
   # WHERE A SOUND IS: VSWAP's last page is an index of the sounds, a word for the page each starts on
   # (counted from the first sound's page) and a word for its length in bytes. A sound longer than a
@@ -35,11 +42,9 @@ module Wolf3D
     # Where each sound's room starts in sound_samples.
     SOUND_AT = ROOM.each_with_object([0]) { |room, starts| starts << (starts.last + room) }.first(SOUNDS).freeze
 
-    SILENCE = Vswap::Sound::MIDPOINT
-
     # The slots the sounds take, declared on +slots+ (the data pack's).
     def self.declare(slots)
-      slots.numbers :sound_samples, count: ROOM.sum, width: :byte, signed: false
+      slots.samples :sound_samples, count: ROOM.sum
       slots.numbers :sound_length, count: SOUNDS, width: :half, signed: false
     end
 
@@ -92,6 +97,7 @@ module Wolf3D
         copy_page(sound)
         done.store!(1) if (written >= length) | (routine_var(:page) >= routine_var(:pages))
       end
+      written.store!(0) if written < Sounds::SHORTEST_RECORDING
       @pack[:sound_length][sound] = written
       fill_silence(sound)
     end
@@ -108,14 +114,24 @@ module Wolf3D
       inside.store!(0)
       inside.store!(1) if routine_var(:page) < routine_var(:pages) && routine_var(:page_start) + take <= @vswap.size
       if inside == 1
-        if take > 0
-          @vswap.copy_bytes at: routine_var(:page_start), count: take, into: @pack[:sound_samples],
-                            start: @sound_at[sound] + written
-        end
+        copy_samples(sound, take)
         written.store!(written + take)
         routine_var(:page).store!(routine_var(:page) + 1)
       else
         routine_var(:done).store!(1)
+      end
+    end
+
+    # +take+ bytes of the page just read into the sound's room, from where the sound has got to, each
+    # with 128 taken off.
+    def copy_samples(sound, take)
+      at = routine_var(:sample_at)
+      at.store!(0)
+      @copy.count_written take
+      while at < take
+        @pack[:sound_samples][@sound_at[sound] + routine_var(:written) + at] =
+          @vswap.byte(routine_var(:page_start) + at) - Vswap::Sound::MIDPOINT
+        at.store!(at + 1)
       end
     end
 
@@ -125,7 +141,7 @@ module Wolf3D
       at.store!(routine_var(:written))
       @copy.count_written routine_var(:room) - at
       while at < routine_var(:room)
-        @pack[:sound_samples][@sound_at[sound] + at] = SILENCE
+        @pack[:sound_samples][@sound_at[sound] + at] = 0
         at.store!(at + 1)
       end
     end

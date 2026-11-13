@@ -21,7 +21,7 @@ class TestAdlibEffectsInPlay < Minitest::Test
 
   # What sounded on each frame of a run.
   def frames_heard(level, frames: FRAMES, adlib_sounds: adlib, keys: ->(_frame) { [:up] }, **options)
-    program = view_of(level, drawing: false, adlib: adlib_sounds, **options)
+    program = view_of(level, drawing: false, sounds_from: { adlib: adlib_sounds }, **options)
     heard = []
     player = Reference.new
     player.input_each_frame do |frame|
@@ -74,7 +74,7 @@ class TestAdlibEffectsInPlay < Minitest::Test
   # The count of what is sounding keeps real time, so three frames to a pass take three off it.
   def test_the_count_of_a_sounding_effect_goes_by_the_frame
     level = arena(player: [8, 8], ahead: [CLIP_PIECE])
-    program = view_of(level, drawing: false, adlib: adlib)
+    program = view_of(level, drawing: false, sounds_from: { adlib: adlib })
     walking = Reference.new.input_each_frame { [:up] }
     fast = walking.run(program, frames: 40)[:_adlib_frames_left]
     slow = Reference.new.input_each_frame { [:up] }.frames_each_pass { 3 }.run(program, frames: 22)[:_adlib_frames_left]
@@ -98,4 +98,46 @@ class TestAdlibEffectsInPlay < Minitest::Test
 
     assert_equal [AMMO], sounds
   end
+
+  # ONCE AN EFFECT'S NOTES HAVE ENDED ANY EFFECT REPLACES IT, its fade and all: SD_PlaySound tests
+  # the priority only against SoundPriority, which the chip's own count puts back to nought when the
+  # notes run out (id_sd.cpp). The knife, of the higher priority, is asked for, and the wall long
+  # after its notes and well inside its fade.
+  def test_an_effect_fading_gives_way_to_a_lower_one
+    program = VBlank.game("FADE", consoles: %i[gba]) do
+      sounds = Wolf3D::Sounds.new(build: self, recordings: Wolf3D::Recordings::Baked.new(self, adlib: FADING_EFFECTS))
+      frame = var(:_frame, 0)
+      game_loop do
+        frame += 1
+        sounds.update
+        sounds.play_adlib_named(:knife) if frame == 2
+        sounds.play_adlib_named(:hit_wall) if frame == FADE_ASKED
+      end
+    end.program
+    heard = []
+    player = Reference.new
+    player.input_each_frame do
+      heard << player.active_samples.uniq
+      []
+    end
+    player.run(program, frames: FADE_ASKED + 10)
+
+    assert_includes heard[FADE_ASKED - 4], KNIFE, "the knife still fading when the wall is asked for"
+    assert_includes heard.last, HIT_WALL
+    refute_includes heard.last, KNIFE
+  end
+
+  FADE_ASKED = 30
+
+  # Two effects, each a second of tone whose notes last five frames: the knife at priority 9, the
+  # wall at nought.
+  FADING_EFFECTS = Class.new do
+    def recording(number)
+      priority = { Sounds::ADLIB_EFFECT_NUMBERS.fetch(:knife) => 9, Sounds::ADLIB_EFFECT_NUMBERS.fetch(:hit_wall) => 0 }[number]
+      return if priority.nil?
+
+      Wolf3D::AdlibSounds::Recording.new(pcm: (([60] * 20) + ([-60] * 20)).cycle.first(Wolf3D::Opl2::RENDER_RATE),
+                                          rate: Wolf3D::Opl2::RENDER_RATE, priority: priority, note_frames: 5)
+    end
+  end.new
 end

@@ -12,7 +12,8 @@ class TestFloorUnpacking < Minitest::Test
 
   def test_the_made_up_release_unpacks_as_the_readers_read_it
     Dir.mktmpdir do |dir|
-      release = Wolf3D::Fixture::Release.new(set: "WL6")
+      # The second sound left out, as the shareware leaves out the lift's.
+      release = Wolf3D::Fixture::Release.new(set: "WL6", left_out: [1])
       release.write(dir)
       maps = Wolf3D::Maps.new(maphead: release.files["MAPHEAD"], gamemaps: release.files["GAMEMAPS"])
       pack = unpacked(made_up_original(dir))
