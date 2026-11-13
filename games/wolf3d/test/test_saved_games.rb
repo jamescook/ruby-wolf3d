@@ -33,7 +33,7 @@ class TestSavedGames < Minitest::Test
   def test_with_nothing_saved_every_slot_says_empty
     run = Reference.new.input_each_frame { |f| TO_LOAD_SCREEN.fetch(f, []) }.run(cartridge, frames: 60)
 
-    assert_equal Menus::LOADING, run[:screen]
+    assert_equal Menus::LOADING, run[:menus_screen]
     assert_equal [0] * Saved::SLOTS, (0...Saved::SLOTS).map { |n| run[:"_save_label_#{n}"] }
   end
 
@@ -41,18 +41,18 @@ class TestSavedGames < Minitest::Test
     run = Reference.new.input_each_frame { |f| TO_LOAD_SCREEN.merge(60 => [:a]).fetch(f, []) }
                    .run(cartridge, frames: 90)
 
-    assert_equal Menus::LOADING, run[:screen]
+    assert_equal Menus::LOADING, run[:menus_screen]
   end
 
   def test_b_goes_back_to_the_main_menu
     run = Reference.new.input_each_frame { |f| TO_LOAD_SCREEN.merge(60 => [:b]).fetch(f, []) }
                    .run(cartridge, frames: 110)
 
-    assert_equal Menus::MENU, run[:screen]
+    assert_equal Menus::MENU, run[:menus_screen]
   end
 
   def test_a_save_ends_at_the_main_menu
-    assert_equal Menus::MENU, saved_game[0][:screen]
+    assert_equal Menus::MENU, saved_game[0][:menus_screen]
   end
 
   # IT SURVIVES THE POWER GOING OFF, and the slot says which episode and floor.
@@ -71,8 +71,8 @@ class TestSavedGames < Minitest::Test
                    .input_each_frame { |f| TO_LOAD_SCREEN.merge(60 => [:a]).fetch(f, []) }
                    .run(cartridge(from: :notice), frames: 110)
 
-    assert_equal Menus::PLAYING, run[:screen]
-    assert_equal 1, run[:_in_game]
+    assert_equal Menus::PLAYING, run[:menus_screen]
+    assert_equal 1, run[:menus_in_game]
     assert_in_delta before[:px], run[:px], 0.001
     assert_equal before.pool(:guard, :hp).compact, run.pool(:guard, :hp).compact
   end
@@ -81,19 +81,19 @@ class TestSavedGames < Minitest::Test
   def test_saving_over_a_game_asks_first
     run = over_a_saved_game(answer: [])
 
-    assert_equal Menus::OVERWRITING, run[:screen]
+    assert_equal Menus::OVERWRITING, run[:menus_screen]
   end
 
   def test_answering_no_goes_back_to_the_list
     run = over_a_saved_game(answer: [:b])
 
-    assert_equal Menus::SAVING, run[:screen]
+    assert_equal Menus::SAVING, run[:menus_screen]
   end
 
   def test_answering_yes_saves_over_it
     run = over_a_saved_game(answer: [:a])
 
-    assert_equal Menus::MENU, run[:screen]
+    assert_equal Menus::MENU, run[:menus_screen]
   end
 
   # ON THE CONSOLE TOO: the save written by the real save routine, the power off, and a second
@@ -110,7 +110,7 @@ class TestSavedGames < Minitest::Test
     second = ROM.assemble(again.lower(cartridge(from: :load)), title: "SAVE")
     run = Verifier.new(second, frames: 40, vars: again.var_addresses, save: image)
 
-    assert_equal Menus::LOADING, run.var(:screen)
+    assert_equal Menus::LOADING, run.var(:menus_screen)
     assert_equal 1, run.var(:_save_label_0), "the first slot holds a game"
   end
 

@@ -17,6 +17,12 @@ module Wolf3D
   # WHAT LIVES HERE AND WHAT DOES NOT: this decides where a guard is and which state he is in.
   # Drawing him is the view's business, and it reads the same pool.
   class GuardMind
+    game_variables :man_in_step, :man_nearby, :nearby_wait, :step_to_x, :step_to_y, :state, :dir, :try,
+                   :cellx, :celly, :way, :other, :held, :slant, :back, :dodging, :homex, :homey, :away,
+                   :target, :atx, :aty, :nearest, :fromx, :fromy, :man_x, :man_y, :shut_door, :line_end,
+                   :line_dir, :line_slope, :line_cross, :line_middle, :blocked, :boxx, :boxy, :boxsize,
+                   :turn, saved: false
+
     # A guard walks from the middle of one cell to the middle of the next and never stops
     # between them, which is what makes "can he go that way" a question about a single cell.
     CELL = 1.0
@@ -244,7 +250,7 @@ module Wolf3D
       # too. A turn flipped once a FRAME while the world moved once a PASS would flip twice
       # between two moves on a game taking two frames a pass — back to where it started, so the
       # same half would think every time and the other half never.
-      @turn = b.var :_gturn, 0
+      @turn = 0
       b.func(:guard_thinking) do
         @turn = (@turn + 1) % 2
         # HALF OF THEM ON ANY ONE FRAME, which is what @turn is for.
@@ -281,43 +287,43 @@ module Wolf3D
         .map { |name| b.var(:"_#{name}", 0) }
       @dx, @dy, @absx, @absy, @far, @pace, @fwd, @sideways =
         %i[gdx gdy gabsx gabsy gfar gpace gfwd gsideways].map { |name| b.var(:"_#{name}", 0.0) }
-      @man_in_step = b.var :_gman_in_step, 0
-      @man_nearby = b.var :_gman_nearby, 0
-      @nearby_wait = b.var :_gnearby_wait, 0
-      @step_to_x = b.var :_gstep_to_x, 0.0
-      @step_to_y = b.var :_gstep_to_y, 0.0
+      @man_in_step = 0
+      @man_nearby = 0
+      @nearby_wait = 0
+      @step_to_x = 0.0
+      @step_to_y = 0.0
 
       # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
       # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
       # would move the name to @b, and nothing would say so.
-      @state = b.var :_gstate, 0
-      @dir = b.var :_gdir, 0
-      @try = b.var :_gtry, 0
-      @cellx = b.var :_gcellx, 0
-      @celly = b.var :_gcelly, 0
-      @way = b.var :_gway, 0
-      @other = b.var :_gother, 0
-      @held = b.var :_gheld, 0
-      @slant = b.var :_gslant, 0
-      @back = b.var :_gback, 0
-      @dodging = b.var :_gdodging, 0
-      @homex = b.var :_ghomex, 0
-      @homey = b.var :_ghomey, 0
-      @away = b.var :_gaway, 0
-      @target = b.var :_gtarget, 0
-      @atx = b.var :_gatx, 0.0
-      @aty = b.var :_gaty, 0.0
-      @nearest = b.var :_gnearest, 0.0
-      @fromx = b.var :_gfromx, 0.0
-      @fromy = b.var :_gfromy, 0.0
-      @man_x = b.var :_gman_x, 0.0
-      @man_y = b.var :_gman_y, 0.0
-      @shut_door = b.var :_gshut_door, 0
-      @line_end = b.var :_gline_end, 0
-      @line_dir = b.var :_gline_dir, 0
-      @line_slope = b.var :_gline_slope, 0.0
-      @line_cross = b.var :_gline_cross, 0.0
-      @line_middle = b.var :_gline_middle, 0.0
+      @state = 0
+      @dir = 0
+      @try = 0
+      @cellx = 0
+      @celly = 0
+      @way = 0
+      @other = 0
+      @held = 0
+      @slant = 0
+      @back = 0
+      @dodging = 0
+      @homex = 0
+      @homey = 0
+      @away = 0
+      @target = 0
+      @atx = 0.0
+      @aty = 0.0
+      @nearest = 0.0
+      @fromx = 0.0
+      @fromy = 0.0
+      @man_x = 0.0
+      @man_y = 0.0
+      @shut_door = 0
+      @line_end = 0
+      @line_dir = 0
+      @line_slope = 0.0
+      @line_cross = 0.0
+      @line_middle = 0.0
     end
 
     # ONE GUARD, ONE FRAME. Count his state down, move him on when it runs out, then let him
@@ -388,10 +394,10 @@ module Wolf3D
     end
 
     def declare_the_box_test
-      @blocked = @b.var :_gblocked, 0
-      @boxx = @b.var :_gboxx, 0.0
-      @boxy = @b.var :_gboxy, 0.0
-      @boxsize = @b.var :_gboxsize, 0.0
+      @blocked = 0
+      @boxx = 0.0
+      @boxy = 0.0
+      @boxsize = 0.0
       @b.func(:is_a_box_in_something_solid) do
         @blocked = 0
         [[-1.0, -1.0], [1.0, -1.0], [-1.0, 1.0], [1.0, 1.0]].each do |(across, down)|

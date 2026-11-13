@@ -20,6 +20,8 @@ module Wolf3D
   # root, by the long side plus two fifths of the short one, which is out by a few parts in a hundred
   # at worst, and the speed of a rocket can stand that.
   class Thrown
+    game_variables :what, :row, :way, :gone, :fromx, :fromy, :dx, :dy, :long, :short, :scale, saved: false
+
     # One row of the table: the picture, whether it turns with where you stand from it (a rocket
     # does), how long it lasts in the original's units, whether it moves on every pass, what comes
     # after it (nil for nothing, and the slot is given back), and what is hung on its end. +smokes+
@@ -152,17 +154,17 @@ module Wolf3D
 
     def declare_the_scratch
       b = @b
-      @what = b.var :_thrown_what, 0
-      @row = b.var :_thrown_row, 0
-      @way = b.var :_thrown_way, 0
-      @gone = b.var :_thrown_gone, 0
-      @fromx = b.var :_thrown_fromx, 0.0
-      @fromy = b.var :_thrown_fromy, 0.0
-      @dx = b.var :_thrown_dx, 0.0
-      @dy = b.var :_thrown_dy, 0.0
-      @long = b.var :_thrown_long, 0.0
-      @short = b.var :_thrown_short, 0.0
-      @scale = b.var :_thrown_scale, 0.0
+      @what = 0
+      @row = 0
+      @way = 0
+      @gone = 0
+      @fromx = 0.0
+      @fromy = 0.0
+      @dx = 0.0
+      @dy = 0.0
+      @long = 0.0
+      @short = 0.0
+      @scale = 0.0
     end
 
     # THE LINE TO THE PLAYER, TURNED INTO A STEP. See the top of the file for why there is no root.

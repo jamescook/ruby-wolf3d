@@ -32,7 +32,7 @@ class TestMenus < Minitest::Test
   def test_the_cartridge_boots_on_the_rating_box
     run = play(frames: 2)
 
-    assert_equal Menus::NOTICE, run[:screen]
+    assert_equal Menus::NOTICE, run[:menus_screen]
     assert showing?(run, :notice), "the rating box should be the first thing on screen"
   end
 
@@ -41,17 +41,17 @@ class TestMenus < Minitest::Test
   def test_the_still_screens_follow_one_another_and_come_round_again
     title = play(frames: Menus::NOTICE_FRAMES + 1)
 
-    assert_equal Menus::TITLE, title[:screen]
+    assert_equal Menus::TITLE, title[:menus_screen]
     assert showing?(title, :title), "the title screen should follow the rating box"
 
     credits = play(frames: Menus::NOTICE_FRAMES + Menus::TITLE_FRAMES + 1)
 
-    assert_equal Menus::CREDITS, credits[:screen]
+    assert_equal Menus::CREDITS, credits[:menus_screen]
     assert showing?(credits, :credits), "the credits should follow the title screen"
 
     round = play(frames: Menus::NOTICE_FRAMES + Menus::TITLE_FRAMES + Menus::CREDITS_FRAMES + Menus::SCORES_FRAMES + 1)
 
-    assert_equal Menus::TITLE, round[:screen], "and then round to the title again"
+    assert_equal Menus::TITLE, round[:menus_screen], "and then round to the title again"
   end
 
   # ANY BUTTON AT ALL OPENS THE MENU, which is the only way into Wolfenstein. Every one of the
@@ -62,7 +62,7 @@ class TestMenus < Minitest::Test
     BUTTONS.each do |button|
       run = play(frames: 4) { |f| f >= 2 ? [button] : [] }
 
-      assert_equal Menus::MENU, run[:screen], "#{button} should have opened the menu"
+      assert_equal Menus::MENU, run[:menus_screen], "#{button} should have opened the menu"
     end
   end
 
@@ -70,7 +70,7 @@ class TestMenus < Minitest::Test
   def test_a_press_as_the_time_runs_out_opens_the_menu_rather_than_moving_on
     run = play(frames: Menus::NOTICE_FRAMES) { |f| f == Menus::NOTICE_FRAMES ? [:a] : [] }
 
-    assert_equal Menus::MENU, run[:screen]
+    assert_equal Menus::MENU, run[:menus_screen]
   end
 
   # --- THE MENU ITSELF -----------------------------------------------------------------------
@@ -114,13 +114,13 @@ class TestMenus < Minitest::Test
   def test_picking_a_row_fades_before_it_moves
     fading = at_the_menu(frames: 8) { |f| f == 4 ? [:a] : [] }
 
-    assert_equal Menus::MENU, fading[:screen], "still on the menu while the screen goes"
-    assert_equal Menus::DIFFICULTY, fading[:_screen_going_to], "with the next one waiting"
+    assert_equal Menus::MENU, fading[:menus_screen], "still on the menu while the screen goes"
+    assert_equal Menus::DIFFICULTY, fading[:menus_going_to], "with the next one waiting"
 
     arrived = at_the_menu(frames: 40) { |f| f == 4 ? [:a] : [] }
 
-    assert_equal Menus::DIFFICULTY, arrived[:screen], "and shown once the fade has arrived"
-    assert_equal(-1, arrived[:_screen_going_to], "with nothing left waiting")
+    assert_equal Menus::DIFFICULTY, arrived[:menus_screen], "and shown once the fade has arrived"
+    assert_equal(-1, arrived[:menus_going_to], "with nothing left waiting")
   end
 
   # ONE ROW FOR ALL OF SOUND, which is the whole of what the original's twelve-row sound menu means
@@ -171,12 +171,12 @@ class TestMenus < Minitest::Test
   end
 
   def test_the_menu_has_the_menu_song
-    assert_equal MENU_INDEX, song_on(Menus::MENU, :menu)[:_song_wanted]
+    assert_equal MENU_INDEX, song_on(Menus::MENU, :menu)[:menus_song_wanted]
   end
 
   # DrawHighScores in the attract loop (wl_main.cpp) leaves the title's song playing.
   def test_the_attract_loops_table_keeps_the_title_song
-    assert_equal INTRO_INDEX, song_on(Menus::SCORES, :attract_scores)[:_song_wanted]
+    assert_equal INTRO_INDEX, song_on(Menus::SCORES, :attract_scores)[:menus_song_wanted]
   end
 
   # StopMusic comes before Died (wl_game.cpp).
@@ -216,8 +216,8 @@ class TestMenus < Minitest::Test
   def test_picking_a_difficulty_starts_the_game_on_that_setting
     run = at_the_difficulty(frames: 90) { |f| f == 44 ? [:a] : [] }
 
-    assert_equal Menus::PLAYING, run[:screen], "picking a difficulty leaves you in the game"
-    assert_equal 1, run[:_in_game]
+    assert_equal Menus::PLAYING, run[:menus_screen], "picking a difficulty leaves you in the game"
+    assert_equal 1, run[:menus_in_game]
     assert_equal Wolf3D::Guards.number_of(:baby), run[:difficulty],
                  "the cursor starts on the first row, so that is the setting written"
   end
@@ -250,8 +250,8 @@ class TestMenus < Minitest::Test
   def test_start_pauses_the_game_into_the_same_menu
     run = playing(frames: 100) { |f| f == 95 ? [:start] : [] }
 
-    assert_equal Menus::MENU, run[:screen], "START opens the menu over the game"
-    assert_equal 1, run[:_in_game], "and the menu knows there is a game behind it"
+    assert_equal Menus::MENU, run[:menus_screen], "START opens the menu over the game"
+    assert_equal 1, run[:menus_in_game], "and the menu knows there is a game behind it"
   end
 
   # The lever on frame 2, and by this frame the lift is in and the screen between floors is up.
@@ -264,8 +264,8 @@ class TestMenus < Minitest::Test
       { 2 => [:a], LIFT_IN + 2 => [:start] }.fetch(f, [])
     end
 
-    assert_equal 1, run[:_tally_showing], "the screen is up"
-    assert_equal Menus::PLAYING, run[:screen], "and START left it there"
+    assert_equal 1, run[:tally_showing], "the screen is up"
+    assert_equal Menus::PLAYING, run[:menus_screen], "and START left it there"
   end
 
   # THE GAME'S OWN LETTERING, pixel for pixel: each fixture picture is different all over, so one
@@ -305,7 +305,7 @@ class TestMenus < Minitest::Test
       f == MID_DEATH ? [:start] : []
     end
 
-    assert_equal Menus::PLAYING, run[:screen]
+    assert_equal Menus::PLAYING, run[:menus_screen]
   end
 
   def lettering(name) = self.class.art.picture(name, palette)[:data]
@@ -327,7 +327,7 @@ class TestMenus < Minitest::Test
     end
 
     assert_equal 5, run[:__menu_main], "the last row"
-    assert_equal Menus::PLAYING, run[:screen], "and it puts you back in the game"
+    assert_equal Menus::PLAYING, run[:menus_screen], "and it puts you back in the game"
   end
 
   # THE MENU PAINTS OVER THE BAR'S ROWS AND NOTHING ON THE BAR HAS CHANGED, so the bar cannot notice
@@ -341,7 +341,7 @@ class TestMenus < Minitest::Test
       f == 140 ? [:a] : []
     end
 
-    assert_equal Menus::PLAYING, back[:screen]
+    assert_equal Menus::PLAYING, back[:menus_screen]
     assert_equal 0, pixels_of_the_bar_changed(before, back)
     assert_equal 0, back[:__shown_status_bar_todo], "and with both pages painted it is left alone"
   end
@@ -359,7 +359,7 @@ class TestMenus < Minitest::Test
     bars = [90, 91].map do |frames|
       gba = Verifier.new(rom, frames: frames, vars: backend.var_addresses, keys: script)
 
-      assert_equal Menus::PLAYING, gba.var(:screen), "frame #{frames} should be back in the game"
+      assert_equal Menus::PLAYING, gba.var(:menus_screen), "frame #{frames} should be back in the game"
       (0...FirstPerson::ACROSS).step(2).sum do |x|
         (FirstPerson::VIEW_H...FirstPerson::DOWN).step(2).count do |y|
           gba.pixel_gba(x, y) == Wolf3D::Palette.game[Wolf3D::StatusBar::GROUND]
@@ -376,7 +376,7 @@ class TestMenus < Minitest::Test
     before = playing(frames: 90)
     again = playing(frames: 280) { |f| [95, 120, 170, 180, 220].include?(f) ? [f == 95 ? :start : :a] : [] }
 
-    assert_equal Menus::PLAYING, again[:screen]
+    assert_equal Menus::PLAYING, again[:menus_screen]
     assert_equal 0, pixels_of_the_bar_changed(before, again)
   end
 
@@ -389,8 +389,8 @@ class TestMenus < Minitest::Test
   def test_the_first_row_ends_the_game_and_leaves_you_at_the_title
     run = playing(frames: 180) { |f| f == 95 ? [:start] : (f == 120 ? [:a] : []) }
 
-    assert_equal Menus::TITLE, run[:screen], "ending a game leaves you at the title"
-    assert_equal 0, run[:_in_game], "with no game behind the menu any more"
+    assert_equal Menus::TITLE, run[:menus_screen], "ending a game leaves you at the title"
+    assert_equal 0, run[:menus_in_game], "with no game behind the menu any more"
   end
 
   # A BUTTON STILL DOWN FROM THE MENU IS NOT A NEW PRESS. The original notes which buttons are
@@ -399,7 +399,7 @@ class TestMenus < Minitest::Test
   def test_a_button_held_on_from_the_menu_does_not_open_it_again
     run = playing(frames: 180) { |f| f == 95 ? [:start] : (f >= 120 ? [:a] : []) }
 
-    assert_equal Menus::TITLE, run[:screen]
+    assert_equal Menus::TITLE, run[:menus_screen]
   end
 
   # --- THE EPISODE LIST ----------------------------------------------------------------------
@@ -409,7 +409,7 @@ class TestMenus < Minitest::Test
   def test_one_episode_means_no_episode_list_at_all
     run = at_the_menu(frames: 40) { |f| f == 4 ? [:a] : [] }
 
-    assert_equal Menus::DIFFICULTY, run[:screen], "NEW GAME goes straight to the difficulty"
+    assert_equal Menus::DIFFICULTY, run[:menus_screen], "NEW GAME goes straight to the difficulty"
   end
 
   def test_a_cartridge_with_two_episodes_asks_which_one
@@ -417,7 +417,7 @@ class TestMenus < Minitest::Test
       f == 2 || f == 6 ? [:a] : []
     end
 
-    assert_equal Menus::EPISODES, run[:screen]
+    assert_equal Menus::EPISODES, run[:menus_screen]
   end
 
   # THE LIST IS BUILT FROM WHAT THE CARTRIDGE ACTUALLY HOLDS, not from a fixed six. A row for an
@@ -436,8 +436,8 @@ class TestMenus < Minitest::Test
   def test_the_episode_you_pick_is_the_floor_the_game_starts_on
     run = at_the_episodes(frames: 90) { |f| f == 30 ? [:down] : (f == 40 ? [:a] : []) }
 
-    assert_equal Menus::DIFFICULTY, run[:screen], "picking an episode asks how tough you are"
-    assert_equal 1, run[:_start_floor], "and remembers which floor that episode begins at"
+    assert_equal Menus::DIFFICULTY, run[:menus_screen], "picking an episode asks how tough you are"
+    assert_equal 1, run[:menus_start_floor], "and remembers which floor that episode begins at"
   end
 
   # --- BOOTING STRAIGHT TO A SCREEN ------------------------------------------------------------
@@ -448,7 +448,7 @@ class TestMenus < Minitest::Test
   def test_a_cartridge_can_be_built_to_boot_on_any_screen
     run = play(frames: 2, program: self.class.booting_on_the_difficulty)
 
-    assert_equal Menus::DIFFICULTY, run[:screen]
+    assert_equal Menus::DIFFICULTY, run[:menus_screen]
     assert showing?(run, Menus::DIFFICULTIES.first.last), "with the first portrait beside the rows"
   end
 
@@ -540,11 +540,11 @@ class TestMenus < Minitest::Test
     seen = [2, 60, 200].map do |frame|
       run = play(frames: frame, program: self.class.on_the_credits)
 
-      assert_equal Menus::CREDITS, run[:screen]
-      assert_equal cut[:data][run[:_screen_pan] * 2, Menus::ACROSS],
+      assert_equal Menus::CREDITS, run[:menus_screen]
+      assert_equal cut[:data][run[:menus_pan] * 2, Menus::ACROSS],
                    (0...Menus::ACROSS).map { |x| run.screen.pixel(x, 0) },
                    "frame #{frame} shows the painted columns the window is over"
-      run[:_screen_pan]
+      run[:menus_pan]
     end
 
     assert_equal 0, seen.first, "it starts at the left edge"
@@ -562,7 +562,7 @@ class TestMenus < Minitest::Test
     gba = Verifier.new(rom, frames: 6, vars: backend.var_addresses,
                                      keys: ->(frame) { frame >= 3 ? Constants::KEY_A : 0 })
 
-    assert_equal Menus::MENU, gba.var(:screen), "a press should open the menu on the console"
+    assert_equal Menus::MENU, gba.var(:menus_screen), "a press should open the menu on the console"
     refute gba.all_black?, "and the menu should be on the screen"
   end
 
@@ -597,7 +597,7 @@ class TestMenus < Minitest::Test
     row = top_row_of(name)
     return !where_is(run, name, from: from).nil? if row.length <= Menus::ACROSS
 
-    at = run[:_screen_pan] * 2
+    at = run[:menus_pan] * 2
     (0...Menus::ACROSS).all? { |x| run.screen.pixel(x, 0) == row[at + x] }
   end
 

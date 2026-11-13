@@ -43,7 +43,7 @@ VBlank.playthrough "the shareware" do
     wait frames: frames_for_a_screen_to_show
     moment :summary
     steer("read the summary", within: frames_for_a_floor) do |game|
-      next :done if game.var(:screen) == Wolf3D::Menus::ARTICLE
+      next :done if game.var(:menus_screen) == Wolf3D::Menus::ARTICLE
 
       pilot.ending_buttons(game)
     end

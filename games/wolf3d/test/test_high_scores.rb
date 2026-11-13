@@ -21,7 +21,7 @@ class TestHighScores < Minitest::Test
   def test_a_new_cartridge_has_the_originals_seven_names
     run = viewing_scores
 
-    assert_equal Menus::SCORES, run[:screen]
+    assert_equal Menus::SCORES, run[:menus_screen]
     assert_equal [Scores::STARTING_SCORE] * Scores::ROWS, run.list(:high_score_points)
     assert_equal "id software-'92", name_in(run, 0)
     assert_equal "Jay Wilbur", name_in(run, 6)
@@ -30,23 +30,23 @@ class TestHighScores < Minitest::Test
   # The attract loop has three still screens, and the third is this (wl_main.cpp, DemoLoop).
   def test_the_table_follows_the_credits_in_the_attract_loop
     frames = Menus::NOTICE_FRAMES + Menus::TITLE_FRAMES + Menus::CREDITS_FRAMES + 1
-    assert_equal Menus::SCORES, Reference.new.run(cartridge, frames: frames)[:screen]
+    assert_equal Menus::SCORES, Reference.new.run(cartridge, frames: frames)[:menus_screen]
 
-    assert_equal Menus::TITLE, Reference.new.run(cartridge, frames: frames + Menus::SCORES_FRAMES)[:screen]
+    assert_equal Menus::TITLE, Reference.new.run(cartridge, frames: frames + Menus::SCORES_FRAMES)[:menus_screen]
   end
 
   def test_from_the_menu_it_waits_for_a_press
-    assert_equal Menus::SCORES, viewing_scores(frames: PICK + Menus::SCORES_FRAMES + 60)[:screen]
+    assert_equal Menus::SCORES, viewing_scores(frames: PICK + Menus::SCORES_FRAMES + 60)[:menus_screen]
     run = viewing_scores(frames: PICK + 100) { |f| f == PICK + 90 ? [:a] : [] }
 
-    assert_equal Menus::MENU, run[:screen]
+    assert_equal Menus::MENU, run[:menus_screen]
   end
 
   # A SCORE UNDER THE LOWEST ROW GOES STRAIGHT TO THE TABLE AND ASKS NOTHING.
   def test_a_low_score_earns_no_row
     run = ended_game(frames: NAMING_BY, score: 5_000)
 
-    assert_equal Menus::SCORES, run[:screen]
+    assert_equal Menus::SCORES, run[:menus_screen]
     assert_equal [10_000] * Scores::ROWS, run.list(:high_score_points)
   end
 
@@ -54,8 +54,8 @@ class TestHighScores < Minitest::Test
   def test_a_high_score_takes_its_row
     run = named_game(frames: NAMING_BY)
 
-    assert_equal Menus::NAMING, run[:screen]
-    assert_equal 1, run[:_score_new_row]
+    assert_equal Menus::NAMING, run[:menus_screen]
+    assert_equal 1, run[:high_scores_new_row]
     assert_equal [30_000, 12_000, 10_000, 10_000, 10_000, 10_000, 10_000], run.list(:high_score_points)
     assert_equal "", name_in(run, 1), "with an empty name to fill"
     assert_equal "Adrian Carmack", name_in(run, 2), "and the row it took moved down"
@@ -76,7 +76,7 @@ class TestHighScores < Minitest::Test
       { NAMING_BY => [:up], NAMING_BY + 10 => [:a] }.fetch(f, [])
     end
 
-    assert_equal Menus::SCORES, finished[:screen]
+    assert_equal Menus::SCORES, finished[:menus_screen]
     run = viewing_scores(frames: 140, image: image)
 
     assert_equal 12_000, run.list(:high_score_points)[1]
@@ -101,11 +101,11 @@ class TestHighScores < Minitest::Test
     rom = ROM.assemble(backend.lower(cartridge(:scores)), title: "SCORES")
     console = Verifier.new(rom, frames: 20, vars: backend.var_addresses, save: image)
 
-    assert_equal Menus::SCORES, console.var(:screen)
+    assert_equal Menus::SCORES, console.var(:menus_screen)
     # Read over several frames, because a picture is drawn across a frame and this may catch it part way.
     figures = Array.new(12) do
       console.step
-      console.var(:_score_number)
+      console.var(:high_scores_number)
     end
 
     assert_includes figures, 23_456, "a figure the screen drew"

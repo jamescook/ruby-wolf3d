@@ -10,6 +10,8 @@ module Wolf3D
   # the way a rocket is, and he has no mind: only a list of pictures to go through, the last four of
   # which are the jump.
   class VictoryMarch
+    game_variables :x, :togo, :camera_stop, :cells, :pose, :ticks, :picture, :running, :y, saved: false
+
     # The pictures of him, in the order of the original's table: four running, four jumping.
     FIRST_PICTURE = 408
     PICTURES = Ractor.make_shareable((FIRST_PICTURE...(FIRST_PICTURE + 8)).to_a)
@@ -89,15 +91,15 @@ module Wolf3D
 
     def declare
       b = @b
-      @running = b.var :_march_running, 0
-      @x = b.var :_march_x, 0.0
-      @y = b.var :_march_y, 0.0
-      @togo = b.var :_march_togo, 0.0
-      @camera_stop = b.var :_march_camera_stop, 0.0
-      @cells = b.var :_march_cells, 0
-      @pose = b.var :_march_pose, 0
-      @ticks = b.var :_march_ticks, 0
-      @picture = b.var :_march_picture, 0
+      @running = 0
+      @x = 0.0
+      @y = 0.0
+      @togo = 0.0
+      @camera_stop = 0.0
+      @cells = 0
+      @pose = 0
+      @ticks = 0
+      @picture = 0
       @south = FirstPerson::QUARTER
       @pose_picture = b.table :march_pose_picture, POSES.map { |pose| pose.picture + @first_picture }, width: :half
       @pose_ticks = b.table :march_pose_ticks, POSES.map { |pose| pose.ticks * Enemy::SIXTHS }, width: :half

@@ -48,9 +48,9 @@ class TestEpisodeEnd < Minitest::Test
   def test_winning_puts_up_the_sum_of_the_episode
     run = won(ON_THE_SUMMARY)
 
-    assert_equal Menus::WINNING, run[:screen]
-    assert_equal [10, 5, 2], [run[:_end_kill], run[:_end_secret], run[:_end_treasure]]
-    assert_equal [1, 5], [run[:_end_minutes], run[:_end_seconds]]
+    assert_equal Menus::WINNING, run[:menus_screen]
+    assert_equal [10, 5, 2], [run[:episode_end_kill], run[:episode_end_secret], run[:episode_end_treasure]]
+    assert_equal [1, 5], [run[:episode_end_minutes], run[:episode_end_seconds]]
   end
 
   # VW_FadeOut in GameLoop's ex_victorious: the view goes to black with no words over it, and not to
@@ -59,7 +59,7 @@ class TestEpisodeEnd < Minitest::Test
     run = Reference.new
     leaving = []
     run.input_each_frame do |f|
-      if run[:episode_won] == 1 && run[:screen] == Menus::PLAYING
+      if run[:episode_won] == 1 && run[:menus_screen] == Menus::PLAYING
         leaving << (0...160).flat_map { |y| (0...240).map { |x| run.screen.pixel(x, y) } }
       end
       f < WON_BY ? [:down] : []
@@ -76,7 +76,7 @@ class TestEpisodeEnd < Minitest::Test
   def test_a_press_goes_on_to_the_high_scores
     run = won(ON_THE_SUMMARY + 40) { |f| f == ON_THE_SUMMARY + 2 ? [:a] : [] }
 
-    assert_includes [Menus::SCORES, Menus::NAMING], run[:screen]
+    assert_includes [Menus::SCORES, Menus::NAMING], run[:menus_screen]
   end
 
   def test_a_new_game_forgets_the_last_ones_floors

@@ -132,7 +132,7 @@ class TestFloors < Minitest::Test
                        a_floor(name: "two", start_x: 9, start_y: 3))
     run = take_the_lift(floors)
 
-    assert_equal SIDE * SIDE, run[:_map_base], "the second floor's slice of the map"
+    assert_equal SIDE * SIDE, run[:this_floor_map_base], "the second floor's slice of the map"
   end
 
   # A floor with a door and one without: the count of doors has to follow the floor, or the
@@ -146,7 +146,7 @@ class TestFloors < Minitest::Test
 
     assert_equal 0, before[:_door_count], "the first floor has no door"
     assert_equal 1, after[:_door_count], "the second has one"
-    assert_equal 0, after[:_door_first], "and it is the first door in the cartridge"
+    assert_equal 0, after[:this_floor_door_first], "and it is the first door in the cartridge"
   end
 
   # --- the screen at the bottom of the lift ---
@@ -156,7 +156,7 @@ class TestFloors < Minitest::Test
   def test_the_lift_stops_at_a_screen_rather_than_at_the_next_floor
     run = arrive_at_the_screen(two_floors_with_a_lift)
 
-    assert_equal 1, run[:_tally_showing], "the screen is up"
+    assert_equal 1, run[:tally_showing], "the screen is up"
     assert_equal 0, run[:floor], "and you are still on the first floor"
   end
 
@@ -171,7 +171,7 @@ class TestFloors < Minitest::Test
   def test_nothing_moves_while_the_screen_is_up_on_the_clock_either
     run = arrive_at_the_screen(two_floors_with_a_lift, pressing: [:down], pacing: :by_the_frame)
 
-    assert_equal 1, run[:_tally_showing]
+    assert_equal 1, run[:tally_showing]
     assert_equal [4.5, 8.5], at(run)
   end
 
@@ -208,7 +208,7 @@ class TestFloors < Minitest::Test
                    .run(program(floors), frames: second_lever + PRESS_ON + 4)
 
     assert_equal 9, run[:floor], "still on the secret floor"
-    assert_equal 1, run[:_tally_showing]
+    assert_equal 1, run[:tally_showing]
     assert_equal WHOLE_PAR + 15_000, run[:score], "the first floor's par, and nothing on this one counted"
   end
 
@@ -371,7 +371,7 @@ class TestFloors < Minitest::Test
     run = take_the_lift(floors)
 
     assert_equal 0, run[:floor]
-    assert_equal 0, run[:_map_base]
+    assert_equal 0, run[:this_floor_map_base]
     assert_equal [4.5, 8.5], at(run), "back at the start of the same floor"
   end
 end

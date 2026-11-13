@@ -16,7 +16,7 @@ class TestVictoryMarch < Minitest::Test
   def test_the_way_out_starts_the_march_rather_than_ending_the_episode
     run = played(STEPPED_OFF + 10)
 
-    assert_equal 1, run[:_march_running]
+    assert_equal 1, run[:victory_march_running]
     assert_equal 0, run[:episode_won], "the episode is over when he has finished"
   end
 
@@ -36,7 +36,7 @@ class TestVictoryMarch < Minitest::Test
     soon = played(STEPPED_OFF + 2)
     later = played(STEPPED_OFF + 60)
 
-    assert_operator later[:_march_y], :<, soon[:_march_y]
+    assert_operator later[:victory_march_y], :<, soon[:victory_march_y]
   end
 
   def test_you_cannot_move_while_he_runs
@@ -50,7 +50,7 @@ class TestVictoryMarch < Minitest::Test
     run = played(STEPPED_OFF + 120)
     empty = ->(x) { run.screen.pixel(x, FP::HORIZON) == run.screen.pixel(0, FP::HORIZON) }
 
-    assert_equal 1, run[:_march_running]
+    assert_equal 1, run[:victory_march_running]
     refute((60...180).all?(&empty), "something stands in the middle of the view")
   end
 
@@ -58,7 +58,7 @@ class TestVictoryMarch < Minitest::Test
   def test_then_the_episode_is_over
     run = played(STEPPED_OFF + 900)
 
-    assert_equal 0, run[:_march_running]
+    assert_equal 0, run[:victory_march_running]
     assert_equal 1, run[:episode_won]
   end
 

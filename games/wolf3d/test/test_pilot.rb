@@ -26,9 +26,9 @@ class TestPilot < Minitest::Test
   # What the cartridge would answer. +men+ are [x, y, hit points], and +at+ is a cell the player
   # stands in the middle of.
   class RunningGame
-    STANDING_START = { screen: Wolf3D::Menus::PLAYING, floor: 0, lives: 3, game_over: 0, episode_won: 0, score: 0,
+    STANDING_START = { menus_screen: Wolf3D::Menus::PLAYING, floor: 0, lives: 3, game_over: 0, episode_won: 0, score: 0,
                        view: 0, health: 100, ammo: 50, keys: 0, weapon: 1, weapon_best: 1, weapon_stage: -1,
-                       _gturn: 0, _tally_showing: 0 }.freeze
+                       guard_mind_turn: 0, tally_showing: 0 }.freeze
 
     def initialize(at: [3, 3], men: [], doors_open: [], gone: [], **player)
       @vars = STANDING_START.merge(player, px: at[0] + 0.5, py: at[1] + 0.5)
@@ -504,8 +504,8 @@ class TestPilot < Minitest::Test
   def test_nothing_held_on_one_floor_is_held_on_the_next
     pilot = Pilot.new([way_out_level, way_out_level], log: StringIO.new)
 
-    refute_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, _gturn: 1))
-    assert_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, _gturn: 1))
+    refute_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 0, guard_mind_turn: 1))
+    assert_empty pilot.buttons_for(RunningGame.new(at: [4, 4], floor: 1, guard_mind_turn: 1))
   end
 
   def test_a_new_floor_and_a_death_are_reported_in_their_own_words
@@ -525,7 +525,7 @@ class TestPilot < Minitest::Test
   def test_the_ending_gives_the_summary_as_long_as_a_page_of_the_article
     [Wolf3D::Menus::WINNING, Wolf3D::Menus::ARTICLE].each do |screen|
       pilot = Pilot.new([arena])
-      game = RunningGame.new(screen: screen)
+      game = RunningGame.new(menus_screen: screen)
       first_press = (1..Pilot::ENDING_SCREEN_FRAMES * 2).find { pilot.ending_buttons(game) == [:a] }
 
       assert_equal Pilot::ENDING_SCREEN_FRAMES, first_press
@@ -534,8 +534,8 @@ class TestPilot < Minitest::Test
 
   def test_a_new_screen_is_read_for_as_long_as_the_last
     pilot = Pilot.new([arena])
-    summary = RunningGame.new(screen: Wolf3D::Menus::WINNING)
-    article = RunningGame.new(screen: Wolf3D::Menus::ARTICLE)
+    summary = RunningGame.new(menus_screen: Wolf3D::Menus::WINNING)
+    article = RunningGame.new(menus_screen: Wolf3D::Menus::ARTICLE)
     (Pilot::ENDING_SCREEN_FRAMES - 1).times { pilot.ending_buttons(summary) }
 
     assert_empty pilot.ending_buttons(article)
@@ -544,7 +544,7 @@ class TestPilot < Minitest::Test
   # Each press comes up before the next, and A finishes: BJ is B, two up from the blank, and J, ten.
   def test_a_row_on_the_table_gets_a_name
     pilot = Pilot.new([arena])
-    naming = RunningGame.new(screen: Wolf3D::Menus::NAMING)
+    naming = RunningGame.new(menus_screen: Wolf3D::Menus::NAMING)
     held = Array.new(Pilot::SCREEN_SETTLE_FRAMES + (Pilot::HELD_PRESS_SPACING_FRAMES * 20)) { pilot.ending_buttons(naming) }
     presses = held.each_cons(2).filter_map { |before, now| now.first if before.empty? && now.any? }
 
@@ -552,6 +552,6 @@ class TestPilot < Minitest::Test
   end
 
   def test_the_ending_is_over_past_the_article
-    assert_equal :done, Pilot.new([arena]).ending_buttons(RunningGame.new(screen: Wolf3D::Menus::SCORES))
+    assert_equal :done, Pilot.new([arena]).ending_buttons(RunningGame.new(menus_screen: Wolf3D::Menus::SCORES))
   end
 end

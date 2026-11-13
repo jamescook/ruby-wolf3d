@@ -8,6 +8,8 @@ module Wolf3D
   # picture is stretched to it. Do that across the screen and a flat grid of cells looks like
   # rooms you can walk through.
   class FirstPerson
+    game_variables :ang, :walked, :eye_cell, :dist, :nx, :ny, saved: false
+
     # These are the view the game should have, not the view that happens to fit a frame.
     # HOW THE SCREEN IS DIVIDED ACROSS, and the width is not a free choice — it is what the
     # screen's memory wants, and picking it right makes the strips cheaper than picking it
@@ -912,12 +914,12 @@ module Wolf3D
       # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
       # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
       # would move the name to @b, and nothing would say so.
-      @ang = @b.var :_ang, 0
-      @walked = @b.var :_walked, 0
-      @eye_cell = @b.var :_eye_cell, 0
-      @dist = @b.var :_dist, 0.0
-      @nx = @b.var :_nx, 0.0
-      @ny = @b.var :_ny, 0.0
+      @ang = 0
+      @walked = 0
+      @eye_cell = 0
+      @dist = 0.0
+      @nx = 0.0
+      @ny = 0.0
 
       # ...AND WHERE THE EYE STANDS, which every ray needs and none of them can change: the cell
       # the player is in, how far through it they are, and how far it is to the far side. Worked

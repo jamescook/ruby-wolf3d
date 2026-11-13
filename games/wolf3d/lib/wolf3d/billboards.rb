@@ -18,6 +18,8 @@ module Wolf3D
   # WHAT LIVES HERE AND WHAT DOES NOT: this puts things on the screen. Where a guard is going
   # and what he is thinking about is the mind's business, and the view's own business is walls.
   class Billboards
+    game_variables :shape, :s0, saved: false
+
     # HOW FAR FORWARD A STANDING THING IS NUDGED before its distance is used. A guard stands in
     # the middle of his cell, so half of him is in the cell behind — which can be a wall, and
     # then the wall would be drawn over his front. Moving him a quarter of a cell toward the eye
@@ -199,11 +201,11 @@ module Wolf3D
       @rx, @ry, @fwd, @sideways = fraction(:rx, :ry, :fwd, :sideways)
       @scale, @tex, @tstep = fraction(:scale, :tex, :tstep)
       @pose, @pfirst, @plast, @tcol = whole(:pose, :pfirst, :plast, :tcol)
-      @shape = @b.var :_shape, 0 # on a line of its own, since BJ's picture is copied into it
+      @shape = 0 # on a line of its own, since BJ's picture is copied into it
       @cx, @theight, @ttop = whole(:cx, :theight, :ttop)
       @ptop, @pbottom, @band_top, @band_bottom = whole(:ptop, :pbottom, :bandtop, :bandbot)
       @lstrip, @s1, @tstrip = whole(:lstrip, :s1, :tstrip)
-      @s0 = @b.var :_s0, 0 # on a line of its own, since a list would move this name to @lstrip
+      @s0 = 0 # on a line of its own, since a list would move this name to @lstrip
       @seen, @at, @shows = whole(:seen, :at, :shows)
     end
 

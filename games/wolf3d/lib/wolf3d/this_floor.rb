@@ -21,6 +21,8 @@ module Wolf3D
   # every call site. These are all one add or one comparison, so that is what a caller pays and
   # exactly what it would pay writing them out by hand.
   class ThisFloor
+    game_variables :map_base, :door_first, :push_first, :piece_first, saved: false
+
     # Where the map table stops naming walls and starts naming the things that are more than a
     # wall. Each is above every picture a level could hold, so none of them can be confused.
     #
@@ -67,7 +69,7 @@ module Wolf3D
       @push_first = @tables.run_start(:pushwalls, n)
       @pushwall_count = @tables.fetch_floor_value(:pushwalls, n)
       @secret_car = @tables.fetch_floor_value(:secret_car, n)
-      return if @piece_first.nil?
+      return if @tables.one_floor?
 
       @piece_first = @tables.run_start(:pieces, n)
       @piece_count = @tables.fetch_floor_value(:pieces, n)
@@ -89,7 +91,7 @@ module Wolf3D
     # hold every floor's. A one-floor cartridge has nothing to add for a piece.
     def door(n) = @door_first + n
     def pushwall(n) = @push_first + n
-    def piece(n) = @piece_first ? @piece_first + n : n
+    def piece(n) = @tables.one_floor? ? n : @piece_first + n
 
     # DOES SOMETHING STANDING IN THIS CELL STOP A FOOT? Runs the block if so. A cartridge with
     # nothing of the kind on any floor has no table and emits no test.
@@ -171,10 +173,10 @@ module Wolf3D
       # test.
       @blocked = @tables.declare_blocked
 
-      @map_base = @b.var :_map_base, @tables.map_base(0)
-      @door_first = @b.var :_door_first, @tables.run_start(:doors, 0)
+      @map_base = @tables.map_base(0)
+      @door_first = @tables.run_start(:doors, 0)
       @door_count = @tables.declare_floor_value(:_door_count, :doors)
-      @push_first = @b.var :_push_first, @tables.run_start(:pushwalls, 0)
+      @push_first = @tables.run_start(:pushwalls, 0)
       @pushwall_count = @tables.declare_floor_value(:_push_count, :pushwalls)
       @secret_car = @tables.declare_floor_value(:_secret_car, :secret_car)
       declare_pieces
@@ -188,7 +190,7 @@ module Wolf3D
         return
       end
 
-      @piece_first = @b.var :_piece_first, @tables.run_start(:pieces, 0)
+      @piece_first = @tables.run_start(:pieces, 0)
       @piece_count = @tables.declare_floor_value(:_piece_count, :pieces)
     end
   end

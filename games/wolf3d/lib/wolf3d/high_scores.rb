@@ -10,6 +10,9 @@ module Wolf3D
   # ON A PAD a name is picked a letter at a time, which the original has no need of: up and down
   # change the letter, left and right change which one.
   class HighScores
+    game_variables :row, :letter, :column, :spot, :from, :wait, :earned_floor, :earned_episode, :new_row,
+                   :number, saved: false
+
     ROWS = 7
 
     # ROOM FOR THE LONGEST NAME THE ORIGINAL SHIPS, and a typed one stops sooner so that a name of
@@ -103,16 +106,16 @@ module Wolf3D
       [@scores, @levels, @episodes, @names, @setting].each { |kept| @record.keep kept }
       @record[0].load
 
-      @new_row = b.var :_score_new_row, NOBODY
-      @number = b.var :_score_number, 0
-      @row = b.var :_score_row, 0
-      @letter = b.var :_score_letter, 0
-      @column = b.var :_score_column, 0
-      @spot = b.var :_score_spot, 0
-      @from = b.var :_score_from, 0
-      @wait = b.var :_score_wait, 0
-      @earned_floor = b.var :_score_earned_floor, 0
-      @earned_episode = b.var :_score_earned_episode, 0
+      @new_row = NOBODY
+      @number = 0
+      @row = 0
+      @letter = 0
+      @column = 0
+      @spot = 0
+      @from = 0
+      @wait = 0
+      @earned_floor = 0
+      @earned_episode = 0
       @alphabet = b.table :high_score_alphabet, ALPHABET.chars.map(&:ord), width: :byte
       @floor_number = b.table :high_score_floor_number, @floors.map { |f| (f.index % Floors::PER_EPISODE) + 1 }, width: :byte
       @episode_number = b.table :high_score_episode_number, @floors.map { |f| (f.index / Floors::PER_EPISODE) + 1 }, width: :byte

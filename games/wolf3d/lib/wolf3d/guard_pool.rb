@@ -13,6 +13,8 @@ module Wolf3D
   # its fields. What lives here is the shape of a slot, how wide each field is, where every guard
   # of every floor started, and putting a floor's guards back when it starts.
   class GuardPool
+    game_variables :first, saved: false
+
     # HOW BIG EACH OF A GUARD'S FIELDS REALLY NEEDS TO BE. A pool is one list per field and a
     # slot is a whole 32-bit number unless it is told otherwise, so left alone a guard takes four
     # bytes to keep a direction, a flag, or how many hit points are left. Eleven of the
@@ -133,7 +135,7 @@ module Wolf3D
       # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE of the tables below, set as each floor starts
       # (#select_floor). They start at the first floor's own numbers, because at boot no floor has
       # been STARTED — the game simply begins on the first one.
-      @first = @b.var :_guard_first, @tables.run_start(:guards, 0)
+      @first = @tables.run_start(:guards, 0)
       @count = @tables.declare_floor_value(:_guard_count, :guards)
 
       # +dropped+ is whether he is lying beside the clip of ammunition he left when he fell. It is

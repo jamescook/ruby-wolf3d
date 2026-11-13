@@ -77,8 +77,8 @@ class TestLastingState < Minitest::Test
                     "with the guard shot"
     refute_equal 0, saved[:keys], "and the key taken"
     assert saved.list(:door_open).any?(&:positive?), "and a door open"
-    before = lasting_state_of(saved)
-    after = lasting_state_of(loaded)
+    before = saved.saved_state
+    after = loaded.saved_state
     assert before == after, "these came back changed: #{differences(before, after)}"
     refute_equal cursors(powered_on), cursors(saved), "the second floor's tables are not the first's"
     assert_equal cursors(saved), cursors(loaded), "and they point at the second floor again"
@@ -249,14 +249,6 @@ class TestLastingState < Minitest::Test
     end
   end
 
-  # WHAT A SAVE IS MEANT TO HOLD, read off everything the game declared: less its working room,
-  # which is named with an underscore, and less what it leaves out on purpose.
-  def lasting_state_of(run)
-    run.game_state.transform_values do |things|
-      things.reject { |name, _| name.start_with?("_") || LastingState::LEFT_OUT.key?(name) }
-    end
-  end
-
   # Which things differ between two readings of the whole game, by name.
   def differences(one, other)
     one.flat_map { |part, things| things.keys.reject { |name| things[name] == other[part][name] } }
@@ -265,8 +257,8 @@ class TestLastingState < Minitest::Test
   # WHERE THE FLOOR BEING PLAYED HAS ITS SLICE OF EACH TABLE: of the map, the doors, the walls
   # that slide, the guards and the things lying about, and which cell is its secret lift. None of
   # them is kept; each is worked out again from which floor it is.
-  CURSORS = %i[_map_base _door_first _door_count _push_first _push_count _guard_first
-               _guard_count _piece_first _piece_count _secret_car].freeze
+  CURSORS = %i[this_floor_map_base this_floor_door_first _door_count this_floor_push_first _push_count guard_pool_first
+               _guard_count this_floor_piece_first _piece_count _secret_car].freeze
 
   def cursors(run) = CURSORS.map { |name| run[name] }
 

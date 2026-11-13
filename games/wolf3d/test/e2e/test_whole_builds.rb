@@ -160,7 +160,7 @@ class TestWholeBuilds < Minitest::Test
     picked = [real_shareware, real_copy].map do |data|
       run = Reference.new.hand_file(whole_pack_of(data)).input_each_frame { |f| EpisodeScene.keys(f) }
                      .run(program, frames: EpisodeScene::FRAMES)
-      [run[:screen], run[:_start_floor]]
+      [run[:menus_screen], run[:menus_start_floor]]
     end
 
     assert_equal [[Wolf3D::Menus::DIFFICULTY, 0], [Wolf3D::Menus::DIFFICULTY, Wolf3D::Floors::PER_EPISODE]], picked

@@ -34,6 +34,8 @@ module Wolf3D
   # painting regardless measures about a twentieth of the frame, nearly always to put back a
   # picture identical to the one already there.
   class StatusBar
+    game_variables :changed, :looks, :gun, :col_x, :col_y, :col_slot, :rule_half, :face, saved: false
+
     # How many rows along the bottom it takes. The original gives its bar a fifth of the screen
     # and so does this.
     HEIGHT = 32
@@ -273,10 +275,10 @@ module Wolf3D
       @bar.changed
 
       # What each live field showed when it was last painted, so a change can be noticed.
-      @changed = @b.var :_bar_changed, 0
-      @face = @b.var :_bar_face, 0
-      @looks = @b.var :_bar_look, 0
-      @gun = @b.var :_bar_gun, 0
+      @changed = 0
+      @face = 0
+      @looks = 0
+      @gun = 0
       @remembered = @shows.filter_map do |name, value|
         [name, @b.var(:"_bar_last_#{name}", -1)] unless value.is_a?(Integer)
       end.to_h
@@ -424,9 +426,9 @@ module Wolf3D
     # One routine per strip, because which picture a walk reads from is settled while building
     # and only WHICH ONE ALONG IT is worked out as the game runs.
     def declare_strip_routines
-      @col_x = @b.var :_bar_col_x, 0
-      @col_y = @b.var :_bar_col_y, 0
-      @col_slot = @b.var :_bar_col_slot, 0
+      @col_x = 0
+      @col_y = 0
+      @col_slot = 0
 
       @b.font NUMERALS_FONT, strip: :bar_numerals, characters: NUMERALS
       strip_routine(:_bar_key, :bar_keys, @art.key_width, @art.key_height)
@@ -445,7 +447,7 @@ module Wolf3D
     # column variable says. One drawing in the cartridge, called once per boundary.
     def declare_rule
       @pictures.declare_rule(inside_height)
-      @rule_half = @b.var :_bar_rule_half, 0
+      @rule_half = 0
 
       half = @rule_half
       build = @b

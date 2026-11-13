@@ -37,6 +37,9 @@ module Wolf3D
   # NOTHING SAYS TO PRESS A BUTTON, as nothing does in the original. See Menus: there is no "press
   # start" anywhere in Wolfenstein.
   class Tally
+    game_variables :stage, :row_pause, :shown_time_left, :showing, :bonus, :shown_bonus, :time_left,
+                   :minutes, :seconds, saved: false
+
     # The ground, the original's VIEWCOLOR out of its 256 (wl_menu.h), which the lettering's own
     # pictures are painted on. The ink is for a release with no lettering to read.
     GROUND = 0x7f
@@ -156,18 +159,18 @@ module Wolf3D
 
     private
 
-    # NONE OF THESE IS IN A SAVED GAME, which is what the underscores say. The game cannot be saved
+    # NONE OF THESE IS IN A SAVED GAME, which is what saved: false says. The game cannot be saved
     # with this screen up, because the menu cannot be opened over it.
     def declare
-      @showing = @b.var :_tally_showing, 0
-      @stage = @b.var :_tally_stage, COUNT_FINISHED
-      @row_pause = @b.var :_tally_row_pause, 0
-      @bonus = @b.var :_tally_bonus, 0
-      @shown_bonus = @b.var :_tally_shown_bonus, 0
-      @time_left = @b.var :_tally_time_left, 0
-      @shown_time_left = @b.var :_tally_shown_time_left, 0
-      @minutes = @b.var :_tally_minutes, 0
-      @seconds = @b.var :_tally_seconds, 0
+      @showing = 0
+      @stage = COUNT_FINISHED
+      @row_pause = 0
+      @bonus = 0
+      @shown_bonus = 0
+      @time_left = 0
+      @shown_time_left = 0
+      @minutes = 0
+      @seconds = 0
       @ratios = RATIOS.keys.to_h { |name| [name, @b.var(:"_#{name}_ratio", 0)] }
       @shown = RATIOS.keys.to_h { |name| [name, @b.var(:"_#{name}_shown", 0)] }
       numbers = @floors.map { |floor| map_of(floor) + 1 }

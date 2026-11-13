@@ -9,6 +9,8 @@ module Wolf3D
   # themselves: this calls a small fixed set of steps on the +world+, which is the view in the
   # real game.
   class Playthrough
+    game_variables :secret, saved: false
+
     # +lasting+ is what a saved game holds (see LastingState), and the three numbers below are in
     # it.
     def initialize(build:, floors:, score:, world:, lasting: LastingState.new(build:))
@@ -30,7 +32,7 @@ module Wolf3D
       # ...and WHETHER THE LIFT WAS CALLED BY THE SECRET LEVER, copied in as it is called, and
       # where it takes you from each floor. Only a cartridge holding a secret floor asks.
       if secret_floor?
-        @secret = @b.var :_secret_lift, 0
+        @secret = 0
         @to_secret = @b.table :lift_to_secret, secret_floors, width: :byte
         @back = @b.table :lift_back_from_secret, ways_back, width: :byte
       end
@@ -50,7 +52,7 @@ module Wolf3D
     def start(reason, floor: nil, secret: nil)
       check_request!(reason, floor, secret)
       @began_on = floor if floor
-      @secret = secret if secret && @secret
+      @secret = secret if secret_floor? && secret
       @b.call routine_for(reason)
     end
 

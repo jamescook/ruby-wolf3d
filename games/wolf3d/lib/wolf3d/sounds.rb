@@ -24,6 +24,9 @@ module Wolf3D
   # never played. Nothing is a build error: a floor that is quieter than it might be is better
   # than a cartridge that will not build.
   class Sounds
+    game_variables :adlib_priority_sounding, :adlib_priority_asked, :adlib_asked, :adlib_frames_left,
+                   saved: false
+
     # The player's own guns. Three of the four are recordings. The knife is an AdLib effect.
     MACHINE_GUN = 4
     PISTOL = 5
@@ -243,10 +246,10 @@ module Wolf3D
       @adlib_effects = @b.sound_effects :adlib, held.values.map { |number| adlib_score(number) }
       @adlib_frames = @recordings.declare_adlib_frames_table(:adlib_frames, held.values)
       @adlib_priorities = @recordings.declare_adlib_priorities_table(:adlib_priorities, held.values)
-      @adlib_frames_left = @b.var :_adlib_frames_left, 0
-      @adlib_priority_sounding = @b.var :_adlib_priority_sounding, 0
-      @adlib_priority_asked = @b.var :_adlib_priority_asked, 0
-      @adlib_asked = @b.var :_adlib_asked, 0
+      @adlib_frames_left = 0
+      @adlib_priority_sounding = 0
+      @adlib_priority_asked = 0
+      @adlib_asked = 0
       @b.func(:play_adlib, fast: false) { when_sound_is_on { start_adlib_if_allowed } }
       @b.func(:play_hit_wall, fast: false) { play_adlib_named(:hit_wall) if @adlib_frames_left == 0 }
     end

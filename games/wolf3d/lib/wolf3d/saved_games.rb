@@ -9,6 +9,8 @@ module Wolf3D
   # with no keyboard has nothing to type on. What a slot holds is read straight out of the save, so a
   # label can never disagree with what loading it would give you.
   class SavedGames
+    game_variables :slot, saved: false
+
     # SEVEN, WHERE THE ORIGINAL HAS TEN, and it is the console's limit. The busiest floor decides how
     # big a save is, every save is kept twice so a power cut cannot lose it, and each of the two
     # takes whole 4K blocks of the largest save memory a cartridge can have, which is 128K. The build
@@ -39,7 +41,7 @@ module Wolf3D
       @labels = (0...SLOTS).map { |n| @b.var :"_save_label_#{n}", 0 }
       @episodes = (0...SLOTS).map { |n| @b.var :"_save_episode_#{n}", 0 }
       @numbers = (0...SLOTS).map { |n| @b.var :"_save_number_#{n}", 0 }
-      @slot = @b.var :_save_slot, 0
+      @slot = 0
     end
 
     # Which of LABELS slot +n+ says, and the two numbers that go in its gaps.

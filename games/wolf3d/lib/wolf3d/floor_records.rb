@@ -9,6 +9,8 @@ module Wolf3D
   # a stopwatch: it counts passes of the game loop, and so it slows down exactly as the world does when
   # a heavy view takes longer to draw. Stand by a door and you lose nothing against par for it.
   class FloorRecords
+    game_variables :slot, :seconds_played, saved: false
+
     FLOORS = 8
 
     # THE ORIGINAL'S CLOCK COUNTS SEVENTY TICS A SECOND (gamestate.TimeCount), and a pass of this game
@@ -29,8 +31,8 @@ module Wolf3D
         [@kills, @secrets, @treasures, @seconds].each { |list| list << 0 }
       end
       @passes = lasting.var :floor_passes, 0
-      @slot = @b.var :_record_slot, 0
-      @seconds_played = @b.var :_tally_seconds_played, 0
+      @slot = 0
+      @seconds_played = 0
     end
 
     # What the clock read when it was last stopped.

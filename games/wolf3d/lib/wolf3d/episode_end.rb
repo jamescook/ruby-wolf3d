@@ -4,6 +4,9 @@ module Wolf3D
   # WHAT COMES AFTER YOU HAVE WON: the screen that says so, with the time you took over the episode
   # and what you averaged (Victory, wl_inter.cpp), and then the article the episode ends on.
   class EpisodeEnd
+    game_variables :page, :last_page, :base, :code, :kill, :secret, :treasure, :minutes, :seconds,
+                   saved: false
+
     # The original's Write(18, 2, STR_YOUWIN) and the rest, cut for a screen eighty pixels narrower.
     YOU_WIN = "YOU WIN!"
     TOTAL_TIME = "TOTAL TIME"
@@ -73,15 +76,15 @@ module Wolf3D
 
     def declare
       b = @b
-      @kill = b.var :_end_kill, 0
-      @secret = b.var :_end_secret, 0
-      @treasure = b.var :_end_treasure, 0
-      @minutes = b.var :_end_minutes, 0
-      @seconds = b.var :_end_seconds, 0
-      @page = b.var :_end_page, 0
-      @last_page = b.var :_end_last_page, 0
-      @base = b.var :_end_base, 0
-      @code = b.var :_end_code, 0
+      @kill = 0
+      @secret = 0
+      @treasure = 0
+      @minutes = 0
+      @seconds = 0
+      @page = 0
+      @last_page = 0
+      @base = 0
+      @code = 0
       declare_articles
       @episode_of = b.table :article_episode, @floors.map { |f| f.index / Floors::PER_EPISODE }, width: :byte
       @summary = b.keep_showing(:episode_summary) { paint_summary }

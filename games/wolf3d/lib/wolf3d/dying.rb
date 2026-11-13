@@ -15,6 +15,8 @@ module Wolf3D
   # all of itself on are simply not drawn once the fizzle starts, so the whole frame is free for
   # the dots.
   class Dying
+    game_variables :kill_x, :kill_y, :was, saved: false
+
     # What the player is doing. Everything else in the game asks this before it moves.
     ALIVE = 0
     TURNING = 1   # facing whatever killed you
@@ -152,8 +154,8 @@ module Wolf3D
     def declare
       b = @b
       @state = @lasting.var :dying, ALIVE
-      @kill_x = b.var :_kill_x, 0.0
-      @kill_y = b.var :_kill_y, 0.0
+      @kill_x = 0.0
+      @kill_y = 0.0
 
       # WORKING ROOM, and every name here carries `dying` for a reason worth knowing: a program's
       # variables are one flat set of names shared by every part that declares any, and the kind
@@ -163,7 +165,7 @@ module Wolf3D
       @to_x, @to_y, @side, @cos, @sin =
         %i[to_x to_y side cos sin].map { |n| b.var(:"_dying_#{n}", 0.0) }
       @now, @turned, @held, @spot = %i[now turned held spot].map { |n| b.var(:"_dying_#{n}", 0) }
-      @was = b.var :_dying_was, 0 # on a line of its own, since a list would move this name to @now
+      @was = 0 # on a line of its own, since a list would move this name to @now
 
       @dots = Fizzle.new(build: b, name: :dying, colour: Palette.game[INK])
       declare_the_scattering

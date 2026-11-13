@@ -103,7 +103,7 @@ class TestEndOfFloor < Minitest::Test
     run = finish_floor
 
     assert_equal [0, 0, 0], run.then { [_1[:_kill_ratio], _1[:_secret_ratio], _1[:_treasure_ratio]] }
-    assert_equal 0, run[:_tally_bonus]
+    assert_equal 0, run[:tally_bonus]
   end
 
   # --- the bonus ---
@@ -113,12 +113,12 @@ class TestEndOfFloor < Minitest::Test
     one = finish_floor(kills: 3, kill_total: 3, treasures: 1, treasure_total: 2)
     all = finish_floor(kills: 3, kill_total: 3, secrets: 2, secret_total: 2, treasures: 2, treasure_total: 2)
 
-    assert_equal 10_000, one[:_tally_bonus]
-    assert_equal 30_000, all[:_tally_bonus]
+    assert_equal 10_000, one[:tally_bonus]
+    assert_equal 30_000, all[:tally_bonus]
   end
 
   def test_ninety_nine_per_cent_earns_nothing
-    assert_equal 0, finish_floor(treasures: 99, treasure_total: 100)[:_tally_bonus]
+    assert_equal 0, finish_floor(treasures: 99, treasure_total: 100)[:tally_bonus]
   end
 
   # GivePoints, in LevelCompleted: the bonus is score like any other.
@@ -136,7 +136,7 @@ class TestEndOfFloor < Minitest::Test
   def test_the_screen_waits
     run = finish_floor(frames: 200)
 
-    assert_equal 1, run[:_tally_showing]
+    assert_equal 1, run[:tally_showing]
     assert_equal 0, run[:trail], "and the next floor has not been asked for"
   end
 
@@ -146,7 +146,7 @@ class TestEndOfFloor < Minitest::Test
     %i[a b].each do |button|
       run = finish_floor(pressing: press_on(COUNTED - 2, button: button))
 
-      assert_equal 0, run[:_tally_showing], "#{button} leaves the screen"
+      assert_equal 0, run[:tally_showing], "#{button} leaves the screen"
       assert_equal NEXT_FLOOR_STEPS, run[:trail], "and the next floor starts, once"
     end
   end
@@ -161,10 +161,10 @@ class TestEndOfFloor < Minitest::Test
     early = finish_floor(frames: LIFT_ARRIVES + 3, **floor)
     done = finish_floor(**floor)
 
-    assert_operator early[:_tally_shown_bonus], :>, 0, "the par bonus is climbing first"
-    assert_operator early[:_tally_shown_bonus], :<, 30_000
+    assert_operator early[:tally_shown_bonus], :>, 0, "the par bonus is climbing first"
+    assert_operator early[:tally_shown_bonus], :<, 30_000
     assert_equal 0, early[:_kill_shown], "and the kills wait their turn"
-    assert_equal 30_000, done[:_tally_shown_bonus]
+    assert_equal 30_000, done[:tally_shown_bonus]
     assert_equal [50, 50], [done[:_kill_shown], done[:_secret_shown]]
   end
 
@@ -172,8 +172,8 @@ class TestEndOfFloor < Minitest::Test
   def test_a_hundred_per_cent_lands_on_the_bonus_as_its_figure_finishes
     floor = { kills: 1, kill_total: 1 }
 
-    assert_equal 0, finish_floor(frames: LIFT_ARRIVES + 5, **floor)[:_tally_shown_bonus]
-    assert_equal 10_000, finish_floor(**floor)[:_tally_shown_bonus]
+    assert_equal 0, finish_floor(frames: LIFT_ARRIVES + 5, **floor)[:tally_shown_bonus]
+    assert_equal 10_000, finish_floor(**floor)[:tally_shown_bonus]
   end
 
   # GivePoints comes after every figure, so the score does not move while they climb.
@@ -189,16 +189,16 @@ class TestEndOfFloor < Minitest::Test
   def test_a_press_during_the_count_finishes_it_and_stays
     run = finish_floor(pressing: press_on(LIFT_ARRIVES + 2), frames: LIFT_ARRIVES + 5, kills: 1, kill_total: 1)
 
-    assert_equal 1, run[:_tally_showing], "the screen is still up"
+    assert_equal 1, run[:tally_showing], "the screen is still up"
     assert_equal 100, run[:_kill_shown], "with every figure at its end"
-    assert_equal 10_000, run[:_tally_shown_bonus]
+    assert_equal 10_000, run[:tally_shown_bonus]
     assert_equal 10_000, run[:score], "and paid, as if it had counted all the way"
   end
 
   def test_a_second_press_leaves
     run = finish_floor(pressing: press_on(LIFT_ARRIVES + 2, LIFT_ARRIVES + 4), frames: LIFT_ARRIVES + 7)
 
-    assert_equal 0, run[:_tally_showing]
+    assert_equal 0, run[:tally_showing]
     assert_equal NEXT_FLOOR_STEPS, run[:trail]
   end
 
@@ -220,29 +220,29 @@ class TestEndOfFloor < Minitest::Test
   def test_the_seconds_left_of_par_are_worth_five_hundred_points_each
     run = finish_floor(played: 60 * SECONDS)
 
-    assert_equal 30, run[:_tally_time_left]
-    assert_equal 15_000, run[:_tally_bonus]
+    assert_equal 30, run[:tally_time_left]
+    assert_equal 15_000, run[:tally_bonus]
     assert_equal 15_000, run[:score]
   end
 
   # `TimeCount < par` is what the original tests, so par itself earns nothing and the last part of
   # a second is rounded away from what you took: a whole second is left until par has arrived.
   def test_par_itself_earns_nothing_and_a_tic_under_it_earns_a_second
-    assert_equal 0, finish_floor(played: 90 * SECONDS)[:_tally_time_left]
-    assert_equal 1, finish_floor(played: (90 * SECONDS) - 1)[:_tally_time_left]
+    assert_equal 0, finish_floor(played: 90 * SECONDS)[:tally_time_left]
+    assert_equal 1, finish_floor(played: (90 * SECONDS) - 1)[:tally_time_left]
   end
 
   def test_a_slow_floor_earns_nothing_and_takes_nothing_away
     run = finish_floor(played: 200 * SECONDS, kills: 1, kill_total: 1)
 
-    assert_equal 10_000, run[:_tally_bonus]
+    assert_equal 10_000, run[:tally_bonus]
   end
 
   # parTimes, in wl_inter.cpp, by episode and floor: the first floor with a par, the last and
   # longest, the shortest, and one from the middle.
   def test_par_is_the_originals_for_each_floor
     { 0 => 90, 15 => 360, 33 => 60, 57 => 510 }.each do |index, par|
-      assert_equal 1, finish_floor(index: index, played: (par * SECONDS) - 1)[:_tally_time_left], "floor #{index}"
+      assert_equal 1, finish_floor(index: index, played: (par * SECONDS) - 1)[:tally_time_left], "floor #{index}"
     end
   end
 
@@ -252,8 +252,8 @@ class TestEndOfFloor < Minitest::Test
     run = finish_floor(index: 57, played: 0, kills: 1, kill_total: 1, secrets: 1, secret_total: 1,
                        treasures: 1, treasure_total: 1)
 
-    assert_equal 285_000, run[:_tally_bonus]
-    assert_equal 285_000, run[:_tally_shown_bonus]
+    assert_equal 285_000, run[:tally_bonus]
+    assert_equal 285_000, run[:tally_shown_bonus]
   end
 
   # sec > 99 * 60 is held there. The time shown and the record that goes to the screen at the end
@@ -261,12 +261,12 @@ class TestEndOfFloor < Minitest::Test
   def test_the_clock_stops_at_ninety_nine_minutes
     run = finish_floor(played: 40_000)
 
-    assert_equal 9, run[:_tally_minutes], "forty thousand seventieths is nine minutes thirty-one"
-    assert_equal 31, run[:_tally_seconds]
+    assert_equal 9, run[:tally_minutes], "forty thousand seventieths is nine minutes thirty-one"
+    assert_equal 31, run[:tally_seconds]
 
     capped = finish_floor(played: 100 * 60 * SECONDS, frames: LIFT_ARRIVES + 2)
-    assert_equal 99, capped[:_tally_minutes]
-    assert_equal 0, capped[:_tally_seconds]
+    assert_equal 99, capped[:tally_minutes]
+    assert_equal 0, capped[:tally_seconds]
   end
 
   # --- a floor from the ninth on has no figures ---
@@ -275,13 +275,13 @@ class TestEndOfFloor < Minitest::Test
     run = finish_floor(index: 9, frames: LIFT_ARRIVES + 2)
 
     assert_equal 15_000, run[:score]
-    assert_equal 15_000, run[:_tally_shown_bonus]
+    assert_equal 15_000, run[:tally_shown_bonus]
   end
 
   def test_one_press_leaves_a_secret_floor
     run = finish_floor(index: 9, pressing: press_on(LIFT_ARRIVES + 2), frames: LIFT_ARRIVES + 5)
 
-    assert_equal 0, run[:_tally_showing]
+    assert_equal 0, run[:tally_showing]
   end
 
   # IN_StartAck: a button already down as the screen starts does not count, or a player with a
@@ -289,7 +289,7 @@ class TestEndOfFloor < Minitest::Test
   def test_a_button_held_from_before_does_not_move_on
     run = finish_floor(pressing: ->(_) { [:b] })
 
-    assert_equal 1, run[:_tally_showing]
+    assert_equal 1, run[:tally_showing]
   end
 
   # gamestate.oldscore = gamestate.score comes AFTER LevelCompleted, so the bonus is safe: dying

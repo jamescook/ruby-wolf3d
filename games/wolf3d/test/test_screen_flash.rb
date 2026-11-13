@@ -35,22 +35,22 @@ class TestScreenFlash < Minitest::Test
   def played(frames, &keys) = Reference.new.input_each_frame(&keys).run(program, frames: frames)
 
   def test_nothing_is_showing_to_begin_with
-    assert_equal 0, played(5) { [] }[:_flash_shown]
+    assert_equal 0, played(5) { [] }[:screen_flash_shown]
   end
 
   # A hit of 25 is 25 / 10 + 1, the third red.
   def test_a_hit_shows_a_red_by_how_hard_it_was
-    assert_equal 3, played(4) { |f| f == 2 ? [:a] : [] }[:_flash_shown]
+    assert_equal 3, played(4) { |f| f == 2 ? [:a] : [] }[:screen_flash_shown]
   end
 
   # 0x10894 ADDS, so a second hit stacks on the first, and six is as far as it goes.
   def test_hits_stack_and_stop_at_the_sixth_red
-    assert_equal 6, played(8) { |f| [2, 4, 6].include?(f) ? [:a] : [] }[:_flash_shown]
+    assert_equal 6, played(8) { |f| [2, 4, 6].include?(f) ? [:a] : [] }[:screen_flash_shown]
   end
 
   # 18 / 6 + 1 is four, which is held to the third gold, numbered after the six reds.
   def test_a_pickup_shows_the_third_gold
-    assert_equal Flash::REDS.length + 3, played(4) { |f| f == 2 ? [:b] : [] }[:_flash_shown]
+    assert_equal Flash::REDS.length + 3, played(4) { |f| f == 2 ? [:b] : [] }[:screen_flash_shown]
   end
 
   # 0x10889 SETS, so a second pickup restarts the count rather than lengthening it.
@@ -58,15 +58,15 @@ class TestScreenFlash < Minitest::Test
     one = played(6) { |f| f == 2 ? [:b] : [] }
     two = played(6) { |f| [2, 4].include?(f) ? [:b] : [] }
 
-    assert_equal Flash::BONUS_COUNT - (Wolf3D::Enemy::SIXTHS_A_PASS * 3), two[:_flash_bonus], "three passes since the second"
-    assert_operator two[:_flash_bonus], :>, one[:_flash_bonus]
+    assert_equal Flash::BONUS_COUNT - (Wolf3D::Enemy::SIXTHS_A_PASS * 3), two[:screen_flash_bonus], "three passes since the second"
+    assert_operator two[:screen_flash_bonus], :>, one[:screen_flash_bonus]
   end
 
   # A MENU OPENS OVER A CLEAN PICTURE, and it opens with one of these still running.
   def test_the_flash_is_put_away_at_once
     run = Reference.new.input_each_frame { |f| f == 2 ? [:a] : (f == 4 ? [:start] : []) }.run(finishing, frames: 6)
 
-    assert_equal 0, run[:_flash_shown]
+    assert_equal 0, run[:screen_flash_shown]
   end
 
   def finishing
@@ -83,13 +83,13 @@ class TestScreenFlash < Minitest::Test
   end
 
   def test_red_wins_when_both_are_running
-    assert_operator played(5) { |f| f == 2 ? %i[a b] : [] }[:_flash_shown], :<=, Flash::REDS.length
+    assert_operator played(5) { |f| f == 2 ? %i[a b] : [] }[:screen_flash_shown], :<=, Flash::REDS.length
   end
 
   def test_a_flash_runs_out_and_the_screen_comes_back
     run = played(60) { |f| f == 2 ? [:a] : [] }
 
-    assert_equal 0, run[:_flash_shown]
+    assert_equal 0, run[:screen_flash_shown]
     assert_equal GROUND, run.screen.pixel(4, 4)
   end
 
@@ -113,7 +113,7 @@ class TestScreenFlash < Minitest::Test
     program = view_of(arena(guards: [[11, 8, :west]]), drawing: false)
     hit = (20..300).step(4).find { |n| Reference.new.run(program, frames: n)[:health] < Wolf3D::FirstPerson::START_HEALTH }
 
-    assert_operator Reference.new.run(program, frames: hit)[:_flash_shown], :>, 0
+    assert_operator Reference.new.run(program, frames: hit)[:screen_flash_shown], :>, 0
   end
 
   def test_walking_onto_a_key_flashes_gold
@@ -121,6 +121,6 @@ class TestScreenFlash < Minitest::Test
                     .run(view_of(arena(things: { [9, 8] => Wolf3D::Level::KEYS.key(:gold), [13, 3] => a_guard(:south) }),
                                  drawing: false), frames: 20)
 
-    assert_operator run[:_flash_bonus], :>, 0
+    assert_operator run[:screen_flash_bonus], :>, 0
   end
 end

@@ -32,6 +32,8 @@ module Wolf3D
   # THERE IS NO KICK AND NO FISTS, which is the thing everyone half remembers. The knife IS the
   # melee, and it is weapon one. Doom has the fists.
   class Weapons
+    game_variables :next, :acted, saved: false
+
     KNIFE = 0
     PISTOL = 1
     MACHINE_GUN = 2
@@ -180,8 +182,8 @@ module Wolf3D
       @wait = @lasting.var :weapon_wait, 0
       # ...and which stage comes next, worked out before the stage acts so that an automatic can
       # send itself back a step from inside its own arm.
-      @next = b.var :_weapon_next, 0
-      @acted = b.var :_weapon_acted, 0
+      @next = 0
+      @acted = 0
 
       declare_the_picture
     end

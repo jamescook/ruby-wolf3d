@@ -44,7 +44,7 @@ module Wolf3D
     # frames on a cartridge and one anywhere else. Counted in passes, what it does is the same on every
     # way of running. A flag that flips every pass says when one has gone by. The world stands still
     # for the lift, so this many frames with no flip counts as a pass as well.
-    PASS_FLAG = :_gturn
+    PASS_FLAG = :guard_mind_turn
     MOST_FRAMES_A_PASS = 8
 
     # The original's four settings, top row first (gd_baby and the rest, in wl_def.h).
@@ -88,7 +88,7 @@ module Wolf3D
     # What to hold for the next frame, or :done on the screen that says you won.
     def buttons_for(game)
       @frame += 1
-      screen = game.var(:screen)
+      screen = game.var(:menus_screen)
       return finish_run(won: true) if screen == Menus::WINNING
       return menu_buttons(screen) unless screen == Menus::PLAYING
       return press_periodically(:a) if tally_showing?(game)
@@ -118,7 +118,7 @@ module Wolf3D
     # page of the article, which a person reads before pressing on, and a name for the table if the
     # run earned a row.
     def ending_buttons(game)
-      screen = game.var(:screen)
+      screen = game.var(:menus_screen)
       return name_buttons if screen == Menus::NAMING
       return :done unless [Menus::WINNING, Menus::ARTICLE].include?(screen)
 
@@ -151,7 +151,7 @@ module Wolf3D
 
     # A cartridge of one floor has no screen between floors.
     def tally_showing?(game)
-      game.var(:_tally_showing) != 0
+      game.var(:tally_showing) != 0
     rescue ArgumentError
       false
     end

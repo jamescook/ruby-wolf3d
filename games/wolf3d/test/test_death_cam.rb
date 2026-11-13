@@ -30,8 +30,8 @@ class TestDeathCam < Minitest::Test
   def test_the_body_lies_there_and_the_world_stops
     run = played(frames: DOWN)
 
-    assert_equal Cam::FIRST_HOLD, run[:_cam_stage]
-    assert_equal 1, run[:_cam_holding]
+    assert_equal Cam::FIRST_HOLD, run[:death_cam_stage]
+    assert_equal 1, run[:death_cam_holding]
   end
 
   # THE VIEW FIZZLING OVER TO THE GROUND THE WORDS STAND ON, which is the FizzleFade A_StartDeathCam does
@@ -40,14 +40,14 @@ class TestDeathCam < Minitest::Test
     run = played(frames: DOWN + Cam::HOLD + (Fizzle::FRAMES / 2))
     ground = (0...Fizzle::ACROSS).count { |x| run.screen.pixel(x, 20) == palette[Cam::GROUND] }
 
-    assert_equal Cam::FIZZLING, run[:_cam_stage]
+    assert_equal Cam::FIZZLING, run[:death_cam_stage]
     assert_includes (1...Fizzle::ACROSS), ground, "part of a row, not none and not all"
   end
 
   def test_then_the_game_says_lets_see_that_again
     run = played(frames: WORDS_UP)
 
-    assert_equal Cam::WORDS, run[:_cam_stage]
+    assert_equal Cam::WORDS, run[:death_cam_stage]
     assert_equal palette[Cam::GROUND], run.screen.pixel(2, 2), "the view has gone"
     refute_equal palette[Cam::GROUND], run.screen.pixel(2, Wolf3D::FirstPerson::VIEW_H), "and the bar stays"
   end
@@ -57,7 +57,7 @@ class TestDeathCam < Minitest::Test
     run = played(frames: words_gone, walking: true)
     boss_x = run.pool(:guard, :x).compact.first
 
-    assert_equal Cam::REPLAY, run[:_cam_stage]
+    assert_equal Cam::REPLAY, run[:death_cam_stage]
     assert_in_delta boss_x - Cam::FIRST_TRY, run[:px], 0.01, "he fell east of the spot you shot from"
     assert_equal 0, run[:view], "so you look east"
   end
@@ -65,7 +65,7 @@ class TestDeathCam < Minitest::Test
   def test_a_press_cuts_the_words_short
     run = played(frames: WORDS_UP + 12) { |f| f == WORDS_UP + 6 ? [:a] : [] }
 
-    assert_equal Cam::REPLAY, run[:_cam_stage]
+    assert_equal Cam::REPLAY, run[:death_cam_stage]
   end
 
   def test_he_falls_again_and_you_cannot_move
@@ -111,7 +111,7 @@ class TestDeathCam < Minitest::Test
   def test_start_does_nothing_while_it_runs
     run = played(frames: DOWN + 8, menus: true) { |f| f == DOWN + 4 ? [:start] : [] }
 
-    assert_equal Wolf3D::Menus::PLAYING, run[:screen]
+    assert_equal Wolf3D::Menus::PLAYING, run[:menus_screen]
   end
 
   private

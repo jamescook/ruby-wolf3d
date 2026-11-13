@@ -17,6 +17,9 @@ module Wolf3D
   # in as well, but it is a fizzle to a whole new picture rather than to one colour, so here the
   # picture simply changes. See Fizzle.
   class DeathCam
+    game_variables :showing_words, :count, :boss, :blink, :boss_x, :boss_y, :dx, :dy, :best, :this, :far,
+                   :angle, :done, :stage, :holding, saved: false
+
     # WHERE IT HAS GOT TO. Nought is that nothing is happening, and it is what the menus read.
     NOT_RUNNING = 0
     FIRST_HOLD = 1 # the body lies there a moment, with the world stopped
@@ -122,23 +125,23 @@ module Wolf3D
 
     def declare
       b = @b
-      @stage = b.var :_cam_stage, NOT_RUNNING
-      @holding = b.var :_cam_holding, 0
-      @showing_words = b.var :_cam_words, 0
-      @count = b.var :_cam_count, 0
-      @boss = b.var :_cam_boss, 0
-      @blink = b.var :_cam_blink, 0
+      @stage = NOT_RUNNING
+      @holding = 0
+      @showing_words = 0
+      @count = 0
+      @boss = 0
+      @blink = 0
       @kill_x = @lasting.var :kill_x, 0.0
       @kill_y = @lasting.var :kill_y, 0.0
-      @boss_x = b.var :_cam_boss_x, 0.0
-      @boss_y = b.var :_cam_boss_y, 0.0
-      @dx = b.var :_cam_dx, 0.0
-      @dy = b.var :_cam_dy, 0.0
-      @best = b.var :_cam_best, 0.0
-      @this = b.var :_cam_this, 0.0
-      @far = b.var :_cam_far, 0.0
-      @angle = b.var :_cam_angle, 0
-      @done = b.var :_cam_done, 0
+      @boss_x = 0.0
+      @boss_y = 0.0
+      @dx = 0.0
+      @dy = 0.0
+      @best = 0.0
+      @this = 0.0
+      @far = 0.0
+      @angle = 0
+      @done = 0
       @picture = b.keep_showing(:death_cam_words) { paint }
       @dots = Fizzle.new(build: b, name: :cam, colour: Palette.game[GROUND])
       b.func(:death_cam_fizzle) { @dots.scatter_dots }

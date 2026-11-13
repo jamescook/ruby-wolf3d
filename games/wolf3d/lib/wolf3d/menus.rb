@@ -26,6 +26,11 @@ module Wolf3D
   # not play a shot. The blink is here, because the blink is what makes the selector read as a
   # gun rather than an arrow.
   class Menus
+    # None is in a saved game. The screen lasts, but loading is done from a menu and goes straight
+    # into the game, so a save has no use for which menu was up.
+    game_variables :scores_lead_to, :waited, :blink, :song_wanted, :screen, :going_to, :pan, :in_game,
+                   :start_floor, saved: false
+
     # WHICH SCREEN YOU ARE ON, in the order you meet them. The game is the last of them, which
     # is the point: it is a screen like the others.
     NOTICE = 0      # the rating box, shown once at boot
@@ -212,7 +217,7 @@ module Wolf3D
     def update
       @b.call :choose_music if @music
       pairs = screens
-      @b.case_var(:screen) { pairs.each { |state, scene| when_val state, scene } }
+      @b.case_var(:menus_screen) { pairs.each { |state, scene| when_val state, scene } }
     end
 
     # EVERY SCREEN THIS CARTRIDGE HAS, and the episode list is only one of them when there is
@@ -246,7 +251,7 @@ module Wolf3D
       return unless @music
 
       table = @b.table :screen_song, screen_songs, width: :byte
-      @song_wanted = @b.var :_song_wanted, 0
+      @song_wanted = 0
       @b.func(:choose_music, fast: false) do
         @song_wanted = table[@screen]
         song_for_the_attract_loop if @screen == SCORES
@@ -285,24 +290,24 @@ module Wolf3D
       check_start_screen!
       declare_lettering
       declare_art
-      @screen = @b.var :screen, @starting_on
+      @screen = @starting_on
       # Where the table goes back to, and whether it moves on by itself as it does in the attract loop.
-      @scores_lead_to = @b.var :_scores_lead_to, TITLE
+      @scores_lead_to = TITLE
       declare_music
       # How long the screen you are on has been up, and where a fade is taking you. A fade is
       # running exactly while the second one holds a screen number rather than nothing.
-      @waited = @b.var :_screen_waited, 0
-      @going_to = @b.var :_screen_going_to, NOWHERE
-      @blink = @b.var :_menu_blink, 0
+      @waited = 0
+      @going_to = NOWHERE
+      @blink = 0
       # How far the window has drifted across a picture wider than the screen, in pairs of
       # pixels — which is the only step this screen can be drawn at.
-      @pan = @b.var :_screen_pan, 0
+      @pan = 0
       # Whether there is a game behind the menu, which is what makes the main menu a pause
       # menu: it decides what two of its rows say and what they do.
-      @in_game = @b.var :_in_game, 0
+      @in_game = 0
       # WHICH FLOOR A GAME WILL START ON, set by the episode list. Nothing else writes it, so a
       # cartridge with no episode list to show simply starts on the first floor it holds.
-      @start_floor = @b.var :_start_floor, 0
+      @start_floor = 0
       # HOW TOUGH YOU SAID YOU WERE, which this screen only WRITES. It belongs to the world —
       # which guards a floor stands up and what a shot takes off you both read it — so the view
       # declares it and this asks the view for it.

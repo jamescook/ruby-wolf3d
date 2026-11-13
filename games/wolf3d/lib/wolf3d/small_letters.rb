@@ -6,6 +6,8 @@ module Wolf3D
   # time at a place worked out as the game runs. Every letter is made up to an even width, because a
   # picture here can only start on an even column.
   class SmallLetters
+    game_variables :code, :half_x, :y, saved: false
+
     # A BLANK IS AS WIDE AS A THIN LETTER.
     BLANK_WIDTH = 6
     FIRST_CODE = 32
@@ -55,9 +57,9 @@ module Wolf3D
     def declare
       @widths = @pictures.declare(@ink, @ground)
       @width_table = @b.table :small_letter_width, (0..LAST_CODE).map { |code| @widths[code] || BLANK_WIDTH }, width: :byte
-      @code = @b.var :_small_letter_code, 0
-      @half_x = @b.var :_small_letter_half_x, 0
-      @y = @b.var :_small_letter_y, 0
+      @code = 0
+      @half_x = 0
+      @y = 0
       @b.func(:draw_small_letter, fast: false) do
         @widths.each_key { |code| @b.blit SmallLetterPictures.name_of(code), @half_x * 2, @y if @code == code }
       end

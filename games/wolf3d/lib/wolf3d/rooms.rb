@@ -39,6 +39,8 @@ module Wolf3D
   # changed. That was worth believing until it was measured: noticing is one comparison inside a
   # walk the doors were doing anyway.
   class Rooms
+    game_variables :worked_out_for, :changed, saved: false
+
     # 0 IS NOT A ROOM. A wall belongs to none, and neither does a doorway or one of the ambush
     # cells the game marks with a code of its own — so every room is stored one higher and nought
     # is left to mean "nowhere in particular". Nought is always open, so anything standing on such
@@ -176,8 +178,8 @@ module Wolf3D
       # first frame of the game does the walk however it starts. Declared with those values rather
       # than assigned them, because a variable's starting value is applied once at boot wherever
       # it is written.
-      @worked_out_for = b.var(:_room_worked_out_for, -1)
-      @changed = b.var(:_room_changed, 1)
+      @worked_out_for = -1
+      @changed = 1
       declare_the_fill
     end
 

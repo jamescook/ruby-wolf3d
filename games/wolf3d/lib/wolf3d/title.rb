@@ -5,13 +5,15 @@ module Wolf3D
   # game shows, so it writes in the framework's own font rather than Wolfenstein's — the
   # alphabets are in VGAGRAPH, and there is no VGAGRAPH to read.
   class Title
+    game_variables :blink, saved: false
+
     BLINK_ON = 60
     BLINK_OFF = 120
 
     def initialize(build, data = nil)
       @build = build
       @data = data
-      @blink = build.var :_title_blink, 0
+      @blink = 0
     end
 
     def update

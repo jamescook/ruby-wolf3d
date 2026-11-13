@@ -76,8 +76,8 @@ class TestAdlibEffectsInPlay < Minitest::Test
     level = arena(player: [8, 8], ahead: [CLIP_PIECE])
     program = view_of(level, drawing: false, sounds_from: { adlib: adlib })
     walking = Reference.new.input_each_frame { [:up] }
-    fast = walking.run(program, frames: 40)[:_adlib_frames_left]
-    slow = Reference.new.input_each_frame { [:up] }.frames_each_pass { 3 }.run(program, frames: 22)[:_adlib_frames_left]
+    fast = walking.run(program, frames: 40)[:sounds_adlib_frames_left]
+    slow = Reference.new.input_each_frame { [:up] }.frames_each_pass { 3 }.run(program, frames: 22)[:sounds_adlib_frames_left]
 
     assert_operator fast, :>=, 0
     assert_operator slow, :>=, 0
