@@ -28,8 +28,16 @@ module Wolf3D
   class Menus
     # None is in a saved game. The screen lasts, but loading is done from a menu and goes straight
     # into the game, so a save has no use for which menu was up.
-    game_variables :scores_lead_to, :waited, :blink, :song_wanted, :screen, :going_to, :pan, :in_game,
-                   :start_floor, saved: false
+    #
+    # Which screen is up, and the one the high score table goes back to.
+    game_variables :screen, :scores_lead_to, saved: false
+    # The song the screen wants, which the music is handed every frame (#declare_music).
+    game_variables :song_wanted, saved: false
+    # The screen's own clock and look: frames it has been up, the screen a fade is taking you to,
+    # the selector gun's blink, and how far a wide picture has drifted (#show).
+    game_variables :waited, :going_to, :blink, :pan, saved: false
+    # The game behind the menus: whether there is one, and the floor a new one starts on.
+    game_variables :in_game, :start_floor, saved: false
 
     # WHICH SCREEN YOU ARE ON, in the order you meet them. The game is the last of them, which
     # is the point: it is a screen like the others.

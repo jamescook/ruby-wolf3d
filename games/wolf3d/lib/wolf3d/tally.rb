@@ -37,8 +37,14 @@ module Wolf3D
   # NOTHING SAYS TO PRESS A BUTTON, as nothing does in the original. See Menus: there is no "press
   # start" anywhere in Wolfenstein.
   class Tally
-    game_variables :stage, :row_pause, :shown_time_left, :showing, :bonus, :shown_bonus, :time_left,
-                   :minutes, :seconds, :ratios, :shown, saved: false
+    # Whether the screen is up, which figure is counting, and how many frames a row that has just
+    # arrived still holds.
+    game_variables :showing, :stage, :row_pause, saved: false
+    # What the floor earned, worked out as the screen goes up (LevelCompleted's bonus, timeleft and
+    # the three ratios), and the time it took.
+    game_variables :bonus, :time_left, :minutes, :seconds, :ratios, saved: false
+    # How far each climbing figure has got (#count_par, #count_ratio).
+    game_variables :shown_bonus, :shown_time_left, :shown, saved: false
 
     # The ground, the original's VIEWCOLOR out of its 256 (wl_menu.h), which the lettering's own
     # pictures are painted on. The ink is for a release with no lettering to read.
@@ -165,14 +171,17 @@ module Wolf3D
       @showing = 0
       @stage = COUNT_FINISHED
       @row_pause = 0
+
       @bonus = 0
-      @shown_bonus = 0
       @time_left = 0
-      @shown_time_left = 0
       @minutes = 0
       @seconds = 0
       @ratios = RATIOS.keys.to_h { |name| [name, 0] }
+
+      @shown_bonus = 0
+      @shown_time_left = 0
       @shown = RATIOS.keys.to_h { |name| [name, 0] }
+
       numbers = @floors.map { |floor| map_of(floor) + 1 }
       @floor_digits = numbers.max.to_s.length
       @floor_number = @b.table :tally_floor_number, numbers, width: :byte

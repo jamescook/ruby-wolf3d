@@ -23,7 +23,11 @@ module Wolf3D
   # Billboards#look_at_a_piece) rather than owning it. A floor drawn by nobody still has things to
   # pick up, which is what the tests of the doors and their keys rely on.
   class Pickups
-    game_variables :slot, :here, :piece, :kind, :amount, :took, saved: false
+    # What lies under your feet (#what_am_i_standing_on): the cell, the piece's number on this floor,
+    # and its place in every floor's tables.
+    game_variables :here, :piece, :slot, saved: false
+    # What it gives (#take_it): which kind, how much, and whether you took it.
+    game_variables :kind, :amount, :took, saved: false
 
     # THE KINDS, as numbers a table can hold. Everything about a pickup that the game reads as it
     # runs is one of these plus an amount.
@@ -276,10 +280,11 @@ module Wolf3D
       # number because that is what says whether it has been taken.
       @here = 0
       @piece = 0
+      @slot = 0
+
       @kind = 0
       @amount = 0
       @took = 0
-      @slot = 0
     end
 
     # WHAT THE PIECE UNDER YOUR FEET GIVES, one arm per kind. Each arm decides for itself whether

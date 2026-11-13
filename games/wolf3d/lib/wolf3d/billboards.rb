@@ -18,9 +18,29 @@ module Wolf3D
   # WHAT LIVES HERE AND WHAT DOES NOT: this puts things on the screen. Where a guard is going
   # and what he is thinking about is the mind's business, and the view's own business is walls.
   class Billboards
-    game_variables :shape, :s0, :rx, :ry, :fwd, :sideways, :scale, :tex, :tstep, :pose, :pfirst, :plast,
-                   :tcol, :cx, :theight, :ttop, :ptop, :pbottom, :band_top, :band_bottom, :lstrip, :s1,
-                   :tstrip, :seen, :at, :shows, saved: false
+    # WORKING ROOM, every name below: one frame's, and given its first number in
+    # #declare_the_scratch in the same groups.
+    #
+    # Where a thing stands from the eye (#place, #size_it_on_screen): its offset from the player,
+    # how far in front and to the side that comes to, and the size one over that distance gives.
+    # wolf4sdl: wl_draw.cpp, TransformActor's gx/gy, nx/ny and scale.
+    game_variables :rx, :ry, :fwd, :sideways, :scale, saved: false
+    # What one thing comes to on screen, which the queue keeps (#size_it_on_screen, #pick_a_pose):
+    # its picture, which of eight ways round it shows, where it lands across, how tall it stands
+    # and its top row. wolf4sdl: wl_draw.cpp, visobj_t's shapenum, viewx and viewheight.
+    game_variables :shape, :pose, :cx, :theight, :ttop, saved: false
+    # The strips of the screen its square covers, and whether any of them is in front of the walls
+    # (#covers_any_strips, #in_front_of_the_walls). +shows+ outlives the frame's drawing: a guard
+    # reads it to know he was seen.
+    game_variables :lstrip, :s0, :s1, :shows, saved: false
+    # The queue, furthest first (#add_it_to_the_queue, #draw_the_queue): how many are in it, and
+    # the slot being moved along.
+    game_variables :seen, :at, saved: false
+    # Drawing one thing (#read_the_shape, #any_of_it_on_screen, #draw_the_strips, #draw_a_strip):
+    # the picture's first and last columns and rows that hold anything, the rows of the screen
+    # those come to, and the walk across the picture strip by strip.
+    game_variables :pfirst, :plast, :ptop, :pbottom, :band_top, :band_bottom, :tex, :tstep, :tstrip, :tcol,
+                   saved: false
 
     # HOW FAR FORWARD A STANDING THING IS NUDGED before its distance is used. A guard stands in
     # the middle of his cell, so half of him is in the cell behind — which can be a wall, and
@@ -200,32 +220,41 @@ module Wolf3D
     # reads are twenty variables' worth of room the ray walk does not get. It measured as a
     # frame's worth of difference on a floor with nothing standing in it.
     def declare_the_scratch
+      # Where it stands from the eye.
       @rx = 0.0
       @ry = 0.0
       @fwd = 0.0
       @sideways = 0.0
       @scale = 0.0
-      @tex = 0.0
-      @tstep = 0.0
-      @pose = 0
-      @pfirst = 0
-      @plast = 0
-      @tcol = 0
+
+      # What it comes to on screen.
       @shape = 0
+      @pose = 0
       @cx = 0
       @theight = 0
       @ttop = 0
+
+      # The strips it covers.
+      @lstrip = 0
+      @s0 = 0
+      @s1 = 0
+      @shows = 0
+
+      # The queue.
+      @seen = 0
+      @at = 0
+
+      # Drawing it.
+      @pfirst = 0
+      @plast = 0
       @ptop = 0
       @pbottom = 0
       @band_top = 0
       @band_bottom = 0
-      @lstrip = 0
-      @s1 = 0
+      @tex = 0.0
+      @tstep = 0.0
       @tstrip = 0
-      @s0 = 0
-      @seen = 0
-      @at = 0
-      @shows = 0
+      @tcol = 0
     end
 
 

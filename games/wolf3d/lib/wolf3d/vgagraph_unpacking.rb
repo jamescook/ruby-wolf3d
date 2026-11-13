@@ -19,8 +19,21 @@ module Wolf3D
   # branch in it, and a number one method sets and another reads, or a loop changes, is one of
   # its game_variables.
   class VgagraphUnpacking
-    game_variables :quarter, :plane_places, :low, :chunk_start, :chunk_length, :packed_at, :made, :node, :bits,
-                   :branch, :above, :below, :best, :best_row, :written, :gap_sum
+    # The Huffman walk through one chunk (#unpack_chunk; wolf4sdl: id_ca.cpp, CAL_HuffExpand): where
+    # the chunk starts in VGAGRAPH and how many bytes it unpacks to, the next packed byte and how
+    # many bytes it has made, the node of the tree it stands at, the packed byte being read a bit at
+    # a time, and the branch that bit takes.
+    game_variables :chunk_start, :chunk_length, :packed_at, :made, :node, :bits, :branch
+    # Putting a chunk's bytes in place: a picture's quarter width and the places in each of its four
+    # planes (#unpack_job, #put_picture_byte), and the low byte of a size in the picture table, kept
+    # until its high byte comes (#put_size_byte).
+    game_variables :quarter, :plane_places, :low
+    # Making a picture shorter (#shorten_screen): the smallest gap found so far and its row, the
+    # next kept row below the one taken out and the kept row above that, and how many rows have been
+    # written out.
+    game_variables :best, :best_row, :below, :above, :written
+    # #row_gap's running sum.
+    game_variables :gap_sum
 
     PICTURES = Holding::VGA_PICTURES
     LENGTH_BYTES = Vgagraph::LENGTH_BYTES
@@ -125,9 +138,6 @@ module Wolf3D
       @graph = @copy.file("VGAGRAPH.#{@release}")
       @dictionary = @copy.file("VGADICT.#{@release}")
       @job = Job.new(0, 0, 0, 0, 0, 0)
-      @quarter = 0
-      @plane_places = 0
-      @low = 0
       @chunk_start = 0
       @chunk_length = 0
       @packed_at = 0
@@ -135,11 +145,17 @@ module Wolf3D
       @node = 0
       @bits = 0
       @branch = 0
-      @above = 0
-      @below = 0
+
+      @quarter = 0
+      @plane_places = 0
+      @low = 0
+
       @best = 0
       @best_row = 0
+      @below = 0
+      @above = 0
       @written = 0
+
       @gap_sum = 0
       unpack_chunks
       cut_glyphs

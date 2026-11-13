@@ -39,9 +39,20 @@ module Wolf3D
   # changed. That was worth believing until it was measured: noticing is one comparison inside a
   # walk the doors were doing anyway.
   class Rooms
+    # The room the player was last really standing in, which a saved game holds. wolf4sdl:
+    # wl_def.h, objtype's areanumber, on the player.
     game_variables :player_room
 
-    game_variables :worked_out_for, :changed, :room, :stood, :spread, :near, :far, saved: false
+    # Whether the open rooms need working out again (#refresh): the room they were last worked out
+    # for, and the flag a door or a floor start sets.
+    game_variables :worked_out_for, :changed, saved: false
+    # The room under a cell being asked about (#open_to_the_player?), and under the player's feet
+    # (#where_the_player_stands), which is nought in a doorway.
+    game_variables :room, :stood, saved: false
+    # The fill (#fill, #join): whether the last walk over the doors opened any room, and the two
+    # rooms a door joins. The original reaches the same answer by recursion over a table of which
+    # rooms each other room is joined to (wolf4sdl: wl_act1.cpp, ConnectAreas and RecursiveConnect).
+    game_variables :spread, :near, :far, saved: false
 
     # 0 IS NOT A ROOM. A wall belongs to none, and neither does a doorway or one of the ambush
     # cells the game marks with a code of its own — so every room is stored one higher and nought
@@ -170,11 +181,6 @@ module Wolf3D
       @open_room = b.list :_room_open, capacity: @count
       @count.times { @open_room << 0 }
 
-      @room = 0
-      @stood = 0
-      @spread = 0
-      @near = 0
-      @far = 0
       # THE ROOM THE PLAYER IS IN: the last one they were really standing in, which stays put
       # while they cross a doorway, because a doorway is in no room. A saved game holds it — see
       # #where_the_player_stands.
@@ -187,6 +193,13 @@ module Wolf3D
       # it is written.
       @worked_out_for = -1
       @changed = 1
+
+      @room = 0
+      @stood = 0
+
+      @spread = 0
+      @near = 0
+      @far = 0
       declare_the_fill
     end
 

@@ -17,8 +17,13 @@ module Wolf3D
   class Dying
     game_variables state: :dying
 
-    game_variables :kill_x, :kill_y, :was, :to_x, :to_y, :side, :cos, :sin, :now, :turned, :held,
-                   saved: false
+    # Where whatever killed you stood (Died's killerobj), which the view turns to face.
+    game_variables :kill_x, :kill_y, saved: false
+    # #turn's bearing on him: where the eye points, the line to him, which side of the eye he is
+    # on, and that side as plus or minus one on this pass and the one before.
+    game_variables :cos, :sin, :to_x, :to_y, :side, :now, :was, saved: false
+    # How many passes the turn has taken, and how many the settled view has been drawn (#settle).
+    game_variables :turned, :held, saved: false
 
     # What the player is doing. Everything else in the game asks this before it moves.
     ALIVE = 0
@@ -163,15 +168,16 @@ module Wolf3D
 
       # WORKING ROOM. Each goes by a name of its own (dying_side), so it never takes the kind of
       # number another part's variable of the same name was given first.
+      @cos = 0.0
+      @sin = 0.0
       @to_x = 0.0
       @to_y = 0.0
       @side = 0.0
-      @cos = 0.0
-      @sin = 0.0
       @now = 0
+      @was = 0
+
       @turned = 0
       @held = 0
-      @was = 0
 
       @dots = Fizzle.new(build: b, colour: Palette.game[INK])
       declare_the_scattering

@@ -18,8 +18,17 @@ module Wolf3D
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
   # branch in it, and a number one method sets and another reads is one of its game_variables.
   class AdlibUnpacking
-    game_variables :written, :length, :room, :held, :from, :notes, :priority, :block,
-                   :clock, :sum, :in_sum, :tremor
+    # The effect being played (#render): how many samples of its room are written, how many reach
+    # its last sound, and how long the room is.
+    game_variables :written, :length, :room
+    # The effect's header in AUDIOT (#find; wolf4sdl: id_sd.h, AdLibSound's length, priority and
+    # block): whether this copy holds it, where it starts, how many notes it has, its priority and
+    # its octave.
+    game_variables :held, :from, :notes, :priority, :block
+    # The chip as it plays (#play_sample, #key_note): its samples so far, which time the tremolo,
+    # the sum of the samples being averaged and how many it holds, and how much quieter the tremolo
+    # makes an operator this tick.
+    game_variables :clock, :sum, :in_sum, :tremor
 
     # The effects held, in Sounds' order, by their numbers in AUDIOT.
     # Asked for as the routine is built, since Sounds loads after this file.
@@ -70,11 +79,13 @@ module Wolf3D
       @written = 0
       @length = 0
       @room = 0
+
       @held = false
       @from = 0
       @notes = 0
       @priority = 0
       @block = 0
+
       @clock = 0
       @sum = 0
       @in_sum = 0

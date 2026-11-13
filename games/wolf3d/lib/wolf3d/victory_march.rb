@@ -10,7 +10,14 @@ module Wolf3D
   # the way a rocket is, and he has no mind: only a list of pictures to go through, the last four of
   # which are the jump.
   class VictoryMarch
-    game_variables :x, :togo, :camera_stop, :cells, :pose, :ticks, :picture, :running, :y, saved: false
+    # Whether the march is running.
+    game_variables :running, saved: false
+    # BJ himself (wl_act2.cpp, T_BJRun): where he stands, how far to the middle of the next cell
+    # (ob->distance), how many cells he has left to run (ob->temp1), which row of POSES he is in and
+    # how long it has left, and the picture that row draws.
+    game_variables :x, :y, :togo, :cells, :pose, :ticks, :picture, saved: false
+    # How far the camera backs away before it stops (VictorySpin).
+    game_variables :camera_stop, saved: false
 
     # The pictures of him, in the order of the original's table: four running, four jumping.
     FIRST_PICTURE = 408
@@ -92,14 +99,17 @@ module Wolf3D
     def declare
       b = @b
       @running = 0
+
       @x = 0.0
       @y = 0.0
       @togo = 0.0
-      @camera_stop = 0.0
       @cells = 0
       @pose = 0
       @ticks = 0
       @picture = 0
+
+      @camera_stop = 0.0
+
       @south = FirstPerson::QUARTER
       @pose_picture = b.table :march_pose_picture, POSES.map { |pose| pose.picture + @first_picture }, width: :half
       @pose_ticks = b.table :march_pose_ticks, POSES.map { |pose| pose.ticks * Enemy::SIXTHS }, width: :half

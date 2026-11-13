@@ -19,8 +19,16 @@ module Wolf3D
   class DeathCam
     game_variables kill_x: :kill_x, kill_y: :kill_y
 
-    game_variables :showing_words, :count, :boss, :blink, :boss_x, :boss_y, :dx, :dy, :best, :this, :far,
-                   :angle, :done, :stage, :holding, saved: false
+    # Where it has got to, which the menus and the world read: the stage, whether the world stands
+    # still for it, whether the words are up, the passes left in this hold, and the pass count the
+    # banner flashes by.
+    game_variables :stage, :holding, :showing_words, :count, :blink, saved: false
+    # The boss who fell: his slot in the pool and where he lies.
+    game_variables :boss, :boss_x, :boss_y, saved: false
+    # #face_him_from_the_spot and #set_down_in_front_of_him (A_StartDeathCam's dx, dy, fangle and
+    # dist): the line to him, then the heading along it; the best heading so far and the one being
+    # tried; how far in front of him the view is set down, and whether that spot is clear of walls.
+    game_variables :dx, :dy, :best, :this, :angle, :far, :done, saved: false
 
     # WHERE IT HAS GOT TO. Nought is that nothing is happening, and it is what the menus read.
     NOT_RUNNING = 0
@@ -131,21 +139,25 @@ module Wolf3D
       @holding = 0
       @showing_words = 0
       @count = 0
-      @boss = 0
       @blink = 0
+
       @kill_x = 0.0
       @lasting.keep @kill_x
       @kill_y = 0.0
       @lasting.keep @kill_y
+
+      @boss = 0
       @boss_x = 0.0
       @boss_y = 0.0
+
       @dx = 0.0
       @dy = 0.0
       @best = 0.0
       @this = 0.0
-      @far = 0.0
       @angle = 0
+      @far = 0.0
       @done = 0
+
       @picture = b.keep_showing(:death_cam_words) { paint }
       @dots = Fizzle.new(build: b, colour: Palette.game[GROUND])
       b.func(:death_cam_fizzle) { @dots.scatter_dots }

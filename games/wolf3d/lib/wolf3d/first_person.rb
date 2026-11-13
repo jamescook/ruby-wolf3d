@@ -8,16 +8,45 @@ module Wolf3D
   # picture is stretched to it. Do that across the screen and a flat grid of cells looks like
   # rooms you can walk through.
   class FirstPerson
-    game_variables pulled: :lift_pulled, lift_secret: :lift_secret, lift_wait: :lift_wait,
-                   difficulty: :difficulty
+    # The lift: the lever cell pulled, whether it was the secret lift, the frames until the floor
+    # ends (#declare, #pull_the_lever).
+    game_variables pulled: :lift_pulled, lift_secret: :lift_secret, lift_wait: :lift_wait
+    # How tough the player chose to be, which the guards and the shots read (#declare).
+    game_variables difficulty: :difficulty
     # What this floor has to find, for the tally (#declare_what_there_is_to_find).
     game_variables kill_total: :kill_total, secret_total: :secret_total, treasure_total: :treasure_total
 
-    game_variables :ang, :walked, :eye_cell, :dist, :nx, :ny, :hit, :wall, :cell, :colh, :top, :stepmx,
-                   :stepmy, :side, :dx, :dy, :deltax, :deltay, :sidex, :sidey, :depth, :wallx, :eyex, :eyey,
-                   :fracx, :fracy, :backx, :backy, :foot, :here, :can, :spot, :stepx, :stepy, :isdoor,
-                   :door, :edge, :slot, :wait, :mid, :slid, :swing, :push, :pcell, :ahead, :want, :gone,
-                   :across, :along, saved: false
+    # WORKING ROOM, every name below: set, read and finished with inside one step of one frame. Each
+    # line is one job's; #declare_the_scratch gives each its first number, in the same groups.
+    #
+    # Where the eye stands, the same for every ray of a view (#where_the_eye_stands): its cell, and
+    # how far through that cell it is and how far is left. wolf4sdl: wl_draw.cpp, CalcViewVariables'
+    # focaltx/focalty and WallRefresh's xpartialdown/xpartialup and ypartialdown/ypartialup.
+    game_variables :eye_cell, :eyex, :eyey, :fracx, :fracy, :backx, :backy, saved: false
+    # One ray's walk from grid line to grid line (#cast): its angle and direction, the distance
+    # between crossings and to the next one of each kind, the cell it has reached, which way it
+    # crossed, whether it met something, and how far away that was, straight and corrected.
+    game_variables :ang, :dx, :dy, :deltax, :deltay, :sidex, :sidey, :stepmx, :stepmy, :walked, :cell,
+                   :side, :hit, :dist, :depth, saved: false
+    # The strip the ray draws (#draw_strip, #strip): which picture, whether it is a door's, where
+    # along the face the ray landed, and the column's height and top row.
+    game_variables :wall, :isdoor, :wallx, :colh, :top, saved: false
+    # A doorway along the ray (#meet_a_door): which door, the distance to its panel, whether the
+    # ray reached the panel inside the doorway, and how far the panel has slid.
+    game_variables :door, :mid, :edge, :slid, saved: false
+    # A push wall along the ray or under a foot (#meet_a_pushwall, #what_a_foot_finds): which one,
+    # and the cell it stands in now.
+    game_variables :push, :pcell, saved: false
+    # The player's move (#walk, #take_the_step, #free?): the step, where it would land, the cell
+    # there and what the map holds in it, whether it can be stood on, and the cell the player is in.
+    game_variables :stepx, :stepy, :nx, :ny, :spot, :foot, :can, :here, saved: false
+    # The use button (#open_a_door, #use_what_moves, #pull_the_lever, #shove_a_wall): the cell in
+    # front, the key a door wants, how much of the facing is east-west against north-south, and
+    # the door or push wall in hand. +slot+ also serves #what_a_foot_finds.
+    game_variables :ahead, :want, :across, :along, :slot, saved: false
+    # Each frame's moving walls and doors (#move_the_walls, #declare_door_movement): the count one
+    # is on, the cells a push wall has gone, and how far open a door is.
+    game_variables :wait, :gone, :swing, saved: false
 
     # These are the view the game should have, not the view that happens to fit a frame.
     # HOW THE SCREEN IS DIVIDED ACROSS, and the width is not a free choice — it is what the
@@ -917,38 +946,10 @@ module Wolf3D
     # A variable holds whole numbers unless it is declared with a fraction, so the split is not
     # a tidiness: it is the difference between a cell number and a place inside a cell.
     def declare_the_scratch
-      # THE RAY WALK. Where it points, how far along it from one grid line to the next, which
-      # cell it is in, and what it met.
-      @hit = 0
-      @wall = 0
-      @cell = 0
-      @colh = 0
-      @top = 0
-      @stepmx = 0
-      @stepmy = 0
-      @side = 0
-      @dx = 0.0
-      @dy = 0.0
-      @deltax = 0.0
-      @deltay = 0.0
-      @sidex = 0.0
-      @sidey = 0.0
-      @depth = 0.0
-      @wallx = 0.0
-
-      # EACH OF THESE IS GIVEN ANOTHER VARIABLE'S NUMBER, so each has a `var` line of its own. Only
-      # a name made on such a line takes the number. Made in a list like the ones above, `@a = @b`
-      # would move the name to @b, and nothing would say so.
-      @ang = 0
-      @walked = 0
-      @eye_cell = 0
-      @dist = 0.0
-      @nx = 0.0
-      @ny = 0.0
-
-      # ...AND WHERE THE EYE STANDS, which every ray needs and none of them can change: the cell
+      # WHERE THE EYE STANDS, which every ray needs and none of them can change: the cell
       # the player is in, how far through it they are, and how far it is to the far side. Worked
       # out once at the top of the view instead of sixty times inside it. See #where_the_eye_stands.
+      @eye_cell = 0
       @eyex = 0
       @eyey = 0
       @fracx = 0.0
@@ -956,35 +957,63 @@ module Wolf3D
       @backx = 0.0
       @backy = 0.0
 
-      # THE PLAYER'S FEET: what is under them, where a step would land, and whether it may.
-      @foot = 0
-      @here = 0
-      @can = 0
-      @spot = 0
-      @stepx = 0.0
-      @stepy = 0.0
+      # THE RAY WALK. Where it points, how far along it from one grid line to the next, which
+      # cell it is in, and what it met.
+      @ang = 0
+      @dx = 0.0
+      @dy = 0.0
+      @deltax = 0.0
+      @deltay = 0.0
+      @sidex = 0.0
+      @sidey = 0.0
+      @stepmx = 0
+      @stepmy = 0
+      @walked = 0
+      @cell = 0
+      @side = 0
+      @hit = 0
+      @dist = 0.0
+      @depth = 0.0
 
-      # DOORS. Which one, how far along its panel the ray landed, and how far it has slid.
-      # +slot+ and +wait+ are shared with the walls that move and with the keys — each is
-      # picked up and put down inside one step, so one of each is enough.
+      # The strip it draws.
+      @wall = 0
       @isdoor = 0
-      @door = 0
-      @edge = 0
-      @slot = 0
-      @wait = 0
-      @mid = 0.0
-      @slid = 0.0
-      @swing = 0.0
+      @wallx = 0.0
+      @colh = 0
+      @top = 0
 
-      # WALLS THAT MOVE: which one, where it is now, and which way the player is leaning on it.
+      # A doorway along the ray.
+      @door = 0
+      @mid = 0.0
+      @edge = 0
+      @slid = 0.0
+
+      # A push wall along the ray or under a foot.
       @push = 0
       @pcell = 0
+
+      # THE PLAYER'S FEET: where a step would land, what is under them, and whether it may.
+      @stepx = 0.0
+      @stepy = 0.0
+      @nx = 0.0
+      @ny = 0.0
+      @spot = 0
+      @foot = 0
+      @can = 0
+      @here = 0
+
+      # The use button. +slot+ is shared by the doors, the walls that move and the feet — each
+      # is picked up and put down inside one step, so one is enough.
       @ahead = 0
       @want = 0
-      @gone = 0
       @across = 0.0
       @along = 0.0
+      @slot = 0
 
+      # The doors and walls that move, each frame.
+      @wait = 0
+      @gone = 0
+      @swing = 0.0
     end
 
     # How long the lever stands pulled. The original plays the lift's own recording and then

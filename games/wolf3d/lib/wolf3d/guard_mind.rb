@@ -17,12 +17,59 @@ module Wolf3D
   # WHAT LIVES HERE AND WHAT DOES NOT: this decides where a guard is and which state he is in.
   # Drawing him is the view's business, and it reads the same pool.
   class GuardMind
-    game_variables :man_in_step, :man_nearby, :nearby_wait, :step_to_x, :step_to_y, :state, :dir, :try,
-                   :cellx, :celly, :way, :other, :held, :slant, :back, :dodging, :homex, :homey, :away,
-                   :target, :atx, :aty, :nearest, :fromx, :fromy, :man_x, :man_y, :shut_door, :line_end,
-                   :line_dir, :line_slope, :line_cross, :line_middle, :blocked, :boxx, :boxy, :boxsize,
-                   :turn, :job, :slot, :clear, :done, :ahead, :picked, :tx, :ty, :odds, :wound, :spot, :blow,
-                   :left, :dx, :dy, :absx, :absy, :far, :pace, :fwd, :sideways, saved: false
+    # Which half of the guards thinks this pass (#declare, guard_thinking).
+    game_variables :turn, saved: false
+    # The think under way: the state the guard began it in, the thinking job that state names
+    # (wl_play.cpp, DoActor's ob->state->think), and a number read out of the state table on its
+    # way into him: the attack he makes, the state he goes to, how long he takes to react.
+    game_variables :state, :job, :blow, saved: false
+    # Asked from all over the think. @dx and @dy are the player's offset from whoever is being
+    # measured (CheckSight's deltax/deltay); @clear is whether the last question asked (can he see
+    # you, is the line clear, is that cell open) came out yes.
+    game_variables :dx, :dy, :clear, saved: false
+    # #in_front: the way he faces, which decides the half of the floor he can see (CheckSight's
+    # switch on ob->dir).
+    game_variables :dir, saved: false
+    # wl_state.cpp, CheckLine (#cross_columns, #cross_rows): where the line starts, the column or
+    # row it ends in and which way it steps (xt2, xstep), its slope and where it crosses the next
+    # edge (ystep, yfrac), the part of the first cell before that edge (partial), the long axis
+    # the slope is measured along (deltafrac), and whether the walk is finished. #stop_line_at
+    # judges a door at the middle of its cell (intercept).
+    game_variables :fromx, :fromy, :line_end, :line_dir, :line_slope, :line_cross, :atx, :aty, :absx, :absy,
+                   :done, :line_middle, saved: false
+    # The cell being asked about, by the line walk, #cell_open and the box test: its column and row,
+    # its index in the map, what the map holds there, and the slot of the door or push wall in it.
+    # #measure_distance and #hit_the_target borrow @cellx and @celly for whole-cell distances.
+    game_variables :cellx, :celly, :spot, :ahead, :slot, saved: false
+    # TryWalk (#walk_if_clear, #check_diagonal_sides): the cell he stands in, and the door
+    # (slot + 1) a shut door in the way would have him wait at.
+    game_variables :homex, :homey, :shut_door, saved: false
+    # Choosing a way (SelectChaseDir, SelectDodgeDir, SelectRunDir): the player's offset in whole
+    # cells (deltax/deltay), the ways to try in order of preference (d[1], d[2] and the dodge's
+    # diagonal), the way back (turnaround), the way being tried and whether a try was taken.
+    # @held is #swap_dirs's spare hand. #cry_out and #how_long_to_react borrow @try.
+    game_variables :tx, :ty, :way, :other, :slant, :back, :try, :picked, :held, saved: false
+    # Walking: whether the next way is a sidestep rather than a chase, and how far he goes this
+    # think (MoveObj's move).
+    game_variables :dodging, :pace, saved: false
+    # Hurting the player (T_Shoot, T_Bite, TakeDamage): his distance in whole cells, the larger
+    # axis (dist), the chance out of 256 that the shot lands (hitchance), and what it takes off
+    # (damage). @away and @wound serve the player's own shot at a guard too.
+    game_variables :away, :odds, :wound, saved: false
+    # The player firing (wl_agent.cpp, GunAttack and KnifeAttack): the guard in the sights and how
+    # far in front he is (closest, viewdist), each guard's place along and across the line you look
+    # down, and what the one who falls leaves behind.
+    game_variables :target, :nearest, :fwd, :sideways, :left, saved: false
+    # Men in the player's way (wl_agent.cpp, TryMove's MINACTORDIST test): whether anybody was near
+    # at the last look and how many passes until the next, where the player wants to step, and
+    # whether a man is in that step.
+    game_variables :man_nearby, :nearby_wait, :step_to_x, :step_to_y, :man_in_step, saved: false
+    # Where a walking man will stand (#refuse_cell_of_standing), or the cell past a door
+    # (#play_door_sound).
+    game_variables :man_x, :man_y, saved: false
+    # #blocked_around: the box asked about and whether a corner of it is in something solid
+    # (ProjectileTryMove).
+    game_variables :boxx, :boxy, :boxsize, :blocked, saved: false
 
     # A guard walks from the middle of one cell to the middle of the next and never stops
     # between them, which is what makes "can he go that way" a question about a single cell.
@@ -283,61 +330,70 @@ module Wolf3D
 
     def declare_the_scratch
       b = @b
+      @state = 0
       @job = 0
-      @slot = 0
-      @clear = 0
-      @done = 0
-      @ahead = 0
-      @picked = 0
-      @tx = 0
-      @ty = 0
-      @odds = 0
-      @wound = 0
-      @spot = 0
       @blow = 0
-      @left = 0
+
       @dx = 0.0
       @dy = 0.0
-      @absx = 0.0
-      @absy = 0.0
-      @far = 0.0
-      @pace = 0.0
-      @fwd = 0.0
-      @sideways = 0.0
-      @man_in_step = 0
-      @man_nearby = 0
-      @nearby_wait = 0
-      @step_to_x = 0.0
-      @step_to_y = 0.0
+      @clear = 0
 
-      @state = 0
       @dir = 0
-      @try = 0
-      @cellx = 0
-      @celly = 0
-      @way = 0
-      @other = 0
-      @held = 0
-      @slant = 0
-      @back = 0
-      @dodging = 0
-      @homex = 0
-      @homey = 0
-      @away = 0
-      @target = 0
-      @atx = 0.0
-      @aty = 0.0
-      @nearest = 0.0
+
       @fromx = 0.0
       @fromy = 0.0
-      @man_x = 0.0
-      @man_y = 0.0
-      @shut_door = 0
       @line_end = 0
       @line_dir = 0
       @line_slope = 0.0
       @line_cross = 0.0
+      @atx = 0.0
+      @aty = 0.0
+      @absx = 0.0
+      @absy = 0.0
+      @done = 0
       @line_middle = 0.0
+
+      @cellx = 0
+      @celly = 0
+      @spot = 0
+      @ahead = 0
+      @slot = 0
+
+      @homex = 0
+      @homey = 0
+      @shut_door = 0
+
+      @tx = 0
+      @ty = 0
+      @way = 0
+      @other = 0
+      @slant = 0
+      @back = 0
+      @try = 0
+      @picked = 0
+      @held = 0
+
+      @dodging = 0
+      @pace = 0.0
+
+      @away = 0
+      @odds = 0
+      @wound = 0
+
+      @target = 0
+      @nearest = 0.0
+      @fwd = 0.0
+      @sideways = 0.0
+      @left = 0
+
+      @man_nearby = 0
+      @nearby_wait = 0
+      @step_to_x = 0.0
+      @step_to_y = 0.0
+      @man_in_step = 0
+
+      @man_x = 0.0
+      @man_y = 0.0
     end
 
     # ONE GUARD, ONE FRAME. Count his state down, move him on when it runs out, then let him

@@ -21,8 +21,19 @@ module Wolf3D
   # channels are written out nine times as the routine is built, since the routine has no lists of
   # variables, so each is its own variables.
   class MusicUnpacking
-    game_variables :written, :room, :held, :from, :writes, :tremolo_shift, :vibrato_shift, :steps, :dither,
-                   :limit, :scale, :tremor, :out
+    # The song being played (#render): how many samples of its room are written, and how long the
+    # room is.
+    game_variables :written, :room
+    # Where the song's track is in AUDIOT (#find): whether this copy holds it, where its writes
+    # start, and how many there are.
+    game_variables :held, :from, :writes
+    # What the whole chip shares, not one channel: how deep the tremolo and vibrato are (set by a
+    # write to Opl2Track::DEPTHS), the steps played since the song began, which time both, and how
+    # much quieter the tremolo makes an operator this tick (#start_tick).
+    game_variables :tremolo_shift, :vibrato_shift, :steps, :tremor
+    # Taking the nine channels' sum to a sample (#sample_of): the song's loudest sum, the scale that
+    # takes it to the loudest sample, and the dither's noise, drawn afresh for each sample.
+    game_variables :limit, :scale, :dither
 
     # The songs held, by their numbers in AUDIOT. Asked for as the routine is built, since Music
     # loads after this file.
@@ -59,7 +70,12 @@ module Wolf3D
     # gave (for feedback), and its two operators (Opl2Routine::Operator).
     Channel = Struct.new(:low_pitch, :high_pitch, :block, :key, :feedback, :additive, :last, :before_last,
                          :modulator, :carrier) do
-      game_variables :low_pitch, :high_pitch, :block, :key, :feedback, :additive, :last, :before_last
+      # What the track wrote to the channel's registers: its frequency number in two parts, its
+      # octave, whether its key is down, how much of the modulator feeds back into itself, and
+      # whether the two operators are heard added together rather than one bending the other.
+      game_variables :low_pitch, :high_pitch, :block, :key, :feedback, :additive
+      # The modulator's last two samples, which its feedback adds up.
+      game_variables :last, :before_last
     end
     CHANNEL_NUMBERS = %i[low_pitch high_pitch block key feedback additive last before_last].freeze
 
@@ -87,17 +103,19 @@ module Wolf3D
       @operators = @channels.flat_map { |channel| [channel.modulator, channel.carrier] }
       @written = 0
       @room = 0
+
       @held = false
       @from = 0
       @writes = 0
+
       @tremolo_shift = 0
       @vibrato_shift = 0
       @steps = 0
-      @dither = 0
+      @tremor = 0
+
       @limit = 0
       @scale = 0
-      @tremor = 0
-      @out = 0
+      @dither = 0
       @b.repeat(self.class.numbers.length) { |song| render(song) }
     end
 
@@ -273,21 +291,21 @@ module Wolf3D
 
     # Opl2Track::Channel#step.
     def step_channel(channel)
-      @out = 0
+      out = 0
       if channel.modulator.stage != Opl2::OFF
         bend = 0
         bend = (channel.last + channel.before_last) >> (Opl2Track::FEEDBACK_SHIFT - channel.feedback) if channel.feedback != 0
-        @out = @chip.step(channel.modulator, bend, @tremor)
+        out = @chip.step(channel.modulator, bend, @tremor)
         channel.before_last = channel.last
-        channel.last = @out
+        channel.last = out
       end
       heard = 0
       if channel.carrier.stage != Opl2::OFF
-        bend = @out
+        bend = out
         bend = 0 if channel.additive == 1
         heard = @chip.step(channel.carrier, bend, @tremor)
       end
-      heard += @out if channel.additive == 1
+      heard += out if channel.additive == 1
       heard
     end
 

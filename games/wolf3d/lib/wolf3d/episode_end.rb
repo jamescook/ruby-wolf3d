@@ -4,8 +4,13 @@ module Wolf3D
   # WHAT COMES AFTER YOU HAVE WON: the screen that says so, with the time you took over the episode
   # and what you averaged (Victory, wl_inter.cpp), and then the article the episode ends on.
   class EpisodeEnd
-    game_variables :page, :last_page, :base, :code, :kill, :secret, :treasure, :minutes, :seconds,
-                   saved: false
+    # The summary (wl_inter.cpp, Victory): the three ratios averaged over the episode's floors, and
+    # the time they took.
+    game_variables :kill, :secret, :treasure, :minutes, :seconds, saved: false
+    # The article: the page showing, and the first page past this episode's last.
+    game_variables :page, :last_page, saved: false
+    # #paint_page: where the page's letters begin in the table, and the letter being drawn.
+    game_variables :base, :code, saved: false
 
     # The original's Write(18, 2, STR_YOUWIN) and the rest, cut for a screen eighty pixels narrower.
     YOU_WIN = "YOU WIN!"
@@ -81,8 +86,10 @@ module Wolf3D
       @treasure = 0
       @minutes = 0
       @seconds = 0
+
       @page = 0
       @last_page = 0
+
       @base = 0
       @code = 0
       declare_articles

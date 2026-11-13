@@ -12,9 +12,27 @@ module Wolf3D
   # reads is a loop or a branch in it, and a number one method sets and another reads, or a loop
   # changes, is one of its game_variables.
   class FloorUnpacking
-    game_variables :floors, :outside, :doors, :levers, :secret_car, :exit_first, :exit_last, :started, :guards,
-                   :kills, :guard_kind, :guard_dir, :guard_patrolling, :guard_ambush, :guard_from, :pieces,
-                   :treasures, :pushed
+    # Reading the floors' planes (#unpack_planes): how many floors are unpacked, and whether the next
+    # one's header or planes lie outside GAMEMAPS, which ends the floors there.
+    game_variables :floors, :outside
+    # Counting what one floor's walk joins (#fill_world): its doors and its levers, and the cell of
+    # the secret lift's car, minus one where it has none.
+    game_variables :doors, :levers, :secret_car
+    # One floor's way out and start (#fill_rooms): the first and last exit cell, and whether the
+    # player's start has been written.
+    game_variables :exit_first, :exit_last, :started
+    # Counting one floor's guards (#fill_guards): how many stand there, and the men to kill on each
+    # setting.
+    game_variables :guards, :kills
+    # The guard a thing code puts down (#read_guard, #set_boss, #set_rank), which #write_guard
+    # writes: his kind, the way he faces, whether he patrols, whether he lies in wait, and the
+    # easiest setting he turns up on.
+    game_variables :guard_kind, :guard_dir, :guard_patrolling, :guard_ambush, :guard_from
+    # Counting what stands in one floor's rooms (#fill_pieces): every piece, and the treasures among
+    # them.
+    game_variables :pieces, :treasures
+    # Counting one floor's walls that move (#fill_pushwalls).
+    game_variables :pushed
 
     WIDTH = 64 # Cells across a floor, and down it
     CELLS = WIDTH * WIDTH
@@ -128,21 +146,27 @@ module Wolf3D
     def fill
       @floors = 0
       @outside = false
+
       @doors = 0
       @levers = 0
       @secret_car = -1
+
       @exit_first = -1
       @exit_last = 0
       @started = false
+
       @guards = 0
       @kills = Array.new(Guards::SETTINGS.length, 0)
+
       @guard_kind = -1
       @guard_dir = 0
       @guard_patrolling = 0
       @guard_ambush = 0
       @guard_from = 0
+
       @pieces = 0
       @treasures = 0
+
       @pushed = 0
       unpack_planes
       # The doors' pictures are the last eight pages before the sprites (Doors::DOOR_PICTURES), and

@@ -12,8 +12,19 @@ module Wolf3D
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
   # branch in it, and a number one method sets and another reads is one of its game_variables.
   class PictureUnpacking
-    game_variables :pages, :first_sprite, :first_sound, :page_start, :page_length, :left, :right, :top, :bottom,
-                   :post, :posts_ended, :post_end, :post_pixels, :post_begins
+    # VSWAP's header: its page count, the first sprite's page and the first sound's (wolf4sdl:
+    # id_pm.cpp, PM_Startup's ChunksInFile, PMSpriteStart and PMSoundStart).
+    game_variables :pages, :first_sprite, :first_sound
+    # The page being read (#read_page): where it starts in VSWAP and how long it is.
+    game_variables :page_start, :page_length
+    # The sprite being copied (#copy_sprite): its first and last columns, as its header gives them
+    # (wolf4sdl: wl_def.h, t_compshape's leftpix and rightpix), and the first and last rows a pixel
+    # has been written in.
+    game_variables :left, :right, :top, :bottom
+    # Walking one column's posts (#copy_column, #copy_post): where the next post is in the page,
+    # whether the column has ended, and the post's three words, its end row, its pixels' place less
+    # the start, and its start row.
+    game_variables :post, :posts_ended, :post_end, :post_pixels, :post_begins
 
     SIDE = Vswap::Texture::SIDE
     PAGE_BYTES = Vswap::Texture::BYTES
@@ -77,12 +88,15 @@ module Wolf3D
       @pages = @vswap.half(0)
       @first_sprite = @vswap.half(2)
       @first_sound = @vswap.half(4)
+
       @page_start = 0
       @page_length = 0
+
       @left = 0
       @right = 0
       @top = 0
       @bottom = 0
+
       @post = 0
       @posts_ended = false
       @post_end = 0

@@ -29,8 +29,18 @@ module Wolf3D
   # This file is game code (VBlank.require_game_file): an `if` on a number the routine reads is a
   # branch in it, and a number one method sets and another reads is one of its game_variables.
   class SoundUnpacking
-    game_variables :pages, :first_sound, :page_start, :page_length, :index_at, :index_length, :index_inside,
-                   :written, :length, :room, :page, :done
+    # VSWAP's header: its page count and the first sound's page (wolf4sdl: id_pm.cpp, PM_Startup's
+    # ChunksInFile and PMSoundStart).
+    game_variables :pages, :first_sound
+    # The page being read (#read_page): where it starts in VSWAP and how long it is.
+    game_variables :page_start, :page_length
+    # The index of the sounds, VSWAP's last page (wolf4sdl: id_pm.cpp, the DigiList PM_Startup
+    # reads): where it starts, how long it is, and whether it lies inside VSWAP.
+    game_variables :index_at, :index_length, :index_inside
+    # The sound being copied (#copy_sound): how many bytes are in its room so far, how long the
+    # index makes it, no longer than its room, how long its room is, the page it has got to, and
+    # whether it has ended.
+    game_variables :written, :length, :room, :page, :done
 
     # EACH SOUND'S ROOM_SAMPLES, in bytes: the longest that sound runs in any release this game reads,
     # counted off the copies (the index says them; the original's source does not). The six
@@ -65,12 +75,15 @@ module Wolf3D
       @sound_at = @b.table(:sound_at, SOUND_AT, width: :word)
       @pages = @vswap.half(0)
       @first_sound = @vswap.half(4)
+
       @page_start = 0
       @page_length = 0
+
       read_page(@pages - 1)
       @index_at = @page_start
       @index_length = @page_length
       @index_inside = @index_at + @index_length <= @vswap.size
+
       @written = 0
       @length = 0
       @room = 0

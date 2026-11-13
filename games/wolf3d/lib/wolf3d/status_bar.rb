@@ -34,7 +34,16 @@ module Wolf3D
   # painting regardless measures about a twentieth of the frame, nearly always to put back a
   # picture identical to the one already there.
   class StatusBar
-    game_variables :changed, :looks, :gun, :col_x, :col_y, :col_slot, :rule_half, :face, :remembered, saved: false
+    # #notice_a_change: whether a field painted with the whole bar moved, and what each live field
+    # showed when it was last painted.
+    game_variables :changed, :remembered, saved: false
+    # Which picture along its strip: the face's band of health, where that band's looks begin, and
+    # the gun (#draw_the_face, #draw_the_weapon).
+    game_variables :face, :looks, :gun, saved: false
+    # What #draw_from_strip hands a strip routine: where to draw, and which picture along the strip.
+    game_variables :col_x, :col_y, :col_slot, saved: false
+    # Half the column a groove between two fields is drawn at (#declare_rule).
+    game_variables :rule_half, saved: false
 
     # How many rows along the bottom it takes. The original gives its bar a fifth of the screen
     # and so does this.
@@ -276,12 +285,13 @@ module Wolf3D
 
       # What each live field showed when it was last painted, so a change can be noticed.
       @changed = 0
-      @face = 0
-      @looks = 0
-      @gun = 0
       @remembered = @shows.filter_map do |name, value|
         [name, -1] unless value.is_a?(Integer)
       end.to_h
+
+      @face = 0
+      @looks = 0
+      @gun = 0
       declare_parts
     end
 

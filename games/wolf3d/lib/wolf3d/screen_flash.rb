@@ -16,7 +16,11 @@ module Wolf3D
   # IT IS ONLY WORK WHEN IT MOVES. The picture on this screen is numbers into one table of colours, so
   # a tint rewrites the table, which costs nothing on a pass where the step has not changed.
   class ScreenFlash
-    game_variables :damage, :running, :red, :gold, :wanted, :bonus, :shown, saved: false
+    # The two counts, in sixths, and whether either is running (#hurt, #bonus).
+    game_variables :damage, :bonus, :running, saved: false
+    # The step each count comes to this pass, the step that should show, and the step the colour
+    # table holds now (#run, #show). Red's steps come first, then gold's.
+    game_variables :red, :gold, :wanted, :shown, saved: false
 
     # HOW FAR TOWARD THE COLOUR EACH STEP GOES, as a percentage. InitRedShifts builds six reds at one
     # eighth a step and three golds at one twentieth a step, which is why gold is a glance and red can
@@ -72,10 +76,11 @@ module Wolf3D
       @damage = 0
       @bonus = 0
       @running = 0
-      @shown = 0
+
       @red = 0
       @gold = 0
       @wanted = 0
+      @shown = 0
       @percent = b.table :flash_percent, [0] + REDS + GOLDS, width: :byte
       b.func(:the_flash_shows, fast: false) { show }
       b.func(:the_flash_runs, fast: false) { run }

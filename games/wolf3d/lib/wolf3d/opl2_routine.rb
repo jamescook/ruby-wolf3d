@@ -13,9 +13,25 @@ module Wolf3D
     Operator = Struct.new(:block, :fnum, :doubled_multiple, :key_scale_rate, :holds_sustain, :vibrato, :tremolo,
                           :level, :key_scale, :attack, :decay, :sustain, :release, :wave, :stage, :loss, :risen,
                           :phase, :step, :rise, :decay_fall, :release_fall, :scale_loss) do
-      game_variables :block, :fnum, :doubled_multiple, :key_scale_rate, :holds_sustain, :vibrato, :tremolo,
-                     :level, :key_scale, :attack, :decay, :sustain, :release, :wave, :stage, :loss, :risen,
-                     :phase, :step, :rise, :decay_fall, :release_fall, :scale_loss
+      # The pitch the operator's channel is set to (#tune): its octave and its frequency number.
+      game_variables :block, :fnum
+      # The settings written to the chip's CHAR_REGISTER: tremolo and vibrato on or off, whether the
+      # envelope holds at the sustain level while the key is down, whether the rates follow the key,
+      # and the frequency multiple, kept doubled so the half setting stays whole.
+      game_variables :tremolo, :vibrato, :holds_sustain, :key_scale_rate, :doubled_multiple
+      # The settings written to SCALE_REGISTER, ATTACK_REGISTER, SUSTAIN_REGISTER and WAVE_REGISTER:
+      # how quiet the operator is and how much quieter higher notes get, the envelope's four rates and
+      # levels, and which of the four waves it plays.
+      game_variables :level, :key_scale, :attack, :decay, :sustain, :release, :wave
+      # Worked out from the pitch and the settings by #retune, so #step does not work them out each
+      # sample: how far the phase moves a sample, how fast the attack rises, how fast decay and
+      # release fall, and how much quieter the key makes the operator.
+      game_variables :step, :rise, :decay_fall, :release_fall, :scale_loss
+      # The envelope as it moves (#move_envelope): its stage, how quiet it is now, and how far the
+      # attack has gone.
+      game_variables :stage, :loss, :risen
+      # Where the operator is in its wave.
+      game_variables :phase
     end
 
     # +b+ is the routine's builder. +prefix+ names this chip's tables apart from any other's, and
@@ -39,10 +55,13 @@ module Wolf3D
     def reset(operator)
       operator.block = 0
       operator.fnum = 0
-      operator.key_scale_rate = 0
-      operator.holds_sustain = 0
-      operator.vibrato = 0
+
       operator.tremolo = 0
+      operator.vibrato = 0
+      operator.holds_sustain = 0
+      operator.key_scale_rate = 0
+      operator.doubled_multiple = Opl2::DOUBLED_MULTIPLES[0]
+
       operator.level = 0
       operator.key_scale = 0
       operator.attack = 0
@@ -50,16 +69,18 @@ module Wolf3D
       operator.sustain = 0
       operator.release = 0
       operator.wave = 0
-      operator.risen = 0
-      operator.phase = 0
+
       operator.step = 0
       operator.rise = 0
       operator.decay_fall = 0
       operator.release_fall = 0
       operator.scale_loss = 0
-      operator.doubled_multiple = Opl2::DOUBLED_MULTIPLES[0]
+
       operator.stage = Opl2::OFF
       operator.loss = Opl2::SILENT << Opl2::ENVELOPE_BITS
+      operator.risen = 0
+
+      operator.phase = 0
       retune(operator)
     end
 

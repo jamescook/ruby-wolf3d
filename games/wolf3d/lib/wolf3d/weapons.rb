@@ -35,7 +35,13 @@ module Wolf3D
     game_variables in_hand: :weapon, chosen: :weapon_chosen, best: :weapon_best, stage: :weapon_stage,
                    wait: :weapon_wait
 
-    game_variables :next, :acted, :shape, :column, :wide, :at, saved: false
+    # The attack under way: the stage that comes after this one, and whether the weapon acted on
+    # this pass (#acted).
+    game_variables :next, :acted, saved: false
+    # #which_picture and #draw_the_strips: the frame of the twenty, then where its columns begin
+    # in the row of all of them; its first column holding anything, how many columns hold
+    # anything, and the column being drawn.
+    game_variables :shape, :column, :wide, :at, saved: false
 
     KNIFE = 0
     PISTOL = 1
@@ -208,11 +214,8 @@ module Wolf3D
       @last_column = columns.last_column
 
       @shape = 0
-
       @column = 0
-
       @wide = 0
-
       @at = 0
 
       # A ROUTINE, for the reason everything else that draws in this game is one: written into
