@@ -18,6 +18,8 @@ module Wolf3D
   # shows, which is EpisodeEnd, and BJ's run comes before all of it where his pictures are held. See
   # VictoryMarch.
   class Victory
+    game_variables won: :episode_won
+
     # White, out of the game's own 256, for words over whatever was last drawn.
     INK = 15
 
@@ -78,7 +80,8 @@ module Wolf3D
     private
 
     def declare
-      @won = @lasting.var :episode_won, 0
+      @won = 0
+      @lasting.keep @won
       @b.func(:after_a_victory, fast: false) { paint_words unless @menus_end_games }
     end
 

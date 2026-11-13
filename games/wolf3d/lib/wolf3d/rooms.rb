@@ -39,6 +39,8 @@ module Wolf3D
   # changed. That was worth believing until it was measured: noticing is one comparison inside a
   # walk the doors were doing anyway.
   class Rooms
+    game_variables :player_room
+
     game_variables :worked_out_for, :changed, saved: false
 
     # 0 IS NOT A ROOM. A wall belongs to none, and neither does a doorway or one of the ambush
@@ -172,7 +174,8 @@ module Wolf3D
       # THE ROOM THE PLAYER IS IN: the last one they were really standing in, which stays put
       # while they cross a doorway, because a doorway is in no room. A saved game holds it — see
       # #where_the_player_stands.
-      @player_room = @lasting.var :player_room, NOWHERE
+      @player_room = NOWHERE
+      @lasting.keep @player_room
       # WHICH ROOM THE OPEN ROOMS WERE LAST WORKED OUT FOR, so the next walk can tell whether it
       # would say anything new. It starts at one nothing can be in and the flag starts set, so the
       # first frame of the game does the walk however it starts. Declared with those values rather

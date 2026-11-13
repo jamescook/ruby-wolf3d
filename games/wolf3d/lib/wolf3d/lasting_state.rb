@@ -40,7 +40,11 @@ module Wolf3D
       @record = nil
     end
 
-    # A variable, declared and kept.
+    # A part's own variables, kept: each a `game_variables` instance variable read once it has its
+    # first number, which hands over the variable itself (`@lasting.keep @left`).
+    def keep(*variables) = variables.each { |variable| kept(variable.name) { variable } }
+
+    # A variable, declared and kept, for Player's record, whose fields are handed about as variables.
     def var(name, init) = kept(name) { @b.var(name, init) }
 
     # A list, declared and kept: every item, and how many there are.

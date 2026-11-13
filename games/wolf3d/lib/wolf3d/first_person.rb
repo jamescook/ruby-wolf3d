@@ -8,6 +8,9 @@ module Wolf3D
   # picture is stretched to it. Do that across the screen and a flat grid of cells looks like
   # rooms you can walk through.
   class FirstPerson
+    game_variables pulled: :lift_pulled, lift_secret: :lift_secret, lift_wait: :lift_wait,
+                   difficulty: :difficulty
+
     game_variables :ang, :walked, :eye_cell, :dist, :nx, :ny, saved: false
 
     # These are the view the game should have, not the view that happens to fit a frame.
@@ -646,12 +649,15 @@ module Wolf3D
       # WHICH CELL holds the lever that was pulled, so the walk can give that one cell the pulled
       # picture and leave the car's other levers alone. Minus one for none, because nought is a
       # real cell.
-      @pulled = @lasting.var :lift_pulled, -1
+      @pulled = -1
+      @lasting.keep @pulled
       # ...WHETHER IT WAS THE SECRET LIFT, which is a different question and is the one that
       # decides where you come out. Read off where the player was standing, not off the lever.
-      @lift_secret = @lasting.var :lift_secret, 0
+      @lift_secret = 0
+      @lasting.keep @lift_secret
       # ...and HOW LONG until the floor ends.
-      @lift_wait = @lasting.var :lift_wait, 0
+      @lift_wait = 0
+      @lasting.keep @lift_wait
       declare_the_way_out
 
       @pictures = @source.view_pictures(b)
@@ -686,7 +692,8 @@ module Wolf3D
       # A cartridge with no menu to ask on plays at the setting the original's own menu opens
       # on, so the guards a test cartridge stands up are the guards a player gets by pressing
       # the button twice.
-      @difficulty = @lasting.var :difficulty, Guards.number_of(Guards::DEFAULT_DIFFICULTY)
+      @difficulty = Guards.number_of(Guards::DEFAULT_DIFFICULTY)
+      @lasting.keep @difficulty
 
       # THE FLASH BEFORE WHAT SETS IT OFF OR PUTS IT AWAY: a pickup, a hit, a death.
       @flash = ScreenFlash.new(build: b)

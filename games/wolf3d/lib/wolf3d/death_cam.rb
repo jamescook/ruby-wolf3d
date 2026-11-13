@@ -17,6 +17,8 @@ module Wolf3D
   # in as well, but it is a fizzle to a whole new picture rather than to one colour, so here the
   # picture simply changes. See Fizzle.
   class DeathCam
+    game_variables kill_x: :kill_x, kill_y: :kill_y
+
     game_variables :showing_words, :count, :boss, :blink, :boss_x, :boss_y, :dx, :dy, :best, :this, :far,
                    :angle, :done, :stage, :holding, saved: false
 
@@ -131,8 +133,10 @@ module Wolf3D
       @count = 0
       @boss = 0
       @blink = 0
-      @kill_x = @lasting.var :kill_x, 0.0
-      @kill_y = @lasting.var :kill_y, 0.0
+      @kill_x = 0.0
+      @lasting.keep @kill_x
+      @kill_y = 0.0
+      @lasting.keep @kill_y
       @boss_x = 0.0
       @boss_y = 0.0
       @dx = 0.0

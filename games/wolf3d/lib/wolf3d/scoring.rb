@@ -11,6 +11,8 @@ module Wolf3D
   #
   # THE ORIGINAL PLAYS ITS ONE-UP SOUND HERE, which is one of the AdLib effects this game has not got.
   class Scoring
+    game_variables next: :next_extra
+
     game_variables :paying, saved: false
 
     # EXTRAPOINTS, wl_def.h.
@@ -26,7 +28,8 @@ module Wolf3D
       @b = build
       @player = player
       @lives = lives
-      @next = lasting.var :next_extra, EVERY
+      @next = EVERY
+      lasting.keep @next
       @paying = 0
       @b.func(:the_score_goes_up) { pay_them }
     end

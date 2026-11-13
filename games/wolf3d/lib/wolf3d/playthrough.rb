@@ -9,6 +9,8 @@ module Wolf3D
   # themselves: this calls a small fixed set of steps on the +world+, which is the view in the
   # real game.
   class Playthrough
+    game_variables :began_on, floor: :floor, floor_score: :floor_score
+
     game_variables :secret, saved: false
 
     # +lasting+ is what a saved game holds (see LastingState), and the three numbers below are in
@@ -22,13 +24,16 @@ module Wolf3D
       @held = { score: score }
       @world = world
       # WHICH FLOOR IS BEING PLAYED, counting from nought in the order the cartridge holds them.
-      @floor = lasting.var :floor, 0
+      @floor = 0
+      lasting.keep @floor
       # ...and THE SCORE YOU WALKED ONTO IT WITH, the original's oldscore. A death puts the score
       # back to it, and only finishing a floor moves it on, so a death takes back what was scored
       # on the floor it happened on.
-      @floor_score = lasting.var :floor_score, 0
+      @floor_score = 0
+      lasting.keep @floor_score
       # ...and THE FLOOR THIS GAME BEGAN ON, which is where a new game asked for no floor begins.
-      @began_on = lasting.var :began_on, 0
+      @began_on = 0
+      lasting.keep @began_on
       # ...and WHETHER THE LIFT WAS CALLED BY THE SECRET LEVER, copied in as it is called, and
       # where it takes you from each floor. Only a cartridge holding a secret floor asks.
       if secret_floor?

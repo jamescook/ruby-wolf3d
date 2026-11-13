@@ -15,6 +15,8 @@ module Wolf3D
   # all of itself on are simply not drawn once the fizzle starts, so the whole frame is free for
   # the dots.
   class Dying
+    game_variables state: :dying
+
     game_variables :kill_x, :kill_y, :was, saved: false
 
     # What the player is doing. Everything else in the game asks this before it moves.
@@ -153,7 +155,8 @@ module Wolf3D
 
     def declare
       b = @b
-      @state = @lasting.var :dying, ALIVE
+      @state = ALIVE
+      @lasting.keep @state
       @kill_x = 0.0
       @kill_y = 0.0
 

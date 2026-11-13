@@ -13,6 +13,8 @@ module Wolf3D
   # to the view, which is where their starting values were worked out in the first place. This
   # says WHEN, and asks the playthrough for another life or a new game.
   class Lives
+    game_variables left: :lives, ended: :game_over
+
     # How many goes a new game hands you, which is the original's number.
     START = 3
 
@@ -48,13 +50,13 @@ module Wolf3D
     # it because START means two things while a game is on, and this is what tells them
     # apart: it opens the menu while you are playing, and starts another game once you are
     # not.
-    def over = @ended
+    def over = @dying ? @ended : nil
 
     # WHAT A NEW GAME PUTS BACK HERE: the goes back to three, and a game that is not over. Every
     # new game does this, however it was started — see Playthrough.
     def start_again
       @left = START
-      @ended = 0 if @ended
+      @ended = 0 if @dying
     end
 
     # A GAME CAN ALSO END BY BEING WON, and when it does the flag this keeps is the one that has
@@ -65,7 +67,7 @@ module Wolf3D
     # It does NOT queue the words above — a won episode has its own, and they are drawn over the
     # last picture of the game rather than over the red a death leaves. See {Victory}.
     def ended_by_winning
-      @ended = 1 if @ended
+      @ended = 1 if @dying
     end
 
     # ANOTHER GO, which is what the one-up lying on the floor hands you. The original stops at
@@ -144,12 +146,14 @@ module Wolf3D
     end
 
     def declare
-      @left = @lasting.var :lives, START
+      @left = START
+      @lasting.keep @left
       return unless @dying
 
       # Whether the game has ended. It starts at nothing: a game that has not been played
       # cannot be over.
-      @ended = @lasting.var :game_over, 0
+      @ended = 0
+      @lasting.keep @ended
 
       # The words, put up when the game ends and then left there. `keep_showing` decides how
       # many paints that takes: this game draws on a tear-free screen, where a picture painted

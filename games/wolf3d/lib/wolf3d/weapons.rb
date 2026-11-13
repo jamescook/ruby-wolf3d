@@ -32,6 +32,9 @@ module Wolf3D
   # THERE IS NO KICK AND NO FISTS, which is the thing everyone half remembers. The knife IS the
   # melee, and it is weapon one. Doom has the fists.
   class Weapons
+    game_variables in_hand: :weapon, chosen: :weapon_chosen, best: :weapon_best, stage: :weapon_stage,
+                   wait: :weapon_wait
+
     game_variables :next, :acted, saved: false
 
     KNIFE = 0
@@ -172,14 +175,19 @@ module Wolf3D
       # WHAT IS IN YOUR HANDS, WHAT YOU CHOSE, AND THE BEST YOU HAVE FOUND. Three numbers where
       # one looks like enough — see the note at the top of this file for why the middle one is
       # the one that matters.
-      @in_hand = @lasting.var :weapon, @starting
-      @chosen = @lasting.var :weapon_chosen, @starting
-      @best = @lasting.var :weapon_best, @starting
+      @in_hand = @starting
+      @lasting.keep @in_hand
+      @chosen = @starting
+      @lasting.keep @chosen
+      @best = @starting
+      @lasting.keep @best
 
       # WHERE THE ATTACK HAS GOT TO, and how long this stage has left. At rest is a stage of
       # minus one rather than a flag of its own, so "am I attacking" is one comparison.
-      @stage = @lasting.var :weapon_stage, AT_REST
-      @wait = @lasting.var :weapon_wait, 0
+      @stage = AT_REST
+      @lasting.keep @stage
+      @wait = 0
+      @lasting.keep @wait
       # ...and which stage comes next, worked out before the stage acts so that an automatic can
       # send itself back a step from inside its own arm.
       @next = 0
