@@ -301,8 +301,8 @@ class TestPlaythrough < Minitest::Test
     assert_raises(ArgumentError) do
       VBlank.game("PLAY", consoles: %i[gba]) do
         screen :bitmap
-        play = Playthrough.new(build: self, floors: floors, score: var(:score, 0),
-                               world: CountingWorld.new(self))
+        player = Wolf3D::Player.declare(build: self, x: 8.5, y: 8.5, angle: 0)
+        play = Playthrough.new(build: self, floors: floors, player: player, world: CountingWorld.new(self))
         game_loop { asking.call(play) }
       end.program
     end
@@ -338,12 +338,12 @@ class TestPlaythrough < Minitest::Test
     @counting_programs ||= {}
     @counting_programs[[count, on, from, tens]] ||= VBlank.game("PLAY", consoles: %i[gba]) do
       screen :bitmap
-      score = var :score, 0
+      player = Wolf3D::Player.declare(build: self, x: 8.5, y: 8.5, angle: 0)
       picked = on && var(:picked, on)
       secret = var :secret, 0
-      play = Playthrough.new(build: self, floors: floors, score: score, world: CountingWorld.new(self))
+      play = Playthrough.new(build: self, floors: floors, player: player, world: CountingWorld.new(self))
       game_loop do
-        score += POINTS if pressed(EVENTS[:score])
+        player.score += POINTS if pressed(EVENTS[:score])
         play.start(:new_game, floor: picked) if pressed(EVENTS[:new_game])
         play.start(:new_game) if pressed(EVENTS[:again])
         play.start(:another_life) if pressed(EVENTS[:death])

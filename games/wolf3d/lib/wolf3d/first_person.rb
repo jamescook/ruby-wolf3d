@@ -684,7 +684,7 @@ module Wolf3D
       # #reset_game and the four after it), and it writes them into routine bodies, which the
       # framework builds only after this whole block has run. So it can be made here, before the
       # parts those steps reach.
-      @playthrough = Playthrough.new(build: b, floors: @floors, score: @player.score, world: self,
+      @playthrough = Playthrough.new(build: b, floors: @floors, player: @player, world: self,
                                      lasting: @lasting)
       @floor = @playthrough.floor
       # ...and the player put down where the first floor starts, at power-on, where the build could

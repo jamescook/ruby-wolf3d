@@ -13,15 +13,12 @@ module Wolf3D
 
     game_variables :secret, saved: false
 
-    # +lasting+ is what a saved game holds (see LastingState), and the three numbers below are in
-    # it.
-    def initialize(build:, floors:, score:, world:, lasting: LastingState.new(build:))
+    # +player+ is whose score a new game clears and a death puts back (Player). +lasting+ is what a
+    # saved game holds (see LastingState), and the three numbers below are in it.
+    def initialize(build:, floors:, player:, world:, lasting: LastingState.new(build:))
       @b = build
       @floors = floors
-      @score = score
-      # ...and the same variable in a Hash, which is what lets a death put a number back in it. It
-      # was handed in, so `@score = @floor_score` would only move this name to the other variable.
-      @held = { score: score }
+      @player = player
       @world = world
       # WHICH FLOOR IS BEING PLAYED, counting from nought in the order the cartridge holds them.
       @floor = 0
@@ -114,12 +111,12 @@ module Wolf3D
         case reason
         when :new_game
           @floor = @began_on
-          @score = 0
+          @player.score = 0
           @floor_score = 0
-        when :another_life then @held[:score] = @floor_score
+        when :another_life then @player.score = @floor_score
         when :next_floor
           choose_next_floor
-          @floor_score = @score
+          @floor_score = @player.score
         end
         # ...and :resume changes nothing first: the save already said which floor, and the score.
         STEPS.fetch(reason).each { |step| @b.call step_routine(step) }

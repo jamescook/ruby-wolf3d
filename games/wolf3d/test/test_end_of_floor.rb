@@ -42,7 +42,7 @@ class TestEndOfFloor < Minitest::Test
     VBlank.game("TALLY", consoles: %i[gba]) do
       screen :bitmap, tear_free: true
       player = Wolf3D::Player.declare(build: self, x: 8.5, y: 8.5, angle: 0)
-      playthrough = Wolf3D::Playthrough.new(build: self, floors: floors, score: player.score,
+      playthrough = Wolf3D::Playthrough.new(build: self, floors: floors, player: player,
                                             world: World.new(self))
       scoring = Wolf3D::Scoring.new(build: self, player: player, lives: Wolf3D::Lives.new(build: self, playthrough: playthrough),
                                     lasting: Wolf3D::LastingState.new(build: self))
