@@ -9,7 +9,7 @@ module Wolf3D
   # with no keyboard has nothing to type on. What a slot holds is read straight out of the save, so a
   # label can never disagree with what loading it would give you.
   class SavedGames
-    game_variables :slot, saved: false
+    game_variables :slot, :labels, :episodes, :numbers, saved: false
 
     # SEVEN, WHERE THE ORIGINAL HAS TEN, and it is the console's limit. The busiest floor decides how
     # big a save is, every save is kept twice so a power cut cannot lose it, and each of the two
@@ -38,9 +38,9 @@ module Wolf3D
       @b.saves_keep_everything except: left_out
       @episode_of = @b.table :save_episode, floors.map { |f| (f.index / Floors::PER_EPISODE) + 1 }, width: :byte
       @number_of = @b.table :save_floor_number, floors.map { |f| (f.index % Floors::PER_EPISODE) + 1 }, width: :byte
-      @labels = (0...SLOTS).map { |n| @b.var :"_save_label_#{n}", 0 }
-      @episodes = (0...SLOTS).map { |n| @b.var :"_save_episode_#{n}", 0 }
-      @numbers = (0...SLOTS).map { |n| @b.var :"_save_number_#{n}", 0 }
+      @labels = Array.new(SLOTS, 0)
+      @episodes = Array.new(SLOTS, 0)
+      @numbers = Array.new(SLOTS, 0)
       @slot = 0
     end
 
@@ -53,12 +53,11 @@ module Wolf3D
     # than remembered, because reading a slot finishes any save still being written to it.
     def refresh_labels
       (0...SLOTS).each do |n|
-        hands = { label: @labels[n], episode: @episodes[n], number: @numbers[n] }
-        hands[:label] = 0
+        @labels[n] = 0
         if @record[n].good?
-          hands[:label] = 1
-          hands[:episode] = @episode_of[@record[n].peek(@playthrough.floor)]
-          hands[:number] = @number_of[@record[n].peek(@playthrough.floor)]
+          @labels[n] = 1
+          @episodes[n] = @episode_of[@record[n].peek(@playthrough.floor)]
+          @numbers[n] = @number_of[@record[n].peek(@playthrough.floor)]
         end
       end
     end

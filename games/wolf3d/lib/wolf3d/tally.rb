@@ -38,7 +38,7 @@ module Wolf3D
   # start" anywhere in Wolfenstein.
   class Tally
     game_variables :stage, :row_pause, :shown_time_left, :showing, :bonus, :shown_bonus, :time_left,
-                   :minutes, :seconds, saved: false
+                   :minutes, :seconds, :ratios, :shown, saved: false
 
     # The ground, the original's VIEWCOLOR out of its 256 (wl_menu.h), which the lettering's own
     # pictures are painted on. The ink is for a release with no lettering to read.
@@ -171,8 +171,8 @@ module Wolf3D
       @shown_time_left = 0
       @minutes = 0
       @seconds = 0
-      @ratios = RATIOS.keys.to_h { |name| [name, @b.var(:"_#{name}_ratio", 0)] }
-      @shown = RATIOS.keys.to_h { |name| [name, @b.var(:"_#{name}_shown", 0)] }
+      @ratios = RATIOS.keys.to_h { |name| [name, 0] }
+      @shown = RATIOS.keys.to_h { |name| [name, 0] }
       numbers = @floors.map { |floor| map_of(floor) + 1 }
       @floor_digits = numbers.max.to_s.length
       @floor_number = @b.table :tally_floor_number, numbers, width: :byte

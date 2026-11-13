@@ -147,7 +147,7 @@ module Wolf3D
       @angle = 0
       @done = 0
       @picture = b.keep_showing(:death_cam_words) { paint }
-      @dots = Fizzle.new(build: b, name: :cam, colour: Palette.game[GROUND])
+      @dots = Fizzle.new(build: b, colour: Palette.game[GROUND])
       b.func(:death_cam_fizzle) { @dots.scatter_dots }
       b.func(:the_death_cam_waits, fast: false) { wait }
       b.func(:the_death_cam_lines_up, fast: false) { line_up }

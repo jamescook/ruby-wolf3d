@@ -34,7 +34,7 @@ module Wolf3D
   # painting regardless measures about a twentieth of the frame, nearly always to put back a
   # picture identical to the one already there.
   class StatusBar
-    game_variables :changed, :looks, :gun, :col_x, :col_y, :col_slot, :rule_half, :face, saved: false
+    game_variables :changed, :looks, :gun, :col_x, :col_y, :col_slot, :rule_half, :face, :remembered, saved: false
 
     # How many rows along the bottom it takes. The original gives its bar a fifth of the screen
     # and so does this.
@@ -280,7 +280,7 @@ module Wolf3D
       @looks = 0
       @gun = 0
       @remembered = @shows.filter_map do |name, value|
-        [name, @b.var(:"_bar_last_#{name}", -1)] unless value.is_a?(Integer)
+        [name, -1] unless value.is_a?(Integer)
       end.to_h
       declare_parts
     end

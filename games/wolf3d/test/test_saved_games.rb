@@ -34,7 +34,7 @@ class TestSavedGames < Minitest::Test
     run = Reference.new.input_each_frame { |f| TO_LOAD_SCREEN.fetch(f, []) }.run(cartridge, frames: 60)
 
     assert_equal Menus::LOADING, run[:menus_screen]
-    assert_equal [0] * Saved::SLOTS, (0...Saved::SLOTS).map { |n| run[:"_save_label_#{n}"] }
+    assert_equal [0] * Saved::SLOTS, (0...Saved::SLOTS).map { |n| run[:"saved_games_labels_#{n}"] }
   end
 
   def test_picking_an_empty_slot_loads_nothing
@@ -59,10 +59,10 @@ class TestSavedGames < Minitest::Test
   def test_a_saved_slot_is_labelled_with_its_episode_and_floor
     run = power_on_and_open_load_screen
 
-    assert_equal 1, run[:_save_label_0]
-    assert_equal 1, run[:_save_episode_0]
-    assert_equal 1, run[:_save_number_0]
-    assert_equal 0, run[:_save_label_1]
+    assert_equal 1, run[:saved_games_labels_0]
+    assert_equal 1, run[:saved_games_episodes_0]
+    assert_equal 1, run[:saved_games_numbers_0]
+    assert_equal 0, run[:saved_games_labels_1]
   end
 
   def test_a_load_puts_you_back_where_you_saved
@@ -111,7 +111,7 @@ class TestSavedGames < Minitest::Test
     run = Verifier.new(second, frames: 40, vars: again.var_addresses, save: image)
 
     assert_equal Menus::LOADING, run.var(:menus_screen)
-    assert_equal 1, run.var(:_save_label_0), "the first slot holds a game"
+    assert_equal 1, run.var(:saved_games_labels_0), "the first slot holds a game"
   end
 
   def test_nothing_is_saved_without_being_asked
@@ -120,7 +120,7 @@ class TestSavedGames < Minitest::Test
     run = Reference.new(save: image).input_each_frame { |f| TO_LOAD_SCREEN.fetch(f, []) }
                    .run(cartridge(from: :notice), frames: 60)
 
-    assert_equal 0, run[:_save_label_0]
+    assert_equal 0, run[:saved_games_labels_0]
   end
 
   private

@@ -173,7 +173,7 @@ module Wolf3D
       @held = 0
       @was = 0
 
-      @dots = Fizzle.new(build: b, name: :dying, colour: Palette.game[INK])
+      @dots = Fizzle.new(build: b, colour: Palette.game[INK])
       declare_the_scattering
     end
 

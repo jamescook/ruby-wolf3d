@@ -38,6 +38,8 @@ module Wolf3D
   # WHAT THIS CANNOT DO is dot over to a PICTURE. The dots are one flat colour, and nothing the
   # framework offers reads a pixel of one picture to put it on another.
   class Fizzle
+    game_variables :walkers, :lead_done, :lag_done, :spot, saved: false
+
     ACROSS = FirstPerson::ACROSS
     DOWN = FirstPerson::VIEW_H
     PIXELS = ACROSS * DOWN
@@ -65,25 +67,22 @@ module Wolf3D
     FRAMES = 60
     PER_FRAME = ((MODULUS - 1) / FRAMES) + 1
 
-    # +name+ tells this fizzle's variables from another's. +colour+ goes in here because a drawing
-    # verb has to be told its colour while the cartridge is built, so a second colour is a second
-    # one of these.
-    def initialize(build:, name:, colour:)
+    # +colour+ goes in here because a drawing verb has to be told its colour while the cartridge is
+    # built, so a second colour is a second one of these. Each keeps variables of its own.
+    def initialize(build:, colour:)
       @b = build
       @colour = colour
-      @lead = @b.var :"_#{name}_lead", 1
-      @lag = @b.var :"_#{name}_lag", 1
-      @walkers = { lead: @lead, lag: @lag } # a Hash, so that #scatter can change either
-      @lead_done = @b.var :"_#{name}_lead_done", 0
-      @lag_done = @b.var :"_#{name}_lag_done", 0
-      @spot = @b.var :"_#{name}_spot", 0
+      @walkers = { lead: 1, lag: 1 } # a Hash, so that #scatter can change either
+      @lead_done = 0
+      @lag_done = 0
+      @spot = 0
     end
 
     # BACK TO THE BEGINNING. They start at 1 because nought is the one number a step like theirs can
     # never leave.
     def start_again
-      @lead = 1
-      @lag = 1
+      @walkers[:lead] = 1
+      @walkers[:lag] = 1
       @lead_done = 0
       @lag_done = 0
     end

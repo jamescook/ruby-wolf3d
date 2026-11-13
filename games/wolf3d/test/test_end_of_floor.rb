@@ -87,14 +87,14 @@ class TestEndOfFloor < Minitest::Test
   def test_each_percentage_is_what_was_found_of_what_there_was
     run = finish_floor(kills: 1, kill_total: 4, secrets: 1, secret_total: 2, treasures: 3, treasure_total: 4)
 
-    assert_equal 25, run[:_kill_ratio]
-    assert_equal 50, run[:_secret_ratio]
-    assert_equal 75, run[:_treasure_ratio]
+    assert_equal 25, run[:tally_ratios_kill]
+    assert_equal 50, run[:tally_ratios_secret]
+    assert_equal 75, run[:tally_ratios_treasure]
   end
 
   # kr = (killcount * 100) / killtotal, on whole numbers: two out of three is 66, not 67.
   def test_a_percentage_is_rounded_down
-    assert_equal 66, finish_floor(kills: 2, kill_total: 3)[:_kill_ratio]
+    assert_equal 66, finish_floor(kills: 2, kill_total: 3)[:tally_ratios_kill]
   end
 
   # The original tests each total before it divides, and that is what a floor with no secrets on
@@ -102,7 +102,7 @@ class TestEndOfFloor < Minitest::Test
   def test_a_floor_with_nothing_to_find_is_nought_per_cent
     run = finish_floor
 
-    assert_equal [0, 0, 0], run.then { [_1[:_kill_ratio], _1[:_secret_ratio], _1[:_treasure_ratio]] }
+    assert_equal [0, 0, 0], run.then { [_1[:tally_ratios_kill], _1[:tally_ratios_secret], _1[:tally_ratios_treasure]] }
     assert_equal 0, run[:tally_bonus]
   end
 
@@ -163,9 +163,9 @@ class TestEndOfFloor < Minitest::Test
 
     assert_operator early[:tally_shown_bonus], :>, 0, "the par bonus is climbing first"
     assert_operator early[:tally_shown_bonus], :<, 30_000
-    assert_equal 0, early[:_kill_shown], "and the kills wait their turn"
+    assert_equal 0, early[:tally_shown_kill], "and the kills wait their turn"
     assert_equal 30_000, done[:tally_shown_bonus]
-    assert_equal [50, 50], [done[:_kill_shown], done[:_secret_shown]]
+    assert_equal [50, 50], [done[:tally_shown_kill], done[:tally_shown_secret]]
   end
 
   # Each hundred per cent lands on the bonus as its figure finishes (wl_inter.cpp), not before.
@@ -190,7 +190,7 @@ class TestEndOfFloor < Minitest::Test
     run = finish_floor(pressing: press_on(LIFT_ARRIVES + 2), frames: LIFT_ARRIVES + 5, kills: 1, kill_total: 1)
 
     assert_equal 1, run[:tally_showing], "the screen is still up"
-    assert_equal 100, run[:_kill_shown], "with every figure at its end"
+    assert_equal 100, run[:tally_shown_kill], "with every figure at its end"
     assert_equal 10_000, run[:tally_shown_bonus]
     assert_equal 10_000, run[:score], "and paid, as if it had counted all the way"
   end
@@ -211,7 +211,7 @@ class TestEndOfFloor < Minitest::Test
     prompt = Reference.new.input_each_frame(&lift).run(program, frames: 7)
     late = Reference.new.input_each_frame(&lift).frames_each_pass { 2 }.run(program, frames: 7)
 
-    assert_operator late[:_kill_shown], :>=, 2 * prompt[:_kill_shown]
+    assert_operator late[:tally_shown_kill], :>=, 2 * prompt[:tally_shown_kill]
   end
 
   # --- the clock and par ---

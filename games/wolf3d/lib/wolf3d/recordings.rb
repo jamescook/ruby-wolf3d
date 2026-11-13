@@ -113,6 +113,8 @@ module Wolf3D
 
     # THE RECORDINGS AS THE PACK HOLDS THEM, every one in its room, with its length beside it.
     class Packed
+      game_variables :held_count, :held_left, :held_picked, saved: false
+
       def initialize(build, pack)
         @b = build
         @pack = pack
@@ -139,9 +141,6 @@ module Wolf3D
       # the end, which names nothing, when the copy has none.
       def roll_held_place(chunks)
         Recordings.require_fair_roll!(chunks)
-        @held_count ||= @b.var(:_recordings_held_count, 0)
-        @held_left ||= @b.var(:_recordings_held_left, 0)
-        @held_picked ||= @b.var(:_recordings_held_picked, 0)
         @held_count = 0
         chunks.each { |chunk| @held_count += 1 if sound_lengths[chunk] > 0 }
         @held_left = @b.rand(0...ROLL_SPAN) * @held_count / ROLL_SPAN
