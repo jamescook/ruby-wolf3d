@@ -279,14 +279,14 @@ module Wolf3D
       @song_wanted = @music.song_index(Music::INTRO_SONG) if @scores_lead_to == TITLE
     end
 
-    def between_floors? = @view.between_floors ? @view.between_floors == 1 : false
+    def between_floors? = @view.between_floors.nil? ? false : @view.between_floors == 1
 
     # THE ORIGINAL STOPS THE MUSIC BEFORE A DEATH (StopMusic, wl_game.cpp) and starts the floor's song
     # from the top on the next life, which naming it again does here.
     def player_falling?
-      return false unless @view.dying || @view.over
+      return false if @view.dying.nil? && @view.over.nil?
 
-      (@view.dying ? @view.dying != 0 : false) || (@view.over ? @view.over != 0 : false)
+      (@view.dying.nil? ? false : @view.dying != 0) || (@view.over.nil? ? false : @view.over != 0)
     end
 
     def cycle_sound_setting
@@ -616,7 +616,7 @@ module Wolf3D
 
     # AN EPISODE WON GOES STRAIGHT TO THE SCREEN THAT SAYS SO (the original's ex_victorious).
     def show_the_win
-      return unless @view.won
+      return if @view.won.nil?
 
       if @view.won == 1 && @going_to == NOWHERE
         @episode_end.add_up_the_episode
@@ -665,7 +665,7 @@ module Wolf3D
 
     # START ON A GAME OVER, which a cartridge with nothing on it to kill you does not have.
     def finish_game_on_start
-      return unless @view.over
+      return if @view.over.nil?
 
       finish_game if @view.over == 1 && @b.pressed(:start) && @going_to == NOWHERE
     end

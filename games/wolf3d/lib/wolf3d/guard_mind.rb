@@ -309,7 +309,7 @@ module Wolf3D
     # WHICH FLOORS AND WHICH KINDS CAN MAKE IT. A cartridge holding no tenth floor pays nothing.
     def declare_rare_scream(rows)
       tenth = @floors&.map { |floor| floor.index % Floors::PER_EPISODE == Playthrough::SECRET_FLOOR ? 1 : 0 } || []
-      return unless tenth.include?(1) && @floor
+      return if !tenth.include?(1) || @floor.nil?
 
       @rare_scream_floor = @b.table :guard_rare_scream_floor, tenth, width: :byte
       @rare_scream_kind = @b.table :guard_rare_scream_kind,

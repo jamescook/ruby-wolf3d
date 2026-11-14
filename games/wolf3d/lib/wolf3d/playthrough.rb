@@ -53,8 +53,8 @@ module Wolf3D
     # the lift.
     def start(reason, floor: nil, secret: nil)
       check_request!(reason, floor, secret)
-      @began_on = floor if floor
-      @secret = secret if secret_floor? && secret
+      @began_on = floor unless floor.nil?
+      @secret = secret if secret_floor? && !secret.nil?
       @b.call routine_for(reason)
     end
 
@@ -213,7 +213,7 @@ module Wolf3D
         raise ArgumentError, "Play cannot start for #{reason.inspect}. " \
                              "The reasons are #{STEPS.keys.map(&:inspect).join(', ')}."
       end
-      if floor && reason != :new_game
+      if !floor.nil? && reason != :new_game
         raise ArgumentError, "Only a new game begins on a floor that you choose. " \
                              "To fix this, remove floor: from start(#{reason.inspect})."
       end
@@ -221,7 +221,7 @@ module Wolf3D
         raise ArgumentError, "This cartridge holds #{@floors.count} floors, so floor #{floor} " \
                              "does not exist. Give a floor from 0 to #{@floors.count - 1}."
       end
-      if secret && reason != :next_floor
+      if !secret.nil? && reason != :next_floor
         raise ArgumentError, "A lever calls only the lift. " \
                              "To fix this, remove secret: from start(#{reason.inspect})."
       end
